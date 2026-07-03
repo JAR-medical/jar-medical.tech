@@ -67,8 +67,7 @@ if you want LLM structuring.
 ### 2. Markers
 
 ```bash
-source .venv-client/bin/activate   # see below
-python tools/generate_markers.py --count 24 --size-mm 40
+./.venv-client/bin/python tools/generate_markers.py --count 24 --size-mm 40
 ```
 
 Print `markers_out/sheet_*.png` at 300 DPI, laminate, deploy on patients.
@@ -76,10 +75,13 @@ Print `markers_out/sheet_*.png` at 300 DPI, laminate, deploy on patients.
 ### 3. Paramedic client (AR simulation on a Mac)
 
 ```bash
-python3 -m venv .venv-client && source .venv-client/bin/activate
-pip install -r requirements/client.txt
-python -m client.main --hub http://<hub-ip>:8087 --medic-id RTW-1
+uv venv --python 3.12 .venv-client
+uv pip install --python .venv-client -r requirements/client.txt
+./.venv-client/bin/python -m client.main --hub http://<hub-ip>:8087 --medic-id RTW-1
 ```
+
+(Note: uv-managed Python builds cannot create venvs via plain
+`python3.12 -m venv` — always go through `uv venv`.)
 
 The webcam plays the role of the glasses camera. Point it at a printed
 marker: the client claims/fetches the patient from the hub and prints the

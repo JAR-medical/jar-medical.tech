@@ -47,7 +47,14 @@ def render_marker_tile(dictionary, marker_id: int, size_mm: float) -> np.ndarray
         ((tile_w - text_w) // 2, quiet + marker_px + (label_h + text_h) // 2),
         cv2.FONT_HERSHEY_SIMPLEX, scale, 0, thickness, cv2.LINE_AA,
     )
-    cv2.rectangle(tile, (0, 0), (tile_w - 1, tile_h - 1), 0, 1)
+    # Cut guides as corner crop marks only. A full frame (even light gray)
+    # registers as a candidate quad in the ArUco detector and suppresses
+    # the marker inside it — crop marks cannot form a closed contour.
+    tick = mm_to_px(2)
+    for x, dx in ((0, 1), (tile_w - 1, -1)):
+        for y, dy in ((0, 1), (tile_h - 1, -1)):
+            cv2.line(tile, (x, y), (x + dx * tick, y), 0, 1)
+            cv2.line(tile, (x, y), (x, y + dy * tick), 0, 1)
     return tile
 
 
