@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriARge — Einsatzleitung</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">▲</span>
+      <h1>TriARge <span class="sub">Einsatzleitung</span></h1>
+    </div>
+    <div class="header-status">
+      <div class="counts" id="counts"></div>
+      <button id="radio-toggle" class="radio-btn" title="Sprechfunk-Analyse (Mikrofon/AUX)">
+        ● Funk aus
+      </button>
+      <span class="pill" id="sync-pill">lokal</span>
+      <span class="pill" id="ws-pill">verbinde…</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="board" class="board" aria-label="Patientenübersicht"></section>
+
+    <aside class="sidebar">
+      <h2>Sprechfunk</h2>
+      <div id="radio-log" class="radio-log">
+        <p class="muted">Noch keine Transmissionen.</p>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="patient-dialog">
+    <div id="patient-detail"></div>
+    <form method="dialog"><button class="close-btn">Schließen</button></form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

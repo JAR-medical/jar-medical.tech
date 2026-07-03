@@ -1,0 +1,8 @@
+# Optional local AI stack for the hub.
+# The hub runs without these (STT/structuring degrade gracefully),
+# but voice protocoling and radio analysis need them.
+#
+# NOTE: faster-whisper requires Python <= 3.12 for prebuilt ctranslate2
+# wheels on macOS at the time of writing. Use a 3.11/3.12 venv for the hub
+# if you want local speech-to-text.
+faster-whisper>=1.0
