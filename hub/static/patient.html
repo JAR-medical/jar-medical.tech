@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient — TriARge</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { padding: 18px; }
+    .patient-page { max-width: 720px; margin: 0 auto; }
+    .live-indicator { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="patient-page">
+    <div class="detail-head">
+      <h3 id="title">Patient</h3>
+      <div>
+        <span class="pill live-indicator" id="live-pill">verbinde…</span>
+        <span class="cat-label" id="cat-label" style="font-weight:700"></span>
+      </div>
+    </div>
+    <div class="cat-buttons" id="cat-buttons"></div>
+    <div class="detail-grid" id="detail-grid"></div>
+    <div class="protocol">
+      <h4 id="protocol-title">Protokoll</h4>
+      <div id="protocol-list"></div>
+    </div>
+  </div>
+  <script src="/static/patient.js"></script>
+</body>
+</html>

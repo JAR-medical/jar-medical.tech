@@ -84,3 +84,9 @@ def test_dictation_without_stt_returns_503(client):
     # In the test environment faster-whisper is not installed; the endpoint
     # must fail gracefully with 503 (or 500 for the invalid WAV), never hang.
     assert resp.status_code in (500, 503)
+
+
+def test_patient_window_served(client):
+    resp = client.get("/patient/5")
+    assert resp.status_code == 200
+    assert "patient.js" in resp.text

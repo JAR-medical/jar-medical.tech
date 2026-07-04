@@ -233,6 +233,12 @@ def dashboard() -> FileResponse:
     return FileResponse(_STATIC_DIR / "index.html")
 
 
+@app.get("/patient/{marker_id}")
+def patient_window(marker_id: int) -> FileResponse:
+    """Standalone live patient window (opened from the dashboard board)."""
+    return FileResponse(_STATIC_DIR / "patient.html")
+
+
 @app.exception_handler(404)
 async def not_found(request: Request, exc) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": "not found"})

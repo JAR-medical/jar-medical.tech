@@ -23,10 +23,6 @@ const radioLogEl = document.getElementById("radio-log");
 const radioBtn = document.getElementById("radio-toggle");
 const wsPill = document.getElementById("ws-pill");
 const syncPill = document.getElementById("sync-pill");
-const dialogEl = document.getElementById("patient-dialog");
-const detailEl = document.getElementById("patient-detail");
-
-let openDetailMarker = null;
 
 /* ------------------------------------------------------------- rendering */
 
@@ -104,70 +100,15 @@ function flashCard(markerId) {
 
 /* --------------------------------------------------------------- details */
 
-async function openDetail(markerId) {
-  openDetailMarker = markerId;
-  await renderDetail();
-  dialogEl.showModal();
+function openDetail(markerId) {
+  // One dedicated window per patient — reuses the window if already open,
+  // so any number of patients can be watched side by side.
+  window.open(
+    `/patient/${markerId}`,
+    `triarge-patient-${markerId}`,
+    "width=760,height=880,menubar=no,toolbar=no,location=no"
+  );
 }
-
-dialogEl.addEventListener("close", () => (openDetailMarker = null));
-
-async function renderDetail() {
-  const p = state.patients.get(openDetailMarker);
-  if (!p) return;
-  const protocol = await fetchJSON(`/api/patients/${p.marker_id}/protocol`);
-  const vit = p.vitals || {};
-  detailEl.innerHTML = `
-    <div class="detail-head">
-      <h3>Patient #${p.marker_id}</h3>
-      <span class="cat-label" style="color:${CATEGORY_META[p.category].color};font-weight:700">
-        ${CATEGORY_META[p.category].label}
-      </span>
-    </div>
-    <div class="cat-buttons">
-      ${["SK1", "SK2", "SK3", "SK4", "DECEASED"]
-        .map(
-          (c) =>
-            `<button class="b-${c} ${p.category === c ? "active" : ""}"
-              onclick="setCategory(${p.marker_id}, '${c}')">${CATEGORY_META[c].label}</button>`
-        )
-        .join("")}
-    </div>
-    <div class="detail-grid">
-      <span class="label">Atemfrequenz</span><span>${vit.breathing_rate ?? "—"} /min</span>
-      <span class="label">Puls</span><span>${vit.pulse ?? "—"} /min</span>
-      <span class="label">SpO₂</span><span>${vit.spo2 ?? "—"} %</span>
-      <span class="label">Blutdruck</span><span>${vit.bp_systolic ?? "—"}${vit.bp_diastolic != null ? "/" + vit.bp_diastolic : ""} mmHg</span>
-      <span class="label">GCS</span><span>${vit.gcs ?? "—"}</span>
-      <span class="label">Ansprechbar</span><span>${tri(p.conscious)}</span>
-      <span class="label">Atemweg frei</span><span>${tri(p.airway_clear)}</span>
-      <span class="label">Gehfähig</span><span>${tri(p.ambulatory)}</span>
-      <span class="label">Ablageort</span><span>${esc(p.location || "—")}</span>
-      <span class="label">Verletzungen</span><span>${(p.injuries || []).map(esc).join(", ") || "—"}</span>
-      <span class="label">Maßnahmen</span><span>${(p.treatments || []).map(esc).join(", ") || "—"}</span>
-    </div>
-    <div class="protocol">
-      <h4>Protokoll (${protocol.length})</h4>
-      ${protocol
-        .map(
-          (e) => `
-        <div class="protocol-entry">
-          <div class="meta">${fmtTime(e.timestamp)} · ${esc(e.source)}${e.author ? " · " + esc(e.author) : ""}</div>
-          <div>${esc(e.transcript || JSON.stringify(e.structured))}</div>
-        </div>`
-        )
-        .join("") || '<p class="muted">Keine Einträge.</p>'}
-    </div>`;
-}
-
-window.setCategory = async (markerId, category) => {
-  await fetchJSON(`/api/patients/${markerId}?source=dashboard&author=EL`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category }),
-  });
-  // patient.updated event handles the re-render
-};
 
 /* ----------------------------------------------------------------- radio */
 
@@ -228,7 +169,6 @@ function connectWS() {
         state.patients.set(payload.marker_id, payload);
         renderBoard();
         flashCard(payload.marker_id);
-        if (openDetailMarker === payload.marker_id) renderDetail();
         break;
       case "radio.transcript":
         addRadioEntry(payload);
