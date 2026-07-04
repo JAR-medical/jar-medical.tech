@@ -74,6 +74,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TriARge Hub", version=__version__, lifespan=lifespan)
 
 
+@app.middleware("http")
+async def no_cache_ui(request: Request, call_next):
+    """Dashboard HTML/JS/CSS must never be served stale: a browser running
+    a cached old app.js against new markup dies on load ('blank page').
+    The assets are tiny and served over the local LAN — caching buys
+    nothing and has already cost debugging time twice."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith(("/static", "/patient")):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+    return response
+
+
 # ------------------------------------------------------------------ health
 
 @app.get("/api/health")
