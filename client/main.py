@@ -331,8 +331,62 @@ def parse_args() -> tuple[ClientConfig, bool]:
     return config, not args.no_vision
 
 
+def preauthorize_devices(config: ClientConfig, enable_vision: bool) -> None:
+    """Trigger macOS camera/microphone permission prompts from the MAIN
+    thread before any worker thread touches the devices.
+
+    macOS (TCC) can only present the authorization dialog when the request
+    originates on the main thread with a spinnable run loop; OpenCV opened
+    from the vision thread fails with "not authorized to capture video"
+    and never prompts. Opening both devices here once — before the asyncio
+    loop and threads start — makes the prompts appear on first launch.
+    """
+    import os
+
+    if enable_vision and not config.video_file:
+        import cv2
+
+        # Two attempts: the first open blocks on the permission dialog and
+        # may report failure even though the user clicked "Allow".
+        camera_ok = False
+        for _ in range(2):
+            cap = cv2.VideoCapture(config.camera_index)
+            camera_ok = cap.isOpened()
+            cap.release()
+            if camera_ok:
+                break
+        if camera_ok:
+            # Authorized — the vision thread must not re-request (it can't
+            # spin the main run loop), so skip auth on subsequent opens.
+            os.environ["OPENCV_AVFOUNDATION_SKIP_AUTH"] = "1"
+        else:
+            print(
+                "⚠ Kamera nicht verfügbar. Falls kein Dialog erschien: "
+                "Systemeinstellungen → Datenschutz & Sicherheit → Kamera → "
+                "Terminal erlauben, dann Client neu starten.",
+                file=sys.stderr,
+            )
+
+    try:
+        import sounddevice as sd
+
+        stream = sd.InputStream(
+            channels=1, samplerate=config.sample_rate, dtype="float32"
+        )
+        stream.start()
+        stream.stop()
+        stream.close()
+    except Exception as exc:
+        print(
+            f"⚠ Mikrofon nicht verfügbar ({exc}). Diktat wird fehlschlagen — "
+            "Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon prüfen.",
+            file=sys.stderr,
+        )
+
+
 def main() -> None:
     config, enable_vision = parse_args()
+    preauthorize_devices(config, enable_vision)
     try:
         asyncio.run(ParamedicClient(config).run(enable_vision=enable_vision))
     except KeyboardInterrupt:
