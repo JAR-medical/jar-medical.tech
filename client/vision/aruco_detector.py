@@ -22,7 +22,7 @@ class MarkerDetection:
 
 
 class ArucoDetector:
-    def __init__(self, dict_name: str = "DICT_4X4_50") -> None:
+    def __init__(self, dict_name: str = "DICT_4X4_50", min_size_px: float = 14.0) -> None:
         if not hasattr(cv2.aruco, dict_name):
             raise ValueError(f"unknown ArUco dictionary: {dict_name}")
         dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dict_name))
@@ -35,7 +35,15 @@ class ArucoDetector:
         params.adaptiveThreshWinSizeMin = 3
         params.adaptiveThreshWinSizeMax = 33
         params.adaptiveThreshWinSizeStep = 6
+        # Default error correction (0.6) fixes many bit errors — and thereby
+        # also *invents* IDs from noise squares. Patient identity must be
+        # high-precision, so accept far fewer corrected bits and instead rely
+        # on temporal confirmation (AnchorManager) for recall.
+        params.errorCorrectionRate = 0.35
         self._detector = cv2.aruco.ArucoDetector(dictionary, params)
+        # Below this apparent size the 4x4 grid sits on <3 px per cell and
+        # decoding is guesswork — reject outright.
+        self._min_size_px = min_size_px
 
     def detect(self, gray: np.ndarray) -> list[MarkerDetection]:
         corners, ids, _rejected = self._detector.detectMarkers(gray)
@@ -46,12 +54,19 @@ class ArucoDetector:
             pts = marker_corners.reshape(4, 2).astype(np.float32)
             center = pts.mean(axis=0)
             edges = np.linalg.norm(np.roll(pts, -1, axis=0) - pts, axis=1)
+            size = float(edges.mean())
+            if size < self._min_size_px:
+                continue
+            # Wildly uneven edges = a noise quad that happened to decode;
+            # a real (near-planar) marker keeps edges within ~3x of each other.
+            if float(edges.max()) > 3.0 * max(1e-6, float(edges.min())):
+                continue
             detections.append(
                 MarkerDetection(
                     marker_id=int(marker_id),
                     corners=pts,
                     center=(float(center[0]), float(center[1])),
-                    size_px=float(edges.mean()),
+                    size_px=size,
                 )
             )
         return detections

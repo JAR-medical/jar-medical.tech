@@ -53,6 +53,7 @@ class ParamedicClient:
         self._manual_focus: Optional[int] = None
         self._dictating_marker: Optional[int] = None
         self._last_seen_ping: dict[int, float] = {}
+        self._candidate_log: dict[int, float] = {}
 
     # -------------------------------------------------------------- vision
 
@@ -117,6 +118,7 @@ class ParamedicClient:
                 AnchorEventType.COASTING: self._on_coasting,
                 AnchorEventType.LOST: self._on_lost,
                 AnchorEventType.MOVED: self._on_moved,
+                AnchorEventType.CANDIDATE: self._on_candidate,
             }[event.type]
             await handler(event)
 
@@ -145,6 +147,18 @@ class ParamedicClient:
         # would otherwise flood the CLI with identical cards.
         if patient is not None and event.coast_time_s >= 3.0:
             self.renderer.show_patient(patient, event.center)
+
+    async def _on_candidate(self, event: AnchorEvent) -> None:
+        # Unconfirmed detection: nothing is sent to the hub. Log it (heavily
+        # throttled) so it's visible that the misread filter is active —
+        # a real marker passes confirmation within a fraction of a second.
+        now = time.monotonic()
+        if now - self._candidate_log.get(event.marker_id, 0.0) >= 5.0:
+            self._candidate_log[event.marker_id] = now
+            self.renderer.status(
+                f"Kandidat #{event.marker_id} ({event.size_px:.0f}px) — "
+                "unbestätigt, keine Übertragung"
+            )
 
     async def _on_coasting(self, event: AnchorEvent) -> None:
         self.renderer.coasting(event.marker_id, event.center)

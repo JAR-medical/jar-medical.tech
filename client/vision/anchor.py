@@ -59,11 +59,12 @@ class AnchorState(str, Enum):
 
 
 class AnchorEventType(str, Enum):
-    ACQUIRED = "ACQUIRED"          # marker seen for the first time
+    ACQUIRED = "ACQUIRED"          # marker confirmed for the first time
     REACQUIRED = "REACQUIRED"      # marker verified again after coasting/loss
     COASTING = "COASTING"          # marker occluded, flow tracking took over
     MOVED = "MOVED"                # position update while tracked
     LOST = "LOST"                  # anchor dropped (fail-closed)
+    CANDIDATE = "CANDIDATE"        # detection awaiting temporal confirmation
 
 
 @dataclass
@@ -95,16 +96,20 @@ class AnchorManager:
         miss_grace_s: float = 0.5,
     ) -> None:
         self._coast_timeout = coast_timeout_s
-        # A marker ID must be detected in this many consecutive frames
-        # before it becomes an anchor (or revives a LOST one). Single-frame
-        # ArUco misreads otherwise create phantom patients on the hub.
+        # A marker ID must be detected `confirm_frames` times within a short
+        # sliding window before it becomes an anchor (or revives a LOST one).
+        # Sliding window instead of strictly consecutive frames: a genuine
+        # marker at distance often decodes only every 2nd/3rd frame, while a
+        # noise misread virtually never repeats the same ID several times
+        # within a second.
         self._confirm_frames = confirm_frames
+        self._confirm_window_s = 1.0
         # Detection dropouts shorter than this stay silently LOCKED (the
         # anchor coasts internally) instead of spamming COASTING/REACQUIRED
         # transitions on every flickering frame.
         self._miss_grace = miss_grace_s
         self._anchors: dict[int, _Anchor] = {}
-        self._pending: dict[int, int] = {}  # candidate id -> consecutive frames
+        self._pending: dict[int, list[float]] = {}  # id -> recent sighting times
         self._prev_gray: Optional[np.ndarray] = None
 
     @property
@@ -121,23 +126,29 @@ class AnchorManager:
         events: list[AnchorEvent] = []
         detected_ids = {d.marker_id for d in detections}
 
-        # Confirmation counting: unknown or LOST markers must persist for
-        # `confirm_frames` consecutive frames before they (re)activate.
-        new_pending: dict[int, int] = {}
-        for det in detections:
-            anchor = self._anchors.get(det.marker_id)
-            if anchor is None or anchor.state == AnchorState.LOST:
-                new_pending[det.marker_id] = self._pending.get(det.marker_id, 0) + 1
-        self._pending = new_pending  # ids missed this frame reset to zero
-
         for det in detections:
             anchor = self._anchors.get(det.marker_id)
             is_new = anchor is None
             was_lost = anchor is not None and anchor.state == AnchorState.LOST
 
             if is_new or was_lost:
-                if self._pending.get(det.marker_id, 0) < self._confirm_frames:
-                    continue  # not confirmed yet — likely a misread
+                sightings = self._pending.setdefault(det.marker_id, [])
+                sightings.append(now)
+                cutoff = now - self._confirm_window_s
+                self._pending[det.marker_id] = sightings = [
+                    t for t in sightings if t >= cutoff
+                ]
+                if len(sightings) < self._confirm_frames:
+                    # Not confirmed yet — surface as candidate so the UI can
+                    # show that the misread filter is doing its job.
+                    events.append(AnchorEvent(
+                        type=AnchorEventType.CANDIDATE,
+                        marker_id=det.marker_id,
+                        center=det.center,
+                        state=AnchorState.LOST,
+                        size_px=det.size_px,
+                    ))
+                    continue
                 self._pending.pop(det.marker_id, None)
                 if is_new:
                     anchor = _Anchor(marker_id=det.marker_id)
@@ -181,6 +192,13 @@ class AnchorManager:
                 events.append(self._event(AnchorEventType.COASTING, anchor, coast_time))
             else:
                 events.append(self._event(AnchorEventType.MOVED, anchor, coast_time))
+
+        # Forget stale candidates (phantom ids that stopped appearing).
+        stale_cutoff = now - 4 * self._confirm_window_s
+        self._pending = {
+            mid: times for mid, times in self._pending.items()
+            if times and times[-1] >= stale_cutoff
+        }
 
         self._prev_gray = gray
         return events
