@@ -95,6 +95,17 @@ class HubClient:
             log.warning("update %d failed: %s", marker_id, exc)
             return None
 
+    async def report_seen(self, marker_id: int) -> None:
+        """Fire-and-forget presence ping ('this medic sees this marker')."""
+        try:
+            await self._http.post(
+                f"/api/patients/{marker_id}/seen",
+                params={"author": self._medic_id},
+                timeout=5.0,
+            )
+        except httpx.HTTPError:
+            pass  # presence is best-effort; never disturb the client for it
+
     async def send_dictation(
         self, marker_id: int, wav_bytes: bytes
     ) -> Optional[dict[str, Any]]:
@@ -137,12 +148,15 @@ class HubClient:
             backoff = min(backoff * 2, 15.0)
 
     async def _handle_event(self, event: dict[str, Any]) -> None:
-        if event.get("type") in ("patient.created", "patient.updated"):
+        event_type = event.get("type")
+        if event_type in ("patient.created", "patient.updated"):
             patient = event["payload"]
             marker_id = patient["marker_id"]
             self._cache[marker_id] = patient
             if self._on_patient is not None:
                 await self._on_patient(patient)
+        elif event_type == "patient.deleted":
+            self._cache.pop(event["payload"]["marker_id"], None)
 
     async def _set_connected(self, connected: bool) -> None:
         if connected == self._connected:

@@ -96,6 +96,10 @@ class SupabaseSync:
         acked: list[int] = []
         all_ok = True
         for table, rows in by_table.items():
+            if table == "patients:delete":
+                if not self._push_deletes(client, base, rows, acked):
+                    all_ok = False
+                continue
             records = [
                 self._to_record(table, payload) for _, payload in rows.values()
             ]
@@ -121,6 +125,36 @@ class SupabaseSync:
             acked = [row_id for row_id, _, _ in batch]
         self._db.ack_outbox(acked)
         self._set_connected(True)
+
+    def _push_deletes(
+        self,
+        client: httpx.Client,
+        base: str,
+        rows: dict[Any, tuple[int, dict[str, Any]]],
+        acked: list[int],
+    ) -> bool:
+        ok = True
+        for row_id, payload in rows.values():
+            try:
+                resp = client.delete(
+                    f"{base}/patients",
+                    params={
+                        "incident_id": f"eq.{self._config.incident_id}",
+                        "marker_id": f"eq.{payload['marker_id']}",
+                    },
+                )
+                if resp.status_code >= 400:
+                    log.warning(
+                        "supabase delete of patient %s failed: %s",
+                        payload.get("marker_id"), resp.status_code,
+                    )
+                    ok = False
+                    continue
+            except httpx.HTTPError as exc:
+                log.debug("supabase delete unreachable: %s", exc)
+                return False
+            acked.append(row_id)
+        return ok
 
     def _to_record(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         record = dict(payload)

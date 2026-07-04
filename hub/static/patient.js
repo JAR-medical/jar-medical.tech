@@ -99,14 +99,27 @@ function connectWS() {
   };
   ws.onmessage = (msg) => {
     const { type, payload } = JSON.parse(msg.data);
-    if (
-      (type === "patient.updated" || type === "patient.created") &&
-      payload.marker_id === markerId
-    ) {
+    if (payload.marker_id !== markerId) return;
+    if (type === "patient.updated" || type === "patient.created") {
       load().catch(showError);
+    } else if (type === "patient.deleted") {
+      window.close(); // may be blocked if not script-opened; show banner too
+      document.querySelector(".patient-page").innerHTML =
+        `<h3>Patient #${markerId} wurde gelöscht.</h3>`;
     }
   };
 }
+
+document.getElementById("delete-btn").onclick = async () => {
+  if (!confirm(`Patient #${markerId} wirklich löschen? Nur für Fehlerkennungen gedacht — das Protokoll wird mit entfernt.`)) {
+    return;
+  }
+  try {
+    await fetchJSON(`/api/patients/${markerId}`, { method: "DELETE" });
+  } catch (err) {
+    alert(`Löschen fehlgeschlagen: ${err.message}`);
+  }
+};
 
 function showError(err) {
   gridEl.innerHTML = `<span class="label">Fehler</span><span>${esc(err.message)}</span>`;

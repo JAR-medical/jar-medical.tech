@@ -90,3 +90,17 @@ def test_patient_window_served(client):
     resp = client.get("/patient/5")
     assert resp.status_code == 200
     assert "patient.js" in resp.text
+
+
+def test_delete_patient(client):
+    client.post("/api/patients/37/claim")
+    assert client.delete("/api/patients/37").json() == {"deleted": 37}
+    assert client.get("/api/patients/37").status_code == 404
+    assert client.delete("/api/patients/37").status_code == 404
+
+
+def test_seen_ping_appears_in_listing(client):
+    client.post("/api/patients/4/claim")
+    client.post("/api/patients/4/seen?author=RTW-1")
+    patients = client.get("/api/patients").json()
+    assert patients[0]["last_seen"]["by"] == "RTW-1"

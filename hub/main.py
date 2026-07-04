@@ -91,9 +91,17 @@ def health() -> dict:
 
 # ---------------------------------------------------------------- patients
 
+# Ephemeral presence: which client last had eyes on which marker. Kept in
+# memory only — it is situational awareness, not part of the medical record.
+_sightings: dict[int, dict] = {}
+
+
 @app.get("/api/patients")
 def list_patients() -> list[dict]:
-    return [p.model_dump(mode="json") for p in db.list_patients()]
+    return [
+        p.model_dump(mode="json") | {"last_seen": _sightings.get(p.marker_id)}
+        for p in db.list_patients()
+    ]
 
 
 @app.get("/api/patients/{marker_id}")
@@ -132,6 +140,34 @@ async def update_patient(
 @app.get("/api/patients/{marker_id}/protocol")
 def get_protocol(marker_id: int) -> list[dict]:
     return [e.model_dump(mode="json") for e in db.list_protocol(marker_id)]
+
+
+@app.post("/api/patients/{marker_id}/seen")
+async def patient_seen(marker_id: int, author: str = Query("")) -> dict:
+    """Throttled presence ping from a field client that currently has the
+    marker in view. Feeds the 'gesehen von …' indicator on the dashboard."""
+    from datetime import datetime, timezone
+
+    info = {
+        "marker_id": marker_id,
+        "by": author,
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    _sightings[marker_id] = info
+    await BUS.publish("patient.seen", info)
+    return info
+
+
+@app.delete("/api/patients/{marker_id}")
+async def delete_patient(marker_id: int) -> dict:
+    """Remove a patient record entirely — for phantom patients created by
+    marker misreads. Real records should be recategorized, not deleted."""
+    if not db.delete_patient(marker_id):
+        raise HTTPException(status_code=404, detail=f"no patient for marker {marker_id}")
+    _sightings.pop(marker_id, None)
+    await BUS.publish("patient.deleted", {"marker_id": marker_id})
+    log.info("patient %d deleted", marker_id)
+    return {"deleted": marker_id}
 
 
 # --------------------------------------------------------------- dictation

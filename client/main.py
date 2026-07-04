@@ -52,6 +52,7 @@ class ParamedicClient:
         self._stop = threading.Event()
         self._manual_focus: Optional[int] = None
         self._dictating_marker: Optional[int] = None
+        self._last_seen_ping: dict[int, float] = {}
 
     # -------------------------------------------------------------- vision
 
@@ -121,7 +122,10 @@ class ParamedicClient:
 
     async def _on_acquired(self, event: AnchorEvent) -> None:
         self.renderer.acquired(event.marker_id, event.center)
+        # The only place a patient record is created: first confirmed sight.
         patient = await self.hub.claim_patient(event.marker_id)
+        await self.hub.report_seen(event.marker_id)
+        self._last_seen_ping[event.marker_id] = time.monotonic()
         if patient is None:
             self.renderer.warn(
                 f"Hub nicht erreichbar und kein Cache für #{event.marker_id} — Overlay ohne Daten"
@@ -131,8 +135,15 @@ class ParamedicClient:
 
     async def _on_reacquired(self, event: AnchorEvent) -> None:
         self.renderer.reacquired(event.marker_id, event.center)
-        patient = await self.hub.claim_patient(event.marker_id)
-        if patient is not None:
+        await self.hub.report_seen(event.marker_id)
+        self._last_seen_ping[event.marker_id] = time.monotonic()
+        # Cache first — live WS updates keep it fresh, so no re-claim storm.
+        patient = self.hub.patient_cached(event.marker_id)
+        if patient is None:
+            patient = await self.hub.claim_patient(event.marker_id)
+        # Re-print the card only after a substantial gap; brief occlusions
+        # would otherwise flood the CLI with identical cards.
+        if patient is not None and event.coast_time_s >= 3.0:
             self.renderer.show_patient(patient, event.center)
 
     async def _on_coasting(self, event: AnchorEvent) -> None:
@@ -144,9 +155,13 @@ class ParamedicClient:
             self._manual_focus = None
 
     async def _on_moved(self, event: AnchorEvent) -> None:
-        # Position updates are continuous; the CLI display doesn't need them.
-        # A real HMD renderer would update the overlay transform here.
-        pass
+        # A real HMD renderer would update the overlay transform here; the
+        # CLI stays quiet. We only emit a throttled presence ping so the
+        # dashboard shows who currently has eyes on the patient.
+        now = time.monotonic()
+        if now - self._last_seen_ping.get(event.marker_id, 0.0) >= 10.0:
+            self._last_seen_ping[event.marker_id] = now
+            await self.hub.report_seen(event.marker_id)
 
     async def _on_patient_broadcast(self, patient: dict[str, Any]) -> None:
         """Another medic (or the radio AI, or the EL) updated a patient we

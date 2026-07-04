@@ -88,9 +88,23 @@ class _Anchor:
 
 
 class AnchorManager:
-    def __init__(self, coast_timeout_s: float = 8.0) -> None:
+    def __init__(
+        self,
+        coast_timeout_s: float = 8.0,
+        confirm_frames: int = 3,
+        miss_grace_s: float = 0.5,
+    ) -> None:
         self._coast_timeout = coast_timeout_s
+        # A marker ID must be detected in this many consecutive frames
+        # before it becomes an anchor (or revives a LOST one). Single-frame
+        # ArUco misreads otherwise create phantom patients on the hub.
+        self._confirm_frames = confirm_frames
+        # Detection dropouts shorter than this stay silently LOCKED (the
+        # anchor coasts internally) instead of spamming COASTING/REACQUIRED
+        # transitions on every flickering frame.
+        self._miss_grace = miss_grace_s
         self._anchors: dict[int, _Anchor] = {}
+        self._pending: dict[int, int] = {}  # candidate id -> consecutive frames
         self._prev_gray: Optional[np.ndarray] = None
 
     @property
@@ -107,23 +121,42 @@ class AnchorManager:
         events: list[AnchorEvent] = []
         detected_ids = {d.marker_id for d in detections}
 
+        # Confirmation counting: unknown or LOST markers must persist for
+        # `confirm_frames` consecutive frames before they (re)activate.
+        new_pending: dict[int, int] = {}
         for det in detections:
             anchor = self._anchors.get(det.marker_id)
-            if anchor is None:
-                anchor = _Anchor(marker_id=det.marker_id)
-                self._anchors[det.marker_id] = anchor
-                event_type = AnchorEventType.ACQUIRED
-            elif anchor.state == AnchorState.LOCKED:
-                event_type = AnchorEventType.MOVED
-            else:
-                event_type = AnchorEventType.REACQUIRED
+            if anchor is None or anchor.state == AnchorState.LOST:
+                new_pending[det.marker_id] = self._pending.get(det.marker_id, 0) + 1
+        self._pending = new_pending  # ids missed this frame reset to zero
 
+        for det in detections:
+            anchor = self._anchors.get(det.marker_id)
+            is_new = anchor is None
+            was_lost = anchor is not None and anchor.state == AnchorState.LOST
+
+            if is_new or was_lost:
+                if self._pending.get(det.marker_id, 0) < self._confirm_frames:
+                    continue  # not confirmed yet — likely a misread
+                self._pending.pop(det.marker_id, None)
+                if is_new:
+                    anchor = _Anchor(marker_id=det.marker_id)
+                    self._anchors[det.marker_id] = anchor
+                    event_type = AnchorEventType.ACQUIRED
+                else:
+                    event_type = AnchorEventType.REACQUIRED
+            elif anchor.state == AnchorState.COASTING:
+                event_type = AnchorEventType.REACQUIRED
+            else:
+                event_type = AnchorEventType.MOVED
+
+            coast_time = now - anchor.last_marker_seen if not is_new else 0.0
             anchor.center = np.array(det.center, dtype=np.float32)
             anchor.size_px = det.size_px
             anchor.state = AnchorState.LOCKED
             anchor.last_marker_seen = now
             self._refresh_features(gray, anchor, det)
-            events.append(self._event(event_type, anchor))
+            events.append(self._event(event_type, anchor, coast_time))
 
         # Markers not detected this frame: coast on optical flow.
         for anchor in self._anchors.values():
@@ -134,9 +167,15 @@ class AnchorManager:
                 self._drop(anchor, events, coast_time)
                 continue
             moved = self._coast(gray, anchor)
+            in_grace = coast_time < self._miss_grace
             if not moved:
-                self._drop(anchor, events, coast_time)
+                # Within the grace window a failed flow step is forgiven —
+                # the marker usually reappears next frame. Beyond it, drop.
+                if not in_grace:
+                    self._drop(anchor, events, coast_time)
                 continue
+            if in_grace:
+                continue  # silent internal coasting; no state transition yet
             if anchor.state == AnchorState.LOCKED:
                 anchor.state = AnchorState.COASTING
                 events.append(self._event(AnchorEventType.COASTING, anchor, coast_time))

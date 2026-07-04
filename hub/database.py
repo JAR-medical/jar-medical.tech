@@ -222,6 +222,22 @@ class Database:
             )
             return updated
 
+    def delete_patient(self, marker_id: int) -> bool:
+        """Remove a patient entirely (e.g. one created by a marker misread).
+        The protocol trail goes with it; a deletion marker is queued so an
+        optional cloud replica removes the row too."""
+        with self._lock, self._conn:
+            self._conn.execute(
+                "DELETE FROM protocol_entries WHERE marker_id = ?", (marker_id,)
+            )
+            cur = self._conn.execute(
+                "DELETE FROM patients WHERE marker_id = ?", (marker_id,)
+            )
+            if cur.rowcount == 0:
+                return False
+            self._enqueue_sync_locked("patients:delete", {"marker_id": marker_id})
+            return True
+
     # ------------------------------------------------------------- protocol
 
     def list_protocol(self, marker_id: int) -> list[ProtocolEntry]:

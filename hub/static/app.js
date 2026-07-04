@@ -74,6 +74,9 @@ function meta(p) {
   if (p.ambulatory === true) bits.push("gehfähig");
   if (p.ambulatory === false) bits.push("nicht gehfähig");
   bits.push(`aktualisiert ${timeAgo(p.updated_at)}`);
+  if (p.last_seen && p.last_seen.by) {
+    bits.push(`👁 ${esc(p.last_seen.by)} ${timeAgo(p.last_seen.at)}`);
+  }
   return bits.join(" · ");
 }
 
@@ -170,6 +173,18 @@ function connectWS() {
         renderBoard();
         flashCard(payload.marker_id);
         break;
+      case "patient.deleted":
+        state.patients.delete(payload.marker_id);
+        renderBoard();
+        break;
+      case "patient.seen": {
+        const p = state.patients.get(payload.marker_id);
+        if (p) {
+          p.last_seen = payload;
+          renderBoard();
+        }
+        break;
+      }
       case "radio.transcript":
         addRadioEntry(payload);
         break;
