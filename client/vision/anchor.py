@@ -109,7 +109,9 @@ class AnchorManager:
         # transitions on every flickering frame.
         self._miss_grace = miss_grace_s
         self._anchors: dict[int, _Anchor] = {}
-        self._pending: dict[int, list[float]] = {}  # id -> recent sighting times
+        # id -> recent sightings as (time, x, y); confirmation additionally
+        # requires spatial consistency (see process_frame).
+        self._pending: dict[int, list[tuple[float, float, float]]] = {}
         self._prev_gray: Optional[np.ndarray] = None
 
     @property
@@ -133,10 +135,20 @@ class AnchorManager:
 
             if is_new or was_lost:
                 sightings = self._pending.setdefault(det.marker_id, [])
-                sightings.append(now)
+                # Spatial consistency: repeated sightings of a genuine marker
+                # cluster around one spot (or drift smoothly); noise misreads
+                # pop up at unrelated positions. A large jump restarts the
+                # confirmation count instead of feeding it.
+                if sightings:
+                    _, px, py = sightings[-1]
+                    max_jump = 8.0 * max(det.size_px, 12.0)
+                    dx, dy = det.center[0] - px, det.center[1] - py
+                    if (dx * dx + dy * dy) ** 0.5 > max_jump:
+                        sightings.clear()
+                sightings.append((now, det.center[0], det.center[1]))
                 cutoff = now - self._confirm_window_s
                 self._pending[det.marker_id] = sightings = [
-                    t for t in sightings if t >= cutoff
+                    s for s in sightings if s[0] >= cutoff
                 ]
                 if len(sightings) < self._confirm_frames:
                     # Not confirmed yet — surface as candidate so the UI can
@@ -196,8 +208,8 @@ class AnchorManager:
         # Forget stale candidates (phantom ids that stopped appearing).
         stale_cutoff = now - 4 * self._confirm_window_s
         self._pending = {
-            mid: times for mid, times in self._pending.items()
-            if times and times[-1] >= stale_cutoff
+            mid: sightings for mid, sightings in self._pending.items()
+            if sightings and sightings[-1][0] >= stale_cutoff
         }
 
         self._prev_gray = gray

@@ -83,3 +83,24 @@ def test_brief_dropout_stays_silent():
     # and comes back: plain MOVED, not a REACQUIRED storm
     events = mgr.process_frame(img, [det(2)])
     assert [e.type for e in events] == [AnchorEventType.MOVED]
+
+
+def test_spatially_scattered_sightings_never_confirm():
+    """Same phantom ID popping up at unrelated screen positions must not
+    accumulate toward confirmation, no matter how often it appears."""
+    mgr = AnchorManager(confirm_frames=3)
+    img = frame()
+    events = []
+    for x, y in [(50, 50), (600, 400), (100, 420), (620, 60), (300, 240), (40, 300)]:
+        events += mgr.process_frame(img, [det(21, x, y)])
+    assert not any(e.type == AnchorEventType.ACQUIRED for e in events)
+    assert 21 not in mgr.anchors
+
+
+def test_smoothly_moving_marker_confirms():
+    mgr = AnchorManager(confirm_frames=3)
+    img = frame()
+    events = []
+    for i in range(4):
+        events += mgr.process_frame(img, [det(6, 100 + i * 30, 100 + i * 10)])
+    assert any(e.type == AnchorEventType.ACQUIRED and e.marker_id == 6 for e in events)

@@ -63,7 +63,8 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=24,
                         help="generate IDs 0..count-1 (ignored if --ids given)")
     parser.add_argument("--ids", type=int, nargs="*", default=None)
-    parser.add_argument("--dict", default="DICT_4X4_50")
+    parser.add_argument("--dict", default="DICT_APRILTAG_36h11",
+                        help="must match the client's dictionary")
     parser.add_argument("--size-mm", type=float, default=40.0,
                         help="printed marker edge length in mm")
     parser.add_argument("--out", default="markers_out")

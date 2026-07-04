@@ -14,7 +14,8 @@ class ClientConfig:
     # Vision
     camera_index: int = int(os.environ.get("TRIARGE_CAMERA", "0"))
     video_file: str = ""                 # replay a recording instead of camera
-    aruco_dict: str = os.environ.get("TRIARGE_ARUCO_DICT", "DICT_4X4_50")
+    # AprilTag 36h11: virtually immune to phantom IDs from image noise.
+    aruco_dict: str = os.environ.get("TRIARGE_ARUCO_DICT", "DICT_APRILTAG_36h11")
     # How long the overlay stays anchored via optical flow after the marker
     # was last positively identified (paramedic leaning over the patient,
     # marker occluded / out of frame).

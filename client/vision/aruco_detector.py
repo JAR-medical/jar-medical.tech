@@ -22,7 +22,13 @@ class MarkerDetection:
 
 
 class ArucoDetector:
-    def __init__(self, dict_name: str = "DICT_4X4_50", min_size_px: float = 14.0) -> None:
+    """Default dictionary is AprilTag 36h11: 36 payload bits with Hamming
+    distance 11 between codes, so random scene texture essentially cannot
+    decode to a valid ID — unlike 4x4 ArUco (16 bits), which produces
+    persistent phantom IDs from noise. 4x4 remains available via CLI flag
+    for legacy printed sheets."""
+
+    def __init__(self, dict_name: str = "DICT_APRILTAG_36h11", min_size_px: float = 18.0) -> None:
         if not hasattr(cv2.aruco, dict_name):
             raise ValueError(f"unknown ArUco dictionary: {dict_name}")
         dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dict_name))
@@ -39,7 +45,7 @@ class ArucoDetector:
         # also *invents* IDs from noise squares. Patient identity must be
         # high-precision, so accept far fewer corrected bits and instead rely
         # on temporal confirmation (AnchorManager) for recall.
-        params.errorCorrectionRate = 0.35
+        params.errorCorrectionRate = 0.2
         self._detector = cv2.aruco.ArucoDetector(dictionary, params)
         # Below this apparent size the 4x4 grid sits on <3 px per cell and
         # decoding is guesswork — reject outright.

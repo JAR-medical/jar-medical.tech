@@ -75,7 +75,7 @@ if you want LLM structuring.
 ### 2. Markers
 
 ```bash
-./.venv-client/bin/python tools/generate_markers.py --count 24 --size-mm 40
+./.venv-client/bin/python tools/generate_markers.py --count 24 --size-mm 50
 ```
 
 Print `markers_out/sheet_*.png` at 300 DPI, laminate, deploy on patients.
