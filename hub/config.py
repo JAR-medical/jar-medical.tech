@@ -12,6 +12,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _load_dotenv() -> None:
+    """Minimal .env loader (stdlib only): real environment variables win,
+    the project-root .env fills the gaps. Used mainly for Supabase
+    credentials, which must never live in the repository."""
+    path = Path(__file__).resolve().parent.parent / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
+_load_dotenv()
+
+
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.environ.get(name)
     if raw is None:
