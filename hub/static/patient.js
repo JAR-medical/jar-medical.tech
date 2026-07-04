@@ -99,6 +99,12 @@ function connectWS() {
   };
   ws.onmessage = (msg) => {
     const { type, payload } = JSON.parse(msg.data);
+    if (type === "session.changed") {
+      document.querySelector(".patient-page").innerHTML =
+        `<h3>Einsatz gewechselt (jetzt: ${esc(payload.name)}).</h3>
+         <p class="muted">Dieses Fenster zeigte einen Patienten aus einer anderen Sitzung — bitte schließen.</p>`;
+      return;
+    }
     if (payload.marker_id !== markerId) return;
     if (type === "patient.updated" || type === "patient.created") {
       load().catch(showError);

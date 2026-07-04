@@ -16,7 +16,7 @@ def client(tmp_path, monkeypatch):
     importlib.reload(hub.main)
     with TestClient(hub.main.app) as test_client:
         yield test_client
-    hub.main.db.close()
+    hub.main.sessions.close()
 
 
 def test_health(client):
@@ -104,3 +104,46 @@ def test_seen_ping_appears_in_listing(client):
     client.post("/api/patients/4/seen?author=RTW-1")
     patients = client.get("/api/patients").json()
     assert patients[0]["last_seen"]["by"] == "RTW-1"
+
+
+def test_session_reset_and_switch_back(client):
+    # Work in the initial session.
+    first = client.get("/api/health").json()["session"]
+    client.post("/api/patients/1/claim")
+    client.patch("/api/patients/1", json={"category": "SK1"})
+    assert len(client.get("/api/patients").json()) == 1
+
+    # "Reset": new session — board is empty, nothing was deleted.
+    created = client.post("/api/sessions?name=uebung-2").json()
+    assert created["name"] == "uebung-2"
+    assert client.get("/api/health").json()["session"] == "uebung-2"
+    assert client.get("/api/patients").json() == []
+    client.post("/api/patients/9/claim")
+
+    # Both sessions listed, new one active.
+    sessions = client.get("/api/sessions").json()
+    assert {s["name"] for s in sessions} == {first, "uebung-2"}
+    assert next(s for s in sessions if s["active"])["name"] == "uebung-2"
+
+    # Switch back: old data intact, category preserved.
+    client.post(f"/api/sessions/{first}/activate")
+    patients = client.get("/api/patients").json()
+    assert [p["marker_id"] for p in patients] == [1]
+    assert patients[0]["category"] == "SK1"
+
+    # And forward again.
+    client.post("/api/sessions/uebung-2/activate")
+    assert [p["marker_id"] for p in client.get("/api/patients").json()] == [9]
+
+
+def test_session_change_is_broadcast(client):
+    with client.websocket_connect("/ws") as ws:
+        client.post("/api/sessions?name=manv-neu")
+        event = ws.receive_json()
+        assert event["type"] == "session.changed"
+        assert event["payload"]["name"] == "manv-neu"
+        assert any(s["name"] == "manv-neu" for s in event["payload"]["sessions"])
+
+
+def test_activate_unknown_session_404(client):
+    assert client.post("/api/sessions/gibts-nicht/activate").status_code == 404

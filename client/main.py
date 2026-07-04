@@ -191,6 +191,18 @@ class ParamedicClient:
         else:
             self.renderer.warn("Hub-Verbindung verloren — Offline-Modus (Cache + Spool)")
 
+    async def _on_session_changed(self, name: str) -> None:
+        self.renderer.warn(f"Einsatzleitung hat den Einsatz gewechselt → „{name}“")
+        self._last_seen_ping.clear()
+        # Patients currently in view belong to the new session now:
+        # re-claim them so their (fresh) records exist and overlays update.
+        for anchor in self.anchors.active_anchors():
+            patient = await self.hub.claim_patient(anchor.marker_id)
+            if patient is not None:
+                self.renderer.show_patient(
+                    patient, (float(anchor.center[0]), float(anchor.center[1]))
+                )
+
     # ----------------------------------------------------------------- focus
 
     def _focused_marker(self) -> Optional[int]:
@@ -312,7 +324,11 @@ class ParamedicClient:
         self.renderer.status(
             f"TriARge Client [{self.config.medic_id}] — Hub: {self.config.hub_url}"
         )
-        self.hub.start(self._on_patient_broadcast, self._on_connection_change)
+        self.hub.start(
+            self._on_patient_broadcast,
+            self._on_connection_change,
+            self._on_session_changed,
+        )
         consumer = asyncio.create_task(self._event_consumer(), name="events")
 
         if enable_vision:

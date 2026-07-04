@@ -38,6 +38,7 @@ class HubClient:
         self._cache: dict[int, dict[str, Any]] = {}
         self._on_patient: Optional[PatientCallback] = None
         self._on_connection_change: Optional[Callable[[bool], Awaitable[None]]] = None
+        self._on_session_change: Optional[Callable[[str], Awaitable[None]]] = None
         self._connected = False
         self._tasks: list[asyncio.Task] = []
 
@@ -52,9 +53,11 @@ class HubClient:
         self,
         on_patient: PatientCallback,
         on_connection_change: Optional[Callable[[bool], Awaitable[None]]] = None,
+        on_session_change: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> None:
         self._on_patient = on_patient
         self._on_connection_change = on_connection_change
+        self._on_session_change = on_session_change
         self._tasks.append(asyncio.create_task(self._ws_loop(), name="hub-ws"))
         self._tasks.append(asyncio.create_task(self._spool_loop(), name="spool"))
 
@@ -157,6 +160,11 @@ class HubClient:
                 await self._on_patient(patient)
         elif event_type == "patient.deleted":
             self._cache.pop(event["payload"]["marker_id"], None)
+        elif event_type == "session.changed":
+            # New incident: everything cached belongs to the old session.
+            self._cache.clear()
+            if self._on_session_change is not None:
+                await self._on_session_change(event["payload"].get("name", ""))
 
     async def _set_connected(self, connected: bool) -> None:
         if connected == self._connected:

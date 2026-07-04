@@ -61,6 +61,16 @@ h1 .sub { color: var(--muted); font-weight: 400; font-size: 14px; }
 .pill.ok { color: var(--sk3); border-color: var(--sk3); }
 .pill.warn { color: var(--sk2); border-color: var(--sk2); }
 
+.session-select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  max-width: 220px;
+}
+
 .radio-btn {
   background: var(--panel-2);
   color: var(--muted);

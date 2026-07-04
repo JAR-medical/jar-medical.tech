@@ -23,6 +23,8 @@ const radioLogEl = document.getElementById("radio-log");
 const radioBtn = document.getElementById("radio-toggle");
 const wsPill = document.getElementById("ws-pill");
 const syncPill = document.getElementById("sync-pill");
+const sessionSelect = document.getElementById("session-select");
+const newSessionBtn = document.getElementById("new-session-btn");
 
 /* ------------------------------------------------------------- rendering */
 
@@ -113,6 +115,52 @@ function openDetail(markerId) {
   );
 }
 
+/* -------------------------------------------------------------- sessions */
+
+function renderSessions(sessions) {
+  sessionSelect.innerHTML = sessions
+    .map(
+      (s) =>
+        `<option value="${esc(s.name)}" ${s.active ? "selected" : ""}>
+          ${esc(s.name)}${s.active ? " ●" : ""}</option>`
+    )
+    .join("");
+}
+
+async function loadSessions() {
+  renderSessions(await fetchJSON("/api/sessions"));
+}
+
+sessionSelect.onchange = async () => {
+  const name = sessionSelect.value;
+  if (!confirm(`Zu Einsatz „${name}" wechseln?\n(Der aktuelle Einsatz bleibt gespeichert.)`)) {
+    loadSessions();
+    return;
+  }
+  try {
+    await fetchJSON(`/api/sessions/${encodeURIComponent(name)}/activate`, {
+      method: "POST",
+    });
+  } catch (err) {
+    alert(`Wechsel fehlgeschlagen: ${err.message}`);
+    loadSessions();
+  }
+};
+
+newSessionBtn.onclick = async () => {
+  const name = prompt(
+    "Neuen Einsatz starten — alle bisherigen Daten bleiben unter dem aktuellen Einsatz gespeichert.\n\nName (leer = automatisch):"
+  );
+  if (name === null) return; // abgebrochen
+  try {
+    await fetchJSON(`/api/sessions?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+    });
+  } catch (err) {
+    alert(`Konnte Einsatz nicht anlegen: ${err.message}`);
+  }
+};
+
 /* ----------------------------------------------------------------- radio */
 
 radioBtn.onclick = async () => {
@@ -158,6 +206,7 @@ function connectWS() {
     wsPill.textContent = "live";
     wsPill.classList.add("ok");
     loadInitial(); // re-sync full state after every (re)connect
+    loadSessions();
   };
   ws.onclose = () => {
     wsPill.textContent = "getrennt";
@@ -193,6 +242,10 @@ function connectWS() {
         break;
       case "sync.status":
         applySyncStatus(payload);
+        break;
+      case "session.changed":
+        renderSessions(payload.sessions || []);
+        loadInitial(); // full re-sync against the newly active session
         break;
     }
   };

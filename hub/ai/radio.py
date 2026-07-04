@@ -22,7 +22,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from ..config import HubConfig
-from ..database import Database
+from ..sessions import SessionManager
 from ..events import EventBus
 from ..models import PatientUpdate
 from .structurer import MedicalStructurer, extract_patient_refs
@@ -35,13 +35,13 @@ class RadioMonitor:
     def __init__(
         self,
         config: HubConfig,
-        db: Database,
+        sessions: SessionManager,
         bus: EventBus,
         stt: SpeechToText,
         structurer: MedicalStructurer,
     ) -> None:
         self._config = config
-        self._db = db
+        self._sessions = sessions
         self._bus = bus
         self._stt = stt
         self._structurer = structurer
@@ -192,7 +192,12 @@ class RadioMonitor:
         text = result.text.strip()
         if not text:
             return
-        self._handle_transmission(text)
+        try:
+            self._handle_transmission(text)
+        except Exception:
+            # e.g. the session was switched mid-write; the next transmission
+            # lands in the new session's database.
+            log.exception("radio transmission handling failed")
 
     # ---------------------------------------------------------- processing
 
@@ -202,7 +207,7 @@ class RadioMonitor:
         structured = update.model_dump(exclude_none=True, exclude_defaults=True)
         structured.pop("note", None)
 
-        entry = self._db.add_radio_entry(text, refs, structured)
+        entry = self._sessions.db.add_radio_entry(text, refs, structured)
         self._bus.publish_threadsafe("radio.transcript", entry)
         log.info("radio: %s (refs=%s)", text, refs)
 
@@ -213,7 +218,7 @@ class RadioMonitor:
         for marker_id in refs:
             applied = PatientUpdate(**update.model_dump(exclude={"note"}))
             applied.note = f"[Funk] {text}"
-            patient = self._db.apply_update(
+            patient = self._sessions.db.apply_update(
                 marker_id, applied, source="radio", author="funk",
                 transcript=text,
             )

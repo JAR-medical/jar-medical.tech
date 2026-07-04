@@ -22,16 +22,16 @@ from typing import Any
 import httpx
 
 from ..config import HubConfig
-from ..database import Database
+from ..sessions import SessionManager
 from ..events import EventBus
 
 log = logging.getLogger("triarge.sync")
 
 
 class SupabaseSync:
-    def __init__(self, config: HubConfig, db: Database, bus: EventBus) -> None:
+    def __init__(self, config: HubConfig, sessions: SessionManager, bus: EventBus) -> None:
         self._config = config
-        self._db = db
+        self._sessions = sessions
         self._bus = bus
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -50,7 +50,7 @@ class SupabaseSync:
         return {
             "enabled": self.enabled,
             "connected": self._connected,
-            "pending": self._db.outbox_size(),
+            "pending": self._sessions.db.outbox_size(),
         }
 
     def start(self) -> None:
@@ -79,12 +79,17 @@ class SupabaseSync:
         client = httpx.Client(headers=headers, timeout=10.0)
         try:
             while not self._stop.wait(self._config.supabase_interval_s):
-                self._drain_once(client, base)
+                try:
+                    self._drain_once(client, base)
+                except Exception:
+                    # Survive races around session switches; next tick
+                    # drains the freshly active session's outbox.
+                    log.exception("sync drain failed")
         finally:
             client.close()
 
     def _drain_once(self, client: httpx.Client, base: str) -> None:
-        batch = self._db.peek_outbox(limit=50)
+        batch = self._sessions.db.peek_outbox(limit=50)
         if not batch:
             return
         # Group by target table; latest patient state wins within a batch.
@@ -123,7 +128,7 @@ class SupabaseSync:
         # not in `rows.values()` were superseded and are safe to drop too.
         if all_ok:
             acked = [row_id for row_id, _, _ in batch]
-        self._db.ack_outbox(acked)
+        self._sessions.db.ack_outbox(acked)
         self._set_connected(True)
 
     def _push_deletes(
@@ -139,7 +144,7 @@ class SupabaseSync:
                 resp = client.delete(
                     f"{base}/patients",
                     params={
-                        "incident_id": f"eq.{self._config.incident_id}",
+                        "incident_id": f"eq.{self._sessions.current_name}",
                         "marker_id": f"eq.{payload['marker_id']}",
                     },
                 )
@@ -158,7 +163,8 @@ class SupabaseSync:
 
     def _to_record(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         record = dict(payload)
-        record["incident_id"] = self._config.incident_id
+        # Session name identifies the incident in the cloud replica.
+        record["incident_id"] = self._sessions.current_name
         # Postgres columns are jsonb; nested dicts/lists pass through as-is.
         return record
 

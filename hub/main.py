@@ -34,9 +34,9 @@ from .ai.structurer import MedicalStructurer
 from .ai.stt import SpeechToText, STTUnavailable
 from .ai.radio import RadioMonitor
 from .config import CONFIG
-from .database import Database
 from .events import BUS
 from .models import PatientUpdate
+from .sessions import SessionManager
 from .sync.supabase_sync import SupabaseSync
 
 logging.basicConfig(
@@ -45,13 +45,13 @@ logging.basicConfig(
 )
 log = logging.getLogger("triarge.hub")
 
-db = Database(CONFIG.db_path)
+sessions = SessionManager(CONFIG)
 stt = SpeechToText(CONFIG.stt_model, CONFIG.stt_language, CONFIG.stt_compute_type)
 structurer = MedicalStructurer(
     CONFIG.ollama_url, CONFIG.ollama_model, CONFIG.ollama_timeout_s
 )
-radio = RadioMonitor(CONFIG, db, BUS, stt, structurer)
-sync = SupabaseSync(CONFIG, db, BUS)
+radio = RadioMonitor(CONFIG, sessions, BUS, stt, structurer)
+sync = SupabaseSync(CONFIG, sessions, BUS)
 
 
 @asynccontextmanager
@@ -60,15 +60,15 @@ async def lifespan(app: FastAPI):
     CONFIG.audio_dir.mkdir(parents=True, exist_ok=True)
     sync.start()
     log.info(
-        "TriARge hub v%s ready on %s:%s (db=%s, stt=%s, structurer=%s)",
-        __version__, CONFIG.host, CONFIG.port, CONFIG.db_path,
+        "TriARge hub v%s ready on %s:%s (session=%s, stt=%s, structurer=%s)",
+        __version__, CONFIG.host, CONFIG.port, sessions.current_name,
         "available" if stt.available else "MISSING",
         structurer.engine_name,
     )
     yield
     radio.stop()
     sync.stop()
-    db.close()
+    sessions.close()
 
 
 app = FastAPI(title="TriARge Hub", version=__version__, lifespan=lifespan)
@@ -94,12 +94,49 @@ def health() -> dict:
     return {
         "status": "ok",
         "version": __version__,
+        "session": sessions.current_name,
         "stt_available": stt.available,
         "structurer": structurer.engine_name,
         "radio": radio.status,
         "sync": sync.status,
-        "patients": len(db.list_patients()),
+        "patients": len(sessions.db.list_patients()),
     }
+
+
+# ---------------------------------------------------------------- sessions
+
+@app.get("/api/sessions")
+def list_sessions() -> list[dict]:
+    return sessions.list_sessions()
+
+
+@app.post("/api/sessions")
+async def create_session(name: str = Query("")) -> dict:
+    """Start a fresh session (Einsatz). Nothing is deleted — the previous
+    session's database stays on disk and can be reactivated any time."""
+    info = sessions.new_session(name or None)
+    await _announce_session_change()
+    log.info("new session started: %s", sessions.current_name)
+    return info
+
+
+@app.post("/api/sessions/{name}/activate")
+async def activate_session(name: str) -> dict:
+    try:
+        info = sessions.switch(name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    await _announce_session_change()
+    log.info("switched to session: %s", sessions.current_name)
+    return info
+
+
+async def _announce_session_change() -> None:
+    _sightings.clear()
+    await BUS.publish("session.changed", {
+        "name": sessions.current_name,
+        "sessions": sessions.list_sessions(),
+    })
 
 
 # ---------------------------------------------------------------- patients
@@ -113,13 +150,13 @@ _sightings: dict[int, dict] = {}
 def list_patients() -> list[dict]:
     return [
         p.model_dump(mode="json") | {"last_seen": _sightings.get(p.marker_id)}
-        for p in db.list_patients()
+        for p in sessions.db.list_patients()
     ]
 
 
 @app.get("/api/patients/{marker_id}")
 def get_patient(marker_id: int) -> dict:
-    patient = db.get_patient(marker_id)
+    patient = sessions.db.get_patient(marker_id)
     if patient is None:
         raise HTTPException(status_code=404, detail=f"no patient for marker {marker_id}")
     return patient.model_dump(mode="json")
@@ -129,7 +166,7 @@ def get_patient(marker_id: int) -> dict:
 async def claim_patient(marker_id: int) -> dict:
     """Called by a paramedic client the moment it first detects a marker.
     Idempotent: returns the existing record if the marker is already known."""
-    patient, created = db.ensure_patient(marker_id)
+    patient, created = sessions.db.ensure_patient(marker_id)
     if created:
         await BUS.publish("patient.created", patient)
         log.info("marker %d claimed — new patient record", marker_id)
@@ -145,14 +182,14 @@ async def update_patient(
 ) -> dict:
     if update.is_empty():
         raise HTTPException(status_code=400, detail="empty update")
-    patient = db.apply_update(marker_id, update, source=source, author=author)
+    patient = sessions.db.apply_update(marker_id, update, source=source, author=author)
     await BUS.publish("patient.updated", patient)
     return patient.model_dump(mode="json")
 
 
 @app.get("/api/patients/{marker_id}/protocol")
 def get_protocol(marker_id: int) -> list[dict]:
-    return [e.model_dump(mode="json") for e in db.list_protocol(marker_id)]
+    return [e.model_dump(mode="json") for e in sessions.db.list_protocol(marker_id)]
 
 
 @app.post("/api/patients/{marker_id}/seen")
@@ -175,7 +212,7 @@ async def patient_seen(marker_id: int, author: str = Query("")) -> dict:
 async def delete_patient(marker_id: int) -> dict:
     """Remove a patient record entirely — for phantom patients created by
     marker misreads. Real records should be recategorized, not deleted."""
-    if not db.delete_patient(marker_id):
+    if not sessions.db.delete_patient(marker_id):
         raise HTTPException(status_code=404, detail=f"no patient for marker {marker_id}")
     _sightings.pop(marker_id, None)
     await BUS.publish("patient.deleted", {"marker_id": marker_id})
@@ -212,7 +249,7 @@ async def dictate(marker_id: int, request: Request, author: str = Query("")) -> 
                 "detail": "no speech recognized"}
 
     update = await asyncio.to_thread(structurer.structure, transcription.text)
-    patient = db.apply_update(
+    patient = sessions.db.apply_update(
         marker_id, update,
         source="dictation", author=author,
         transcript=transcription.text, audio_file=audio_file.name,
@@ -246,7 +283,7 @@ async def radio_stop() -> dict:
 
 @app.get("/api/radio/log")
 def radio_log(limit: int = Query(100, le=500)) -> list[dict]:
-    return [e.model_dump(mode="json") for e in db.list_radio_log(limit)]
+    return [e.model_dump(mode="json") for e in sessions.db.list_radio_log(limit)]
 
 
 # -------------------------------------------------------------------- sync
