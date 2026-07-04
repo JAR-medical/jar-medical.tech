@@ -251,6 +251,14 @@ class ParamedicClient:
             f"Aufnahme läuft für Patient #{marker_id} — 'd' + Enter zum Beenden"
         )
 
+    async def _heartbeat_loop(self) -> None:
+        """Every 15 s: tell the hub this Trupp is alive and what it is
+        focused on. Registration is implicit — first heartbeat adds the
+        team to the incident-command roster."""
+        while True:
+            await self.hub.heartbeat(self._focused_marker())
+            await asyncio.sleep(15.0)
+
     # ----------------------------------------------------------------- REPL
 
     async def _repl(self) -> None:
@@ -330,6 +338,7 @@ class ParamedicClient:
             self._on_session_changed,
         )
         consumer = asyncio.create_task(self._event_consumer(), name="events")
+        heartbeat = asyncio.create_task(self._heartbeat_loop(), name="heartbeat")
 
         if enable_vision:
             self._vision_thread = threading.Thread(
@@ -347,6 +356,7 @@ class ParamedicClient:
             if self.recorder.recording:
                 self.recorder.stop()
             consumer.cancel()
+            heartbeat.cancel()
             await self.hub.close()
             if self._vision_thread is not None:
                 self._vision_thread.join(timeout=2)

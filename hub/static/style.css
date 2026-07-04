@@ -163,6 +163,38 @@ main {
 }
 .sidebar h2 { font-size: 15px; margin-bottom: 10px; color: var(--muted); }
 
+/* --- teams --- */
+.team-section { margin-bottom: 14px; }
+.team-section h2 { display: flex; justify-content: space-between; align-items: center; }
+.mini-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 24px; height: 24px;
+  cursor: pointer;
+  font-size: 14px; line-height: 1;
+}
+.team-list { display: flex; flex-direction: column; gap: 6px; }
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.team-row .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.team-row.online .dot { background: var(--sk3); box-shadow: 0 0 6px var(--sk3); }
+.team-row .team-name { font-weight: 700; }
+.team-row .team-status { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-row .team-remove {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 14px; padding: 0 2px;
+}
+.team-row .team-remove:hover { color: var(--sk1); }
+
 .radio-log { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .radio-entry {
   background: var(--panel-2);

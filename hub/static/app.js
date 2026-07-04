@@ -25,6 +25,8 @@ const wsPill = document.getElementById("ws-pill");
 const syncPill = document.getElementById("sync-pill");
 const sessionSelect = document.getElementById("session-select");
 const newSessionBtn = document.getElementById("new-session-btn");
+const teamListEl = document.getElementById("team-list");
+const addTeamBtn = document.getElementById("add-team-btn");
 
 /* ------------------------------------------------------------- rendering */
 
@@ -161,6 +163,59 @@ newSessionBtn.onclick = async () => {
   }
 };
 
+/* ----------------------------------------------------------------- teams */
+
+function renderTeams(teams) {
+  if (!teams.length) {
+    teamListEl.innerHTML = '<p class="muted">Keine Trupps registriert.</p>';
+    return;
+  }
+  teamListEl.innerHTML = "";
+  for (const t of teams) {
+    const row = document.createElement("div");
+    row.className = `team-row ${t.online ? "online" : ""}`;
+    const status = t.online
+      ? t.last_marker != null
+        ? `im Einsatz — sieht Patient #${t.last_marker}`
+        : "online"
+      : t.last_active
+        ? `zuletzt aktiv ${timeAgo(t.last_active)}`
+        : "noch nie verbunden";
+    row.innerHTML = `
+      <span class="dot"></span>
+      <span class="team-name">${esc(t.name)}</span>
+      <span class="team-status">${esc(t.note ? t.note + " · " : "")}${status}</span>
+      <button class="team-remove" title="Trupp entfernen">✕</button>`;
+    row.querySelector(".team-remove").onclick = async () => {
+      if (!confirm(`Trupp „${t.name}" aus der Übersicht entfernen?`)) return;
+      try {
+        await fetchJSON(`/api/teams/${encodeURIComponent(t.name)}`, { method: "DELETE" });
+      } catch (err) {
+        alert(`Entfernen fehlgeschlagen: ${err.message}`);
+      }
+    };
+    teamListEl.appendChild(row);
+  }
+}
+
+async function loadTeams() {
+  renderTeams(await fetchJSON("/api/teams"));
+}
+
+addTeamBtn.onclick = async () => {
+  const name = prompt("Rufname des Trupps (z. B. RTW-3):");
+  if (!name || !name.trim()) return;
+  const note = prompt("Notiz (optional, z. B. Besatzung/Abschnitt):") || "";
+  try {
+    await fetchJSON(
+      `/api/teams?name=${encodeURIComponent(name.trim())}&note=${encodeURIComponent(note)}`,
+      { method: "POST" }
+    );
+  } catch (err) {
+    alert(`Anlegen fehlgeschlagen: ${err.message}`);
+  }
+};
+
 /* ----------------------------------------------------------------- radio */
 
 radioBtn.onclick = async () => {
@@ -207,6 +262,7 @@ function connectWS() {
     wsPill.classList.add("ok");
     loadInitial(); // re-sync full state after every (re)connect
     loadSessions();
+    loadTeams();
   };
   ws.onclose = () => {
     wsPill.textContent = "getrennt";
@@ -246,6 +302,9 @@ function connectWS() {
       case "session.changed":
         renderSessions(payload.sessions || []);
         loadInitial(); // full re-sync against the newly active session
+        break;
+      case "teams":
+        renderTeams(payload);
         break;
     }
   };
@@ -317,4 +376,5 @@ function timeAgo(iso) {
 }
 
 setInterval(renderBoard, 30000); // keep "aktualisiert vor X min" fresh
+setInterval(() => loadTeams().catch(() => {}), 20000); // online/offline decay
 connectWS();

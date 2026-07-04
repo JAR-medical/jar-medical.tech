@@ -147,3 +147,36 @@ def test_session_change_is_broadcast(client):
 
 def test_activate_unknown_session_404(client):
     assert client.post("/api/sessions/gibts-nicht/activate").status_code == 404
+
+
+def test_team_management(client):
+    # Manual registration from the dashboard.
+    assert client.post("/api/teams?name=Trupp-1&note=Abschnitt Nord").json()["created"]
+    # Heartbeat auto-registers unknown call signs and marks them online.
+    client.post("/api/teams/Trupp-2/heartbeat?marker=5")
+    teams = {t["name"]: t for t in client.get("/api/teams").json()}
+    assert set(teams) == {"Trupp-1", "Trupp-2"}
+    assert teams["Trupp-1"]["online"] is False
+    assert teams["Trupp-1"]["note"] == "Abschnitt Nord"
+    assert teams["Trupp-2"]["online"] is True
+    assert teams["Trupp-2"]["last_marker"] == 5
+
+    # Sighting pings count as team activity too.
+    client.post("/api/patients/7/claim")
+    client.post("/api/patients/7/seen?author=Trupp-1")
+    teams = {t["name"]: t for t in client.get("/api/teams").json()}
+    assert teams["Trupp-1"]["online"] is True
+    assert teams["Trupp-1"]["last_marker"] == 7
+
+    # Removal.
+    assert client.delete("/api/teams/Trupp-2").json() == {"deleted": "Trupp-2"}
+    assert client.delete("/api/teams/Trupp-2").status_code == 404
+    assert [t["name"] for t in client.get("/api/teams").json()] == ["Trupp-1"]
+
+
+def test_team_changes_are_broadcast(client):
+    with client.websocket_connect("/ws") as ws:
+        client.post("/api/teams?name=Trupp-9")
+        event = ws.receive_json()
+        assert event["type"] == "teams"
+        assert any(t["name"] == "Trupp-9" for t in event["payload"])

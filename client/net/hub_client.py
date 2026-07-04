@@ -98,6 +98,19 @@ class HubClient:
             log.warning("update %d failed: %s", marker_id, exc)
             return None
 
+    async def heartbeat(self, marker_id: Optional[int] = None) -> None:
+        """Periodic liveness ping so incident command sees this Trupp as
+        online (and which patient it is focused on, if any)."""
+        params = {"marker": marker_id} if marker_id is not None else {}
+        try:
+            await self._http.post(
+                f"/api/teams/{self._medic_id}/heartbeat",
+                params=params,
+                timeout=5.0,
+            )
+        except httpx.HTTPError:
+            pass
+
     async def report_seen(self, marker_id: int) -> None:
         """Fire-and-forget presence ping ('this medic sees this marker')."""
         try:

@@ -43,7 +43,15 @@ cloud whenever internet happens to be available.
 
 ## Quick start
 
-Python 3.11/3.12 recommended (prebuilt wheels for `ctranslate2`/OpenCV).
+**One-click demo:** double-click `Start-TriARge.command` (or run it in a
+terminal). It creates missing venvs, starts the hub in its own Terminal
+window, opens the dashboard, and launches two Einsatztrupp clients
+(`Trupp-1`, `Trupp-2`) in separate Terminal windows. Both squads appear
+in the dashboard's *Einsatztrupps* panel with live online status.
+
+Manual setup below. Python 3.11/3.12 recommended (prebuilt wheels for
+`ctranslate2`/OpenCV); create venvs via `uv venv` if your Python is
+uv-managed.
 
 ### 1. Hub (command computer)
 

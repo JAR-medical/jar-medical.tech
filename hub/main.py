@@ -38,6 +38,7 @@ from .events import BUS
 from .models import PatientUpdate
 from .sessions import SessionManager
 from .sync.supabase_sync import SupabaseSync
+from .teams import TeamRegistry
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,6 +53,7 @@ structurer = MedicalStructurer(
 )
 radio = RadioMonitor(CONFIG, sessions, BUS, stt, structurer)
 sync = SupabaseSync(CONFIG, sessions, BUS)
+teams = TeamRegistry(CONFIG.data_dir / "teams.json")
 
 
 @asynccontextmanager
@@ -139,6 +141,37 @@ async def _announce_session_change() -> None:
     })
 
 
+# ------------------------------------------------------- teams (Trupps)
+
+@app.get("/api/teams")
+def list_teams() -> list[dict]:
+    return teams.list()
+
+
+@app.post("/api/teams")
+async def add_team(name: str = Query(...), note: str = Query("")) -> dict:
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="team name required")
+    created = teams.add(name, note)
+    await BUS.publish("teams", teams.list())
+    return {"name": name.strip(), "created": created}
+
+
+@app.delete("/api/teams/{name}")
+async def remove_team(name: str) -> dict:
+    if not teams.remove(name):
+        raise HTTPException(status_code=404, detail=f"unknown team {name!r}")
+    await BUS.publish("teams", teams.list())
+    return {"deleted": name}
+
+
+@app.post("/api/teams/{name}/heartbeat")
+async def team_heartbeat(name: str, marker: int | None = Query(None)) -> dict:
+    if teams.touch(name, marker):
+        await BUS.publish("teams", teams.list())
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------- patients
 
 # Ephemeral presence: which client last had eyes on which marker. Kept in
@@ -205,6 +238,8 @@ async def patient_seen(marker_id: int, author: str = Query("")) -> dict:
     }
     _sightings[marker_id] = info
     await BUS.publish("patient.seen", info)
+    if author and teams.touch(author, marker_id):
+        await BUS.publish("teams", teams.list())
     return info
 
 
@@ -255,6 +290,8 @@ async def dictate(marker_id: int, request: Request, author: str = Query("")) -> 
         transcript=transcription.text, audio_file=audio_file.name,
     )
     await BUS.publish("patient.updated", patient)
+    if author and teams.touch(author, marker_id):
+        await BUS.publish("teams", teams.list())
     log.info("dictation for marker %d by %r: %s", marker_id, author, transcription.text)
     return {
         "transcript": transcription.text,
