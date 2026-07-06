@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R. — Augmented Reality für den Katastrophenschutz</title>
+<meta name="description" content="J.A.R. bringt die Sichtung bei großen Verletzungslagen in Echtzeit auf das HUD der Einsatzkräfte. Sehen Sie die App live in Aktion.">
+<style>
+/* ==========================================================
+   J.A.R. — Klassisches WordPress-Theme (Stil: Twenty Seventeen)
+   Palette: Weiß / Hellgrau / Anthrazit / WordPress-Blau #0073aa
+   ========================================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.75;
+  color: #333;
+  background: #fff;
+}
+
+h1, h2, h3, h4, .sans {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+a { color: #0073aa; text-decoration: underline; }
+a:hover { color: #005177; }
+
+img { max-width: 100%; height: auto; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+.eyebrow {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #0073aa;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.section { padding: 72px 0; }
+.section-alt { background: #f7f7f7; border-top: 1px solid #e5e5e5; border-bottom: 1px solid #e5e5e5; }
+.section h2 { font-size: 32px; margin-bottom: 16px; }
+.section .intro { max-width: 720px; color: #555; margin-bottom: 40px; }
+
+/* ---------- Kopfbereich / Navigation ---------- */
+.site-header {
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+}
+.site-branding { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.site-logo {
+  width: 40px; height: 40px;
+  background: #0073aa;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 22px; font-weight: 700;
+  flex-shrink: 0;
+}
+.site-title {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 20px; font-weight: 700; color: #1a1a1a;
+  letter-spacing: 1px;
+}
+.site-tagline {
+  display: block;
+  font-size: 12px; font-weight: 400; color: #666;
+  letter-spacing: 0.5px;
+}
+.main-nav ul { list-style: none; display: flex; gap: 4px; }
+.main-nav a {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px; font-weight: 600;
+  color: #333; text-decoration: none;
+  padding: 10px 14px; display: block;
+}
+.main-nav a:hover { color: #0073aa; }
+.main-nav a.nav-cta {
+  background: #0073aa; color: #fff;
+  margin-left: 8px;
+}
+.main-nav a.nav-cta:hover { background: #005177; color: #fff; }
+.menu-toggle {
+  display: none;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px; font-weight: 600;
+  background: none; border: 1px solid #ccc; color: #333;
+  padding: 8px 14px; cursor: pointer;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  /* Echtes Hintergrundbild (Rettungsdienst/Einsatzstelle) mit dunklem Verlauf
+     für die Lesbarkeit. Fällt auf die Farbe #23282d zurück, falls es nicht lädt. */
+  background:
+    linear-gradient(rgba(20,24,28,0.74), rgba(20,24,28,0.84)),
+    #23282d center/cover no-repeat
+    url("https://commons.wikimedia.org/wiki/Special:FilePath/Krankenwagen%20in%20Berlin.%20April%202020.jpg?width=1600");
+  color: #fff;
+  text-align: center;
+  padding: 120px 24px 100px;
+  position: relative;
+}
+.hero .eyebrow { color: #9ec7dd; }
+.hero h1 {
+  color: #fff;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  max-width: 820px;
+  margin: 0 auto 20px;
+}
+.hero p {
+  max-width: 680px;
+  margin: 0 auto 36px;
+  font-size: 19px;
+  color: #d6d6d6;
+}
+.hero-caption {
+  position: absolute;
+  right: 16px; bottom: 12px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 11px; color: #777;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 15px; font-weight: 700;
+  text-decoration: none;
+  padding: 14px 30px;
+  border: 2px solid #0073aa;
+  margin: 0 6px 10px;
+}
+.btn-primary { background: #0073aa; color: #fff; }
+.btn-primary:hover { background: #005177; border-color: #005177; color: #fff; }
+.btn-secondary { background: transparent; color: #fff; border-color: #fff; }
+.btn-secondary:hover { background: #fff; color: #23282d; }
+.btn-outline { background: #fff; color: #0073aa; }
+.btn-outline:hover { background: #0073aa; color: #fff; }
+
+/* ---------- Bild-Platzhalter ---------- */
+.img-placeholder {
+  background: #ececec;
+  border: 2px dashed #bbb;
+  color: #777;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 12px;
+  min-height: 220px;
+  width: 100%;
+}
+.img-placeholder.tall { min-height: 320px; }
+
+/* Rahmen für echte Fotos: Platzhalter bleibt als Fallback sichtbar,
+   falls ein Bild (z. B. wegen fehlender Verbindung) nicht lädt. */
+.img-frame { position: relative; overflow: hidden; }
+.img-frame .img-placeholder { margin: 0; }
+.img-real {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #ececec;
+}
+.figure-credit {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 11px; color: #999; margin-top: 4px;
+}
+.figure-credit a { color: #999; }
+
+/* ---------- Problem / Ausgangslage ---------- */
+.two-col {
+  display: flex;
+  gap: 48px;
+  align-items: flex-start;
+}
+.two-col > div { flex: 1; }
+.checklist { list-style: none; margin-top: 8px; }
+.checklist li {
+  padding-left: 30px;
+  position: relative;
+  margin-bottom: 14px;
+}
+.checklist li::before {
+  content: "—";
+  position: absolute; left: 0;
+  color: #0073aa;
+  font-weight: 700;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.figure-caption {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px; color: #777;
+  margin-top: 10px;
+}
+
+/* ---------- Drei Feature-Spalten ---------- */
+.features {
+  display: flex;
+  gap: 40px;
+  margin-top: 16px;
+}
+.feature {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-top: 4px solid #0073aa;
+  padding: 32px 28px;
+}
+.feature-icon {
+  width: 52px; height: 52px;
+  margin-bottom: 18px;
+}
+.feature h3 { font-size: 20px; margin-bottom: 12px; }
+.feature p { font-size: 15.5px; color: #555; }
+
+/* ---------- Galerie ---------- */
+.gallery { display: flex; gap: 24px; }
+.gallery figure { flex: 1; }
+
+/* ---------- CTA-Band ---------- */
+.cta-band {
+  background: #0073aa;
+  color: #fff;
+  text-align: center;
+  padding: 64px 24px;
+}
+.cta-band h2 { color: #fff; font-size: 30px; margin-bottom: 12px; }
+.cta-band p { max-width: 640px; margin: 0 auto 28px; color: #dcecf5; }
+
+/* ---------- Fußbereich ---------- */
+.site-footer {
+  background: #222;
+  color: #b3b3b3;
+  font-size: 15px;
+  padding: 56px 0 40px;
+}
+.footer-widgets { display: flex; gap: 48px; }
+.footer-widgets .widget { flex: 1; }
+.site-footer h4 {
+  color: #fff;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 16px;
+}
+.site-footer ul { list-style: none; }
+.site-footer li { margin-bottom: 8px; }
+.site-footer a { color: #b3b3b3; }
+.site-footer a:hover { color: #fff; }
+.footer-bottom {
+  background: #1a1a1a;
+  color: #888;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  padding: 18px 0;
+}
+.footer-bottom .wrap {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.footer-bottom a { color: #aaa; margin-left: 18px; }
+.footer-bottom a:first-child { margin-left: 0; }
+
+/* ---------- Responsiv ---------- */
+@media (max-width: 860px) {
+  .hero h1 { font-size: 34px; }
+  .two-col, .features, .gallery, .footer-widgets { flex-direction: column; }
+  .menu-toggle { display: block; }
+  .main-nav {
+    display: none;
+    position: absolute;
+    top: 72px; left: 0; right: 0;
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .main-nav.open { display: block; }
+  .main-nav ul { flex-direction: column; padding: 8px 24px 16px; }
+  .main-nav a.nav-cta { margin-left: 0; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= KOPFBEREICH ================= -->
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="site-branding" href="index.html">
+      <span class="site-logo">✚</span>
+      <span>
+        <span class="site-title">J.A.R.</span>
+        <span class="site-tagline">Augmented Reality für den Katastrophenschutz</span>
+      </span>
+    </a>
+    <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mainNav">Menü ☰</button>
+    <nav class="main-nav" id="mainNav" aria-label="Hauptnavigation">
+      <ul>
+        <li><a href="#problem">Ausgangslage</a></li>
+        <li><a href="#loesung">Unsere Lösung</a></li>
+        <li><a href="#einsatz">Im Einsatz</a></li>
+        <li><a href="#kontakt">Kontakt</a></li>
+        <!-- TODO: Echte Demo-URL eintragen -->
+        <li><a class="nav-cta" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Live-Demo →</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <span class="eyebrow">J.A.R. — Sichtung. Übertragung. Behandlung.</span>
+  <h1>Jede Sekunde zählt.<br>Jede Information auch.</h1>
+  <p>Bei großen Verletzungslagen entscheidet der Informationsfluss über Menschenleben.
+     J.A.R. bringt die Sichtung in Echtzeit auf das HUD der Einsatzkräfte —
+     ohne Papier-Sichtungskarten, ohne Informationsverlust.</p>
+  <!-- Hauptlink: Hier sieht man die App in Aktion (Benutzeroberfläche & Demo) -->
+  <a class="btn btn-primary" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">App live erleben →</a>
+  <a class="btn btn-secondary" href="#problem">Mehr erfahren</a>
+  <span class="hero-caption">Foto: Rettungsdienst-Einsatz, Berlin · Wikimedia Commons</span>
+</section>
+
+<!-- ================= AUSGANGSLAGE ================= -->
+<section class="section" id="problem">
+  <div class="wrap two-col">
+    <div>
+      <span class="eyebrow">Die Ausgangslage</span>
+      <h2>Sichtung heute: Papier, Funk und verlorene Zeit</h2>
+      <p>Große Verletzungslagen erfordern eine schnelle und vollständige Sichtung aller
+         Patientinnen und Patienten. Die Informationen müssen lückenlos an die Einsatzleitung
+         und an alle behandelnden Sanitäter übermittelt werden. Die Realität sieht anders aus:</p>
+      <ul class="checklist">
+        <li>Sämtliche Informationen eines Patienten — inklusive aller medizinischen Maßnahmen —
+            werden auf einer <strong>Sichtungskarte aus Papier</strong> festgehalten.</li>
+        <li>Die Informationen müssen erst von den Sichtungstrupps an die Einsatzleitung
+            übertragen werden. Eine <strong>Live-Übertragung ist nicht möglich</strong>.</li>
+        <li>Sanitäter müssen sich bei jedem Patienten erst <strong>„einlesen“</strong> —
+            wertvolle Zeit, die in der Behandlung fehlt.</li>
+      </ul>
+    </div>
+    <div>
+      <figure>
+        <div class="img-frame tall">
+          <div class="img-placeholder tall">[ Papier-Sichtungskarte / Anhängekarte für Verletzte ]</div>
+          <img class="img-real" loading="lazy"
+               src="https://commons.wikimedia.org/wiki/Special:FilePath/Anh%C3%A4ngekarte%20f%C3%BCr%20Verletzte%20oder%20Kranke.JPG?width=700"
+               alt="Klassische Papier-Sichtungskarte (Anhängekarte für Verletzte oder Kranke) des Deutschen Roten Kreuzes"
+               onerror="this.remove()">
+        </div>
+        <p class="figure-caption">Abb. 1 — Der aktuelle Stand im Katastrophenschutz: die Sichtungskarte.</p>
+        <p class="figure-credit">Foto: Anhängekarte für Verletzte/Kranke (DRK) · <a href="https://commons.wikimedia.org/wiki/File:Anh%C3%A4ngekarte_f%C3%BCr_Verletzte_oder_Kranke.JPG" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LÖSUNG: 3 FEATURE-SPALTEN ================= -->
+<section class="section section-alt" id="loesung">
+  <div class="wrap">
+    <span class="eyebrow">Unsere Idee</span>
+    <h2>Die Sichtungskarte wird digital — und landet im Blickfeld</h2>
+    <p class="intro">J.A.R. verbindet Augmented Reality und Edge-AI zu einem durchgängigen
+       Informationsfluss vom ersten Sichtungstrupp bis zur Einsatzleitung.</p>
+    <div class="features">
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
+          <rect x="4" y="12" width="40" height="22" rx="3"/>
+          <path d="M14 34v4h20v-4"/><circle cx="24" cy="23" r="5"/>
+        </svg>
+        <h3>AR-HUD im Blickfeld</h3>
+        <p>Augmented Reality stellt alle relevanten Informationen direkt über ein
+           Head-up-Display dar — inklusive Benachrichtigungen der Einsatzleitung.
+           Die Hände bleiben frei für die Versorgung.</p>
+      </div>
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
+          <circle cx="24" cy="24" r="18"/><path d="M24 6v8M24 34v8M6 24h8M34 24h8"/><circle cx="24" cy="24" r="4"/>
+        </svg>
+        <h3>Live-Lagebild statt Papier</h3>
+        <p>Patienten erhalten einfache Identifikationsnummern statt Sichtungskarten.
+           Alle Daten werden bei der Behandlung direkt eingeblendet und stehen der
+           Einsatzleitung in Echtzeit zur Verfügung.</p>
+      </div>
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
+          <rect x="18" y="6" width="12" height="22" rx="6"/><path d="M10 24a14 14 0 0 0 28 0M24 38v6M16 44h16"/>
+        </svg>
+        <h3>Edge-AI-Transkription</h3>
+        <p>Maßnahmen werden per einfacher Sprache protokolliert. Die Transkription
+           läuft als Edge-AI direkt auf dem Gerät — schnell, robust und auch ohne
+           stabile Netzverbindung.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= IM EINSATZ / GALERIE ================= -->
+<section class="section" id="einsatz">
+  <div class="wrap">
+    <span class="eyebrow">Im Einsatz</span>
+    <h2>Vom Sichtungstrupp bis zur Einsatzleitung</h2>
+    <p class="intro">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+       tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
+       nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <div class="gallery">
+      <figure>
+        <div class="img-frame">
+          <div class="img-placeholder">[ MANV-Übung an der Einsatzstelle ]</div>
+          <img class="img-real" loading="lazy"
+               src="https://commons.wikimedia.org/wiki/Special:FilePath/MANV-%C3%9Cbung.jpg?width=900"
+               alt="MANV-Übung des Deutschen Roten Kreuzes an einer Einsatzstelle"
+               onerror="this.remove()">
+        </div>
+        <p class="figure-caption">Sichtung an der Einsatzstelle.</p>
+        <p class="figure-credit">Foto: MANV-Übung (DRK, Kreis Aachen) · <a href="https://commons.wikimedia.org/wiki/File:MANV-%C3%9Cbung.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+      </figure>
+      <figure>
+        <div class="img-frame">
+          <div class="img-placeholder">[ Rettungswagen und Notarzt bei der Versorgung ]</div>
+          <img class="img-real" loading="lazy"
+               src="https://commons.wikimedia.org/wiki/Special:FilePath/Rtwnef%20Ambulance%20Rettungsdienst%20Germany.jpg?width=900"
+               alt="Rettungswagen und Notarzteinsatzfahrzeug des deutschen Rettungsdienstes"
+               onerror="this.remove()">
+        </div>
+        <p class="figure-caption">Behandlung mit eingeblendeten Patientendaten.</p>
+        <p class="figure-credit">Foto: Rettungswagen/NEF · <a href="https://commons.wikimedia.org/wiki/File:Rtwnef_Ambulance_Rettungsdienst_Germany.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+      </figure>
+      <figure>
+        <div class="img-frame">
+          <div class="img-placeholder">[ Einsatzleitwagen / Führungsfahrzeug ]</div>
+          <img class="img-real" loading="lazy"
+               src="https://commons.wikimedia.org/wiki/Special:FilePath/Hard-Feuerwehrfest-Opel%20Rekord%20E-ELW%201-1985-01ASD.jpg?width=900"
+               alt="Einsatzleitwagen (ELW 1) als Führungsfahrzeug der Einsatzleitung"
+               onerror="this.remove()">
+        </div>
+        <p class="figure-caption">Live-Lagebild für die Einsatzleitung.</p>
+        <p class="figure-credit">Foto: Einsatzleitwagen (ELW 1), Asurnipal · <a href="https://commons.wikimedia.org/wiki/File:Hard-Feuerwehrfest-Opel_Rekord_E-ELW_1-1985-01ASD.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</p>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA-BAND ================= -->
+<section class="cta-band">
+  <h2>Sehen Sie J.A.R. in Aktion</h2>
+  <p>Die Benutzeroberfläche und der komplette Ablauf — von der Sichtung bis zur Übergabe —
+     stehen als interaktive Demo bereit. Kein Download, direkt im Browser.</p>
+  <!-- TODO: Echte Demo-URL eintragen -->
+  <a class="btn btn-outline" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Zur Live-Demo der App →</a>
+</section>
+
+<!-- ================= FUSSBEREICH ================= -->
+<footer class="site-footer" id="kontakt">
+  <div class="wrap footer-widgets">
+    <div class="widget">
+      <h4>Über J.A.R.</h4>
+      <p>J.A.R. ist ein Startup-Projekt für den Katastrophenschutz: Augmented Reality und
+         Edge-AI machen die Sichtung bei großen Verletzungslagen schneller, vollständiger
+         und in Echtzeit verfügbar. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+    </div>
+    <div class="widget">
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="#problem">Ausgangslage</a></li>
+        <li><a href="#loesung">Unsere Lösung</a></li>
+        <li><a href="#einsatz">Im Einsatz</a></li>
+        <li><a href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Live-Demo</a></li>
+        <li><a href="imprint.html">Impressum</a></li>
+      </ul>
+    </div>
+    <div class="widget">
+      <h4>Kontakt</h4>
+      <ul>
+        <li>J.A.R. — Projektteam</li>
+        <li>Musterstraße 1, 80331 München</li>
+        <li><a href="mailto:kontakt@jar-projekt.example">kontakt@jar-projekt.example</a></li>
+        <li>+49 (0) 89 000 000 00</li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<div class="footer-bottom">
+  <div class="wrap">
+    <span>© 2026 J.A.R. — Alle Rechte vorbehalten. · Fotos: <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA / GFDL)</span>
+    <span>
+      <a href="imprint.html">Impressum</a>
+      <a href="privacy.html">Datenschutz</a>
+      <a href="terms.html">Nutzungsbedingungen</a>
+    </span>
+  </div>
+</div>
+
+<script>
+// Mobiles Menü ein-/ausklappen
+(function () {
+  var toggle = document.getElementById('menuToggle');
+  var nav = document.getElementById('mainNav');
+  toggle.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  // Menü nach Klick auf einen Link schließen (mobil)
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

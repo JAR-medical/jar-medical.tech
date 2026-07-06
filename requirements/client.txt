@@ -1,6 +1,0 @@
-# TriARge Paramedic Client (AR glasses simulation on macOS)
-opencv-contrib-python>=4.9   # cv2.aruco lives in the contrib build
-numpy>=1.26
-httpx>=0.27
-websockets>=12.0
-sounddevice>=0.4.6
