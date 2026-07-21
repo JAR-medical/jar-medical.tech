@@ -337,13 +337,13 @@ img { max-width: 100%; height: auto; }
         <li><a href="#problem" data-i18n="nav_problem">Ausgangslage</a></li>
         <li><a href="#loesung" data-i18n="nav_solution">Unsere Lösung</a></li>
         <li><a href="#kontakt" data-i18n="nav_contact">Kontakt</a></li>
-        <!-- TODO: Echte Demo-URL eintragen -->
-        <li><a class="nav-cta" href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="nav_demo">Live-Demo →</a></li>
         <li>
           <button class="lang-toggle" id="langToggle" type="button" aria-label="Sprache wechseln / Switch language">
             <span class="globe" aria-hidden="true">🌐</span><span id="langLabel">EN</span>
           </button>
         </li>
+        <!-- TODO: Echte Demo-URL eintragen -->
+        <li><a class="nav-cta" href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="nav_demo">Live-Demo →</a></li>
       </ul>
     </nav>
   </div>
@@ -612,21 +612,89 @@ var I18N = {
     foot_imprint: "Imprint",
     foot_privacy: "Privacy",
     foot_terms: "Terms of Use"
+  },
+  fr: {
+    tagline: "Réalité augmentée pour la protection civile",
+    menu_toggle: "Menu ☰",
+    nav_problem: "Contexte",
+    nav_solution: "Notre solution",
+    nav_contact: "Contact",
+    nav_demo: "Démo en direct →",
+    hero_eyebrow: "J.A.R. — Triage. Transmission. Traitement.",
+    hero_h1: "Chaque seconde compte.<br>Chaque information aussi.",
+    hero_p: "Lors d'incidents faisant de nombreuses victimes, la circulation de l'information décide de vies humaines. J.A.R. affiche le triage en temps réel sur le HUD des secouristes — sans fiches de triage papier, sans perte d'information.",
+    hero_btn1: "Découvrir l'application en direct →",
+    hero_btn2: "En savoir plus",
+    hero_caption: "Photo : intervention des secours, Berlin · Wikimedia Commons",
+    prob_eyebrow: "La situation actuelle",
+    prob_h2: "Le triage aujourd'hui : papier, radio et temps perdu",
+    prob_p: "Les incidents à victimes multiples exigent un triage rapide et complet de chaque patient. Les informations doivent parvenir sans lacune au poste de commandement et à chaque secouriste. La réalité est tout autre :",
+    prob_li1: "Toutes les informations d'un patient — y compris chaque geste médical — sont notées sur une <strong>fiche de triage en papier</strong>.",
+    prob_li2: "Les informations doivent d'abord être transmises par les équipes de triage au poste de commandement. Une <strong>transmission en direct est impossible</strong>.",
+    prob_li3: "Les secouristes doivent d'abord <strong>« prendre connaissance »</strong> de chaque patient — un temps précieux perdu pour le traitement.",
+    prob_ph: "[ Fiche de triage papier / étiquette pour blessés ]",
+    prob_cap: "Fig. 1 — L'état actuel de la protection civile : la fiche de triage.",
+    prob_credit: "Photo : étiquette pour blessés/malades (DRK) · <a href=\"https://commons.wikimedia.org/wiki/File:Anh%C3%A4ngekarte_f%C3%BCr_Verletzte_oder_Kranke.JPG\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    sol_eyebrow: "Notre idée",
+    sol_h2: "La fiche de triage devient numérique — et s'affiche dans le champ de vision",
+    sol_intro: "J.A.R. associe la réalité augmentée et l'IA embarquée (edge AI) en un flux d'information continu, de la première équipe de triage jusqu'au poste de commandement.",
+    f1_h3: "HUD en réalité augmentée",
+    f1_p: "La réalité augmentée affiche toutes les informations pertinentes directement via un affichage tête haute — y compris les notifications du poste de commandement. Les mains restent libres pour les soins.",
+    f2_h3: "Situation en direct plutôt que du papier",
+    f2_p: "Les patients reçoivent de simples numéros d'identification au lieu de fiches de triage. Toutes les données s'affichent directement pendant le traitement et sont disponibles en temps réel pour le poste de commandement.",
+    f3_h3: "Transcription par edge AI",
+    f3_p: "Les gestes sont consignés par simple commande vocale. La transcription s'exécute en edge AI directement sur l'appareil — rapide, robuste et même sans connexion réseau stable.",
+    kon_eyebrow: "Vue d'ensemble du concept",
+    kon_h2: "Le système en un coup d'œil",
+    kon_intro: "De la puce NFC sur le patient aux lunettes AR du secouriste jusqu'au serveur dans le véhicule de commandement — voici comment les composants de J.A.R. s'articulent.",
+    ein_eyebrow: "En intervention",
+    ein_h2: "De l'équipe de triage au poste de commandement",
+    ein_intro: "J.A.R. accompagne les secouristes du premier triage sur les lieux jusqu'au traitement coordonné et au transfert. Toutes les données circulent en temps réel — de l'équipe de triage aux zones de traitement jusqu'à l'écran du poste de commandement. Sans papier, sans perte de données, sans délai.",
+    g1_ph: "[ Exercice à victimes multiples sur les lieux ]",
+    g1_cap: "Triage sur les lieux de l'intervention.",
+    g1_credit: "Photo : exercice à victimes multiples (DRK, district d'Aix-la-Chapelle) · <a href=\"https://commons.wikimedia.org/wiki/File:MANV-%C3%9Cbung.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    g2_ph: "[ Ambulance et médecin urgentiste prodiguant des soins ]",
+    g2_cap: "Traitement avec données patient superposées.",
+    g2_credit: "Photo : ambulance/véhicule du médecin urgentiste · <a href=\"https://commons.wikimedia.org/wiki/File:Rtwnef_Ambulance_Rettungsdienst_Germany.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    g3_ph: "[ Véhicule de commandement / poste de direction ]",
+    g3_cap: "Situation en direct pour le poste de commandement.",
+    g3_credit: "Photo : véhicule de commandement (ELW 1), Asurnipal · <a href=\"https://commons.wikimedia.org/wiki/File:Hard-Feuerwehrfest-Opel_Rekord_E-ELW_1-1985-01ASD.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
+    cta_h2: "Découvrez J.A.R. en action",
+    cta_p: "L'interface et l'ensemble du déroulé — du triage au transfert — sont disponibles sous forme de démo interactive. Sans téléchargement, directement dans le navigateur.",
+    cta_btn: "Accéder à la démo en direct →",
+    fw1_h4: "À propos de J.A.R.",
+    fw1_p: "J.A.R. est un projet de startup pour la protection civile : la réalité augmentée et l'IA embarquée rendent le triage lors d'incidents à victimes multiples plus rapide, plus complet et disponible en temps réel — sans papier, sans perte d'information.",
+    fw2_h4: "Liens rapides",
+    fw2_einsatz: "En intervention",
+    fw2_demo: "Démo en direct",
+    fw3_h4: "Contact",
+    foot_copy: "© 2026 J.A.R. — Tous droits réservés. · Photos : <a href=\"https://commons.wikimedia.org/\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA / GFDL)",
+    foot_imprint: "Mentions légales",
+    foot_privacy: "Confidentialité",
+    foot_terms: "Conditions d'utilisation"
   }
 };
 // Meta / Titel je Sprache
 var I18N_META = {
   de: {
     title: "J.A.R. — Augmented Reality für den Katastrophenschutz",
-    desc: "J.A.R. bringt die Sichtung bei großen Verletzungslagen in Echtzeit auf das HUD der Einsatzkräfte. Sehen Sie die App live in Aktion.",
-    label: "EN"
+    desc: "J.A.R. bringt die Sichtung bei großen Verletzungslagen in Echtzeit auf das HUD der Einsatzkräfte. Sehen Sie die App live in Aktion."
   },
   en: {
     title: "J.A.R. — Augmented Reality for Disaster Response",
-    desc: "J.A.R. brings triage in mass-casualty incidents in real time to the HUD of first responders. See the app live in action.",
-    label: "DE"
+    desc: "J.A.R. brings triage in mass-casualty incidents in real time to the HUD of first responders. See the app live in action."
+  },
+  fr: {
+    title: "J.A.R. — Réalité augmentée pour la protection civile",
+    desc: "J.A.R. affiche le triage lors d'incidents à victimes multiples en temps réel sur le HUD des secouristes. Découvrez l'application en direct."
   }
 };
+// Reihenfolge des Umschaltens; das Label zeigt die jeweils nächste Sprache
+var LANG_ORDER = ['de', 'en', 'fr'];
+function nextLang(lang) {
+  var i = LANG_ORDER.indexOf(lang);
+  return LANG_ORDER[(i + 1) % LANG_ORDER.length];
+}
 
 (function () {
   // Deutsche Originaltexte aus dem Markup einsammeln = Standard-Sprache
@@ -648,19 +716,21 @@ var I18N_META = {
     var meta = I18N_META[lang] || I18N_META.de;
     document.title = meta.title;
     if (metaDesc) metaDesc.setAttribute('content', meta.desc);
-    if (langLabel) langLabel.textContent = meta.label;
+    if (langLabel) langLabel.textContent = nextLang(lang).toUpperCase();
     try { localStorage.setItem('jarLang', lang); } catch (e) {}
   }
 
   var saved = 'de';
   try { saved = localStorage.getItem('jarLang') || 'de'; } catch (e) {}
+  if (LANG_ORDER.indexOf(saved) === -1) saved = 'de';
   if (saved !== 'de') apply(saved);
-  else if (langLabel) langLabel.textContent = I18N_META.de.label;
+  else if (langLabel) langLabel.textContent = nextLang('de').toUpperCase();
 
   var btn = document.getElementById('langToggle');
   btn.addEventListener('click', function () {
-    var current = document.documentElement.getAttribute('lang') === 'en' ? 'en' : 'de';
-    apply(current === 'en' ? 'de' : 'en');
+    var current = document.documentElement.getAttribute('lang');
+    if (LANG_ORDER.indexOf(current) === -1) current = 'de';
+    apply(nextLang(current));
   });
 })();
 
