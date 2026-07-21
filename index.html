@@ -80,7 +80,7 @@ img { max-width: 100%; height: auto; }
   font-size: 14px; font-weight: 400; color: #666;
   letter-spacing: 0.5px; max-width: 200px; line-height: 1.3;
 }
-.main-nav ul { list-style: none; display: flex; gap: 4px; }
+.main-nav ul { list-style: none; display: flex; align-items: center; gap: 4px; }
 .main-nav a {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 14px; font-weight: 600;
@@ -93,6 +93,18 @@ img { max-width: 100%; height: auto; }
   margin-left: 8px;
 }
 .main-nav a.nav-cta:hover { background: #005177; color: #fff; }
+/* Sprachumschalter */
+.lang-toggle {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.5px;
+  background: none; border: 1px solid #ccc; color: #333;
+  padding: 8px 12px; cursor: pointer;
+  margin-left: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lang-toggle:hover { border-color: #0073aa; color: #0073aa; }
+.lang-toggle .globe { font-size: 15px; line-height: 1; }
 .menu-toggle {
   display: none;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -304,8 +316,9 @@ img { max-width: 100%; height: auto; }
     border-bottom: 1px solid #e5e5e5;
   }
   .main-nav.open { display: block; }
-  .main-nav ul { flex-direction: column; padding: 8px 24px 16px; }
+  .main-nav ul { flex-direction: column; align-items: stretch; padding: 8px 24px 16px; }
   .main-nav a.nav-cta { margin-left: 0; text-align: center; }
+  .lang-toggle { margin-left: 0; justify-content: center; margin-top: 6px; }
 }
 </style>
 </head>
@@ -316,18 +329,21 @@ img { max-width: 100%; height: auto; }
   <div class="wrap header-inner">
     <a class="site-branding" href="index.html">
       <img class="site-logo" src="jar-logo.png" alt="J.A.R. Logo">
-      <span class="site-tagline">Augmented Reality für den Katastrophenschutz</span>
+      <span class="site-tagline" data-i18n="tagline">Augmented Reality für den Katastrophenschutz</span>
     </a>
-    <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mainNav">Menü ☰</button>
+    <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mainNav" data-i18n="menu_toggle">Menü ☰</button>
     <nav class="main-nav" id="mainNav" aria-label="Hauptnavigation">
       <ul>
-        <li><a href="#problem">Ausgangslage</a></li>
-        <li><a href="#loesung">Unsere Lösung</a></li>
-        <li><a href="#konzept">Konzept</a></li>
-        <li><a href="#einsatz">Im Einsatz</a></li>
-        <li><a href="#kontakt">Kontakt</a></li>
+        <li><a href="#problem" data-i18n="nav_problem">Ausgangslage</a></li>
+        <li><a href="#loesung" data-i18n="nav_solution">Unsere Lösung</a></li>
+        <li><a href="#kontakt" data-i18n="nav_contact">Kontakt</a></li>
         <!-- TODO: Echte Demo-URL eintragen -->
-        <li><a class="nav-cta" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Live-Demo →</a></li>
+        <li><a class="nav-cta" href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="nav_demo">Live-Demo →</a></li>
+        <li>
+          <button class="lang-toggle" id="langToggle" type="button" aria-label="Sprache wechseln / Switch language">
+            <span class="globe" aria-hidden="true">🌐</span><span id="langLabel">EN</span>
+          </button>
+        </li>
       </ul>
     </nav>
   </div>
@@ -335,46 +351,46 @@ img { max-width: 100%; height: auto; }
 
 <!-- ================= HERO ================= -->
 <section class="hero">
-  <span class="eyebrow">J.A.R. — Sichtung. Übertragung. Behandlung.</span>
-  <h1>Jede Sekunde zählt.<br>Jede Information auch.</h1>
-  <p>Bei großen Verletzungslagen entscheidet der Informationsfluss über Menschenleben.
+  <span class="eyebrow" data-i18n="hero_eyebrow">J.A.R. — Sichtung. Übertragung. Behandlung.</span>
+  <h1 data-i18n="hero_h1">Jede Sekunde zählt.<br>Jede Information auch.</h1>
+  <p data-i18n="hero_p">Bei großen Verletzungslagen entscheidet der Informationsfluss über Menschenleben.
      J.A.R. bringt die Sichtung in Echtzeit auf das HUD der Einsatzkräfte —
      ohne Papier-Sichtungskarten, ohne Informationsverlust.</p>
   <!-- Hauptlink: Hier sieht man die App in Aktion (Benutzeroberfläche & Demo) -->
-  <a class="btn btn-primary" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">App live erleben →</a>
-  <a class="btn btn-secondary" href="#problem">Mehr erfahren</a>
-  <span class="hero-caption">Foto: Rettungsdienst-Einsatz, Berlin · Wikimedia Commons</span>
+  <a class="btn btn-primary" href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="hero_btn1">App live erleben →</a>
+  <a class="btn btn-secondary" href="#problem" data-i18n="hero_btn2">Mehr erfahren</a>
+  <span class="hero-caption" data-i18n="hero_caption">Foto: Rettungsdienst-Einsatz, Berlin · Wikimedia Commons</span>
 </section>
 
 <!-- ================= AUSGANGSLAGE ================= -->
 <section class="section" id="problem">
   <div class="wrap two-col">
     <div>
-      <span class="eyebrow">Die Ausgangslage</span>
-      <h2>Sichtung heute: Papier, Funk und verlorene Zeit</h2>
-      <p>Große Verletzungslagen erfordern eine schnelle und vollständige Sichtung aller
+      <span class="eyebrow" data-i18n="prob_eyebrow">Die Ausgangslage</span>
+      <h2 data-i18n="prob_h2">Sichtung heute: Papier, Funk und verlorene Zeit</h2>
+      <p data-i18n="prob_p">Große Verletzungslagen erfordern eine schnelle und vollständige Sichtung aller
          Patientinnen und Patienten. Die Informationen müssen lückenlos an die Einsatzleitung
          und an alle behandelnden Sanitäter übermittelt werden. Die Realität sieht anders aus:</p>
       <ul class="checklist">
-        <li>Sämtliche Informationen eines Patienten — inklusive aller medizinischen Maßnahmen —
+        <li data-i18n="prob_li1">Sämtliche Informationen eines Patienten — inklusive aller medizinischen Maßnahmen —
             werden auf einer <strong>Sichtungskarte aus Papier</strong> festgehalten.</li>
-        <li>Die Informationen müssen erst von den Sichtungstrupps an die Einsatzleitung
+        <li data-i18n="prob_li2">Die Informationen müssen erst von den Sichtungstrupps an die Einsatzleitung
             übertragen werden. Eine <strong>Live-Übertragung ist nicht möglich</strong>.</li>
-        <li>Sanitäter müssen sich bei jedem Patienten erst <strong>„einlesen“</strong> —
+        <li data-i18n="prob_li3">Sanitäter müssen sich bei jedem Patienten erst <strong>„einlesen“</strong> —
             wertvolle Zeit, die in der Behandlung fehlt.</li>
       </ul>
     </div>
     <div>
       <figure>
         <div class="img-frame tall">
-          <div class="img-placeholder tall">[ Papier-Sichtungskarte / Anhängekarte für Verletzte ]</div>
+          <div class="img-placeholder tall" data-i18n="prob_ph">[ Papier-Sichtungskarte / Anhängekarte für Verletzte ]</div>
           <img class="img-real" loading="lazy"
                src="https://commons.wikimedia.org/wiki/Special:FilePath/Anh%C3%A4ngekarte%20f%C3%BCr%20Verletzte%20oder%20Kranke.JPG?width=700"
                alt="Klassische Papier-Sichtungskarte (Anhängekarte für Verletzte oder Kranke) des Deutschen Roten Kreuzes"
                onerror="this.remove()">
         </div>
-        <p class="figure-caption">Abb. 1 — Der aktuelle Stand im Katastrophenschutz: die Sichtungskarte.</p>
-        <p class="figure-credit">Foto: Anhängekarte für Verletzte/Kranke (DRK) · <a href="https://commons.wikimedia.org/wiki/File:Anh%C3%A4ngekarte_f%C3%BCr_Verletzte_oder_Kranke.JPG" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+        <p class="figure-caption" data-i18n="prob_cap">Abb. 1 — Der aktuelle Stand im Katastrophenschutz: die Sichtungskarte.</p>
+        <p class="figure-credit" data-i18n="prob_credit">Foto: Anhängekarte für Verletzte/Kranke (DRK) · <a href="https://commons.wikimedia.org/wiki/File:Anh%C3%A4ngekarte_f%C3%BCr_Verletzte_oder_Kranke.JPG" target="_blank" rel="noopener">Wikimedia Commons</a></p>
       </figure>
     </div>
   </div>
@@ -383,9 +399,9 @@ img { max-width: 100%; height: auto; }
 <!-- ================= LÖSUNG: 3 FEATURE-SPALTEN ================= -->
 <section class="section section-alt" id="loesung">
   <div class="wrap">
-    <span class="eyebrow">Unsere Idee</span>
-    <h2>Die Sichtungskarte wird digital — und landet im Blickfeld</h2>
-    <p class="intro">J.A.R. verbindet Augmented Reality und Edge-AI zu einem durchgängigen
+    <span class="eyebrow" data-i18n="sol_eyebrow">Unsere Idee</span>
+    <h2 data-i18n="sol_h2">Die Sichtungskarte wird digital — und landet im Blickfeld</h2>
+    <p class="intro" data-i18n="sol_intro">J.A.R. verbindet Augmented Reality und Edge-AI zu einem durchgängigen
        Informationsfluss vom ersten Sichtungstrupp bis zur Einsatzleitung.</p>
     <div class="features">
       <div class="feature">
@@ -393,8 +409,8 @@ img { max-width: 100%; height: auto; }
           <rect x="4" y="12" width="40" height="22" rx="3"/>
           <path d="M14 34v4h20v-4"/><circle cx="24" cy="23" r="5"/>
         </svg>
-        <h3>AR-HUD im Blickfeld</h3>
-        <p>Augmented Reality stellt alle relevanten Informationen direkt über ein
+        <h3 data-i18n="f1_h3">AR-HUD im Blickfeld</h3>
+        <p data-i18n="f1_p">Augmented Reality stellt alle relevanten Informationen direkt über ein
            Head-up-Display dar — inklusive Benachrichtigungen der Einsatzleitung.
            Die Hände bleiben frei für die Versorgung.</p>
       </div>
@@ -402,8 +418,8 @@ img { max-width: 100%; height: auto; }
         <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
           <circle cx="24" cy="24" r="18"/><path d="M24 6v8M24 34v8M6 24h8M34 24h8"/><circle cx="24" cy="24" r="4"/>
         </svg>
-        <h3>Live-Lagebild statt Papier</h3>
-        <p>Patienten erhalten einfache Identifikationsnummern statt Sichtungskarten.
+        <h3 data-i18n="f2_h3">Live-Lagebild statt Papier</h3>
+        <p data-i18n="f2_p">Patienten erhalten einfache Identifikationsnummern statt Sichtungskarten.
            Alle Daten werden bei der Behandlung direkt eingeblendet und stehen der
            Einsatzleitung in Echtzeit zur Verfügung.</p>
       </div>
@@ -411,8 +427,8 @@ img { max-width: 100%; height: auto; }
         <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
           <rect x="18" y="6" width="12" height="22" rx="6"/><path d="M10 24a14 14 0 0 0 28 0M24 38v6M16 44h16"/>
         </svg>
-        <h3>Edge-AI-Transkription</h3>
-        <p>Maßnahmen werden per einfacher Sprache protokolliert. Die Transkription
+        <h3 data-i18n="f3_h3">Edge-AI-Transkription</h3>
+        <p data-i18n="f3_p">Maßnahmen werden per einfacher Sprache protokolliert. Die Transkription
            läuft als Edge-AI direkt auf dem Gerät — schnell, robust und auch ohne
            stabile Netzverbindung.</p>
       </div>
@@ -423,9 +439,9 @@ img { max-width: 100%; height: auto; }
 <!-- ================= KONZEPT-ÜBERSICHT (PDF-Grafik) ================= -->
 <section class="section section-alt" id="konzept">
   <div class="wrap">
-    <span class="eyebrow">Konzept-Übersicht</span>
-    <h2>Das System auf einen Blick</h2>
-    <p class="intro">Vom NFC-Tag am Patienten über die AR-Brille des Sanitäters bis zum
+    <span class="eyebrow" data-i18n="kon_eyebrow">Konzept-Übersicht</span>
+    <h2 data-i18n="kon_h2">Das System auf einen Blick</h2>
+    <p class="intro" data-i18n="kon_intro">Vom NFC-Tag am Patienten über die AR-Brille des Sanitäters bis zum
        Server im Einsatzleitfahrzeug — so greifen die Komponenten von J.A.R. ineinander.</p>
 
     <figure class="concept-figure">
@@ -440,45 +456,45 @@ img { max-width: 100%; height: auto; }
 <!-- ================= IM EINSATZ / GALERIE ================= -->
 <section class="section" id="einsatz">
   <div class="wrap">
-    <span class="eyebrow">Im Einsatz</span>
-    <h2>Vom Sichtungstrupp bis zur Einsatzleitung</h2>
-    <p class="intro">J.A.R. unterstützt Einsatzkräfte von der ersten Sichtung an der
+    <span class="eyebrow" data-i18n="ein_eyebrow">Im Einsatz</span>
+    <h2 data-i18n="ein_h2">Vom Sichtungstrupp bis zur Einsatzleitung</h2>
+    <p class="intro" data-i18n="ein_intro">J.A.R. unterstützt Einsatzkräfte von der ersten Sichtung an der
        Einsatzstelle bis zur koordinierten Behandlung und Übergabe. Alle Daten fließen in
        Echtzeit — vom Sichtungstrupp über die Behandlungsplätze bis zum Leitstellendisplay
        der Einsatzleitung. Kein Papier, kein Datenverlust, keine Verzögerung.</p>
     <div class="gallery">
       <figure>
         <div class="img-frame">
-          <div class="img-placeholder">[ MANV-Übung an der Einsatzstelle ]</div>
+          <div class="img-placeholder" data-i18n="g1_ph">[ MANV-Übung an der Einsatzstelle ]</div>
           <img class="img-real" loading="lazy"
                src="https://commons.wikimedia.org/wiki/Special:FilePath/MANV-%C3%9Cbung.jpg?width=900"
                alt="MANV-Übung des Deutschen Roten Kreuzes an einer Einsatzstelle"
                onerror="this.remove()">
         </div>
-        <p class="figure-caption">Sichtung an der Einsatzstelle.</p>
-        <p class="figure-credit">Foto: MANV-Übung (DRK, Kreis Aachen) · <a href="https://commons.wikimedia.org/wiki/File:MANV-%C3%9Cbung.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+        <p class="figure-caption" data-i18n="g1_cap">Sichtung an der Einsatzstelle.</p>
+        <p class="figure-credit" data-i18n="g1_credit">Foto: MANV-Übung (DRK, Kreis Aachen) · <a href="https://commons.wikimedia.org/wiki/File:MANV-%C3%9Cbung.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
       </figure>
       <figure>
         <div class="img-frame">
-          <div class="img-placeholder">[ Rettungswagen und Notarzt bei der Versorgung ]</div>
+          <div class="img-placeholder" data-i18n="g2_ph">[ Rettungswagen und Notarzt bei der Versorgung ]</div>
           <img class="img-real" loading="lazy"
                src="https://commons.wikimedia.org/wiki/Special:FilePath/Rtwnef%20Ambulance%20Rettungsdienst%20Germany.jpg?width=900"
                alt="Rettungswagen und Notarzteinsatzfahrzeug des deutschen Rettungsdienstes"
                onerror="this.remove()">
         </div>
-        <p class="figure-caption">Behandlung mit eingeblendeten Patientendaten.</p>
-        <p class="figure-credit">Foto: Rettungswagen/NEF · <a href="https://commons.wikimedia.org/wiki/File:Rtwnef_Ambulance_Rettungsdienst_Germany.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+        <p class="figure-caption" data-i18n="g2_cap">Behandlung mit eingeblendeten Patientendaten.</p>
+        <p class="figure-credit" data-i18n="g2_credit">Foto: Rettungswagen/NEF · <a href="https://commons.wikimedia.org/wiki/File:Rtwnef_Ambulance_Rettungsdienst_Germany.jpg" target="_blank" rel="noopener">Wikimedia Commons</a></p>
       </figure>
       <figure>
         <div class="img-frame">
-          <div class="img-placeholder">[ Einsatzleitwagen / Führungsfahrzeug ]</div>
+          <div class="img-placeholder" data-i18n="g3_ph">[ Einsatzleitwagen / Führungsfahrzeug ]</div>
           <img class="img-real" loading="lazy"
                src="https://commons.wikimedia.org/wiki/Special:FilePath/Hard-Feuerwehrfest-Opel%20Rekord%20E-ELW%201-1985-01ASD.jpg?width=900"
                alt="Einsatzleitwagen (ELW 1) als Führungsfahrzeug der Einsatzleitung"
                onerror="this.remove()">
         </div>
-        <p class="figure-caption">Live-Lagebild für die Einsatzleitung.</p>
-        <p class="figure-credit">Foto: Einsatzleitwagen (ELW 1), Asurnipal · <a href="https://commons.wikimedia.org/wiki/File:Hard-Feuerwehrfest-Opel_Rekord_E-ELW_1-1985-01ASD.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</p>
+        <p class="figure-caption" data-i18n="g3_cap">Live-Lagebild für die Einsatzleitung.</p>
+        <p class="figure-credit" data-i18n="g3_credit">Foto: Einsatzleitwagen (ELW 1), Asurnipal · <a href="https://commons.wikimedia.org/wiki/File:Hard-Feuerwehrfest-Opel_Rekord_E-ELW_1-1985-01ASD.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</p>
       </figure>
     </div>
   </div>
@@ -486,34 +502,34 @@ img { max-width: 100%; height: auto; }
 
 <!-- ================= CTA-BAND ================= -->
 <section class="cta-band">
-  <h2>Sehen Sie J.A.R. in Aktion</h2>
-  <p>Die Benutzeroberfläche und der komplette Ablauf — von der Sichtung bis zur Übergabe —
+  <h2 data-i18n="cta_h2">Sehen Sie J.A.R. in Aktion</h2>
+  <p data-i18n="cta_p">Die Benutzeroberfläche und der komplette Ablauf — von der Sichtung bis zur Übergabe —
      stehen als interaktive Demo bereit. Kein Download, direkt im Browser.</p>
   <!-- TODO: Echte Demo-URL eintragen -->
-  <a class="btn btn-outline" href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Zur Live-Demo der App →</a>
+  <a class="btn btn-outline" href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="cta_btn">Zur Live-Demo der App →</a>
 </section>
 
 <!-- ================= FUSSBEREICH ================= -->
 <footer class="site-footer" id="kontakt">
   <div class="wrap footer-widgets">
     <div class="widget">
-      <h4>Über J.A.R.</h4>
-      <p>J.A.R. ist ein Startup-Projekt für den Katastrophenschutz: Augmented Reality und
+      <h4 data-i18n="fw1_h4">Über J.A.R.</h4>
+      <p data-i18n="fw1_p">J.A.R. ist ein Startup-Projekt für den Katastrophenschutz: Augmented Reality und
          Edge-AI machen die Sichtung bei großen Verletzungslagen schneller, vollständiger
          und in Echtzeit verfügbar — ohne Papier, ohne Informationsverlust.</p>
     </div>
     <div class="widget">
-      <h4>Quick Links</h4>
+      <h4 data-i18n="fw2_h4">Quick Links</h4>
       <ul>
-        <li><a href="#problem">Ausgangslage</a></li>
-        <li><a href="#loesung">Unsere Lösung</a></li>
-        <li><a href="#einsatz">Im Einsatz</a></li>
-        <li><a href="https://demo.jar-projekt.example" target="_blank" rel="noopener">Live-Demo</a></li>
-        <li><a href="imprint.html">Impressum</a></li>
+        <li><a href="#problem" data-i18n="nav_problem">Ausgangslage</a></li>
+        <li><a href="#loesung" data-i18n="nav_solution">Unsere Lösung</a></li>
+        <li><a href="#einsatz" data-i18n="fw2_einsatz">Im Einsatz</a></li>
+        <li><a href="https://demo.jar-projekt.example" target="_blank" rel="noopener" data-i18n="fw2_demo">Live-Demo</a></li>
+        <li><a href="imprint.html" data-i18n="foot_imprint">Impressum</a></li>
       </ul>
     </div>
     <div class="widget">
-      <h4>Kontakt</h4>
+      <h4 data-i18n="fw3_h4">Kontakt</h4>
       <ul>
         <li>Johannes Nirschl, Alexander Kluge, Jonas Kaindl</li>
         <li>Cramer Klett Straße 10, 85579 Neubiberg</li>
@@ -525,17 +541,130 @@ img { max-width: 100%; height: auto; }
 </footer>
 <div class="footer-bottom">
   <div class="wrap">
-    <span>© 2026 J.A.R. — Alle Rechte vorbehalten. · Fotos: <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA / GFDL)</span>
+    <span data-i18n="foot_copy">© 2026 J.A.R. — Alle Rechte vorbehalten. · Fotos: <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA / GFDL)</span>
     <span>
-      <a href="imprint.html">Impressum</a>
-      <a href="privacy.html">Datenschutz</a>
-      <a href="terms.html">Nutzungsbedingungen</a>
+      <a href="imprint.html" data-i18n="foot_imprint">Impressum</a>
+      <a href="privacy.html" data-i18n="foot_privacy">Datenschutz</a>
+      <a href="terms.html" data-i18n="foot_terms">Nutzungsbedingungen</a>
     </span>
   </div>
 </div>
 
 <script>
-// Mobiles Menü ein-/ausklappen
+// ================= Sprachumschaltung (DE / EN) =================
+var I18N = {
+  en: {
+    tagline: "Augmented Reality for Disaster Response",
+    menu_toggle: "Menu ☰",
+    nav_problem: "Background",
+    nav_solution: "Our Solution",
+    nav_contact: "Contact",
+    nav_demo: "Live Demo →",
+    hero_eyebrow: "J.A.R. — Triage. Transmission. Treatment.",
+    hero_h1: "Every second counts.<br>So does every piece of information.",
+    hero_p: "In mass-casualty incidents, the flow of information decides who lives. J.A.R. brings triage in real time to the HUD of first responders — no paper triage cards, no loss of information.",
+    hero_btn1: "Experience the app live →",
+    hero_btn2: "Learn more",
+    hero_caption: "Photo: Emergency medical response, Berlin · Wikimedia Commons",
+    prob_eyebrow: "The Situation Today",
+    prob_h2: "Triage today: paper, radio and lost time",
+    prob_p: "Mass-casualty incidents demand fast and complete triage of every patient. The information has to reach the incident command and every treating paramedic without gaps. Reality looks different:",
+    prob_li1: "All of a patient's information — including every medical measure — is recorded on a <strong>paper triage card</strong>.",
+    prob_li2: "The information first has to be relayed from the triage teams to the incident command. <strong>Live transmission is not possible</strong>.",
+    prob_li3: "Paramedics have to <strong>“read in”</strong> on every patient first — valuable time lost during treatment.",
+    prob_ph: "[ Paper triage card / casualty tag ]",
+    prob_cap: "Fig. 1 — The current state in disaster response: the triage card.",
+    prob_credit: "Photo: Casualty tag for the injured/sick (DRK) · <a href=\"https://commons.wikimedia.org/wiki/File:Anh%C3%A4ngekarte_f%C3%BCr_Verletzte_oder_Kranke.JPG\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    sol_eyebrow: "Our Idea",
+    sol_h2: "The triage card goes digital — straight into the field of view",
+    sol_intro: "J.A.R. combines augmented reality and edge AI into a seamless flow of information, from the first triage team all the way to incident command.",
+    f1_h3: "AR HUD in your field of view",
+    f1_p: "Augmented reality presents all relevant information directly through a head-up display — including notifications from incident command. Hands stay free for patient care.",
+    f2_h3: "Live situational picture instead of paper",
+    f2_p: "Patients receive simple identification numbers instead of triage cards. All data is displayed directly during treatment and is available to incident command in real time.",
+    f3_h3: "Edge-AI transcription",
+    f3_p: "Measures are logged by simple voice input. Transcription runs as edge AI directly on the device — fast, robust and even without a stable network connection.",
+    kon_eyebrow: "Concept Overview",
+    kon_h2: "The system at a glance",
+    kon_intro: "From the NFC tag on the patient to the paramedic's AR glasses and the server in the command vehicle — this is how the components of J.A.R. work together.",
+    ein_eyebrow: "In Action",
+    ein_h2: "From the triage team to incident command",
+    ein_intro: "J.A.R. supports responders from the first triage at the scene through coordinated treatment and handover. All data flows in real time — from the triage team through the treatment areas to the command display. No paper, no data loss, no delay.",
+    g1_ph: "[ Mass-casualty exercise at the scene ]",
+    g1_cap: "Triage at the incident scene.",
+    g1_credit: "Photo: Mass-casualty exercise (DRK, Aachen district) · <a href=\"https://commons.wikimedia.org/wiki/File:MANV-%C3%9Cbung.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    g2_ph: "[ Ambulance and emergency physician providing care ]",
+    g2_cap: "Treatment with overlaid patient data.",
+    g2_credit: "Photo: Ambulance/emergency physician vehicle · <a href=\"https://commons.wikimedia.org/wiki/File:Rtwnef_Ambulance_Rettungsdienst_Germany.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a>",
+    g3_ph: "[ Command vehicle / control unit ]",
+    g3_cap: "Live situational picture for incident command.",
+    g3_credit: "Photo: Command vehicle (ELW 1), Asurnipal · <a href=\"https://commons.wikimedia.org/wiki/File:Hard-Feuerwehrfest-Opel_Rekord_E-ELW_1-1985-01ASD.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
+    cta_h2: "See J.A.R. in action",
+    cta_p: "The user interface and the complete workflow — from triage to handover — are ready as an interactive demo. No download, right in your browser.",
+    cta_btn: "Go to the live demo →",
+    fw1_h4: "About J.A.R.",
+    fw1_p: "J.A.R. is a startup project for disaster response: augmented reality and edge AI make triage in mass-casualty incidents faster, more complete and available in real time — without paper, without loss of information.",
+    fw2_h4: "Quick Links",
+    fw2_einsatz: "In Action",
+    fw2_demo: "Live Demo",
+    fw3_h4: "Contact",
+    foot_copy: "© 2026 J.A.R. — All rights reserved. · Photos: <a href=\"https://commons.wikimedia.org/\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA / GFDL)",
+    foot_imprint: "Imprint",
+    foot_privacy: "Privacy",
+    foot_terms: "Terms of Use"
+  }
+};
+// Meta / Titel je Sprache
+var I18N_META = {
+  de: {
+    title: "J.A.R. — Augmented Reality für den Katastrophenschutz",
+    desc: "J.A.R. bringt die Sichtung bei großen Verletzungslagen in Echtzeit auf das HUD der Einsatzkräfte. Sehen Sie die App live in Aktion.",
+    label: "EN"
+  },
+  en: {
+    title: "J.A.R. — Augmented Reality for Disaster Response",
+    desc: "J.A.R. brings triage in mass-casualty incidents in real time to the HUD of first responders. See the app live in action.",
+    label: "DE"
+  }
+};
+
+(function () {
+  // Deutsche Originaltexte aus dem Markup einsammeln = Standard-Sprache
+  var nodes = document.querySelectorAll('[data-i18n]');
+  var de = {};
+  nodes.forEach(function (el) { de[el.getAttribute('data-i18n')] = el.innerHTML; });
+  I18N.de = de;
+
+  var metaDesc = document.querySelector('meta[name="description"]');
+  var langLabel = document.getElementById('langLabel');
+
+  function apply(lang) {
+    var dict = I18N[lang] || I18N.de;
+    nodes.forEach(function (el) {
+      var key = el.getAttribute('data-i18n');
+      if (dict[key] != null) el.innerHTML = dict[key];
+    });
+    document.documentElement.setAttribute('lang', lang);
+    var meta = I18N_META[lang] || I18N_META.de;
+    document.title = meta.title;
+    if (metaDesc) metaDesc.setAttribute('content', meta.desc);
+    if (langLabel) langLabel.textContent = meta.label;
+    try { localStorage.setItem('jarLang', lang); } catch (e) {}
+  }
+
+  var saved = 'de';
+  try { saved = localStorage.getItem('jarLang') || 'de'; } catch (e) {}
+  if (saved !== 'de') apply(saved);
+  else if (langLabel) langLabel.textContent = I18N_META.de.label;
+
+  var btn = document.getElementById('langToggle');
+  btn.addEventListener('click', function () {
+    var current = document.documentElement.getAttribute('lang') === 'en' ? 'en' : 'de';
+    apply(current === 'en' ? 'de' : 'en');
+  });
+})();
+
+// ================= Mobiles Menü ein-/ausklappen =================
 (function () {
   var toggle = document.getElementById('menuToggle');
   var nav = document.getElementById('mainNav');
