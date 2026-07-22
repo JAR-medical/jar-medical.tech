@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1008,9 +1008,9 @@ var I18N_META = {
     try { localStorage.setItem('jarLang', lang); } catch (e) {}
   }
 
-  var saved = 'de';
-  try { saved = localStorage.getItem('jarLang') || 'de'; } catch (e) {}
-  if (!I18N[saved]) saved = 'de';
+  var saved = 'en';
+  try { saved = localStorage.getItem('jarLang') || 'en'; } catch (e) {}
+  if (!I18N[saved]) saved = 'en';
   apply(saved);
 
   // Kopf-Umschalter: nur Deutsch <-> Englisch
