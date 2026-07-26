@@ -1,0 +1,626 @@
+/* TriARge — Kartendarstellung (Leaflet + OpenStreetMap).
+ *
+ * Die Karte ist das Hauptelement des Lagebilds: echte Kartengrundlage von
+ * Neubiberg, darüber das Einsatzraster, die Einsatzabschnitte, die Gefahrenlage
+ * und alle bewegten Einsatzmittel und Patienten. Gezeichnet wird ausschließlich
+ * aus dem Zustand in engine.js.
+ */
+
+"use strict";
+
+const KARTE = (function () {
+  const S = TR.S;
+  let map, basis = {}, aktiveBasis = "hell";
+  const G = {};              // LayerGroups
+  const patMarker = new Map();
+  const mitMarker = new Map();
+  const spurLinien = new Map();
+  let rasterZellen = [];
+  let rauchPoly = null, gasKreis = null, absperrKreis = null;
+  let planOverlay = null;
+  let messModus = false, messPunkte = [], messLinie = null, messLabel = null;
+
+  const KACHELN = {
+    hell: {
+      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      opt: { maxZoom: 19, subdomains: "abcd",
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, &copy; <a href="https://carto.com/attributions">CARTO</a>' },
+    },
+    osm: {
+      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      opt: { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende' },
+    },
+  };
+
+  /* ------------------------------------------------------------------ Aufbau */
+
+  function init(el) {
+    const b = S.bbox;
+    map = L.map(el, {
+      zoomControl: false,
+      attributionControl: true,
+      preferCanvas: false,
+      minZoom: 13,
+      maxZoom: 19,
+    });
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+
+    L.control.zoom({ position: "topright" }).addTo(map);
+    L.control.scale({ position: "bottomright", imperial: false, maxWidth: 140 }).addTo(map);
+
+    map.createPane("pNetz").style.zIndex = 340;
+    map.createPane("pRaster").style.zIndex = 350;
+    map.createPane("pFlaeche").style.zIndex = 400;
+    map.createPane("pLinie").style.zIndex = 430;
+    map.createPane("pLabel").style.zIndex = 560;
+    map.getPane("pLabel").style.pointerEvents = "none";
+
+    basis.hell = L.tileLayer(KACHELN.hell.url, KACHELN.hell.opt);
+    basis.osm = L.tileLayer(KACHELN.osm.url, KACHELN.osm.opt);
+    basis.hell.addTo(map);
+
+    // Ohne Netz kommen keine Kacheln an. Dann wird auf das mitgelieferte
+    // OSM-Wegenetz umgeschaltet, damit das Lagebild trotzdem lesbar bleibt.
+    let kachelnDa = 0;
+    basis.hell.on("tileload", () => { kachelnDa++; });
+    basis.osm.on("tileload", () => { kachelnDa++; });
+    setTimeout(() => {
+      if (kachelnDa === 0 && aktiveBasis !== "leer") {
+        basisSetzen("leer");
+        const sel = document.getElementById("basiskarte");
+        if (sel) sel.value = "leer";
+        TR.ereignis("system", "Keine Kartenkacheln erreichbar — Anzeige auf mitgeliefertes Wegenetz umgestellt");
+      }
+    }, 7000);
+
+    for (const k of ["netz", "raster", "abschnitte", "gefahren", "sperren", "poi",
+      "spuren", "patienten", "mittel", "label"]) {
+      G[k] = L.layerGroup().addTo(map);
+    }
+
+    wegenetzZeichnen();
+    rasterZeichnen();
+    abschnitteZeichnen();
+    gefahrenZeichnen();
+    sperrenZeichnen();
+    poiZeichnen();
+    mittelZeichnen();
+    patientenZeichnen();
+    ebenenAnwenden();
+
+    map.on("mousemove", (e) => {
+      const el2 = document.getElementById("koord");
+      if (el2) {
+        el2.textContent = e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5) +
+          "  ·  Raster " + TR.zelle([e.latlng.lat, e.latlng.lng]);
+      }
+    });
+    map.on("click", (e) => {
+      if (messModus) { messPunktSetzen(e.latlng); return; }
+      TR.auswaehlen(null);
+    });
+    map.on("zoomend", () => {
+      const z = map.getZoom();
+      document.getElementById("karte").classList.toggle("zoom-weit", z < 16);
+    });
+
+    TR.on("frame", frameTakt);
+    TR.on("patienten", patientenZeichnen);
+    TR.on("mittel", mittelZeichnen);
+    TR.on("gefahren", gefahrenZeichnen);
+    TR.on("auswahl", auswahlZeigen);
+    TR.on("neustart", () => {
+      patMarker.forEach((m) => G.patienten.removeLayer(m));
+      patMarker.clear();
+      mitMarker.forEach((m) => G.mittel.removeLayer(m));
+      mitMarker.clear();
+      abschnitteZeichnen();
+      gefahrenZeichnen();
+    });
+
+    return map;
+  }
+
+  /* --------------------------------------------------------------- Wegenetz */
+
+  function wegenetzZeichnen() {
+    G.netz.clearLayers();
+    const geo = window.NB_GEO;
+    for (const [, klasse, pts] of geo.ways) {
+      const ll = [];
+      for (let i = 0; i < pts.length; i += 2) ll.push([pts[i], pts[i + 1]]);
+      L.polyline(ll, {
+        pane: "pNetz",
+        color: klasse === 0 ? "#9aa3ac" : klasse === 1 ? "#b9c0c7" : "#cfd4d9",
+        weight: klasse === 0 ? 3 : klasse === 1 ? 2 : 1,
+        opacity: 0.9, interactive: false,
+      }).addTo(G.netz);
+    }
+  }
+
+  /* ----------------------------------------------------------------- Raster */
+
+  function rasterZeichnen() {
+    G.raster.clearLayers();
+    rasterZellen = [];
+    const b = S.bbox;
+    const dw = (b[3] - b[1]) / S.raster.spalten;
+    const dh = (b[2] - b[0]) / S.raster.zeilen;
+    for (let r = 0; r < S.raster.zeilen; r++) {
+      for (let c = 0; c < S.raster.spalten; c++) {
+        const ref = String.fromCharCode(65 + c) + (r + 1);
+        const sued = b[2] - (r + 1) * dh, nord = b[2] - r * dh;
+        const west = b[1] + c * dw, ost = b[1] + (c + 1) * dw;
+        const rect = L.rectangle([[sued, west], [nord, ost]], {
+          pane: "pRaster", color: "#7b848d", weight: 0.7, opacity: 0.55,
+          fillColor: "#000", fillOpacity: 0, className: "raster-zelle",
+        }).addTo(G.raster);
+        rect.zellRef = ref;
+        rect.on("click", (e) => {
+          L.DomEvent.stop(e);
+          if (messModus) { messPunktSetzen(e.latlng); return; }
+          TR.auswaehlen({ typ: "zelle", id: ref });
+        });
+        rect.bindTooltip(ref, { permanent: false, direction: "center", className: "tt-zelle" });
+        rasterZellen.push(rect);
+
+        L.marker([nord, west], {
+          pane: "pLabel", interactive: false,
+          icon: L.divIcon({ className: "raster-label", html: ref, iconSize: [22, 12], iconAnchor: [-2, -2] }),
+        }).addTo(G.raster);
+      }
+    }
+    belegungFaerben();
+  }
+
+  function belegungFaerben() {
+    const an = S.ebenen.belegung;
+    const zaehl = new Map();
+    if (an) {
+      for (const p of S.patienten.values()) {
+        if (!p.ll) continue;
+        const z = TR.zelle(p.ll);
+        const e = zaehl.get(z) || { n: 0, rot: 0 };
+        e.n++;
+        if (p.kat === "SK1") e.rot++;
+        zaehl.set(z, e);
+      }
+    }
+    for (const rect of rasterZellen) {
+      if (!an) { rect.setStyle({ fillOpacity: 0 }); continue; }
+      const e = zaehl.get(rect.zellRef);
+      if (!e) { rect.setStyle({ fillOpacity: 0 }); continue; }
+      const stufe = Math.min(1, (e.n + e.rot * 1.5) / 6);
+      rect.setStyle({ fillColor: e.rot ? "#d1232a" : "#1f5fa8", fillOpacity: 0.06 + stufe * 0.22 });
+    }
+  }
+
+  /* ----------------------------------------------------------- Abschnitte */
+
+  const ABSCHNITT_FARBE = {
+    einsatz: "#c0392b", med: "#1f6f43", transport: "#1f5fa8",
+    betreuung: "#7a5c1e", fuehrung: "#4a4f55", sonstig: "#6b7178",
+  };
+
+  function abschnitteZeichnen() {
+    G.abschnitte.clearLayers();
+    G.label.clearLayers();
+    for (const a of S.abschnitte.values()) {
+      const farbe = ABSCHNITT_FARBE[a.art] || "#555";
+      const kreis = L.circle(a.ll, {
+        pane: "pFlaeche", radius: a.r, color: farbe, weight: 1.4,
+        dashArray: a.hq ? null : "5 4", fillColor: farbe, fillOpacity: 0.06,
+      }).addTo(G.abschnitte);
+      kreis.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "abschnitt", id: a.id }); });
+      kreis.bindTooltip(a.name, { sticky: true });
+
+      L.marker(a.ll, {
+        pane: "pLabel", interactive: false,
+        icon: L.divIcon({
+          className: "abschnitt-label" + (a.hq ? " ist-hq" : ""),
+          html: '<b>' + TR.esc(a.kurz) + '</b>' + (a.hq ? '<i>Führung</i>' : ''),
+          iconSize: null, iconAnchor: [0, -a.r / 3],
+        }),
+      }).addTo(G.label);
+    }
+  }
+
+  /* ------------------------------------------------------------- Gefahren */
+
+  function gefahrenZeichnen() {
+    G.gefahren.clearLayers();
+    const gasG = S.gefahren.get("G1");
+
+    absperrKreis = L.circle(S.epi, {
+      pane: "pFlaeche", radius: 250, color: "#b0262c", weight: 1.2, dashArray: "3 5",
+      fill: false, interactive: false,
+    }).addTo(G.gefahren);
+    L.marker(TR.versetzt(S.epi, 250, 315), {
+      pane: "pLabel", interactive: false,
+      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze 250 m", iconSize: null }),
+    }).addTo(G.gefahren);
+
+    for (const g of S.gefahren.values()) {
+      if (!g.aktiv) continue;
+      const farbe = g.stufe === 3 ? "#b0262c" : g.stufe === 2 ? "#c07a10" : "#6b7178";
+      if (g.r > 0) {
+        const k = L.circle(g.ll, {
+          pane: "pFlaeche", radius: g.r, color: farbe, weight: 1.2,
+          fillColor: farbe, fillOpacity: g.art === "gas" ? 0.1 : 0.07, dashArray: "4 4",
+        }).addTo(G.gefahren);
+        k.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "gefahr", id: g.id }); });
+        k.bindTooltip(g.name, { sticky: true });
+        if (g.art === "gas") gasKreis = k;
+      }
+      if (g.art === "einsturz") {
+        const bau = (window.NB_GEO.buildings || []).find((x) => x[0] === 42763911);
+        if (bau) {
+          const ll = [];
+          for (let i = 0; i < bau[2].length; i += 2) ll.push([bau[2][i], bau[2][i + 1]]);
+          L.polygon(ll, {
+            pane: "pFlaeche", color: "#8c1c22", weight: 2, fillColor: "#b0262c", fillOpacity: 0.35,
+          }).bindTooltip("Schadensobjekt — Teileinsturz, Betreten nur mit Sicherungstrupp", { sticky: true })
+            .addTo(G.gefahren);
+        }
+      }
+      const m = L.marker(g.ll, {
+        icon: L.divIcon({
+          className: "mk mk-haz haz-" + g.stufe,
+          html: "<span>" + TR.esc(g.code) + "</span>", iconSize: [30, 16], iconAnchor: [15, 8],
+        }),
+      }).addTo(G.gefahren);
+      m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "gefahr", id: g.id }); });
+      m.bindTooltip(g.name, { direction: "top" });
+    }
+    rauchAktualisieren();
+  }
+
+  function rauchAktualisieren() {
+    const brand = S.gefahren.get("G3");
+    if (!brand || !brand.aktiv || !brand.wind) return;
+    const richtung = (brand.wind.grad + 180) % 360;   // Windrichtung = woher; Fahne zieht dorthin
+    const laenge = brand.fahneLaenge || 160;
+    const punkte = [brand.ll];
+    for (let i = -1; i <= 1; i += 0.25) {
+      punkte.push(TR.versetzt(brand.ll, laenge * (1 - Math.abs(i) * 0.28), richtung + i * 16));
+    }
+    if (rauchPoly) G.gefahren.removeLayer(rauchPoly);
+    rauchPoly = L.polygon(punkte, {
+      pane: "pFlaeche", color: "#6b7178", weight: 1, opacity: 0.5,
+      fillColor: "#6b7178", fillOpacity: 0.16, interactive: false,
+    }).addTo(G.gefahren);
+  }
+
+  function sperrenZeichnen() {
+    G.sperren.clearLayers();
+    for (const s of S.sperren) {
+      const m = L.marker(s.ll, {
+        icon: L.divIcon({ className: "mk mk-sperre", html: "<span></span>", iconSize: [14, 14], iconAnchor: [7, 7] }),
+      }).addTo(G.sperren);
+      m.bindTooltip("Straßensperre — " + s.name + " (" + s.von + ")", { direction: "top" });
+      m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "sperre", id: s.id }); });
+    }
+    for (const pts of window.NB_GEO.rail) {
+      const ll = [];
+      for (let i = 0; i < pts.length; i += 2) ll.push([pts[i], pts[i + 1]]);
+      L.polyline(ll, { pane: "pLinie", color: "#b0262c", weight: 3, dashArray: "10 6", opacity: 0.8 })
+        .bindTooltip("S7 gesperrt — Haltepunkt Neubiberg", { sticky: true })
+        .addTo(G.sperren);
+    }
+  }
+
+  function poiZeichnen() {
+    G.poi.clearLayers();
+    for (const p of S.poi) {
+      L.marker(p.ll, {
+        pane: "pLabel", interactive: false,
+        icon: L.divIcon({ className: "poi-label", html: TR.esc(p.name), iconSize: null }),
+      }).addTo(G.poi);
+      L.circleMarker(p.ll, {
+        pane: "pLinie", radius: 2.5, color: "#5a6068", weight: 1, fillColor: "#fff", fillOpacity: 1,
+      }).addTo(G.poi);
+    }
+  }
+
+  /* ------------------------------------------------------------- Patienten */
+
+  function patientIcon(p) {
+    const sel = S.auswahl && S.auswahl.typ === "patient" && S.auswahl.id === p.id;
+    const kritisch = p.vit && p.vit.spo2 != null && p.vit.spo2 < 90 && p.kat !== "TOT";
+    return L.divIcon({
+      className: "mk mk-pat kat-" + p.kat + (sel ? " ausgewaehlt" : "") + (kritisch ? " kritisch" : "") +
+        (p.zustand === "getragen" ? " bewegt" : ""),
+      html: "<span>" + p.id + "</span>",
+      iconSize: [20, 20], iconAnchor: [10, 10],
+    });
+  }
+
+  function patientenZeichnen() {
+    const gesehen = new Set();
+    for (const p of S.patienten.values()) {
+      if (!p.ll) continue;
+      if (!sichtbar(p)) continue;
+      gesehen.add(p.id);
+      let m = patMarker.get(p.id);
+      if (!m) {
+        m = L.marker(p.ll, { icon: patientIcon(p), draggable: true, riseOnHover: true, zIndexOffset: 200 });
+        m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "patient", id: p.id }); });
+        m.on("dragstart", () => { m.wirdGezogen = true; });
+        m.on("dragend", (e) => {
+          m.wirdGezogen = false;
+          const ll = e.target.getLatLng();
+          TR.patientVerschieben(p.id, [ll.lat, ll.lng]);
+        });
+        m.addTo(G.patienten);
+        patMarker.set(p.id, m);
+      }
+      const neuKlasse = patientIcon(p);
+      if (m.letzteKlasse !== neuKlasse.options.className) {
+        m.setIcon(neuKlasse);
+        m.letzteKlasse = neuKlasse.options.className;
+      }
+      const tt = tooltipPatient(p);
+      if (m.getTooltip()) m.setTooltipContent(tt);
+      else m.bindTooltip(tt, { direction: "top", offset: [0, -8] });
+    }
+    for (const [id, m] of patMarker) {
+      if (!gesehen.has(id)) { G.patienten.removeLayer(m); patMarker.delete(id); }
+    }
+    belegungFaerben();
+  }
+
+  function tooltipPatient(p) {
+    const v = p.vit || {};
+    const vit = [
+      v.af != null ? "AF " + v.af : null,
+      v.puls != null ? "Puls " + v.puls : null,
+      v.spo2 != null ? "SpO₂ " + Math.round(v.spo2) + " %" : null,
+      v.gcs != null ? "GCS " + v.gcs : null,
+    ].filter(Boolean).join(" · ");
+    return "<b>Patient #" + p.id + "</b> — " + TR.KAT[p.kat].label + "<br>" +
+      TR.esc(TR.STATUS_TEXT[p.zustand] || p.zustand) + " · Raster " + TR.zelle(p.ll) +
+      (vit ? "<br>" + vit : "");
+  }
+
+  function sichtbar(p) {
+    const f = S.filter;
+    if (f.kats.size && !f.kats.has(p.kat)) return false;
+    if (f.zelle && TR.zelle(p.ll) !== f.zelle) return false;
+    if (f.nurOffen && (p.zustand === "klinik" || p.zustand === "BST")) return false;
+    if (f.text) {
+      const t = f.text.toLowerCase();
+      const hay = ("#" + p.id + " " + TR.KAT[p.kat].label + " " + (p.verletzt || []).join(" ") + " " +
+        (p.massnahmen || []).join(" ") + " " + (p.befund || "")).toLowerCase();
+      if (!hay.includes(t)) return false;
+    }
+    return true;
+  }
+
+  /* ---------------------------------------------------------- Einsatzmittel */
+
+  function mittelIcon(m) {
+    const sel = S.auswahl && S.auswahl.typ === "mittel" && S.auswahl.id === m.id;
+    const beladen = !!m.patient;
+    return L.divIcon({
+      className: "mk mk-unit u-" + m.art + (sel ? " ausgewaehlt" : "") + (beladen ? " beladen" : "") +
+        (m.pfad ? " faehrt" : ""),
+      html: "<span>" + TR.esc(m.kurz) + "</span>",
+      iconSize: [26, 16], iconAnchor: [13, 8],
+    });
+  }
+
+  function mittelZeichnen() {
+    const gesehen = new Set();
+    for (const m of S.mittel.values()) {
+      gesehen.add(m.id);
+      let mk = mitMarker.get(m.id);
+      if (!mk) {
+        mk = L.marker(m.ll, { icon: mittelIcon(m), riseOnHover: true, zIndexOffset: 100 });
+        mk.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "mittel", id: m.id }); });
+        mk.addTo(G.mittel);
+        mitMarker.set(m.id, mk);
+      }
+      const ic = mittelIcon(m);
+      if (mk.letzteKlasse !== ic.options.className) {
+        mk.setIcon(ic);
+        mk.letzteKlasse = ic.options.className;
+      }
+      const txt = "<b>" + TR.esc(m.name) + "</b><br>" + TR.esc(m.rolle) + "<br>Status: " + TR.esc(m.status) +
+        (m.patient ? "<br>Patient #" + m.patient + " an Bord" : "");
+      if (mk.getTooltip()) mk.setTooltipContent(txt);
+      else mk.bindTooltip(txt, { direction: "top", offset: [0, -8] });
+    }
+    for (const [id, mk] of mitMarker) {
+      if (!gesehen.has(id)) { G.mittel.removeLayer(mk); mitMarker.delete(id); }
+    }
+  }
+
+  /* -------------------------------------------------------------- Animation */
+
+  let rauchAkku = 0;
+
+  function frameTakt() {
+    for (const [id, mk] of mitMarker) {
+      const m = S.mittel.get(id);
+      if (!m) continue;
+      const ll = mk.getLatLng();
+      if (Math.abs(ll.lat - m.ll[0]) > 1e-7 || Math.abs(ll.lng - m.ll[1]) > 1e-7) mk.setLatLng(m.ll);
+    }
+    for (const [id, mk] of patMarker) {
+      const p = S.patienten.get(id);
+      if (!p || !p.ll || mk.wirdGezogen) continue;
+      const ll = mk.getLatLng();
+      if (Math.abs(ll.lat - p.ll[0]) > 1e-7 || Math.abs(ll.lng - p.ll[1]) > 1e-7) mk.setLatLng(p.ll);
+    }
+    spurenAktualisieren();
+
+    rauchAkku += 1;
+    if (rauchAkku > 25) { rauchAkku = 0; rauchAktualisieren(); gasRadius(); }
+
+    if (S.verfolgt) {
+      const m = S.mittel.get(S.verfolgt);
+      if (m) map.panTo(m.ll, { animate: true, duration: 0.4, noMoveStart: true });
+    }
+  }
+
+  function gasRadius() {
+    const g = S.gefahren.get("G1");
+    if (g && gasKreis && g.messwert) {
+      const r = 40 + g.messwert.wert * 1.8;
+      gasKreis.setRadius(r);
+      gasKreis.setStyle({ fillOpacity: 0.05 + Math.min(0.14, g.messwert.wert / 400) });
+    }
+  }
+
+  function spurenAktualisieren() {
+    if (!S.ebenen.spuren) {
+      spurLinien.forEach((l) => G.spuren.removeLayer(l));
+      spurLinien.clear();
+      return;
+    }
+    for (const m of S.mittel.values()) {
+      const alt = spurLinien.get(m.id);
+      if (!m.pfad) {
+        if (alt) { G.spuren.removeLayer(alt); spurLinien.delete(m.id); }
+        continue;
+      }
+      const rest = m.pfad.slice(m.pfadPos);
+      rest[0] = m.ll;
+      if (alt) alt.setLatLngs(rest);
+      else {
+        spurLinien.set(m.id, L.polyline(rest, {
+          pane: "pLinie", color: m.patient ? "#b0262c" : "#4a76a8", weight: 1.6,
+          opacity: 0.55, dashArray: "4 4", interactive: false,
+        }).addTo(G.spuren));
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------- Steuerung */
+
+  function ebenenAnwenden() {
+    const e = S.ebenen;
+    umschalten(G.netz, e.wege);
+    umschalten(G.raster, e.raster);
+    umschalten(G.abschnitte, e.abschnitte);
+    umschalten(G.label, e.abschnitte && e.beschriftung);
+    umschalten(G.gefahren, e.gefahren);
+    umschalten(G.sperren, e.sperren);
+    umschalten(G.poi, e.poi && e.beschriftung);
+    umschalten(G.patienten, e.patienten);
+    umschalten(G.mittel, e.mittel);
+    umschalten(G.spuren, e.spuren);
+    belegungFaerben();
+  }
+
+  function umschalten(gruppe, an) {
+    if (!gruppe) return;
+    if (an && !map.hasLayer(gruppe)) map.addLayer(gruppe);
+    if (!an && map.hasLayer(gruppe)) map.removeLayer(gruppe);
+  }
+
+  function basisSetzen(name) {
+    aktiveBasis = name;
+    for (const k of Object.keys(basis)) {
+      if (map.hasLayer(basis[k])) map.removeLayer(basis[k]);
+    }
+    if (basis[name]) map.addLayer(basis[name]);
+    // Ohne Kachelkarte wird das gebackene Wegenetz eingeblendet.
+    if (name === "leer") { S.ebenen.wege = true; ebenenAnwenden(); }
+    document.getElementById("karte").classList.toggle("basis-leer", name === "leer");
+  }
+
+  function rasterSetzen(spalten, zeilen) {
+    S.raster.spalten = Math.max(2, Math.min(26, spalten | 0));
+    S.raster.zeilen = Math.max(2, Math.min(40, zeilen | 0));
+    rasterZeichnen();
+    ebenenAnwenden();
+  }
+
+  function zeigeAuf(ll, zoom) {
+    map.setView(ll, zoom || Math.max(map.getZoom(), 17), { animate: true });
+  }
+
+  function auswahlZeigen(sel) {
+    patientenZeichnen();
+    mittelZeichnen();
+    if (!sel) return;
+    if (sel.typ === "patient") {
+      const p = S.patienten.get(sel.id);
+      if (p && p.ll) zeigeAuf(p.ll);
+    } else if (sel.typ === "mittel") {
+      const m = S.mittel.get(sel.id);
+      if (m) zeigeAuf(m.ll);
+    } else if (sel.typ === "abschnitt") {
+      const a = S.abschnitte.get(sel.id);
+      if (a) zeigeAuf(a.ll, 17);
+    } else if (sel.typ === "gefahr") {
+      const g = S.gefahren.get(sel.id);
+      if (g) zeigeAuf(g.ll, 17);
+    } else if (sel.typ === "sperre") {
+      const s = S.sperren.find((x) => x.id === sel.id);
+      if (s) zeigeAuf(s.ll, 18);
+    } else if (sel.typ === "zelle") {
+      const b = TR.zellGrenzen(sel.id);
+      if (b) map.fitBounds(b, { maxZoom: 18 });
+    }
+  }
+
+  function gesamtansicht() {
+    const b = S.bbox;
+    S.verfolgt = null;
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+  }
+
+  function schadensansicht() {
+    S.verfolgt = null;
+    map.setView(S.epi, 18);
+  }
+
+  /* ----------------------------------------------------------- Messwerkzeug */
+
+  function messenUmschalten(an) {
+    messModus = an === undefined ? !messModus : an;
+    document.getElementById("karte").classList.toggle("misst", messModus);
+    if (!messModus) messZuruecksetzen();
+    return messModus;
+  }
+
+  function messZuruecksetzen() {
+    messPunkte = [];
+    if (messLinie) { map.removeLayer(messLinie); messLinie = null; }
+    if (messLabel) { map.removeLayer(messLabel); messLabel = null; }
+  }
+
+  function messPunktSetzen(latlng) {
+    messPunkte.push([latlng.lat, latlng.lng]);
+    if (messLinie) messLinie.setLatLngs(messPunkte);
+    else messLinie = L.polyline(messPunkte, { pane: "pLinie", color: "#1a4f8a", weight: 2, dashArray: "6 4" }).addTo(map);
+    let s = 0;
+    for (let i = 1; i < messPunkte.length; i++) s += TR.dist(messPunkte[i - 1], messPunkte[i]);
+    const txt = s < 1000 ? Math.round(s) + " m" : (s / 1000).toFixed(2) + " km";
+    const gehZeit = Math.round(s / 1.4 / 60);
+    const html = txt + (messPunkte.length > 1 ? " · zu Fuß ca. " + gehZeit + " min" : "");
+    if (messLabel) messLabel.setLatLng(latlng).setIcon(L.divIcon({ className: "mess-label", html, iconSize: null }));
+    else messLabel = L.marker(latlng, { pane: "pLabel", interactive: false,
+      icon: L.divIcon({ className: "mess-label", html, iconSize: null }) }).addTo(map);
+  }
+
+  /* ---------------------------------------------------------- Planoverlay */
+
+  function planLaden(dataUrl) {
+    const b = S.bbox;
+    if (planOverlay) map.removeLayer(planOverlay);
+    planOverlay = L.imageOverlay(dataUrl, [[b[0], b[1]], [b[2], b[3]]], { opacity: 0.75, pane: "pNetz" }).addTo(map);
+  }
+
+  function planDeckkraft(v) { if (planOverlay) planOverlay.setOpacity(v); }
+  function planEntfernen() { if (planOverlay) { map.removeLayer(planOverlay); planOverlay = null; } }
+
+  return {
+    init, ebenenAnwenden, basisSetzen, rasterSetzen, zeigeAuf, gesamtansicht, schadensansicht,
+    messenUmschalten, messZuruecksetzen, planLaden, planDeckkraft, planEntfernen,
+    patientenZeichnen, mittelZeichnen, gefahrenZeichnen, karte: () => map,
+  };
+})();

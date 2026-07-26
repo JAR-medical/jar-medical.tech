@@ -3,105 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TriARge — Live-Demo (Einsatzleitung)</title>
-  <meta name="description" content="Interaktive Live-Demo des J.A.R./TriARge Einsatzleitungs-Dashboards — ein simulierter MANV im Browser, ganz ohne Installation.">
-  <link rel="stylesheet" href="./style.css?v=1">
+  <title>TriARge — Lagebild Einsatzleitung (Live-Demo)</title>
+  <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
+  <meta name="robots" content="index,follow">
+  <link rel="stylesheet" href="./vendor/leaflet.css">
+  <link rel="stylesheet" href="./style.css?v=2">
 </head>
 <body>
 
-  <!-- Demo chrome: not part of the product UI. -->
-  <div class="demo-bar">
-    <span class="db-brand"><span class="logo">▲</span> TriARge</span>
-    <span class="db-badge">LIVE-DEMO</span>
-    <span class="db-tag" id="demo-tag">Simulierter MANV · Reisebus-Unfall A9 · keine echten Personendaten</span>
-    <span class="db-spacer"></span>
-    <button id="demo-replay" class="db-btn primary" type="button">▷ Neu abspielen</button>
-    <a class="db-btn" href="../index.html">← Zur Website</a>
-  </div>
+<!-- Demo-Rahmen: gehört nicht zur Produktoberfläche. -->
+<div class="demo-bar">
+  <span class="db-brand">TriARge</span>
+  <span class="db-badge">LIVE-DEMO</span>
+  <span class="db-tag">Simulierte Übungslage Neubiberg · keine echten Personendaten · Karte © OpenStreetMap-Mitwirkende</span>
+  <span class="db-spacer"></span>
+  <button id="btn-neustart" class="db-btn" type="button">Lage neu abspielen</button>
+  <a class="db-btn" href="../index.html">Zur Website</a>
+</div>
 
-  <header>
-    <div class="brand">
-      <span class="logo">▲</span>
-      <h1>TriARge <span class="sub">Einsatzleitung</span></h1>
-    </div>
-    <div class="header-status">
-      <div class="counts" id="counts"></div>
-      <select id="session-select" class="session-select" title="Einsatz wechseln"></select>
-      <button id="new-session-btn" class="radio-btn" title="Neuen Einsatz starten (bisherige Daten bleiben erhalten)">
-        ＋ Neuer Einsatz
-      </button>
-      <button id="radio-toggle" class="radio-btn" title="Sprechfunk-Analyse (Mikrofon/AUX)">
-        ● Funk aus
-      </button>
-      <span class="pill" id="sync-pill">lokal</span>
-      <span class="pill" id="ws-pill">verbinde…</span>
-    </div>
+<div id="app">
+
+  <header class="topbar">
+    <span class="tb-titel" id="tb-titel">Einsatz</span>
+    <select id="sitzung" class="tb-sel" title="Einsatz wechseln"></select>
+    <button id="btn-neuer-einsatz" class="tb-btn" type="button" title="Neuen Einsatz eröffnen (bisherige Daten bleiben erhalten)">Neuer Einsatz</button>
+    <span class="tb-sep"></span>
+    <span class="tb-uhr"><b id="uhr">--:--:--</b><i>Einsatzzeit <span id="einsatzzeit">00:00</span></i></span>
+    <span class="tb-sep"></span>
+    <span class="zaehler" id="zaehler"></span>
+    <span class="tb-spacer"></span>
+    <button id="btn-funk" class="tb-btn" type="button" title="Sprechfunk-Auswertung (Mikrofon / AUX)">Funk aus</button>
+    <span class="pill" id="pill-sync">lokal</span>
+    <span class="pill ok" id="pill-ws">live</span>
   </header>
 
-  <main>
-    <div class="left-col">
-      <section id="board" class="board" aria-label="Patientenübersicht"></section>
+  <div class="kpibar" id="kpibar"></div>
 
-      <section class="map-panel">
-        <div class="map-head">
-          <h2>Lagekarte</h2>
-          <div class="map-controls">
-            <label class="grid-config">Raster
-              <input id="grid-cols" type="number" min="2" max="26" value="8"> ×
-              <input id="grid-rows" type="number" min="2" max="40" value="6">
-            </label>
-            <label class="radio-btn upload-btn">Karte hochladen
-              <input id="map-file" type="file" accept="image/*" hidden>
-            </label>
-          </div>
-        </div>
-        <div id="map-unplaced" class="map-unplaced"></div>
-        <div id="map-container" class="map-container">
-          <p class="muted map-placeholder">Keine Karte — Luftbild oder Lageplan hochladen,
-            das Raster wird automatisch darübergelegt.</p>
-        </div>
-      </section>
+  <aside class="rail rail-l">
+
+    <section class="blk">
+      <h2>Lage</h2>
+      <div class="lage" id="lage"></div>
+    </section>
+
+    <section class="blk">
+      <h2>Kartenebenen</h2>
+      <div class="ebenen" id="ebenen"></div>
+      <div class="zeile">
+        <label class="lbl">Kartengrundlage</label>
+        <select id="basiskarte" class="sel-klein">
+          <option value="hell">OpenStreetMap hell</option>
+          <option value="osm">OpenStreetMap Standard</option>
+          <option value="leer">ohne Kachelkarte</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="blk">
+      <h2>Einsatzraster</h2>
+      <div class="zeile">
+        <label class="lbl">Raster</label>
+        <input id="raster-spalten" class="num" type="number" min="2" max="26" value="8"> ×
+        <input id="raster-zeilen" class="num" type="number" min="2" max="40" value="6">
+        <span class="hinweis" id="zellgroesse"></span>
+      </div>
+      <div class="zeile">
+        <label class="lbl">Eigener Lageplan</label>
+        <label class="btn-klein datei">Bild wählen<input id="plan-datei" type="file" accept="image/*" hidden></label>
+        <button id="plan-weg" class="btn-klein" type="button">entfernen</button>
+      </div>
+      <div class="zeile">
+        <label class="lbl">Deckkraft</label>
+        <input id="plan-deck" type="range" min="0" max="100" value="75">
+      </div>
+      <p class="hinweis">Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster bleibt darüber aktiv.</p>
+    </section>
+
+    <section class="blk">
+      <h2>Filter</h2>
+      <input id="suche" class="such" type="search" placeholder="Suche: Verletzung, Maßnahme, #ID …">
+      <div class="chips" id="kat-chips"></div>
+      <label class="check"><input id="nur-offen" type="checkbox"> nur noch nicht versorgte / nicht abtransportierte</label>
+      <div class="zeile"><span class="hinweis" id="filter-info">kein Filter aktiv</span>
+        <button id="filter-weg" class="btn-klein" type="button">zurücksetzen</button></div>
+    </section>
+
+    <section class="blk">
+      <h2>Einsatzabschnitte</h2>
+      <div id="abschnitt-liste" class="liste"></div>
+    </section>
+
+    <section class="blk">
+      <h2>Einsatzmittel
+        <button id="btn-mittel-neu" class="mini" type="button" title="Einsatzmittel registrieren">＋</button>
+      </h2>
+      <div id="mittel-liste" class="liste"></div>
+    </section>
+
+  </aside>
+
+  <div class="mapwrap" id="karte">
+    <div id="map"></div>
+
+    <div class="map-werkzeuge">
+      <button id="wz-gesamt" class="wz" type="button" title="Gesamter Einsatzraum">Übersicht</button>
+      <button id="wz-schaden" class="wz" type="button" title="Auf die Schadensstelle zoomen">Schadensstelle</button>
+      <button id="wz-messen" class="wz" type="button" title="Strecke messen (Klick setzt Punkte)">Messen</button>
+      <button id="wz-folgen" class="wz" type="button" title="Ausgewähltem Einsatzmittel folgen">Folgen</button>
     </div>
 
-    <aside class="sidebar">
-      <div class="team-section">
-        <h2>Einsatztrupps
-          <button id="add-team-btn" class="mini-btn" title="Trupp hinzufügen">＋</button>
-        </h2>
-        <div id="team-list" class="team-list">
-          <p class="muted">Keine Trupps registriert.</p>
-        </div>
-      </div>
+    <div class="map-zeit">
+      <button id="zt-pause" class="zt" type="button">Pause</button>
+      <span class="zt-tempo">
+        <button class="zt tempo" data-tempo="1" type="button">1×</button>
+        <button class="zt tempo" data-tempo="2" type="button">2×</button>
+        <button class="zt tempo" data-tempo="4" type="button">4×</button>
+        <button class="zt tempo" data-tempo="8" type="button">8×</button>
+      </span>
+      <span class="zt-info" id="zt-info">Einsatzzeit 00:00</span>
+    </div>
+
+    <div class="map-legende" id="legende"></div>
+    <div class="map-status"><span id="koord">—</span></div>
+  </div>
+
+  <aside class="rail rail-r">
+
+    <section class="blk wachsend">
+      <h2>Auswahl</h2>
+      <div id="inspektor" class="inspektor"></div>
+    </section>
+
+    <section class="blk">
+      <h2>Warnungen <span class="anz" id="warn-anz">0</span></h2>
+      <div id="warn-liste" class="liste warnungen"></div>
+    </section>
+
+    <section class="blk">
       <h2>Sprechfunk</h2>
-      <div id="radio-log" class="radio-log">
-        <p class="muted">Noch keine Transmissionen.</p>
-      </div>
-    </aside>
-  </main>
+      <div id="funk-liste" class="funk"></div>
+    </section>
 
-  <!-- Patient detail (in-page modal; in the real client this is a dedicated window). -->
-  <dialog id="detail">
-    <div class="detail-head">
-      <h3 id="d-title">Patient</h3>
-      <div>
-        <span class="pill live-indicator ok" id="d-live">live</span>
-        <span class="cat-label" id="d-cat-label" style="font-weight:700"></span>
-      </div>
-    </div>
-    <div class="cat-buttons" id="d-cat-buttons"></div>
-    <div class="detail-grid" id="d-grid"></div>
-    <div class="protocol">
-      <h4 id="d-protocol-title">Protokoll</h4>
-      <div id="d-protocol-list"></div>
-    </div>
-    <div class="detail-actions">
-      <button id="d-delete" class="close-btn" style="color:var(--sk1);border-color:var(--sk1)">
-        Patient löschen (Fehlerkennung)
-      </button>
-      <button id="d-close" class="close-btn">Schließen</button>
-    </div>
-  </dialog>
+  </aside>
 
-  <script src="./demo.js?v=1"></script>
+  <section class="dock">
+    <nav class="dock-tabs" id="dock-tabs">
+      <button class="dtab aktiv" data-tab="patienten" type="button">Patienten</button>
+      <button class="dtab" data-tab="gefahren" type="button">Gefahrenlage</button>
+      <button class="dtab" data-tab="transport" type="button">Transport &amp; Kliniken</button>
+      <button class="dtab" data-tab="ereignisse" type="button">Ereignisse</button>
+      <button class="dtab" data-tab="lagemeldung" type="button">Lagemeldung</button>
+      <span class="dock-spacer"></span>
+      <button id="btn-csv" class="btn-klein" type="button">CSV exportieren</button>
+      <button id="dock-klein" class="btn-klein" type="button" title="Bereich ein-/ausklappen">▼</button>
+    </nav>
+    <div class="dock-inhalt" id="dock-inhalt"></div>
+  </section>
+
+</div>
+
+<script src="./vendor/leaflet.js"></script>
+<script src="./data/neubiberg.js"></script>
+<script src="./scenario.js?v=2"></script>
+<script src="./engine.js?v=2"></script>
+<script src="./map.js?v=2"></script>
+<script src="./ui.js?v=2"></script>
 </body>
 </html>
