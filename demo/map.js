@@ -62,7 +62,17 @@ const KARTE = (function () {
       zoomAnimation: false,
       bounceAtZoomLimits: false,
     });
-    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+    /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
+     * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
+     * ist eine Schaltfläche entfernt. */
+    function startAusschnitt(animate) {
+      if (behaelter.clientWidth > 0 && behaelter.clientWidth < 620) {
+        map.setView(S.epi, 16.2, { animate: !!animate });
+      } else {
+        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: !!animate });
+      }
+    }
+    startAusschnitt();
 
     /* Leaflet merkt sich die Containergröße beim Anlegen. Steht das Layout zu
      * diesem Zeitpunkt noch nicht (verstecktes Fenster, später geladene
@@ -76,7 +86,7 @@ const KARTE = (function () {
       const jetzt = map.getSize();
       if (!ausschnittGesetzt && jetzt.x > 0 && jetzt.y > 0) {
         ausschnittGesetzt = true;
-        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: false });
+        startAusschnitt();
       }
       return vorher;
     };

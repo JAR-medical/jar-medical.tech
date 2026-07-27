@@ -668,18 +668,33 @@ input[type="range"] { flex: 1; min-width: 90px; }
   .lg-schalter { padding: 5px 8px; }
   /* Die Ziehstege liegen in eigenen Rasterspalten — auf Touch breiter. */
   #app { grid-template-columns: var(--rail-l, 274px) 10px minmax(0, 1fr) 10px var(--rail-r, 330px); }
+
+  /* Kartensymbole sind 14–26 px groß und damit als Fingerziel zu klein. Die
+   * Trefferfläche wächst über ein unsichtbares Feld im inneren Element — am
+   * Symbol selbst dürfen weder `position` noch `transform` gesetzt werden
+   * (siehe Hinweis bei .mk), und seine Größe bleibt unverändert. */
+  .mk > span { position: relative; }
+  .mk > span::before { content: ""; position: absolute; inset: -9px; }
+  .leaflet-control-zoom a { width: 34px; height: 34px; line-height: 32px; font-size: 18px; }
 }
 
 /* ------------------------------------------------- Telefon / sehr schmal
- * Erst hier stehen die Bereiche untereinander; dann darf die Seite scrollen. */
+ * Erst hier stehen die Bereiche untereinander; dann darf die Seite scrollen.
+ * Leitgedanke: die Karte bekommt so viel Höhe wie möglich, der Rahmen darum
+ * so wenig wie nötig — und nichts läuft unerreichbar aus dem Bild. Was auf
+ * dem Telefon nichts nützt (Koordinatenanzeige, Legende, Ziehgriffe), bleibt
+ * weg. */
 @media (max-width: 620px) {
   html, body { height: auto; overflow: auto; }
+  body { -webkit-text-size-adjust: 100%; }
   #app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto 58vh auto auto auto;
+    grid-template-rows: auto auto 62vh auto auto auto;
+    /* dvh: die Kartenhöhe wackelt nicht mit ein- und ausfahrender Adressleiste */
+    grid-template-rows: auto auto 62dvh auto auto auto;
     height: auto;
   }
-  .topbar { grid-column: 1; grid-row: 1; flex-wrap: wrap; height: auto; padding: 4px 8px; }
+  .topbar { grid-column: 1; grid-row: 1; flex-wrap: wrap; height: auto; padding: 4px 8px; gap: 5px; }
   .kpibar { grid-column: 1; grid-row: 2; }
   .mapwrap { grid-column: 1; grid-row: 3; }
   .dock { grid-column: 1; grid-row: 4; height: 300px; }
@@ -694,4 +709,40 @@ input[type="range"] { flex: 1; min-width: 90px; }
   }
   .rail.zu .rail-titel { writing-mode: horizontal-tb; max-height: none; }
   .map-legende { display: none; }
+
+  /* Demo-Rahmen: der Hinweis bleibt stehen (er gehört zur Aussage der Demo),
+     er darf nur umbrechen statt abgeschnitten zu werden. */
+  .demo-bar { height: auto; flex-wrap: wrap; gap: 6px; padding: 4px 8px; }
+  .db-tag { white-space: normal; overflow: visible; font-size: 10px; flex-basis: 100%; order: 9; }
+  .db-spacer { display: none; }
+
+  /* Kopfzeile: der Einsatzname steht schon in der Auswahlliste daneben. */
+  .tb-titel, .tb-sep { display: none; }
+  .tb-sel { flex: 1 1 150px; max-width: none; min-width: 0; }
+  .tb-spacer { display: none; }
+
+  /* Kennzahlen als seitlich schiebbares Band statt abgeschnittener Reihe. */
+  .kpibar { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .kpibar::-webkit-scrollbar { display: none; }
+  .kpi { flex: 0 0 auto; padding: 0 10px; }
+
+  /* Kartenaufsätze: schmaler, und die Werkzeugleiste hält Abstand zu den
+     Zoomschaltflächen in der Ecke. */
+  /* Breite nach Inhalt, aber nie bis unter die Zoomschaltflächen in der Ecke. */
+  .map-werkzeuge {
+    top: 6px; left: 6px; width: max-content; max-width: calc(100% - 54px);
+    flex-wrap: wrap; gap: 2px; padding: 2px;
+  }
+  .wz { padding: 4px 7px; font-size: 10px; }
+  .map-zeit { bottom: 6px; left: 6px; gap: 3px; padding: 2px 4px; }
+  .zt { padding: 4px 7px; font-size: 10px; }
+  .zt-info { display: none; }          /* Einsatzzeit steht in der Kopfzeile */
+  .map-status { display: none; }       /* Koordinate unterm Finger bringt nichts */
+  .leaflet-control-attribution { font-size: 8px; }
+
+  /* Reiter des unteren Bereichs seitlich schiebbar statt gedrängt. */
+  .dock-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .dock-tabs::-webkit-scrollbar { display: none; }
+  .dock-tabs .dtab { flex: 0 0 auto; }
+  .dock-inhalt { -webkit-overflow-scrolling: touch; }
 }
