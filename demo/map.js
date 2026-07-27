@@ -37,7 +37,8 @@ const KARTE = (function () {
 
   function init(el) {
     const b = S.bbox;
-    map = L.map(el, {
+    const behaelter = typeof el === "string" ? document.getElementById(el) : el;
+    map = L.map(behaelter, {
       zoomControl: false,
       attributionControl: true,
       preferCanvas: false,
@@ -45,6 +46,33 @@ const KARTE = (function () {
       maxZoom: 19,
     });
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+
+    /* Leaflet merkt sich die Containergröße beim Anlegen. Steht das Layout zu
+     * diesem Zeitpunkt noch nicht (verstecktes Fenster, später geladene
+     * Stylesheets), bleibt die Größe 0 und der Ausschnitt springt auf die
+     * höchste Zoomstufe. Deshalb wird die Größe beobachtet und der Ausschnitt
+     * beim ersten echten Messwert einmal neu gesetzt. */
+    let ausschnittGesetzt = map.getSize().x > 0 && map.getSize().y > 0;
+    const nachmessen = () => {
+      const vorher = map.getSize();
+      map.invalidateSize({ animate: false });
+      const jetzt = map.getSize();
+      if (!ausschnittGesetzt && jetzt.x > 0 && jetzt.y > 0) {
+        ausschnittGesetzt = true;
+        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: false });
+      }
+      return vorher;
+    };
+    if (window.ResizeObserver) new ResizeObserver(nachmessen).observe(behaelter);
+    window.addEventListener("resize", nachmessen);
+    requestAnimationFrame(nachmessen);
+    setTimeout(nachmessen, 400);
+    // Rückfall über einen Timer: greift auch dort, wo ResizeObserver und
+    // requestAnimationFrame nicht laufen (z. B. nicht dargestelltes Fenster).
+    setInterval(() => {
+      const s = map.getSize();
+      if (s.x !== behaelter.clientWidth || s.y !== behaelter.clientHeight) nachmessen();
+    }, 1000);
 
     L.control.zoom({ position: "topright" }).addTo(map);
     L.control.scale({ position: "bottomright", imperial: false, maxWidth: 140 }).addTo(map);
