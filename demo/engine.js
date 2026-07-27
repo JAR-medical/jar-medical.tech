@@ -248,6 +248,27 @@ const TR = (function () {
     return String.fromCharCode(65 + c) + (r + 1);
   }
 
+  /* Rasterfeld eines Patienten. Solange er im Einsatzraum ist, wird es aus der
+   * aktuellen Position bestimmt und gemerkt; nach dem Abtransport bleibt das
+   * zuletzt bekannte Feld stehen, damit die Spalte nicht leer läuft. */
+  function patientZelle(p) {
+    if (!p.ll) return p.letzteZelle || "—";
+    const z = zelle(p.ll);
+    // Ab dem Aufsitzen auf das Transportmittel wird nicht mehr nachgeführt,
+    // sonst bliebe am Ende nur der Punkt stehen, an dem das Fahrzeug den
+    // Einsatzraum verlassen hat.
+    if (z !== "—" && p.zustand !== "transport") p.letzteZelle = z;
+    return z;
+  }
+
+  // Sortierschlüssel für Rasterfelder: erst Spalte, dann Zeile numerisch,
+  // damit A2 vor A10 steht und Patienten ohne Feld hinten landen.
+  function zellSchluessel(ref) {
+    const m = /^([A-Z]+)(\d{1,2})$/.exec(ref || "");
+    if (!m) return "zzz|9999";
+    return m[1].padStart(3, " ") + "|" + String(m[2]).padStart(4, "0");
+  }
+
   function zellGrenzen(ref) {
     const m = /^([A-Z])(\d{1,2})$/.exec(ref || "");
     if (!m || !S.bbox) return null;
@@ -540,6 +561,10 @@ const TR = (function () {
   }
 
   function transportStarten(p, m, klinik) {
+    if (p.ll) {
+      const z = zelle(p.ll);
+      if (z !== "—") p.letzteZelle = z;   // Feld der Übergabe festhalten
+    }
     klinik.frei[p.kat] = Math.max(0, klinik.frei[p.kat] - 1);
     klinik.belegt++;
     p.klinik = klinik.id;
@@ -844,14 +869,15 @@ const TR = (function () {
         const massnahme = REEVAL[Math.floor(Math.random() * REEVAL.length)];
         proto(p, "client", m.name, massnahme);
         // Versorgung wirkt: der Ausgangswert der Messreihe verbessert sich mit.
+        // Messwerte bleiben ganzzahlig — sie werden am Monitor abgelesen, nicht gerechnet.
         const b = p.basisVit || (p.basisVit = { ...p.vit });
         if (p.vit.spo2 != null && p.vit.spo2 < 94) {
-          b.spo2 = Math.min(97, (b.spo2 ?? p.vit.spo2) + 3 + Math.random() * 2);
-          p.vit.spo2 = Math.min(99, p.vit.spo2 + 3 + Math.random() * 3);
+          b.spo2 = Math.round(Math.min(97, (b.spo2 ?? p.vit.spo2) + 3 + Math.random() * 2));
+          p.vit.spo2 = Math.round(Math.min(99, p.vit.spo2 + 3 + Math.random() * 3));
         }
         if (p.vit.puls != null && p.vit.puls > 110) {
-          b.puls = Math.max(88, (b.puls ?? p.vit.puls) - 5);
-          p.vit.puls -= 4 + Math.random() * 6;
+          b.puls = Math.round(Math.max(88, (b.puls ?? p.vit.puls) - 5));
+          p.vit.puls = Math.round(p.vit.puls - (4 + Math.random() * 6));
         }
         emit("patienten");
       }
@@ -1335,12 +1361,13 @@ const TR = (function () {
     const zeilen = [kopf.join(";")];
     for (const p of [...S.patienten.values()].sort((a, b) => a.id - b.id)) {
       const v = p.vit || {};
+      const g = (x) => (x == null ? "" : Math.round(x));
       zeilen.push([
         p.id, KAT[p.kat].label, STATUS_TEXT[p.zustand] || p.zustand,
         p.abschnitt ? (S.abschnitte.get(p.abschnitt) || {}).name || "" : "",
-        p.ll ? zelle(p.ll) : "", p.ll ? p.ll[0].toFixed(5) : "", p.ll ? p.ll[1].toFixed(5) : "",
-        p.sex || "", p.alter ?? "", v.af ?? "", v.puls ?? "", v.spo2 ?? "",
-        v.rrs != null ? v.rrs + (v.rrd != null ? "/" + v.rrd : "") : "", v.gcs ?? "",
+        patientZelle(p), p.ll ? p.ll[0].toFixed(5) : "", p.ll ? p.ll[1].toFixed(5) : "",
+        p.sex || "", p.alter ?? "", g(v.af), g(v.puls), g(v.spo2),
+        v.rrs != null ? g(v.rrs) + (v.rrd != null ? "/" + g(v.rrd) : "") : "", g(v.gcs),
         (p.verletzt || []).join(" | "), (p.massnahmen || []).join(" | "),
         p.klinik ? (S.kliniken.find((k) => k.id === p.klinik) || {}).name || "" : "",
       ].map((x) => String(x).replace(/;/g, ",")).join(";"));
@@ -1419,7 +1446,8 @@ const TR = (function () {
 
   return {
     S, KAT, STATUS_TEXT, on, emit, init, takt,
-    dist, bearing, versetzt, streu, route, zelle, zellGrenzen, esc, zeit, uhr,
+    dist, bearing, versetzt, streu, route, zelle, patientZelle, zellSchluessel, zellGrenzen,
+    esc, zeit, uhr,
     kennzahlen, lagemeldung, csvExport, auswaehlen, tempoSetzen, pauseUmschalten,
     kategorieSetzen, patientLoeschen, patientVerschieben, truppHinzufuegen, truppEntfernen,
     neustart, neuerEinsatz, funken, ereignis, graph,

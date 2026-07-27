@@ -406,10 +406,10 @@ const KARTE = (function () {
   function tooltipPatient(p) {
     const v = p.vit || {};
     const vit = [
-      v.af != null ? "AF " + v.af : null,
-      v.puls != null ? "Puls " + v.puls : null,
+      v.af != null ? "AF " + Math.round(v.af) : null,
+      v.puls != null ? "Puls " + Math.round(v.puls) : null,
       v.spo2 != null ? "SpO₂ " + Math.round(v.spo2) + " %" : null,
-      v.gcs != null ? "GCS " + v.gcs : null,
+      v.gcs != null ? "GCS " + Math.round(v.gcs) : null,
     ].filter(Boolean).join(" · ");
     return "<b>Patient #" + p.id + "</b> — " + TR.KAT[p.kat].label + "<br>" +
       TR.esc(TR.STATUS_TEXT[p.zustand] || p.zustand) + " · Raster " + TR.zelle(p.ll) +

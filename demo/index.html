@@ -7,7 +7,7 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=5">
+  <link rel="stylesheet" href="./style.css?v=6">
 </head>
 <body>
 
@@ -46,12 +46,12 @@
     </div>
     <div class="rail-inhalt">
 
-    <section class="blk">
+    <section class="blk" data-blk="lage">
       <h2>Lage</h2>
       <div class="lage" id="lage"></div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="ebenen">
       <h2>Kartenebenen</h2>
       <div class="ebenen" id="ebenen"></div>
       <div class="zeile">
@@ -64,7 +64,7 @@
       </div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="raster">
       <h2>Einsatzraster</h2>
       <div class="zeile">
         <label class="lbl">Raster</label>
@@ -84,7 +84,7 @@
       <p class="hinweis">Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster bleibt darüber aktiv.</p>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="filter">
       <h2>Filter</h2>
       <input id="suche" class="such" type="search" placeholder="Suche: Verletzung, Maßnahme, #ID …">
       <div class="chips" id="kat-chips"></div>
@@ -93,12 +93,12 @@
         <button id="filter-weg" class="btn-klein" type="button">zurücksetzen</button></div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="abschnitte">
       <h2>Einsatzabschnitte</h2>
       <div id="abschnitt-liste" class="liste"></div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="mittel">
       <h2>Einsatzmittel
         <button id="btn-mittel-neu" class="mini" type="button" title="Einsatzmittel registrieren">＋</button>
       </h2>
@@ -131,7 +131,10 @@
       <span class="zt-info" id="zt-info">Einsatzzeit 00:00</span>
     </div>
 
-    <div class="map-legende" id="legende"></div>
+    <div class="map-legende zu" id="legende">
+      <button class="lg-schalter" id="legende-schalter" type="button" title="Legende ein-/ausblenden">Legende</button>
+      <div class="lg-inhalt" id="legende-inhalt"></div>
+    </div>
     <div class="map-status"><span id="koord">—</span></div>
   </div>
 
@@ -144,17 +147,17 @@
     </div>
     <div class="rail-inhalt">
 
-    <section class="blk wachsend">
+    <section class="blk wachsend" data-blk="auswahl">
       <h2>Auswahl</h2>
       <div id="inspektor" class="inspektor"></div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="warnungen">
       <h2>Warnungen <span class="anz" id="warn-anz">0</span></h2>
       <div id="warn-liste" class="liste warnungen"></div>
     </section>
 
-    <section class="blk">
+    <section class="blk" data-blk="funk">
       <h2>Sprechfunk</h2>
       <div id="funk-liste" class="funk"></div>
     </section>
@@ -162,7 +165,8 @@
     </div>
   </aside>
 
-  <section class="dock">
+  <section class="dock" id="dock">
+    <div class="dock-griff" id="dock-griff" title="Höhe ziehen · Doppelklick klappt den Bereich ein"></div>
     <nav class="dock-tabs" id="dock-tabs">
       <button class="dtab aktiv" data-tab="patienten" type="button">Patienten</button>
       <button class="dtab" data-tab="gefahren" type="button">Gefahrenlage</button>
@@ -171,6 +175,7 @@
       <button class="dtab" data-tab="lagemeldung" type="button">Lagemeldung</button>
       <span class="dock-spacer"></span>
       <button id="btn-csv" class="btn-klein" type="button">CSV exportieren</button>
+      <button id="dock-gross" class="btn-klein" type="button" title="Bereich auf volle Höhe bringen">⤢</button>
       <button id="dock-klein" class="btn-klein" type="button" title="Bereich ein-/ausklappen">▼</button>
     </nav>
     <div class="dock-inhalt" id="dock-inhalt"></div>
@@ -179,10 +184,10 @@
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=5"></script>
-<script src="./scenario.js?v=5"></script>
-<script src="./engine.js?v=5"></script>
-<script src="./map.js?v=5"></script>
-<script src="./ui.js?v=5"></script>
+<script src="./data/neubiberg.js?v=6"></script>
+<script src="./scenario.js?v=6"></script>
+<script src="./engine.js?v=6"></script>
+<script src="./map.js?v=6"></script>
+<script src="./ui.js?v=6"></script>
 </body>
 </html>

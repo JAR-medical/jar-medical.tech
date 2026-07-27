@@ -12,6 +12,8 @@
   const KAT = TR.KAT;
   const $ = (id) => document.getElementById(id);
   const esc = TR.esc;
+  // Messwerte werden immer als ganze Zahl angezeigt.
+  const zahl = (v) => (v == null ? "—" : String(Math.round(v)));
 
   let dockTab = "patienten";
   let patSort = { spalte: "kat", ab: false };
@@ -38,8 +40,15 @@
             zu: !!j[s].zu,
           };
         }
+        return;
       }
     } catch (e) { /* kein gespeicherter Zustand */ }
+    // Ohne gespeicherte Vorgabe starten schmale Fenster (Tablet) mit
+    // eingeklappten Leisten, damit die Karte die volle Breite bekommt.
+    if (window.innerWidth < 1200) {
+      leisten.l.zu = true;
+      leisten.r.zu = true;
+    }
   }
 
   function leistenSpeichern() {
@@ -63,6 +72,55 @@
     if (typeof KARTE !== "undefined" && KARTE.karte()) {
       KARTE.karte().invalidateSize({ animate: false });
     }
+  }
+
+  /* Jeder Abschnitt in den Leisten lässt sich einzeln zuklappen. Auf einem
+   * Tablet ist das der wichtigste Platzgewinn: man behält nur das offen, was
+   * gerade gebraucht wird, und muss in der Leiste nicht mehr scrollen. */
+  let zugeklappt = new Set();
+
+  function abschnitteLaden() {
+    try {
+      const j = JSON.parse(localStorage.getItem("triarge.blocks") || "null");
+      if (Array.isArray(j)) zugeklappt = new Set(j);
+      else if (window.matchMedia("(max-width: 1200px)").matches) {
+        // Kleine Fenster starten kompakt: nur Lage und Auswahl offen.
+        zugeklappt = new Set(["ebenen", "raster", "filter", "abschnitte", "mittel", "funk"]);
+      }
+    } catch (e) { /* kein gespeicherter Zustand */ }
+  }
+
+  function abschnitteVerdrahten() {
+    abschnitteLaden();
+    for (const sec of document.querySelectorAll("[data-blk]")) {
+      const name = sec.dataset.blk;
+      const h2 = sec.querySelector("h2");
+      const pfeil = document.createElement("span");
+      pfeil.className = "blk-pfeil";
+      h2.insertBefore(pfeil, h2.firstChild);
+      h2.setAttribute("role", "button");
+      h2.tabIndex = 0;
+      const umschalten = () => {
+        if (zugeklappt.has(name)) zugeklappt.delete(name);
+        else zugeklappt.add(name);
+        abschnittAnwenden(sec);
+        try { localStorage.setItem("triarge.blocks", JSON.stringify([...zugeklappt])); } catch (e) { /* egal */ }
+      };
+      h2.addEventListener("click", (e) => {
+        if (e.target.closest("button.mini")) return;   // Schaltflächen in der Überschrift
+        umschalten();
+      });
+      h2.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); umschalten(); }
+      });
+      abschnittAnwenden(sec);
+    }
+  }
+
+  function abschnittAnwenden(sec) {
+    const zu = zugeklappt.has(sec.dataset.blk);
+    sec.classList.toggle("zu", zu);
+    sec.querySelector("h2").setAttribute("aria-expanded", String(!zu));
   }
 
   function leisteUmschalten(seite) {
@@ -122,6 +180,8 @@
     legendeAufbauen();
     bedienungVerdrahten();
     leistenVerdrahten();
+    abschnitteVerdrahten();
+    dockVerdrahten();
 
     TR.on("patienten", () => {
       kennzahlen();
@@ -360,7 +420,7 @@
   function legendeAufbauen() {
     const kats = Object.entries(KAT)
       .map(([k, m]) => `<span class="lg"><i class="pkt k-${k}"></i>${esc(m.label)}</span>`).join("");
-    $("legende").innerHTML =
+    $("legende-inhalt").innerHTML =
       `<div class="lg-zeile">${kats}</div>` +
       `<div class="lg-zeile">
          <span class="lg"><i class="bx u-trupp"></i>Trupp</span>
@@ -372,6 +432,20 @@
          <span class="lg"><i class="rt"></i>Gefahrenstelle</span>
          <span class="lg"><i class="sp"></i>Straßensperre</span>
        </div>`;
+
+    // Standardmäßig eingeklappt — die Legende soll die Karte nicht zustellen.
+    let offen = false;
+    try { offen = localStorage.getItem("triarge.legende") === "offen"; } catch (e) { /* egal */ }
+    const anwenden = () => {
+      $("legende").classList.toggle("zu", !offen);
+      $("legende-schalter").title = offen ? "Legende einklappen" : "Legende ausklappen";
+    };
+    $("legende-schalter").onclick = () => {
+      offen = !offen;
+      anwenden();
+      try { localStorage.setItem("triarge.legende", offen ? "offen" : "zu"); } catch (e) { /* egal */ }
+    };
+    anwenden();
   }
 
   /* ------------------------------------------------------------- Inspektor */
@@ -434,13 +508,13 @@
       <div class="dg">
         <span class="k">Zustand</span><span class="v">${esc(TR.STATUS_TEXT[p.zustand] || p.zustand)}</span>
         <span class="k">Einsatzabschnitt</span><span class="v">${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).name || "") : "—"}</span>
-        <span class="k">Rasterfeld</span><span class="v mono">${p.ll ? TR.zelle(p.ll) : "—"}</span>
+        <span class="k">Rasterfeld</span><span class="v mono">${esc(TR.patientZelle(p))}${p.ll ? "" : " (zuletzt)"}</span>
         <span class="k">Koordinate</span><span class="v mono">${p.ll ? p.ll[0].toFixed(5) + ", " + p.ll[1].toFixed(5) : "—"}</span>
-        <span class="k">Atemfrequenz</span><span class="v">${v.af ?? "—"} /min</span>
-        <span class="k">Puls</span><span class="v">${v.puls ?? "—"} /min</span>
+        <span class="k">Atemfrequenz</span><span class="v">${zahl(v.af)} /min</span>
+        <span class="k">Puls</span><span class="v">${zahl(v.puls)} /min</span>
         <span class="k">SpO₂</span><span class="v${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${v.spo2 != null ? Math.round(v.spo2) + " %" : "—"}</span>
-        <span class="k">Blutdruck</span><span class="v">${v.rrs != null ? v.rrs + (v.rrd != null ? "/" + v.rrd : "") + " mmHg" : "—"}</span>
-        <span class="k">GCS</span><span class="v">${v.gcs ?? "—"}</span>
+        <span class="k">Blutdruck</span><span class="v">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") + " mmHg" : "—"}</span>
+        <span class="k">GCS</span><span class="v">${zahl(v.gcs)}</span>
         <span class="k">Geschlecht / Alter</span><span class="v">${p.sex === "m" ? "männlich" : p.sex === "w" ? "weiblich" : "—"} / ${p.alter != null ? "ca. " + p.alter + " J." : "—"}</span>
         <span class="k">gehfähig</span><span class="v">${p.geh ? "ja" : "nein"}</span>
         <span class="k">ansprechbar</span><span class="v">${p.wach ? "ja" : "nein"}</span>
@@ -669,7 +743,7 @@
     const f = S.filter;
     return [...S.patienten.values()].filter((p) => {
       if (f.kats.size && !f.kats.has(p.kat)) return false;
-      if (f.zelle && (!p.ll || TR.zelle(p.ll) !== f.zelle)) return false;
+      if (f.zelle && TR.patientZelle(p) !== f.zelle) return false;
       if (f.nurOffen && (p.zustand === "klinik" || p.zustand === "BST")) return false;
       if (f.text) {
         const t = f.text.toLowerCase();
@@ -689,8 +763,9 @@
       if (s.spalte === "id") r = a.id - b.id;
       else if (s.spalte === "kat") r = KAT[a.kat].ord - KAT[b.kat].ord || a.id - b.id;
       else if (s.spalte === "zustand") r = String(a.zustand).localeCompare(String(b.zustand)) || a.id - b.id;
-      else if (s.spalte === "raster") r = String(a.ll ? TR.zelle(a.ll) : "zz").localeCompare(b.ll ? TR.zelle(b.ll) : "zz");
-      else if (s.spalte === "spo2") r = (a.vit.spo2 ?? 999) - (b.vit.spo2 ?? 999);
+      else if (s.spalte === "raster") {
+        r = TR.zellSchluessel(TR.patientZelle(a)).localeCompare(TR.zellSchluessel(TR.patientZelle(b))) || a.id - b.id;
+      } else if (s.spalte === "spo2") r = (a.vit.spo2 ?? 999) - (b.vit.spo2 ?? 999);
       return s.ab ? -r : r;
     });
     const kopf = [["id", "#"], ["kat", "Sichtung"], ["zustand", "Zustand"], ["", "Abschnitt"],
@@ -701,17 +776,18 @@
         `<th${k ? ` class="sortbar${patSort.spalte === k ? " s-an" : ""}" data-sort="${k}"` : ""}>${t}</th>`).join("")}</tr></thead>
       <tbody>${liste.map((p) => {
         const v = p.vit || {};
+        const feld = TR.patientZelle(p);
         return `<tr data-patient="${p.id}"${S.auswahl && S.auswahl.typ === "patient" && S.auswahl.id === p.id ? ' class="an"' : ""}>
           <td class="mono">#${p.id}</td>
           <td><i class="pkt k-${p.kat}"></i>${esc(KAT[p.kat].label)}</td>
           <td>${esc(TR.STATUS_TEXT[p.zustand] || p.zustand)}</td>
           <td>${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).kurz || "") : "—"}</td>
-          <td class="mono">${p.ll ? TR.zelle(p.ll) : "—"}</td>
-          <td class="num">${v.af ?? "—"}</td>
-          <td class="num">${v.puls ?? "—"}</td>
-          <td class="num${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${v.spo2 != null ? Math.round(v.spo2) : "—"}</td>
-          <td class="num">${v.rrs != null ? v.rrs + (v.rrd != null ? "/" + v.rrd : "") : "—"}</td>
-          <td class="num">${v.gcs ?? "—"}</td>
+          <td class="mono${p.ll ? "" : " verlassen"}" title="${p.ll ? "aktuelles Rasterfeld" : "zuletzt bekanntes Rasterfeld vor dem Abtransport"}">${esc(feld)}</td>
+          <td class="num">${zahl(v.af)}</td>
+          <td class="num">${zahl(v.puls)}</td>
+          <td class="num${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${zahl(v.spo2)}</td>
+          <td class="num">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") : "—"}</td>
+          <td class="num">${zahl(v.gcs)}</td>
           <td class="lang">${esc((p.verletzt || []).join(", "))}${(p.massnahmen || []).length ? " · <i>" + esc(p.massnahmen.join(", ")) + "</i>" : ""}</td>
           <td>${p.gesehen ? esc(p.gesehen.von) + " " + TR.uhr(p.gesehen.t) : "—"}</td>
         </tr>`;
@@ -858,6 +934,7 @@
       KARTE.rasterSetzen(parseInt($("raster-spalten").value, 10), parseInt($("raster-zeilen").value, 10));
       zellgroesse();
       inspektorZeichnen();
+      dockZeichnen();   // Rasterfelder in der Patiententabelle sofort mitziehen
     };
     $("raster-spalten").onchange = rasterAendern;
     $("raster-zeilen").onchange = rasterAendern;
@@ -907,14 +984,6 @@
       for (const x of document.querySelectorAll(".dtab")) x.classList.toggle("aktiv", x === b);
       dockZeichnen();
     };
-    $("dock-klein").onclick = () => {
-      const zu = document.querySelector(".dock").classList.toggle("zu");
-      $("dock-klein").textContent = zu ? "▲" : "▼";
-      $("app").style.gridTemplateRows = zu
-        ? "30px 28px minmax(0, 1fr) 27px"
-        : "";
-      setTimeout(() => KARTE.karte().invalidateSize(), 60);
-    };
     $("btn-csv").onclick = () => {
       const blob = new Blob(["﻿" + TR.csvExport()], { type: "text/csv;charset=utf-8" });
       const a = document.createElement("a");
@@ -941,6 +1010,101 @@
         TR.auswaehlen(null);
       }
     });
+  }
+
+  /* ------------------------------------------------------------ Unterer Bereich
+   * Höhe frei ziehbar, zusätzlich ganz aufziehen und einklappen. */
+
+  const DOCK_MIN = 110, DOCK_ZU = 27;
+  let dock = { hoehe: 208, zu: false, gross: false };
+
+  function dockLaden() {
+    try {
+      const j = JSON.parse(localStorage.getItem("triarge.dock") || "null");
+      if (j) {
+        dock = { hoehe: +j.hoehe || 208, zu: !!j.zu, gross: !!j.gross, hoeheVorGross: +j.hoeheVorGross || 0 };
+        return;
+      }
+    } catch (e) { /* kein gespeicherter Zustand */ }
+    // Auf flachen Bildschirmen (Tablet quer) von vornherein niedriger ansetzen,
+    // damit die Karte das Hauptelement bleibt.
+    dock.hoehe = Math.max(140, Math.min(208, Math.round(window.innerHeight * 0.24)));
+  }
+  function dockSpeichern() {
+    try { localStorage.setItem("triarge.dock", JSON.stringify(dock)); } catch (e) { /* egal */ }
+  }
+
+  function dockMax() {
+    return Math.max(DOCK_MIN, $("app").getBoundingClientRect().height - 190);
+  }
+
+  function dockAnwenden() {
+    const el = $("dock");
+    el.classList.toggle("zu", dock.zu);
+    const h = dock.zu ? DOCK_ZU : dock.gross ? dockMax() : Math.min(dock.hoehe, dockMax());
+    $("app").style.setProperty("--dock-h", Math.round(h) + "px");
+    $("dock-klein").textContent = dock.zu ? "▲" : "▼";
+    $("dock-klein").title = dock.zu ? "Bereich ausklappen" : "Bereich einklappen";
+    $("dock-gross").classList.toggle("an", dock.gross);
+    $("dock-gross").title = dock.gross ? "Auf gespeicherte Höhe zurück" : "Bereich auf volle Höhe bringen";
+    if (typeof KARTE !== "undefined" && KARTE.karte()) {
+      KARTE.karte().invalidateSize({ animate: false });
+    }
+  }
+
+  function dockVerdrahten() {
+    dockLaden();
+    dockAnwenden();
+
+    $("dock-klein").onclick = () => {
+      dock.zu = !dock.zu;
+      if (!dock.zu) dock.gross = false;
+      dockAnwenden();
+      dockSpeichern();
+    };
+    $("dock-gross").onclick = () => {
+      if (dock.gross) {
+        dock.gross = false;
+        if (dock.hoeheVorGross) dock.hoehe = dock.hoeheVorGross;
+      } else {
+        dock.hoeheVorGross = Math.round($("dock").getBoundingClientRect().height);
+        dock.gross = true;
+      }
+      dock.zu = false;
+      dockAnwenden();
+      dockSpeichern();
+    };
+
+    const griff = $("dock-griff");
+    griff.addEventListener("pointerdown", (e) => {
+      if (dock.zu || e.button !== 0) return;
+      e.preventDefault();
+      try { griff.setPointerCapture(e.pointerId); } catch (err) { /* ohne Capture weiterziehen */ }
+      griff.classList.add("aktiv");
+      const startY = e.clientY;
+      const startHoehe = $("dock").getBoundingClientRect().height;
+      const ziehen = (ev) => {
+        dock.gross = false;
+        dock.hoehe = Math.max(DOCK_MIN, Math.min(dockMax(), startHoehe + (startY - ev.clientY)));
+        dockAnwenden();
+      };
+      const loslassen = () => {
+        griff.classList.remove("aktiv");
+        griff.removeEventListener("pointermove", ziehen);
+        griff.removeEventListener("pointerup", loslassen);
+        griff.removeEventListener("pointercancel", loslassen);
+        dockSpeichern();
+      };
+      griff.addEventListener("pointermove", ziehen);
+      griff.addEventListener("pointerup", loslassen);
+      griff.addEventListener("pointercancel", loslassen);
+    });
+    griff.addEventListener("dblclick", () => {
+      dock.zu = !dock.zu;
+      dockAnwenden();
+      dockSpeichern();
+    });
+    window.addEventListener("resize", () => dockAnwenden());
   }
 
   function werkzeugeZeichnen() {
