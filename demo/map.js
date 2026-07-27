@@ -62,6 +62,29 @@ const KARTE = (function () {
       zoomAnimation: false,
       bounceAtZoomLimits: false,
     });
+    /* Flächen und Linien beim Zoomen neu projizieren statt sie zu skalieren.
+     *
+     * Leaflet zeichnet Kreise, Polygone und Linien in einen SVG-Container und
+     * legt beim Zoomen zunächst nur eine CSS-Vergrößerung darauf — das
+     * Trickbild seiner Zoomanimation. Erst zum Abschluss (`zoomend`) wird
+     * wirklich neu gerechnet. Symbole sind davon nicht betroffen, die setzen
+     * sich bei jedem `zoom` selbst neu.
+     *
+     * Beim stufenlosen Zoomen entstehen aber laufend Zwischenzustände. Solange
+     * der Abschluss aussteht, steht der Container vergrößert da und alles
+     * Gezeichnete — Fahrwege der Trupps, Gefahrenbereiche, Abschnittskreise —
+     * schwimmt sichtbar neben der Karte her. Gemessen: nach zwei Zwischen-
+     * schritten ohne Abschluss lagen die Kreise 52 und 158 px neben ihrer
+     * Koordinate.
+     *
+     * Die Zoomanimation ist hier ohnehin abgeschaltet, also wird das Trickbild
+     * durch das ersetzt, was am Ende ohnehin passiert: vollständig neu
+     * projizieren. */
+    const SvgFest = L.SVG.extend({
+      _onZoom: function () { this._reset(); },
+    });
+    map._createRenderer = function (opt) { return new SvgFest(opt); };
+
     /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
      * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
      * ist eine Schaltfläche entfernt. */
@@ -155,7 +178,7 @@ const KARTE = (function () {
     });
     map.on("click", (e) => {
       if (messModus) { messPunktSetzen(e.latlng); return; }
-      TR.auswaehlen(null);
+      TR.auswaehlen(flaecheUnter([e.latlng.lat, e.latlng.lng]));
     });
     // Beim stufenlosen Zoomen laufen die Zwischenstufen über "zoom"; nur auf
     // "zoomend" zu hören würde die Darstellungsstufe hinterherhinken lassen.
@@ -203,7 +226,10 @@ const KARTE = (function () {
 
   const MASSSTAB_VON = 13, MASSSTAB_VOLL = 17;
   const RANG_BODEN = { 1: 0.80, 2: 0.64, 3: 0.50, 4: 0.38 };   // Größe am weitesten Rand
-  const RANG_TEXT_AB = { 1: 14.8, 2: 15.4, 3: 16.0, 4: 16.5 }; // ab hier trägt der Rang Text
+  // Ab hier trägt der Rang Text. Bewusst früh angesetzt: die Beschriftung soll
+  // beim Herauszoomen möglichst lange stehen bleiben und erst dann weichen,
+  // wenn sie sich gegenseitig überdeckt.
+  const RANG_TEXT_AB = { 1: 13.9, 2: 14.5, 3: 15.1, 4: 15.7 };
 
   function darstellungAnpassen() {
     const z = map.getZoom();
@@ -216,6 +242,48 @@ const KARTE = (function () {
     for (const r of [1, 2, 3, 4]) if (z >= RANG_TEXT_AB[r]) stufe = r;
     for (const s of [0, 1, 2, 3, 4]) el.classList.toggle("t" + s, s === stufe);
     el.classList.toggle("zoom-weit", z < 16);
+  }
+
+  /* ------------------------------------------------------ Auswahl per Klick
+   *
+   * Die Flächen liegen ineinander: der Stromausfall (190 m) über dem
+   * Gasbereich (100 m) über den Abschnittskreisen (22 bis 48 m) über dem
+   * Schadensobjekt. Wer den Klick bekommt, entschied bisher die Zeichen-
+   * reihenfolge — also meist die größte Fläche, und die kleineren waren nicht
+   * mehr erreichbar. Stattdessen wird jetzt zentral entschieden: unter allen
+   * getroffenen Flächen gewinnt die kleinste.
+   *
+   * Rasterfelder zählen dabei nicht mit; sie decken den ganzen Einsatzraum ab
+   * und wären sonst fast immer kleiner als eine große Gefahrenfläche. Sie
+   * greifen erst, wenn sonst nichts getroffen ist. */
+  let klickFlaechen = [];
+
+  function flaecheMerken(eintrag) { klickFlaechen.push(eintrag); }
+
+  function flaechenVergessen(typ) {
+    klickFlaechen = klickFlaechen.filter((f) => f.typ !== typ);
+  }
+
+  function imPolygon(pt, ecken) {
+    let drin = false;
+    for (let i = 0, j = ecken.length - 1; i < ecken.length; j = i++) {
+      const yi = ecken[i][0], xi = ecken[i][1], yj = ecken[j][0], xj = ecken[j][1];
+      if ((yi > pt[0]) !== (yj > pt[0]) &&
+          pt[1] < ((xj - xi) * (pt[0] - yi)) / (yj - yi) + xi) drin = !drin;
+    }
+    return drin;
+  }
+
+  function flaecheUnter(ll) {
+    let best = null;
+    for (const f of klickFlaechen) {
+      const treffer = f.ecken ? imPolygon(ll, f.ecken) : TR.dist(ll, f.ll) <= f.r;
+      if (!treffer) continue;
+      if (!best || f.flaeche < best.flaeche) best = f;
+    }
+    if (best) return { typ: best.typ, id: best.id };
+    const zelle = TR.zelle(ll);
+    return zelle === "—" ? null : { typ: "zelle", id: zelle };
   }
 
   // Rang eines Einsatzmittels: wer einen Patienten trägt, rückt eine Stufe auf.
@@ -387,11 +455,6 @@ const KARTE = (function () {
           fillColor: "#000", fillOpacity: 0, className: "raster-zelle",
         }).addTo(G.raster);
         rect.zellRef = ref;
-        rect.on("click", (e) => {
-          L.DomEvent.stop(e);
-          if (messModus) { messPunktSetzen(e.latlng); return; }
-          TR.auswaehlen({ typ: "zelle", id: ref });
-        });
         rect.bindTooltip(ref, { permanent: false, direction: "center", className: "tt-zelle" });
         rasterZellen.push(rect);
 
@@ -436,14 +499,15 @@ const KARTE = (function () {
   function abschnitteZeichnen() {
     G.abschnitte.clearLayers();
     G.label.clearLayers();
+    flaechenVergessen("abschnitt");
     for (const a of S.abschnitte.values()) {
       const farbe = ABSCHNITT_FARBE[a.art] || "#555";
       const kreis = L.circle(a.ll, {
         pane: "pFlaeche", radius: a.r, color: farbe, weight: 1.4,
         dashArray: a.hq ? null : "5 4", fillColor: farbe, fillOpacity: 0.06,
       }).addTo(G.abschnitte);
-      kreis.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "abschnitt", id: a.id }); });
       kreis.bindTooltip(a.name, { sticky: true });
+      flaecheMerken({ typ: "abschnitt", id: a.id, ll: a.ll, r: a.r, flaeche: Math.PI * a.r * a.r });
 
       // Die Beschriftung sitzt am Nordrand des Abschnitts und ist dort
       // geografisch verankert. Ein Pixelversatz aus dem Meter-Radius (früher
@@ -466,6 +530,7 @@ const KARTE = (function () {
 
   function gefahrenZeichnen() {
     G.gefahren.clearLayers();
+    flaechenVergessen("gefahr");
     const gasG = S.gefahren.get("G1");
 
     absperrKreis = L.circle(S.epi, {
@@ -485,8 +550,8 @@ const KARTE = (function () {
           pane: "pFlaeche", radius: g.r, color: farbe, weight: 1.2,
           fillColor: farbe, fillOpacity: g.art === "gas" ? 0.1 : 0.07, dashArray: "4 4",
         }).addTo(G.gefahren);
-        k.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "gefahr", id: g.id }); });
         k.bindTooltip(g.name, { sticky: true });
+        flaecheMerken({ typ: "gefahr", id: g.id, ll: g.ll, r: g.r, flaeche: Math.PI * g.r * g.r });
         if (g.art === "gas") gasKreis = k;
       }
       if (g.art === "einsturz") {
@@ -498,6 +563,7 @@ const KARTE = (function () {
             pane: "pFlaeche", color: "#8c1c22", weight: 2, fillColor: "#b0262c", fillOpacity: 0.35,
           }).bindTooltip("Schadensobjekt — Teileinsturz, Betreten nur mit Sicherungstrupp", { sticky: true })
             .addTo(G.gefahren);
+          flaecheMerken({ typ: "gefahr", id: g.id, ecken: ll, flaeche: 1 });
         }
       }
       const m = L.marker(g.ll, {
@@ -884,10 +950,11 @@ const KARTE = (function () {
 
   function planDeckkraft(v) { if (planOverlay) planOverlay.setOpacity(v); }
   function planEntfernen() { if (planOverlay) { map.removeLayer(planOverlay); planOverlay = null; } }
+  function planAktiv() { return !!planOverlay; }
 
   return {
     init, ebenenAnwenden, basisSetzen, rasterSetzen, zeigeAuf, gesamtansicht, schadensansicht,
-    messenUmschalten, messZuruecksetzen, planLaden, planDeckkraft, planEntfernen,
+    messenUmschalten, messZuruecksetzen, planLaden, planDeckkraft, planEntfernen, planAktiv,
     patientenZeichnen, mittelZeichnen, gefahrenZeichnen, karte: () => map,
   };
 })();

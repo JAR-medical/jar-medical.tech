@@ -763,3 +763,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
   .dock-tabs .dtab { flex: 0 0 auto; }
   .dock-inhalt { -webkit-overflow-scrolling: touch; }
 }
+
+/* Gesperrte Bedienelemente deutlich als gesperrt zeigen. */
+input:disabled, button:disabled { opacity: .45; cursor: default; }
+input[type="range"]:disabled { filter: grayscale(1); }

@@ -7,7 +7,7 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
 </head>
 <body>
 
@@ -73,13 +73,15 @@
       <div class="zeile">
         <label class="lbl">Eigener Lageplan</label>
         <label class="btn-klein datei">Bild wählen<input id="plan-datei" type="file" accept="image/*" hidden></label>
-        <button id="plan-weg" class="btn-klein" type="button">entfernen</button>
+        <button id="plan-weg" class="btn-klein" type="button" disabled>entfernen</button>
       </div>
       <div class="zeile">
         <label class="lbl">Deckkraft</label>
-        <input id="plan-deck" type="range" min="0" max="100" value="75">
+        <input id="plan-deck" type="range" min="0" max="100" value="75" disabled>
+        <span class="hinweis mono" id="plan-deck-wert">75 %</span>
       </div>
-      <p class="hinweis">Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster bleibt darüber aktiv.</p>
+      <p class="hinweis" id="plan-hinweis">Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster
+        bleibt darüber aktiv. Die Deckkraft ist einstellbar, sobald ein Bild geladen ist.</p>
     </section>
 
     <section class="blk" data-blk="filter">
@@ -183,10 +185,10 @@
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=10"></script>
-<script src="./scenario.js?v=10"></script>
-<script src="./engine.js?v=10"></script>
-<script src="./map.js?v=10"></script>
-<script src="./ui.js?v=10"></script>
+<script src="./data/neubiberg.js?v=11"></script>
+<script src="./scenario.js?v=11"></script>
+<script src="./engine.js?v=11"></script>
+<script src="./map.js?v=11"></script>
+<script src="./ui.js?v=11"></script>
 </body>
 </html>

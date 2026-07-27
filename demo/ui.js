@@ -941,6 +941,18 @@
     $("raster-spalten").onchange = rasterAendern;
     $("raster-zeilen").onchange = rasterAendern;
 
+    /* Der Deckkraftregler wirkt ausschließlich auf einen geladenen Lageplan.
+     * Ohne Plan bleibt er gesperrt — sonst sieht es aus, als sei er kaputt. */
+    const planStand = () => {
+      const da = KARTE.planAktiv();
+      $("plan-deck").disabled = !da;
+      $("plan-weg").disabled = !da;
+      $("plan-deck-wert").textContent = $("plan-deck").value + " %";
+      $("plan-hinweis").textContent = da
+        ? "Lageplan liegt über dem Einsatzraum; das Raster bleibt darüber aktiv."
+        : "Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster bleibt darüber aktiv. "
+          + "Die Deckkraft ist einstellbar, sobald ein Bild geladen ist.";
+    };
     $("plan-datei").onchange = () => {
       const f = $("plan-datei").files[0];
       if (!f) return;
@@ -950,11 +962,16 @@
         KARTE.planDeckkraft($("plan-deck").value / 100);
         TR.ereignis("system", "Eigener Lageplan über den Einsatzraum gelegt");
         $("plan-datei").value = "";
+        planStand();
       };
       r.readAsDataURL(f);
     };
-    $("plan-deck").oninput = () => KARTE.planDeckkraft($("plan-deck").value / 100);
-    $("plan-weg").onclick = () => KARTE.planEntfernen();
+    $("plan-deck").oninput = () => {
+      KARTE.planDeckkraft($("plan-deck").value / 100);
+      $("plan-deck-wert").textContent = $("plan-deck").value + " %";
+    };
+    $("plan-weg").onclick = () => { KARTE.planEntfernen(); planStand(); };
+    planStand();
 
     $("btn-mittel-neu").onclick = () => {
       const name = prompt("Rufname des Einsatzmittels (z. B. SEG-Trupp 3):");
