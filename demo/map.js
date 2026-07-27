@@ -158,12 +158,9 @@ const KARTE = (function () {
       TR.auswaehlen(null);
     });
     // Beim stufenlosen Zoomen laufen die Zwischenstufen über "zoom"; nur auf
-    // "zoomend" zu hören würde die Beschriftungsstufe hinterherhinken lassen.
-    const zoomStufeAnzeigen = () => {
-      document.getElementById("karte").classList.toggle("zoom-weit", map.getZoom() < 16);
-    };
-    map.on("zoom zoomend", zoomStufeAnzeigen);
-    zoomStufeAnzeigen();
+    // "zoomend" zu hören würde die Darstellungsstufe hinterherhinken lassen.
+    map.on("zoom zoomend", darstellungAnpassen);
+    darstellungAnpassen();
 
     TR.on("frame", frameTakt);
     TR.on("patienten", patientenZeichnen);
@@ -180,6 +177,64 @@ const KARTE = (function () {
     });
 
     return map;
+  }
+
+  /* ------------------------------------------------- Rangordnung und Maßstab
+   *
+   * Beim Herauszoomen wird das Lagebild sonst zur Textwand: 30 Beschriftungen
+   * auf einem Bildschirm, unter denen die Lage verschwindet. Deshalb bekommt
+   * jedes Objekt einen Rang, und der Rang steuert zweierlei:
+   *
+   *   Beschriftung — sie erscheint gestaffelt. Weit draußen trägt gar nichts
+   *   Text, dann kommen nacheinander die wichtigen Objekte dazu. Übrig bleibt
+   *   auf jeder Stufe ein farbiger Punkt, der die Kategorie weiter trägt.
+   *
+   *   Größe — Wichtiges schrumpft langsamer als Nachrangiges. Der Ausschnitt
+   *   wird dadurch nicht nur kleiner, sondern sortiert sich: rote Patienten
+   *   und kritische Gefahrenstellen bleiben aus der Übersicht heraus lesbar,
+   *   Straßensperren und Ortskenntnis treten zurück.
+   *
+   * Rang 1 kritisch    SK I, Gefahren der Stufe kritisch, Führungsstellen
+   * Rang 2 wichtig     SK II, Abschnitte der Versorgung, tragende Trupps,
+   *                    Notarzt und Luftrettung, erhöhte Gefahren
+   * Rang 3 normal      übrige Patienten, übrige Einsatzmittel und Abschnitte
+   * Rang 4 nachrangig  Straßensperren, Ortskenntnis, Rasterbeschriftung
+   */
+
+  const MASSSTAB_VON = 13, MASSSTAB_VOLL = 17;
+  const RANG_BODEN = { 1: 0.80, 2: 0.64, 3: 0.50, 4: 0.38 };   // Größe am weitesten Rand
+  const RANG_TEXT_AB = { 1: 14.8, 2: 15.4, 3: 16.0, 4: 16.5 }; // ab hier trägt der Rang Text
+
+  function darstellungAnpassen() {
+    const z = map.getZoom();
+    const el = document.getElementById("karte");
+    const f = Math.max(0, Math.min(1, (z - MASSSTAB_VON) / (MASSSTAB_VOLL - MASSSTAB_VON)));
+    for (const r of [1, 2, 3, 4]) {
+      el.style.setProperty("--s" + r, (RANG_BODEN[r] + (1 - RANG_BODEN[r]) * f).toFixed(3));
+    }
+    let stufe = 0;
+    for (const r of [1, 2, 3, 4]) if (z >= RANG_TEXT_AB[r]) stufe = r;
+    for (const s of [0, 1, 2, 3, 4]) el.classList.toggle("t" + s, s === stufe);
+    el.classList.toggle("zoom-weit", z < 16);
+  }
+
+  // Rang eines Einsatzmittels: wer einen Patienten trägt, rückt eine Stufe auf.
+  function mittelRang(m) {
+    let r = 3;
+    if (m.art === "fuehrung") r = 1;
+    else if (m.art === "nef" || m.art === "arzt" || m.art === "rth") r = 2;
+    else if (m.art === "polizei" || m.art === "drohne") r = 4;
+    if (m.patient) r = Math.max(1, r - 1);
+    return r;
+  }
+
+  function patientRang(p) {
+    return p.kat === "SK1" ? 1 : p.kat === "SK2" ? 2 : 3;
+  }
+
+  function abschnittRang(a) {
+    if (a.hq || a.id === "SCHADEN") return 1;
+    return a.art === "med" || a.art === "transport" ? 2 : 3;
   }
 
   /* ------------------------------------------------------------------ Zoomen
@@ -342,7 +397,7 @@ const KARTE = (function () {
 
         L.marker([nord, west], {
           pane: "pLabel", interactive: false,
-          icon: L.divIcon({ className: "raster-label", html: ref, iconSize: [22, 12], iconAnchor: [-2, -2] }),
+          icon: L.divIcon({ className: "raster-label beschriftung r4", html: ref, iconSize: [22, 12], iconAnchor: [-2, -2] }),
         }).addTo(G.raster);
       }
     }
@@ -399,7 +454,7 @@ const KARTE = (function () {
       L.marker(TR.versetzt(a.ll, a.r, 0), {
         pane: "pLabel", interactive: false,
         icon: L.divIcon({
-          className: "abschnitt-label" + (a.hq ? " ist-hq" : ""),
+          className: "abschnitt-label beschriftung r" + abschnittRang(a) + (a.hq ? " ist-hq" : ""),
           html: '<b>' + TR.esc(a.kurz) + '</b>' + (a.hq ? '<i>Führung</i>' : ''),
           iconSize: [160, 28], iconAnchor: [80, 30],
         }),
@@ -419,7 +474,7 @@ const KARTE = (function () {
     }).addTo(G.gefahren);
     L.marker(TR.versetzt(S.epi, 250, 315), {
       pane: "pLabel", interactive: false,
-      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze 250 m", iconSize: [130, 12], iconAnchor: [65, 6] }),
+      icon: L.divIcon({ className: "kreis-label beschriftung r3", html: "Absperrgrenze 250 m", iconSize: [130, 12], iconAnchor: [65, 6] }),
     }).addTo(G.gefahren);
 
     for (const g of S.gefahren.values()) {
@@ -447,8 +502,9 @@ const KARTE = (function () {
       }
       const m = L.marker(g.ll, {
         icon: L.divIcon({
-          className: "mk mk-haz haz-" + g.stufe,
-          html: "<span>" + TR.esc(g.code) + "</span>", iconSize: [30, 16], iconAnchor: [15, 8],
+          className: "mk mk-haz haz-" + g.stufe + " r" + (g.stufe === 3 ? 1 : g.stufe === 2 ? 2 : 3),
+          html: '<i class="mk-korper"><b class="mk-text">' + TR.esc(g.code) + "</b></i>",
+          iconSize: [38, 22], iconAnchor: [19, 11],
         }),
       }).addTo(G.gefahren);
       m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "gefahr", id: g.id }); });
@@ -477,7 +533,10 @@ const KARTE = (function () {
     G.sperren.clearLayers();
     for (const s of S.sperren) {
       const m = L.marker(s.ll, {
-        icon: L.divIcon({ className: "mk mk-sperre", html: "<span></span>", iconSize: [14, 14], iconAnchor: [7, 7] }),
+        icon: L.divIcon({
+          className: "mk mk-sperre r4", html: '<i class="mk-korper"></i>',
+          iconSize: [18, 18], iconAnchor: [9, 9],
+        }),
       }).addTo(G.sperren);
       m.bindTooltip("Straßensperre — " + s.name + " (" + s.von + ")", { direction: "top" });
       m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "sperre", id: s.id }); });
@@ -497,7 +556,7 @@ const KARTE = (function () {
       L.marker(p.ll, {
         pane: "pLabel", interactive: false,
         icon: L.divIcon({
-          className: "poi-label", html: TR.esc(p.name),
+          className: "poi-label beschriftung r4", html: TR.esc(p.name),
           iconSize: [170, 12], iconAnchor: [-6, 6],   // 6 px rechts neben und über dem Punkt
         }),
       }).addTo(G.poi);
@@ -509,14 +568,20 @@ const KARTE = (function () {
 
   /* ------------------------------------------------------------- Patienten */
 
+  /* Der sichtbare Körper steckt in einem eigenen Element im Symbolkasten.
+   * Der Kasten behält seine feste Größe — daran hängt der Ankerpunkt —, und
+   * skaliert wird nur der Körper darin, aus seiner Mitte heraus. Würde man den
+   * Kasten selbst skalieren, verschöbe sich der Anker und die Symbole wanderten
+   * beim Zoomen aus ihrer Lage. */
   function patientIcon(p) {
     const sel = S.auswahl && S.auswahl.typ === "patient" && S.auswahl.id === p.id;
     const kritisch = p.vit && p.vit.spo2 != null && p.vit.spo2 < 90 && p.kat !== "TOT";
     return L.divIcon({
-      className: "mk mk-pat kat-" + p.kat + (sel ? " ausgewaehlt" : "") + (kritisch ? " kritisch" : "") +
+      className: "mk mk-pat r" + patientRang(p) + " kat-" + p.kat +
+        (sel ? " ausgewaehlt" : "") + (kritisch ? " kritisch" : "") +
         (p.zustand === "getragen" ? " bewegt" : ""),
-      html: "<span>" + p.id + "</span>",
-      iconSize: [20, 20], iconAnchor: [10, 10],
+      html: '<i class="mk-korper"><b class="mk-text">' + p.id + "</b></i>",
+      iconSize: [28, 28], iconAnchor: [14, 14],
     });
   }
 
@@ -587,10 +652,10 @@ const KARTE = (function () {
     const sel = S.auswahl && S.auswahl.typ === "mittel" && S.auswahl.id === m.id;
     const beladen = !!m.patient;
     return L.divIcon({
-      className: "mk mk-unit u-" + m.art + (sel ? " ausgewaehlt" : "") + (beladen ? " beladen" : "") +
-        (m.pfad ? " faehrt" : ""),
-      html: "<span>" + TR.esc(m.kurz) + "</span>",
-      iconSize: [26, 16], iconAnchor: [13, 8],
+      className: "mk mk-unit r" + mittelRang(m) + " u-" + m.art +
+        (sel ? " ausgewaehlt" : "") + (beladen ? " beladen" : "") + (m.pfad ? " faehrt" : ""),
+      html: '<i class="mk-korper"><b class="mk-text">' + TR.esc(m.kurz) + "</b></i>",
+      iconSize: [34, 22], iconAnchor: [17, 11],
     });
   }
 
