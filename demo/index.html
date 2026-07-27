@@ -7,7 +7,7 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=8">
+  <link rel="stylesheet" href="./style.css?v=9">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 <div class="demo-bar">
   <span class="db-brand">TriARge</span>
   <span class="db-badge">LIVE-DEMO</span>
-  <span class="db-tag">Simulierte Übungslage Neubiberg · keine echten Personendaten · Karte © OpenStreetMap-Mitwirkende</span>
+  <span class="db-tag" id="db-tag">Simulierte Übungslage · keine echten Personendaten · Karte © OpenStreetMap-Mitwirkende</span>
   <span class="db-spacer"></span>
   <button id="btn-neustart" class="db-btn" type="button">Lage neu abspielen</button>
   <a class="db-btn" href="../index.html">Zur Website</a>
@@ -25,6 +25,7 @@
 
   <header class="topbar">
     <span class="tb-titel" id="tb-titel">Einsatz</span>
+    <select id="lage-wahl" class="tb-sel" title="Übungslage wechseln"></select>
     <select id="sitzung" class="tb-sel" title="Einsatz wechseln"></select>
     <button id="btn-neuer-einsatz" class="tb-btn" type="button" title="Neuen Einsatz eröffnen (bisherige Daten bleiben erhalten)">Neuer Einsatz</button>
     <span class="tb-sep"></span>
@@ -184,10 +185,14 @@
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=8"></script>
-<script src="./scenario.js?v=8"></script>
-<script src="./engine.js?v=8"></script>
-<script src="./map.js?v=8"></script>
-<script src="./ui.js?v=8"></script>
+<script src="./data/neubiberg.js?v=9"></script>
+<script src="./data/halle-kroellwitz.js?v=9"></script>
+<script src="./data/muenchen-mitte.js?v=9"></script>
+<script src="./scenario.js?v=9"></script>
+<script src="./szenario-halle.js?v=9"></script>
+<script src="./szenario-muenchen.js?v=9"></script>
+<script src="./engine.js?v=9"></script>
+<script src="./map.js?v=9"></script>
+<script src="./ui.js?v=9"></script>
 </body>
 </html>

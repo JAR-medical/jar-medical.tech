@@ -19,6 +19,7 @@ const KARTE = (function () {
   let rauchPoly = null, gasKreis = null, absperrKreis = null;
   let planOverlay = null;
   let messModus = false, messPunkte = [], messLinie = null, messLabel = null;
+  let behaelterEl = null;
 
   const KACHELN = {
     hell: {
@@ -36,8 +37,8 @@ const KARTE = (function () {
   /* ------------------------------------------------------------------ Aufbau */
 
   function init(el) {
-    const b = S.bbox;
     const behaelter = typeof el === "string" ? document.getElementById(el) : el;
+    behaelterEl = behaelter;
     map = L.map(behaelter, {
       zoomControl: false,
       attributionControl: true,
@@ -62,16 +63,6 @@ const KARTE = (function () {
       zoomAnimation: false,
       bounceAtZoomLimits: false,
     });
-    /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
-     * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
-     * ist eine Schaltfläche entfernt. */
-    function startAusschnitt(animate) {
-      if (behaelter.clientWidth > 0 && behaelter.clientWidth < 620) {
-        map.setView(S.epi, 16.2, { animate: !!animate });
-      } else {
-        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: !!animate });
-      }
-    }
     startAusschnitt();
 
     /* Leaflet merkt sich die Containergröße beim Anlegen. Steht das Layout zu
@@ -170,6 +161,7 @@ const KARTE = (function () {
     TR.on("mittel", mittelZeichnen);
     TR.on("gefahren", gefahrenZeichnen);
     TR.on("auswahl", auswahlZeigen);
+    TR.on("abschnitte", abschnitteZeichnen);
     TR.on("neustart", () => {
       patMarker.forEach((m) => G.patienten.removeLayer(m));
       patMarker.clear();
@@ -178,8 +170,34 @@ const KARTE = (function () {
       abschnitteZeichnen();
       gefahrenZeichnen();
     });
+    /* Lagewechsel: anderes Gebiet, anderes Raster, anderes Wegenetz — alle
+     * Ebenen werden neu gezeichnet und der Ausschnitt neu gesetzt. */
+    TR.on("szenario", () => {
+      messZuruecksetzen();
+      planEntfernen();
+      spurLinien.forEach((l) => G.spuren.removeLayer(l));
+      spurLinien.clear();
+      wegenetzZeichnen();
+      rasterZeichnen();
+      sperrenZeichnen();
+      poiZeichnen();
+      startAusschnitt(false);
+    });
 
     return map;
+  }
+
+  /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
+   * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
+   * ist eine Schaltfläche entfernt. */
+  function startAusschnitt(animate) {
+    const b = S.bbox;
+    if (!b) return;
+    if (behaelterEl && behaelterEl.clientWidth > 0 && behaelterEl.clientWidth < 620) {
+      map.setView(S.epi, 16.2, { animate: !!animate });
+    } else {
+      map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: !!animate });
+    }
   }
 
   /* ------------------------------------------------------------------ Zoomen
@@ -301,8 +319,8 @@ const KARTE = (function () {
 
   function wegenetzZeichnen() {
     G.netz.clearLayers();
-    const geo = window.NB_GEO;
-    for (const [, klasse, pts] of geo.ways) {
+    const geo = TR.geo();
+    for (const [, klasse, pts] of geo.ways || []) {
       const ll = [];
       for (let i = 0; i < pts.length; i += 2) ll.push([pts[i], pts[i + 1]]);
       L.polyline(ll, {
@@ -382,6 +400,7 @@ const KARTE = (function () {
     G.abschnitte.clearLayers();
     G.label.clearLayers();
     for (const a of S.abschnitte.values()) {
+      if (a.aktiv === false) continue;   // noch nicht eingerichtet
       const farbe = ABSCHNITT_FARBE[a.art] || "#555";
       const kreis = L.circle(a.ll, {
         pane: "pFlaeche", radius: a.r, color: farbe, weight: 1.4,
@@ -413,13 +432,15 @@ const KARTE = (function () {
     G.gefahren.clearLayers();
     const gasG = S.gefahren.get("G1");
 
+    const rAbsperr = S.absperrung || 250;
     absperrKreis = L.circle(S.epi, {
-      pane: "pFlaeche", radius: 250, color: "#b0262c", weight: 1.2, dashArray: "3 5",
+      pane: "pFlaeche", radius: rAbsperr, color: "#b0262c", weight: 1.2, dashArray: "3 5",
       fill: false, interactive: false,
     }).addTo(G.gefahren);
-    L.marker(TR.versetzt(S.epi, 250, 315), {
+    L.marker(TR.versetzt(S.epi, rAbsperr, 315), {
       pane: "pLabel", interactive: false,
-      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze 250 m", iconSize: [130, 12], iconAnchor: [65, 6] }),
+      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze " + rAbsperr + " m",
+        iconSize: [130, 12], iconAnchor: [65, 6] }),
     }).addTo(G.gefahren);
 
     for (const g of S.gefahren.values()) {
@@ -434,16 +455,15 @@ const KARTE = (function () {
         k.bindTooltip(g.name, { sticky: true });
         if (g.art === "gas") gasKreis = k;
       }
-      if (g.art === "einsturz") {
-        const bau = (window.NB_GEO.buildings || []).find((x) => x[0] === 42763911);
-        if (bau) {
-          const ll = [];
-          for (let i = 0; i < bau[2].length; i += 2) ll.push([bau[2][i], bau[2][i + 1]]);
-          L.polygon(ll, {
-            pane: "pFlaeche", color: "#8c1c22", weight: 2, fillColor: "#b0262c", fillOpacity: 0.35,
-          }).bindTooltip("Schadensobjekt — Teileinsturz, Betreten nur mit Sicherungstrupp", { sticky: true })
-            .addTo(G.gefahren);
-        }
+      // Umriss des Schadensobjekts: entweder direkt in der Gefahr hinterlegt
+      // oder als Gebäude-Kennung im Geodatensatz der Lage.
+      const umriss = g.umriss ||
+        (g.gebaeude ? gebaeudeUmriss(g.gebaeude) : null);
+      if (umriss) {
+        L.polygon(umriss, {
+          pane: "pFlaeche", color: "#8c1c22", weight: 2, fillColor: "#b0262c", fillOpacity: 0.35,
+        }).bindTooltip(g.umrissText || ("Schadensobjekt — " + g.name), { sticky: true })
+          .addTo(G.gefahren);
       }
       const m = L.marker(g.ll, {
         icon: L.divIcon({
@@ -455,6 +475,15 @@ const KARTE = (function () {
       m.bindTooltip(g.name, { direction: "top" });
     }
     rauchAktualisieren();
+  }
+
+  // Umriss eines Gebäudes aus dem Geodatensatz der Lage (OSM-Kennung).
+  function gebaeudeUmriss(kennung) {
+    const bau = (TR.geo().buildings || []).find((x) => x[0] === kennung);
+    if (!bau) return null;
+    const ll = [];
+    for (let i = 0; i < bau[2].length; i += 2) ll.push([bau[2][i], bau[2][i + 1]]);
+    return ll;
   }
 
   function rauchAktualisieren() {
@@ -482,7 +511,7 @@ const KARTE = (function () {
       m.bindTooltip("Straßensperre — " + s.name + " (" + s.von + ")", { direction: "top" });
       m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "sperre", id: s.id }); });
     }
-    for (const pts of window.NB_GEO.rail) {
+    for (const pts of TR.geo().rail || []) {
       const ll = [];
       for (let i = 0; i < pts.length; i += 2) ll.push([pts[i], pts[i + 1]]);
       L.polyline(ll, { pane: "pLinie", color: "#b0262c", weight: 3, dashArray: "10 6", opacity: 0.8 })

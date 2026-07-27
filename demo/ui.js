@@ -171,7 +171,7 @@
   /* ------------------------------------------------------------------ Start */
 
   function start() {
-    TR.init(window.SZENARIO, window.NB_GEO);
+    TR.init(window.SZENARIEN[0]);
     KARTE.init("map");
 
     kopfzeileAufbauen();
@@ -198,6 +198,8 @@
     TR.on("auswahl", inspektorZeichnen);
     TR.on("sitzungen", sitzungenZeichnen);
     TR.on("steuerung", steuerungZeichnen);
+    TR.on("abschnitte", () => { abschnittListe(); inspektorZeichnen(); });
+    TR.on("szenario", () => { rasterFelderZeigen(); zellgroesse(); demoHinweis(); steuerungZeichnen(); });
     TR.on("neustart", () => {
       syncAn = false;
       kopfzeileAufbauen();
@@ -216,7 +218,9 @@
     dockZeichnen();
     inspektorZeichnen();
     steuerungZeichnen();
+    rasterFelderZeigen();
     zellgroesse();
+    demoHinweis();
 
     requestAnimationFrame(schleife);
     setInterval(uhrZeichnen, 500);
@@ -233,9 +237,19 @@
 
   function kopfzeileAufbauen() {
     $("tb-titel").textContent = S.einsatz.name;
+    lagewahlZeichnen();
     sitzungenZeichnen();
     lageZeichnen();
     kennzahlen();
+  }
+
+  /* Auswahl der Übungslage. Ein Wechsel baut das gesamte Lagebild neu auf —
+   * anderes Gebiet, anderes Raster, andere Einsatzstellen. */
+  function lagewahlZeichnen() {
+    const aktiv = TR.aktivesSzenario();
+    $("lage-wahl").innerHTML = TR.szenarien()
+      .map((sz) => `<option value="${esc(sz.id)}"${aktiv && sz.id === aktiv.id ? " selected" : ""}>${esc(sz.kurz)}</option>`)
+      .join("");
   }
 
   function sitzungenZeichnen() {
@@ -406,6 +420,21 @@
       const b = e.target.closest("[data-mittel]");
       if (b) TR.auswaehlen({ typ: "mittel", id: b.dataset.mittel });
     };
+  }
+
+  /* Die Rastereingaben gehören zur Lage: beim Wechsel stehen dort sonst noch
+   * die Felderzahlen der vorherigen. */
+  function rasterFelderZeigen() {
+    $("raster-spalten").value = S.raster.spalten;
+    $("raster-zeilen").value = S.raster.zeilen;
+  }
+
+  function demoHinweis() {
+    const el = $("db-tag");
+    if (!el) return;
+    const ort = (S.einsatz.ort || "").split(",").pop().trim();
+    el.textContent = "Simulierte Übungslage" + (ort ? " " + ort : "") +
+      " · keine echten Personendaten · Karte © OpenStreetMap-Mitwirkende";
   }
 
   function zellgroesse() {
@@ -903,6 +932,9 @@
 
   function bedienungVerdrahten() {
     $("btn-neustart").onclick = () => { TR.neustart(); };
+    $("lage-wahl").onchange = () => {
+      if (!TR.szenarioWechseln($("lage-wahl").value)) lagewahlZeichnen();
+    };
     $("btn-neuer-einsatz").onclick = () => {
       const name = prompt("Neuen Einsatz eröffnen — die bisherigen Daten bleiben unter dem aktuellen Einsatz gespeichert.\n\nBezeichnung (leer = automatisch):");
       if (name === null) return;
