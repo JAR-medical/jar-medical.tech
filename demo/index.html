@@ -7,19 +7,9 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=6">
+  <link rel="stylesheet" href="./style.css?v=7">
 </head>
 <body>
-
-<!-- Demo-Rahmen: gehört nicht zur Produktoberfläche. -->
-<div class="demo-bar">
-  <span class="db-brand">TriARge</span>
-  <span class="db-badge">LIVE-DEMO</span>
-  <span class="db-tag">Simulierte Übungslage Neubiberg · keine echten Personendaten · Karte © OpenStreetMap-Mitwirkende</span>
-  <span class="db-spacer"></span>
-  <button id="btn-neustart" class="db-btn" type="button">Lage neu abspielen</button>
-  <a class="db-btn" href="../index.html">Zur Website</a>
-</div>
 
 <div id="app">
 
@@ -35,9 +25,10 @@
     <button id="btn-funk" class="tb-btn" type="button" title="Sprechfunk-Auswertung (Mikrofon / AUX)">Funk aus</button>
     <span class="pill" id="pill-sync">lokal</span>
     <span class="pill ok" id="pill-ws">live</span>
+    <span class="tb-sep"></span>
+    <button id="btn-neustart" class="tb-btn" type="button" title="Übungslage von vorn abspielen">Lage neu abspielen</button>
+    <a class="tb-btn" href="../index.html">Zur Website</a>
   </header>
-
-  <div class="kpibar" id="kpibar"></div>
 
   <aside class="rail rail-l" id="rail-l">
     <div class="rail-kopf">
@@ -49,6 +40,13 @@
     <section class="blk" data-blk="lage">
       <h2>Lage</h2>
       <div class="lage" id="lage"></div>
+      <p class="hinweis quelle">Simulierte Übungslage — keine echten Personendaten.
+        Kartengrundlage © OpenStreetMap-Mitwirkende.</p>
+    </section>
+
+    <section class="blk" data-blk="kennzahlen">
+      <h2>Kennzahlen</h2>
+      <div class="kennzahlen" id="kennzahlen"></div>
     </section>
 
     <section class="blk" data-blk="ebenen">
@@ -160,6 +158,7 @@
     <section class="blk" data-blk="funk">
       <h2>Sprechfunk</h2>
       <div id="funk-liste" class="funk"></div>
+      <div class="hoehen-griff" id="funk-griff" title="Höhe ziehen · Doppelklick setzt zurück"></div>
     </section>
 
     </div>
@@ -184,10 +183,10 @@
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=6"></script>
-<script src="./scenario.js?v=6"></script>
-<script src="./engine.js?v=6"></script>
-<script src="./map.js?v=6"></script>
-<script src="./ui.js?v=6"></script>
+<script src="./data/neubiberg.js?v=7"></script>
+<script src="./scenario.js?v=7"></script>
+<script src="./engine.js?v=7"></script>
+<script src="./map.js?v=7"></script>
+<script src="./ui.js?v=7"></script>
 </body>
 </html>

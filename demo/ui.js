@@ -84,8 +84,9 @@
       const j = JSON.parse(localStorage.getItem("triarge.blocks") || "null");
       if (Array.isArray(j)) zugeklappt = new Set(j);
       else if (window.matchMedia("(max-width: 1200px)").matches) {
-        // Kleine Fenster starten kompakt: nur Lage und Auswahl offen.
-        zugeklappt = new Set(["ebenen", "raster", "filter", "abschnitte", "mittel", "funk"]);
+        // Kleine Fenster starten kompakt: die Bedienabschnitte der linken
+        // Leiste zu, Lage, Kennzahlen und die rechte Leiste bleiben offen.
+        zugeklappt = new Set(["ebenen", "raster", "filter", "abschnitte", "mittel"]);
       }
     } catch (e) { /* kein gespeicherter Zustand */ }
   }
@@ -182,6 +183,7 @@
     leistenVerdrahten();
     abschnitteVerdrahten();
     dockVerdrahten();
+    funkVerdrahten();
 
     TR.on("patienten", () => {
       kennzahlen();
@@ -288,8 +290,8 @@
       ["RTW frei", kz.freieRTW + " / " + kz.rtwGesamt, kz.freieRTW === 0 ? "krit" : ""],
       ["offene Warnungen", kz.offeneWarnungen, kz.offeneWarnungen ? "krit" : ""],
     ];
-    $("kpibar").innerHTML = felder
-      .map(([k, v, c]) => `<span class="kpi ${c}"><i>${esc(k)}</i><b>${esc(v)}</b></span>`)
+    $("kennzahlen").innerHTML = felder
+      .map(([k, v, c]) => `<span class="k">${esc(k)}</span><span class="v ${c}">${esc(v)}</span>`)
       .join("");
     $("warn-anz").textContent = kz.offeneWarnungen;
   }
@@ -1105,6 +1107,54 @@
       dockSpeichern();
     });
     window.addEventListener("resize", () => dockAnwenden());
+  }
+
+  /* Höhe des Sprechfunk-Protokolls frei ziehbar. Die Leiste selbst scrollt
+   * weiter, aber das Protokoll kann so weit aufgezogen werden, wie Platz da
+   * ist — auf einem hohen Tabletbildschirm ist das der halbe Rand. */
+  const FUNK_MIN = 90, FUNK_STANDARD = 280;
+
+  let funkHoehe = FUNK_STANDARD;
+
+  function funkHoeheSetzen(px, speichern) {
+    const max = Math.max(FUNK_MIN, Math.round(window.innerHeight * 0.7));
+    funkHoehe = Math.max(FUNK_MIN, Math.min(max, Math.round(px)));
+    $("app").style.setProperty("--funk-h", funkHoehe + "px");
+    if (speichern) {
+      try { localStorage.setItem("triarge.funk", String(funkHoehe)); } catch (e) { /* egal */ }
+    }
+    return funkHoehe;
+  }
+
+  function funkVerdrahten() {
+    let start = FUNK_STANDARD;
+    try { start = +localStorage.getItem("triarge.funk") || FUNK_STANDARD; } catch (e) { /* egal */ }
+    funkHoeheSetzen(start, false);
+
+    const griff = $("funk-griff");
+    griff.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      try { griff.setPointerCapture(e.pointerId); } catch (err) { /* ohne Capture weiterziehen */ }
+      griff.classList.add("aktiv");
+      const startY = e.clientY;
+      // Bezug ist der eingestellte Wert, nicht die gerade gezeichnete Höhe:
+      // bei kurzem Protokoll ist die Liste kleiner als die eingestellte
+      // Maximalhöhe, sonst würde das Panel beim ersten Pixel zusammenspringen.
+      const startHoehe = funkHoehe;
+      const ziehen = (ev) => funkHoeheSetzen(startHoehe + (ev.clientY - startY), false);
+      const loslassen = () => {
+        griff.classList.remove("aktiv");
+        griff.removeEventListener("pointermove", ziehen);
+        griff.removeEventListener("pointerup", loslassen);
+        griff.removeEventListener("pointercancel", loslassen);
+        funkHoeheSetzen(funkHoehe, true);
+      };
+      griff.addEventListener("pointermove", ziehen);
+      griff.addEventListener("pointerup", loslassen);
+      griff.addEventListener("pointercancel", loslassen);
+    });
+    griff.addEventListener("dblclick", () => funkHoeheSetzen(FUNK_STANDARD, true));
   }
 
   function werkzeugeZeichnen() {
