@@ -313,9 +313,14 @@ input[type="range"] { flex: 1; min-width: 90px; }
 
 /* ------------------------------------------------------------------ Symbole */
 
+/* Wichtig: an den Symbolen selbst weder `position` noch `transform` setzen.
+ * Leaflet positioniert jedes Symbol über `position: absolute` und eine
+ * transform-Verschiebung; wird eines von beiden überschrieben, wandern die
+ * Symbole beim Zoomen aus ihrer Lage. Drehungen und Zusatzelemente gehören
+ * deshalb in innere Elemente bzw. in Pseudoelemente. */
 .mk {
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; line-height: 1; letter-spacing: .02em; position: relative;
+  font-weight: 700; line-height: 1; letter-spacing: .02em;
 }
 .mk-pat {
   width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: 10px;
@@ -365,8 +370,9 @@ input[type="range"] { flex: 1; min-width: 90px; }
 }
 .mk-haz.haz-3 { border-color: var(--warn); color: #fff; background: var(--warn); }
 .mk-haz.haz-1 { border-color: var(--tinte-3); color: var(--tinte-2); }
-.mk-sperre {
-  width: 12px; height: 12px; background: var(--warn); transform: rotate(45deg);
+.mk-sperre { width: 14px; height: 14px; }
+.mk-sperre span {
+  width: 10px; height: 10px; background: var(--warn); transform: rotate(45deg);
   border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.4);
 }
 

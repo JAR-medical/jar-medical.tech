@@ -243,12 +243,14 @@ const KARTE = (function () {
       kreis.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "abschnitt", id: a.id }); });
       kreis.bindTooltip(a.name, { sticky: true });
 
+      // Feste Symbolgröße: sonst richtet Leaflet die Beschriftung an ihrer
+      // Textbreite aus und sie sitzt nicht mittig über dem Abschnitt.
       L.marker(a.ll, {
         pane: "pLabel", interactive: false,
         icon: L.divIcon({
           className: "abschnitt-label" + (a.hq ? " ist-hq" : ""),
           html: '<b>' + TR.esc(a.kurz) + '</b>' + (a.hq ? '<i>Führung</i>' : ''),
-          iconSize: null, iconAnchor: [0, -a.r / 3],
+          iconSize: [160, 28], iconAnchor: [80, -Math.round(a.r / 3)],
         }),
       }).addTo(G.label);
     }
@@ -266,7 +268,7 @@ const KARTE = (function () {
     }).addTo(G.gefahren);
     L.marker(TR.versetzt(S.epi, 250, 315), {
       pane: "pLabel", interactive: false,
-      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze 250 m", iconSize: null }),
+      icon: L.divIcon({ className: "kreis-label", html: "Absperrgrenze 250 m", iconSize: [130, 12], iconAnchor: [65, 6] }),
     }).addTo(G.gefahren);
 
     for (const g of S.gefahren.values()) {
@@ -343,7 +345,10 @@ const KARTE = (function () {
     for (const p of S.poi) {
       L.marker(p.ll, {
         pane: "pLabel", interactive: false,
-        icon: L.divIcon({ className: "poi-label", html: TR.esc(p.name), iconSize: null }),
+        icon: L.divIcon({
+          className: "poi-label", html: TR.esc(p.name),
+          iconSize: [170, 12], iconAnchor: [-6, 6],   // 6 px rechts neben und über dem Punkt
+        }),
       }).addTo(G.poi);
       L.circleMarker(p.ll, {
         pane: "pLinie", radius: 2.5, color: "#5a6068", weight: 1, fillColor: "#fff", fillOpacity: 1,
