@@ -44,8 +44,35 @@ const KARTE = (function () {
       preferCanvas: false,
       minZoom: 13,
       maxZoom: 19,
+
+      /* Stufenloses Zoomen statt fester Zoomstufen.
+       *
+       * `zoomSnap: 0` erlaubt jede Zwischenstufe — mit der Voreinstellung 1
+       * rastet jede Zoomänderung auf ganze Stufen ein, der Ausschnitt springt
+       * also in Sprüngen von Faktor 2.
+       *
+       * `zoomAnimation: false` schaltet Leaflets Zoom-Trickbild ab: dabei wird
+       * die gesamte Kartenebene per CSS vergrößert und erst am Ende neu
+       * gezeichnet — währenddessen wachsen und wandern alle Symbole sichtbar
+       * und rasten danach wieder ein. Ohne diese Animation wird jede
+       * Zoomänderung sofort und maßstabsgetreu gezeichnet; die weichen
+       * Übergänge übernehmen die Zoomfahrten weiter unten Bild für Bild. */
+      zoomSnap: 0,
+      zoomDelta: 0.5,
+      zoomAnimation: false,
+      bounceAtZoomLimits: false,
     });
-    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+    /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
+     * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
+     * ist eine Schaltfläche entfernt. */
+    function startAusschnitt(animate) {
+      if (behaelter.clientWidth > 0 && behaelter.clientWidth < 620) {
+        map.setView(S.epi, 16.2, { animate: !!animate });
+      } else {
+        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: !!animate });
+      }
+    }
+    startAusschnitt();
 
     /* Leaflet merkt sich die Containergröße beim Anlegen. Steht das Layout zu
      * diesem Zeitpunkt noch nicht (verstecktes Fenster, später geladene
@@ -59,7 +86,7 @@ const KARTE = (function () {
       const jetzt = map.getSize();
       if (!ausschnittGesetzt && jetzt.x > 0 && jetzt.y > 0) {
         ausschnittGesetzt = true;
-        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], animate: false });
+        startAusschnitt();
       }
       return vorher;
     };
@@ -73,6 +100,8 @@ const KARTE = (function () {
       const s = map.getSize();
       if (s.x !== behaelter.clientWidth || s.y !== behaelter.clientHeight) nachmessen();
     }, 1000);
+
+    zoomEinrichten(behaelter);
 
     L.control.zoom({ position: "topright" }).addTo(map);
     L.control.scale({ position: "bottomright", imperial: false, maxWidth: 140 }).addTo(map);
@@ -128,10 +157,13 @@ const KARTE = (function () {
       if (messModus) { messPunktSetzen(e.latlng); return; }
       TR.auswaehlen(null);
     });
-    map.on("zoomend", () => {
-      const z = map.getZoom();
-      document.getElementById("karte").classList.toggle("zoom-weit", z < 16);
-    });
+    // Beim stufenlosen Zoomen laufen die Zwischenstufen über "zoom"; nur auf
+    // "zoomend" zu hören würde die Beschriftungsstufe hinterherhinken lassen.
+    const zoomStufeAnzeigen = () => {
+      document.getElementById("karte").classList.toggle("zoom-weit", map.getZoom() < 16);
+    };
+    map.on("zoom zoomend", zoomStufeAnzeigen);
+    zoomStufeAnzeigen();
 
     TR.on("frame", frameTakt);
     TR.on("patienten", patientenZeichnen);
@@ -148,6 +180,121 @@ const KARTE = (function () {
     });
 
     return map;
+  }
+
+  /* ------------------------------------------------------------------ Zoomen
+   *
+   * Gezoomt wird stufenlos und am Zeiger verankert: der Punkt unter dem
+   * Mauszeiger (bzw. zwischen den Fingern) bleibt genau dort, wo er ist, und
+   * jede Zwischenstufe wird sofort maßstabsgetreu gezeichnet. Dadurch bleibt
+   * jedes Symbol über seiner Koordinate stehen, statt während einer Animation
+   * mitzuwandern.
+   *
+   * Weiche Übergänge (Doppelklick, Zoomschaltflächen, Tastatur) laufen als
+   * Zoomfahrt Bild für Bild: jedes einzelne Bild ist ein vollständig gültiger
+   * Kartenzustand, kein Zwischenbild einer Animation. */
+
+  const ZOOM_PRO_PIXEL = 1 / 340;   // Zoomstufen je Pixel Radweg
+  const ZOOM_JE_BILD = 0.6;         // Deckel gegen Sprünge bei groben Rädern
+  const GESTE_PAUSE = 250;          // ms ohne Rad = neue Geste, neuer Anker
+  let radAkku = 0, radPunkt = null, radBild = 0, zoomFahrtBild = 0;
+  let radAnker = null;              // { ll, punkt, zeit } der laufenden Radgeste
+
+  function zoomEinrichten(behaelter) {
+    // Leaflets eigene Rad- und Doppelklicksteuerung arbeitet in ganzen Stufen
+    // und mit Zwischenanimation; beides wird hier ersetzt.
+    map.scrollWheelZoom.disable();
+    map.doubleClickZoom.disable();
+
+    behaelter.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      zoomFahrtAbbrechen();
+      // Zeilen- und Seitenraster mancher Mäuse in Pixel umrechnen; die
+      // Kneifgeste auf dem Trackpad meldet sich als Strg+Rad.
+      const einheit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? map.getSize().y : 1;
+      radAkku += -e.deltaY * einheit * ZOOM_PRO_PIXEL * (e.ctrlKey ? 2.5 : 1);
+      radPunkt = map.mouseEventToContainerPoint(e);
+      if (!radBild) radBild = requestAnimationFrame(radAnwenden);
+    }, { passive: false });
+
+    behaelter.addEventListener("dblclick", (e) => {
+      if (messModus) return;              // im Messmodus setzt der Klick Punkte
+      if (e.target.closest(".leaflet-control")) return;
+      zoomFahrt(map.getZoom() + (e.shiftKey || e.altKey ? -1 : 1),
+        map.mouseEventToContainerPoint(e));
+    });
+
+    // Zoomschaltflächen und Tastatur laufen als weiche Fahrt statt als Sprung.
+    map.zoomIn = (delta) => zoomFahrt(map.getZoom() + (delta || map.options.zoomDelta), null);
+    map.zoomOut = (delta) => zoomFahrt(map.getZoom() - (delta || map.options.zoomDelta), null);
+  }
+
+  // Alle Radereignisse eines Bildes werden zusammengefasst: ein Zoomschritt je
+  // Bild, sonst rechnet die Karte mehrfach pro Bild neu.
+  function radAnwenden() {
+    radBild = 0;
+    const dz = Math.max(-ZOOM_JE_BILD, Math.min(ZOOM_JE_BILD, radAkku));
+    radAkku = 0;
+    if (!dz || !radPunkt) return;
+    zoomSetzen(map.getZoom() + dz, radPunkt, ankerHalten(radPunkt).ll);
+  }
+
+  /* Der Ankerpunkt einer Radgeste wird einmal bestimmt und für alle weiteren
+   * Schritte behalten. Würde er bei jedem Schritt neu aus dem aktuellen
+   * Kartenzustand gelesen, summierte sich die Pixelrundung, die Leaflet bei
+   * jedem Ausschnittwechsel vornimmt — die Karte kröche unter dem Zeiger weg
+   * (gemessen: rund 10 px über fünf Zoomstufen). */
+  function ankerHalten(punkt) {
+    const jetzt = performance.now();
+    if (!radAnker || jetzt - radAnker.zeit > GESTE_PAUSE ||
+        Math.abs(radAnker.punkt.x - punkt.x) > 4 || Math.abs(radAnker.punkt.y - punkt.y) > 4) {
+      radAnker = { ll: map.containerPointToLatLng(punkt), punkt, zeit: jetzt };
+    }
+    radAnker.zeit = jetzt;
+    return radAnker;
+  }
+
+  function zoomGrenzen(z) {
+    return Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), z));
+  }
+
+  /* Setzt die Zoomstufe so, dass `ankerLL` genau auf `punkt` liegen bleibt.
+   * Der neue Mittelpunkt wird direkt gerechnet, statt sich über den aktuellen
+   * (bereits gerundeten) Zustand zu hangeln. */
+  function zoomSetzen(z, punkt, ankerLL) {
+    const ziel = zoomGrenzen(z);
+    if (Math.abs(ziel - map.getZoom()) < 1e-4) return;
+    if (!punkt) {
+      map.setZoom(ziel, { animate: false });
+      return;
+    }
+    const anker = ankerLL || map.containerPointToLatLng(punkt);
+    const halb = map.getSize().divideBy(2);
+    const zentrum = map.unproject(map.project(anker, ziel).subtract(punkt).add(halb), ziel);
+    map.setView(zentrum, ziel, { animate: false });
+  }
+
+  function zoomFahrt(zielZoom, punkt, dauer) {
+    zoomFahrtAbbrechen();
+    const start = map.getZoom();
+    const ziel = zoomGrenzen(zielZoom);
+    if (Math.abs(ziel - start) < 1e-3) return map;
+    // Anker einmal für die ganze Fahrt festhalten — aus demselben Grund wie
+    // bei der Radgeste.
+    const anker = punkt ? map.containerPointToLatLng(punkt) : null;
+    const t0 = performance.now(), d = dauer || 240;
+    const schritt = (jetzt) => {
+      const t = Math.min(1, (jetzt - t0) / d);
+      zoomSetzen(start + (ziel - start) * (1 - Math.pow(1 - t, 3)), punkt, anker);
+      zoomFahrtBild = t < 1 ? requestAnimationFrame(schritt) : 0;
+    };
+    zoomFahrtBild = requestAnimationFrame(schritt);
+    return map;
+  }
+
+  function zoomFahrtAbbrechen() {
+    if (zoomFahrtBild) cancelAnimationFrame(zoomFahrtBild);
+    zoomFahrtBild = 0;
   }
 
   /* --------------------------------------------------------------- Wegenetz */
@@ -243,14 +390,18 @@ const KARTE = (function () {
       kreis.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "abschnitt", id: a.id }); });
       kreis.bindTooltip(a.name, { sticky: true });
 
+      // Die Beschriftung sitzt am Nordrand des Abschnitts und ist dort
+      // geografisch verankert. Ein Pixelversatz aus dem Meter-Radius (früher
+      // r/3) säße auf jeder Zoomstufe woanders — die Beschriftung wanderte
+      // beim Zoomen aus ihrem Abschnitt heraus.
       // Feste Symbolgröße: sonst richtet Leaflet die Beschriftung an ihrer
       // Textbreite aus und sie sitzt nicht mittig über dem Abschnitt.
-      L.marker(a.ll, {
+      L.marker(TR.versetzt(a.ll, a.r, 0), {
         pane: "pLabel", interactive: false,
         icon: L.divIcon({
           className: "abschnitt-label" + (a.hq ? " ist-hq" : ""),
           html: '<b>' + TR.esc(a.kurz) + '</b>' + (a.hq ? '<i>Führung</i>' : ''),
-          iconSize: [160, 28], iconAnchor: [80, -Math.round(a.r / 3)],
+          iconSize: [160, 28], iconAnchor: [80, 30],
         }),
       }).addTo(G.label);
     }
@@ -571,8 +722,22 @@ const KARTE = (function () {
     ebenenAnwenden();
   }
 
-  function zeigeAuf(ll, zoom) {
-    map.setView(ll, zoom || Math.max(map.getZoom(), 17), { animate: true });
+  /* Eine Auswahl darf das Lagebild nicht unter der Hand verschieben: liegt das
+   * Ziel schon gut sichtbar im Ausschnitt, bleibt die Karte stehen. Erst wenn
+   * es außerhalb liegt (oder die Mindestzoomstufe unterschritten ist), fährt
+   * die Karte weich dorthin. */
+  function imBild(ll, rand) {
+    const p = map.latLngToContainerPoint(ll);
+    const s = map.getSize();
+    const r = rand === undefined ? 60 : rand;
+    return p.x >= r && p.y >= r && p.x <= s.x - r && p.y <= s.y - r;
+  }
+
+  function zeigeAuf(ll, mindestZoom) {
+    const brauchtZoom = mindestZoom !== undefined && map.getZoom() < mindestZoom - 0.01;
+    if (imBild(ll) && !brauchtZoom) return;
+    if (brauchtZoom) map.flyTo(ll, mindestZoom, { duration: 0.7 });
+    else map.panTo(ll, { animate: true, duration: 0.5 });
   }
 
   function auswahlZeigen(sel) {
@@ -581,10 +746,10 @@ const KARTE = (function () {
     if (!sel) return;
     if (sel.typ === "patient") {
       const p = S.patienten.get(sel.id);
-      if (p && p.ll) zeigeAuf(p.ll);
+      if (p && p.ll) zeigeAuf(p.ll, 16);
     } else if (sel.typ === "mittel") {
       const m = S.mittel.get(sel.id);
-      if (m) zeigeAuf(m.ll);
+      if (m) zeigeAuf(m.ll, 16);
     } else if (sel.typ === "abschnitt") {
       const a = S.abschnitte.get(sel.id);
       if (a) zeigeAuf(a.ll, 17);
@@ -596,19 +761,23 @@ const KARTE = (function () {
       if (s) zeigeAuf(s.ll, 18);
     } else if (sel.typ === "zelle") {
       const b = TR.zellGrenzen(sel.id);
-      if (b) map.fitBounds(b, { maxZoom: 18 });
+      if (b) map.flyToBounds(b, { maxZoom: 18, duration: 0.7 });
     }
   }
 
+  // Beide Ansichten fahren weich: flyTo zeichnet Bild für Bild neu, statt die
+  // Kartenebene zu skalieren — die Symbole bleiben dabei auf ihrer Koordinate.
   function gesamtansicht() {
     const b = S.bbox;
     S.verfolgt = null;
-    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8] });
+    zoomFahrtAbbrechen();
+    map.flyToBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [8, 8], duration: 0.8 });
   }
 
   function schadensansicht() {
     S.verfolgt = null;
-    map.setView(S.epi, 18);
+    zoomFahrtAbbrechen();
+    map.flyTo(S.epi, 18, { duration: 0.8 });
   }
 
   /* ----------------------------------------------------------- Messwerkzeug */

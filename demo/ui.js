@@ -1029,8 +1029,11 @@
       }
     } catch (e) { /* kein gespeicherter Zustand */ }
     // Auf flachen Bildschirmen (Tablet quer) von vornherein niedriger ansetzen,
-    // damit die Karte das Hauptelement bleibt.
-    dock.hoehe = Math.max(140, Math.min(208, Math.round(window.innerHeight * 0.24)));
+    // damit die Karte das Hauptelement bleibt. Auf einem quer gehaltenen
+    // Telefon bleibt selbst bei der Mindesthöhe kaum Karte übrig — dort
+    // startet der Bereich eingeklappt und wird bei Bedarf aufgezogen.
+    if (window.innerHeight < 480) dock.zu = true;
+    else dock.hoehe = Math.max(140, Math.min(208, Math.round(window.innerHeight * 0.24)));
   }
   function dockSpeichern() {
     try { localStorage.setItem("triarge.dock", JSON.stringify(dock)); } catch (e) { /* egal */ }
