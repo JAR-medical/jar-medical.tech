@@ -4,11 +4,25 @@
  * simuliert. Ortsangaben (Straßen, Plätze, Gebäude) stammen aus OpenStreetMap,
  * die Einsatzabschnitte sind so gelegt, wie sie eine Einsatzleitung vor Ort
  * realistischerweise anordnen würde.
+ *
+ * Diese Datei legt zugleich die Liste der wählbaren Lagen an. Jede weitere Lage
+ * hängt sich mit demselben Aufbau an `window.SZENARIEN` an:
+ *
+ *   id        Kennung für die Auswahl
+ *   kurz      Name in der Auswahlliste
+ *   geo       Geodaten der Lage (bbox, Wegenetz; siehe data/)
+ *   raster    Einsatzraster — je größer das Gebiet, desto mehr Felder
+ *   absperrung  Radius der Absperrgrenze in Metern
+ *   abschnitte  Abschnitte; mit `t` entstehen sie erst im Verlauf
+ *   gefahren  Gefahrenstellen; `t` = Sekunde, ab der sie erkannt sind
+ *   patienten Roster; `t` = Sekunde, zu der der Marker erkannt wird
  */
 
 "use strict";
 
-window.SZENARIO = (function () {
+window.SZENARIEN = window.SZENARIEN || [];
+
+window.SZENARIEN.push((function () {
   // Schadensstelle: Wohn-/Geschäftshaus an der Hauptstraße, Höhe Rathausplatz.
   const EPI = [48.07681, 11.66221];
 
@@ -89,12 +103,22 @@ window.SZENARIO = (function () {
       status: "laufend",
       verantwortlich: "Stadtwerke München / FW Sicherheitstrupp",
       info: "Leitung bei Tiefbauarbeiten beschädigt. Absperrarmatur Hauptstraße/Wittelsbacherstraße wird angefahren. Zündquellenverbot im Umkreis 100 m.",
-      messwert: { label: "untere Explosionsgrenze", wert: 28, einheit: "% UEG", warn: 20, trend: 1 },
+      messwert: {
+        label: "untere Explosionsgrenze", wert: 28, einheit: "% UEG", warn: 20, trend: 1,
+        // Absperrarmatur ab Minute 5 geschlossen — danach fällt der Wert.
+        wendeT: 300, wendeStatus: "abgesperrt, Wert fallend",
+        wendeText: "Gasleitung abgesperrt — Messwert fällt",
+        endeUnter: 5, endeText: "Gasaustritt abgesperrt — UEG unter 5 %",
+        endeVon: "Sicherheitstrupp",
+        endeFunk: "Gasmessung unter 5 % UEG. Trümmerbereich für Rettungstrupps freigegeben.",
+      },
     },
     {
       id: "G2", code: "EIN", art: "einsturz", stufe: 3,
       name: "Einsturzgefahr Restgebäude",
       ll: [48.07681, 11.66221], r: 40,
+      gebaeude: 42763911,   // OSM-Kennung des Schadensobjekts (siehe data/neubiberg.js)
+      umrissText: "Schadensobjekt — Teileinsturz, Betreten nur mit Sicherungstrupp",
       t: 4,
       status: "laufend",
       verantwortlich: "Statiker LK München (ETA 25 min) / SEG Bergung",
@@ -338,6 +362,20 @@ window.SZENARIO = (function () {
   ];
 
   return {
+    id: "neubiberg",
+    alias: ["nb", "explosion", "gasexplosion"],
+    kurz: "Neubiberg · Explosion mit Teileinsturz",
+    sitzung: "Neubiberg · Hauptstraße",
+    geo: window.NB_GEO,
+    raster: { spalten: 10, zeilen: 8 },   // ~139 x 120 m je Feld
+    absperrung: 250,
+    // Welcher Abschnitt welche Aufgabe hat — daraus leitet die Simulation ab,
+    // wohin Trupps tragen, wo Fahrzeuge stehen und woher gerettet wird.
+    rollen: {
+      ablagen: ["PA"], behandlung: "BHP", betreuung: "BST",
+      bereitstellung: "BR", halteplatz: "RMHP", verstorbene: "VER",
+      landeplatz: "RTH", schaden: ["SCHADEN"],
+    },
     einsatz: {
       name: "Neubiberg · Hauptstraße — Explosion mit Teileinsturz",
       stichwort: "MANV 25 / THL 4 — Gebäudeeinsturz",
@@ -352,4 +390,4 @@ window.SZENARIO = (function () {
     epi: EPI,
     abschnitte, gefahren, sperren, poi, kliniken, mittel, patienten, funk,
   };
-})();
+})());

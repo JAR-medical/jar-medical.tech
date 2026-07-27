@@ -70,6 +70,8 @@ const TR = (function () {
   const graph = { knoten: [], adj: [] };
 
   function graphBauen(geo) {
+    graph.knoten.length = 0;   // beim Szenariowechsel wird neu gebaut
+    graph.adj.length = 0;
     const idx = new Map();
     const key = (a, b) => a.toFixed(5) + "|" + b.toFixed(5);
     function id(lat, lon) {
@@ -315,18 +317,28 @@ const TR = (function () {
 
   /* ------------------------------------------------------------ Initialisierung */
 
-  function init(szenario, geo) {
+  function init(szenario) {
+    AKTIV = szenario;
+    const geo = szenario.geo || { bbox: szenario.bbox, ways: [] };
     graphBauen(geo);
     S.einsatz = szenario.einsatz;
     S.bbox = geo.bbox;
+    // Jede Lage bringt ihr eigenes Raster mit: ein Stadtgebiet braucht mehr
+    // Felder als eine Ortsmitte, damit ein Feld eine handliche Größe behält.
+    S.raster = { spalten: 10, zeilen: 8, ...(szenario.raster || {}) };
+    S.absperrung = szenario.absperrung || 250;
     S.epi = szenario.epi;
     S.sperren = szenario.sperren.slice();
     S.poi = szenario.poi.slice();
     S.kliniken = szenario.kliniken.map((k) =>
       ({ ...k, frei: { ...k.frei }, startFrei: { ...k.frei }, belegt: 0 }));
-    S.sitzungen = [{ name: "Neubiberg · Hauptstraße " + (S.einsatz.alarmiert || ""), aktiv: true }];
+    S.sitzungen = [{ name: (szenario.sitzung || S.einsatz.name) + " " + (S.einsatz.alarmiert || ""), aktiv: true }];
 
-    for (const a of szenario.abschnitte) S.abschnitte.set(a.id, { ...a });
+    // Abschnitte mit `t` entstehen erst im Verlauf — eine Lage, die sich
+    // ausweitet, hat ihre Abschnitte nicht von Anfang an stehen.
+    for (const a of szenario.abschnitte) {
+      S.abschnitte.set(a.id, { ...a, erkanntT: a.t || 0, aktiv: !a.t });
+    }
     for (const g of szenario.gefahren) {
       S.gefahren.set(g.id, { ...g, erkanntT: g.t, aktiv: g.t === 0, messwert: g.messwert ? { ...g.messwert } : null });
     }
@@ -354,6 +366,7 @@ const TR = (function () {
   }
 
   let ROSTER = [], FUNK_SKRIPT = [], naechsterFunk = 0, naechsterPatient = 0;
+  let AKTIV = null;   // aktuell gespielte Lage
 
   /* --------------------------------------------------------------- Patienten */
 
@@ -388,12 +401,16 @@ const TR = (function () {
     proto(p, "client", durch, p.befund);
     ereignis("sichtung", "Patient #" + p.id + " gesichtet: " + KAT[p.kat].label, { typ: "patient", id: p.id });
     if (p.geh && p.kat !== "TOT") {
-      const ziel = S.abschnitte.get(p.kat === "SK3" ? "BST" : "PA");
-      p.pfad = route(p.ll, streu(ziel.ll, 14), true);
-      p.pfadPos = 0;
-      p.pfadLen = pfadLaenge(p.pfad);
-      p.zielAbschnitt = ziel.id;
-      p.zustand = "laufend";
+      const rolle = p.kat === "SK3" ? "betreuung" : "ablage";
+      const ziel = rollenZiel(rolle, p.ll);
+      if (ziel) {
+        p.pfad = route(p.ll, streu(ziel.ll, 14), true);
+        p.pfadPos = 0;
+        p.pfadLen = pfadLaenge(p.pfad);
+        p.zielAbschnitt = ziel.id;
+        p.zielZustand = ROLLE_ZUSTAND[rolle];
+        p.zustand = "laufend";
+      }
     }
     emit("patienten");
   }
@@ -440,8 +457,66 @@ const TR = (function () {
     emit("patienten");
   }
 
+  /* ------------------------------------------------------------- Rollen
+   * Die Simulation braucht bestimmte Abschnitte (Ablage, Behandlungsplatz,
+   * Bereitstellungsraum …). Welcher Abschnitt das ist, sagt die Lage über
+   * `rollen` — sonst ließe sich keine Lage mit mehreren Einsatzstellen und
+   * mehreren Ablagen bauen. Fehlt eine Rolle, greift der frühere feste Name.
+   * Die Zustandsbezeichnung eines Patienten (PA, BHP, …) bleibt davon
+   * unberührt, sie ist unabhängig vom konkreten Abschnitt. */
+
+  const ROLLE_ZUSTAND = { ablage: "PA", behandlung: "BHP", betreuung: "BST", verstorbene: "VER" };
+
+  function rollen() { return (AKTIV && AKTIV.rollen) || {}; }
+
+  function rollenAbschnitt(rolle, alt) {
+    const r = rollen()[rolle];
+    const id = Array.isArray(r) ? r[0] : r;
+    return (id && S.abschnitte.get(id)) || (alt ? S.abschnitte.get(alt) : null);
+  }
+
+  // Nächstgelegener eingerichteter Abschnitt einer Rolle, die mehrfach
+  // vorkommen darf (Ablagen, Behandlungsplätze).
+  function nahesterAbschnitt(ids, ll) {
+    let best = null, bd = Infinity;
+    for (const id of ids || []) {
+      const a = S.abschnitte.get(id);
+      if (!a || a.aktiv === false) continue;
+      const d = ll ? dist(ll, a.ll) : 0;
+      if (d < bd) { bd = d; best = a; }
+    }
+    return best;
+  }
+
+  function behandlungListe() {
+    const r = rollen();
+    return r.behandlungen || [r.behandlung || "BHP"];
+  }
+
+  function ablageNah(ll) {
+    const r = rollen();
+    return nahesterAbschnitt(r.ablagen || [r.ablage || "PA"], ll) || behandlungNah(ll);
+  }
+
+  function behandlungNah(ll) {
+    return nahesterAbschnitt(behandlungListe(), ll) || rollenAbschnitt("behandlung", "BHP");
+  }
+
+  function rollenZiel(rolle, ll) {
+    if (rolle === "ablage") return ablageNah(ll);
+    if (rolle === "behandlung") return behandlungNah(ll);
+    return rollenAbschnitt(rolle, { betreuung: "BST", verstorbene: "VER" }[rolle]);
+  }
+
+  // Abschnitte, aus denen Trupps Patienten herausholen (Schadensstellen).
+  function istSchadensabschnitt(id) {
+    return (rollen().schaden || ["SCHADEN"]).includes(id);
+  }
+
   function abschnittBei(ll) {
-    for (const a of S.abschnitte.values()) if (dist(ll, a.ll) <= a.r) return a.id;
+    for (const a of S.abschnitte.values()) {
+      if (a.aktiv !== false && dist(ll, a.ll) <= a.r) return a.id;
+    }
     return null;
   }
 
@@ -500,23 +575,27 @@ const TR = (function () {
     return best;
   }
 
-  function traegerZiel() {
-    // Patienten, die von der Schadensstelle in die Patientenablage müssen.
-    let best = null, bo = Infinity;
+  /* Sichtungskategorie geht vor; bei gleicher Kategorie nimmt jeder Trupp den
+   * nächstgelegenen Patienten. Sonst liefen bei mehreren Einsatzstellen alle
+   * Trupps quer durch den Einsatzraum zum selben Patienten. */
+  function traegerZiel(von) {
+    let best = null, bo = Infinity, bd = Infinity;
     for (const p of S.patienten.values()) {
       if (p.zustand !== "gesichtet" || p.belegtVon || p.geh) continue;
       const o = KAT[p.kat].ord;
-      if (o < bo) { bo = o; best = p; }
+      const d = von ? dist(p.ll, von) : 0;
+      if (o < bo || (o === bo && d < bd)) { bo = o; bd = d; best = p; }
     }
     return best;
   }
 
-  function ablageZiel() {
-    let best = null, bo = Infinity;
+  function ablageZiel(von) {
+    let best = null, bo = Infinity, bd = Infinity;
     for (const p of S.patienten.values()) {
-      if (p.abschnitt !== "PA" || p.belegtVon || p.zustand !== "PA") continue;
+      if (p.zustand !== "PA" || p.belegtVon) continue;
       const o = KAT[p.kat].ord + (p.kat === "TOT" ? 10 : 0);
-      if (o < bo) { bo = o; best = p; }
+      const d = von ? dist(p.ll, von) : 0;
+      if (o < bo || (o === bo && d < bd)) { bo = o; bd = d; best = p; }
     }
     return best;
   }
@@ -586,7 +665,7 @@ const TR = (function () {
   /* ------------------------------------------ Verhalten je Einsatzmittel-Art */
 
   function truppTakt(m, dt) {
-    const rettung = m.basis === "SCHADEN";
+    const rettung = istSchadensabschnitt(m.basis);
     const tempo = m.patient ? TEMPO_MS.truppLast : TEMPO_MS.trupp;
 
     if (m.wartet > 0) {
@@ -612,8 +691,11 @@ const TR = (function () {
     if (truppNeuerAuftrag(m, rettung)) return;
 
     if (rettung) {
+      // Um die eigene Einsatzstelle streifen — bei mehreren Stellen wäre ein
+      // gemeinsamer Mittelpunkt für die meisten Trupps der falsche Ort.
+      const eigen = S.abschnitte.get(m.basis);
       m.status = "Erkundung Schadensbereich";
-      fahrtAuftrag(m, streu(S.epi, 55), true, "streife");
+      fahrtAuftrag(m, streu(eigen ? eigen.ll : S.epi, eigen ? Math.max(40, eigen.r * 0.6) : 55), true, "streife");
       m.wartet = 2;
     } else {
       m.status = "bereit";
@@ -638,7 +720,7 @@ const TR = (function () {
         return true;
       }
       if (art === "ablage") {
-        const p = traegerZiel();
+        const p = traegerZiel(m.ll);
         if (!p) continue;
         p.belegtVon = m.id;
         m.zielPatient = p.id;
@@ -647,11 +729,13 @@ const TR = (function () {
         fahrtAuftrag(m, p.ll.slice(), true, "abholenSchaden");
         return true;
       }
-      const p = ablageZiel();
+      const p = ablageZiel(m.ll);
       if (!p) continue;
       p.belegtVon = m.id;
       m.zielPatient = p.id;
-      m.status = "Transport #" + p.id + " → " + (p.kat === "TOT" ? "Ablage Verstorbene" : "BHP 25");
+      const bhpA = behandlungNah(p.ll);
+      m.status = "Transport #" + p.id + " → " +
+        (p.kat === "TOT" ? "Ablage Verstorbene" : (bhpA ? bhpA.kurz : "Behandlungsplatz"));
       fahrtAuftrag(m, p.ll.slice(), true, "abholenPA");
       return true;
     }
@@ -674,9 +758,9 @@ const TR = (function () {
         p.traeger = m.id;
         p.zustand = "getragen";
         p.abschnitt = null;
-        const ziel = S.abschnitte.get("PA");
+        const ziel = rollenZiel("ablage", m.ll);
         proto(p, "client", m.name, "Rettung aus dem Schadensbereich — Transport in die " + ziel.name + ".");
-        fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:PA");
+        fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:ablage:" + ziel.id);
         m.status = "Rettung #" + p.id + " → Patientenablage";
         m.wartet = 5 + Math.random() * 5;
         return;
@@ -693,24 +777,24 @@ const TR = (function () {
       p.zustand = "getragen";
       p.abschnitt = null;
       p.gesehen = { von: m.name, t: S.simSek };
-      const zielId = p.kat === "TOT" ? "VER" : auftrag === "abholenSchaden" ? "PA" : "BHP";
-      const ziel = S.abschnitte.get(zielId);
+      const rolle = p.kat === "TOT" ? "verstorbene" : auftrag === "abholenSchaden" ? "ablage" : "behandlung";
+      const ziel = rollenZiel(rolle, m.ll);
       proto(p, "client", m.name, "Übernahme durch " + m.name + " — Transport nach " + ziel.name + ".");
-      fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:" + zielId);
+      fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:" + rolle + ":" + ziel.id);
       m.wartet = 3 + Math.random() * 3;
       return;
     }
     if (auftrag && auftrag.startsWith("abliefern:") && p) {
-      const zielId = auftrag.split(":")[1];
-      const ziel = S.abschnitte.get(zielId);
+      const [, rolle, zielId] = auftrag.split(":");
+      const ziel = S.abschnitte.get(zielId) || rollenZiel(rolle, m.ll);
       p.ll = m.ll.slice();
       p.traeger = null;
       p.belegtVon = null;
-      p.abschnitt = zielId;
-      p.zustand = zielId === "VER" ? "VER" : zielId;
+      p.abschnitt = ziel.id;
+      p.zustand = ROLLE_ZUSTAND[rolle] || "PA";
       p.aktualisiert = S.simSek;
       p.letzteKontrolle = S.simSek;
-      if (zielId === "BHP") {
+      if (rolle === "behandlung") {
         p.transportBereit = p.kat === "SK1" || p.kat === "SK2";
         p.transportSeit = S.simSek;
         p.luft = luftIndikation(p);
@@ -773,7 +857,7 @@ const TR = (function () {
         m.zielPatient = null;
         m.status = "Rückfahrt Bereitstellungsraum";
         m.wartet = 20 + Math.random() * 20;
-        const br = S.abschnitte.get("BR");
+        const br = rollenAbschnitt("bereitstellung", "BR") || S.abschnitte.get(m.basis);
         fahrtAuftrag(m, streu(br.ll, 14), false, "heim");
         return;
       }
@@ -789,7 +873,7 @@ const TR = (function () {
         p.belegtVon = m.id;
         m.zielPatient = p.id;
         m.status = "Anfahrt Rettungsmittel-Halteplatz";
-        const rmhp = S.abschnitte.get("RMHP");
+        const rmhp = rollenAbschnitt("halteplatz", "RMHP") || rollenAbschnitt("behandlung", "BHP");
         fahrtAuftrag(m, streu(rmhp.ll, 10), false, "zumBHP");
         return;
       }
@@ -835,7 +919,8 @@ const TR = (function () {
         m.zielPatient = null;
         m.status = "Rückflug Landeplatz";
         m.wartet = 40 + Math.random() * 30;
-        fahrtAuftrag(m, S.abschnitte.get("RTH").ll.slice(), false, "heim");
+        const lp = rollenAbschnitt("landeplatz", "RTH") || S.abschnitte.get(m.basis);
+        fahrtAuftrag(m, lp.ll.slice(), false, "heim");
         return;
       }
       m.auftrag = null;
@@ -849,7 +934,8 @@ const TR = (function () {
         p.belegtVon = m.id;
         m.zielPatient = p.id;
         m.status = "Anflug Rettungsmittel-Halteplatz";
-        fahrtAuftrag(m, S.abschnitte.get("RMHP").ll.slice(), false, "anflugBHP");
+        const zielRMHP = rollenAbschnitt("halteplatz", "RMHP") || rollenAbschnitt("behandlung", "BHP");
+        fahrtAuftrag(m, zielRMHP.ll.slice(), false, "anflugBHP");
         return;
       }
       m.status = "am Boden, einsatzbereit";
@@ -932,6 +1018,21 @@ const TR = (function () {
     }
   }
 
+  /* -------------------------------------------------------------- Abschnitte
+   * Weitet sich eine Lage aus, kommen Abschnitte im Verlauf dazu: sie stehen
+   * erst ab ihrer Zeitmarke auf der Karte und in den Listen. */
+
+  function abschnitteTakt() {
+    for (const a of S.abschnitte.values()) {
+      if (a.aktiv || S.simSek < a.erkanntT) continue;
+      a.aktiv = true;
+      ereignis("system", "Einsatzabschnitt eingerichtet: " + a.name, { typ: "abschnitt", id: a.id });
+      if (a.funk) funken(a.leitung || "ÖEL", a.funk);
+      emit("abschnitte");
+      emit("mittel");
+    }
+  }
+
   /* ---------------------------------------------------------------- Gefahren */
 
   function gefahrenTakt(dt) {
@@ -944,20 +1045,26 @@ const TR = (function () {
       }
       if (!g.aktiv) continue;
 
+      /* Messwerte laufen datengesteuert: die Lage gibt vor, wann der Trend
+       * dreht (Armatur geschlossen, Scheitel erreicht) und ab welchem Wert die
+       * Gefahr als beherrscht gilt — samt der Texte dazu. */
       if (g.messwert) {
         const mw = g.messwert;
-        // Absperrarmatur ab Minute 5 geschlossen -> der Wert fällt wieder.
-        if (S.simSek > 300 && mw.trend > 0) {
-          mw.trend = -1;
-          g.status = "abgesperrt, Wert fallend";
-          ereignis("gefahr", "Gasleitung abgesperrt — Messwert fällt", { typ: "gefahr", id: g.id });
+        if (mw.wendeT != null && S.simSek > mw.wendeT && mw.trend > 0) {
+          mw.trend = mw.wendeTrend != null ? mw.wendeTrend : -1;
+          if (mw.wendeStatus) g.status = mw.wendeStatus;
+          if (mw.wendeText) ereignis("gefahr", mw.wendeText, { typ: "gefahr", id: g.id });
+          if (mw.wendeFunk) funken(g.verantwortlich || "Lageerkundung", mw.wendeFunk);
+          emit("gefahren");
         }
-        mw.wert = Math.max(0, Math.min(90, mw.wert + mw.trend * dt * 0.06 + (Math.random() - 0.5) * 0.15));
-        if (mw.wert < 5 && g.status !== "erledigt") {
+        const spanne = mw.spanne || [0, 90];
+        mw.wert = Math.max(spanne[0], Math.min(spanne[1],
+          mw.wert + mw.trend * dt * (mw.rate || 0.06) + (Math.random() - 0.5) * (mw.rauschen || 0.15)));
+        if (mw.endeUnter != null && mw.wert < mw.endeUnter && g.status !== "erledigt") {
           g.status = "erledigt";
           g.stufe = 1;
-          ereignis("gefahr", "Gasaustritt abgesperrt — UEG unter 5 %", { typ: "gefahr", id: g.id });
-          funken("Sicherheitstrupp", "Gasmessung unter 5 % UEG. Trümmerbereich für Rettungstrupps freigegeben.");
+          if (mw.endeText) ereignis("gefahr", mw.endeText, { typ: "gefahr", id: g.id });
+          if (mw.endeFunk) funken(mw.endeVon || "Sicherheitstrupp", mw.endeFunk);
           emit("gefahren");
         }
       }
@@ -1043,11 +1150,12 @@ const TR = (function () {
         "Sichtung hängt hinter der Erkundung zurück. Weitere Sichtungstrupps prüfen.", null);
     } else warnungWeg("ungesichtet");
 
-    const bhp = S.abschnitte.get("BHP");
-    if (bhp && imBHP > bhp.kapazitaet * 0.8) {
+    const bhps = behandlungListe().map((id) => S.abschnitte.get(id)).filter((a) => a && a.aktiv !== false);
+    const bhpPlaetze = bhps.reduce((n, a) => n + (a.kapazitaet || 0), 0);
+    if (bhpPlaetze && imBHP > bhpPlaetze * 0.8) {
       warnen("bhp-last", 2, "Behandlungsplatz nahe Kapazitätsgrenze",
-        imBHP + " von " + bhp.kapazitaet + " Plätzen belegt. Abtransport priorisieren oder BHP erweitern.",
-        { typ: "abschnitt", id: "BHP" });
+        imBHP + " von " + bhpPlaetze + " Plätzen belegt. Abtransport priorisieren oder Behandlungsplatz erweitern.",
+        { typ: "abschnitt", id: bhps[0].id });
     } else warnungWeg("bhp-last");
 
     const freieRTW = [...S.mittel.values()].filter((m) => m.art === "rtw" && m.status === "frei").length;
@@ -1056,12 +1164,19 @@ const TR = (function () {
         transportOffen + "× SK I transportbereit, alle RTW gebunden. Nachforderung über ILS prüfen.", null);
     } else warnungWeg("rtw-mangel");
 
-    const gas = S.gefahren.get("G1");
-    if (gas && gas.aktiv && gas.messwert && gas.messwert.wert > gas.messwert.warn) {
-      warnen("gas", 3, "Explosionsgefahr — " + Math.round(gas.messwert.wert) + " % UEG",
-        "Zündquellenverbot im Umkreis 100 m. Kein Einsatz nicht-exgeschützter Geräte im Trümmerbereich.",
-        { typ: "gefahr", id: "G1" });
-    } else warnungWeg("gas");
+    // Messwerte über ihrer Warnschwelle melden sich selbst — unabhängig davon,
+    // ob es ein Gasmesswert, ein Pegelstand oder eine Ölausbreitung ist.
+    for (const g of S.gefahren.values()) {
+      const mw = g.messwert;
+      if (!mw || mw.warn == null) continue;
+      if (g.aktiv && mw.wert > mw.warn) {
+        warnen("messwert-" + g.id, g.stufe >= 3 ? 3 : 2,
+          g.name + " — " + Math.round(mw.wert) + " " + mw.einheit,
+          mw.label + " über der Warnschwelle von " + mw.warn + " " + mw.einheit + ". " +
+          (g.info || "").split(".")[0] + ".",
+          { typ: "gefahr", id: g.id });
+      } else warnungWeg("messwert-" + g.id);
+    }
 
     if (!S.kliniken.some((k) => k.frei.SK1 > 0)) {
       warnen("kap-sk1", 3, "Keine SK-I-Kapazität gemeldet",
@@ -1138,8 +1253,8 @@ const TR = (function () {
         const fertig = bewege(dummy, dt, TEMPO_MS.laufend);
         p.ll = dummy.ll; p.pfad = dummy.pfad; p.pfadPos = dummy.pfadPos; p.segPos = dummy.segPos;
         if (fertig) {
-          p.zustand = p.zielAbschnitt || "BST";
-          p.abschnitt = p.zielAbschnitt || "BST";
+          p.zustand = p.zielZustand || "BST";
+          p.abschnitt = p.zielAbschnitt || null;
           p.letzteKontrolle = S.simSek;
           proto(p, "client", "SEG Betreuung", "Selbstständig eingetroffen, registriert.");
           if (p.zustand === "PA") p.transportBereit = false;
@@ -1160,6 +1275,7 @@ const TR = (function () {
       }
     }
 
+    abschnitteTakt();
     gefahrenTakt(dt);
     sonderlagen();
     klinikTakt(dt);
@@ -1387,7 +1503,7 @@ const TR = (function () {
 
   function truppHinzufuegen(name, notiz) {
     const id = "X" + (S.mittel.size + 1);
-    const basis = S.abschnitte.get("PA");
+    const basis = ablageNah(S.epi);
     S.mittel.set(id, {
       id, name, kurz: name.replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "TR",
       art: "trupp", basis: "PA", rolle: notiz || "Transport PA → BHP", besatzung: 4,
@@ -1411,7 +1527,7 @@ const TR = (function () {
     emit("mittel");
   }
 
-  function neustart() {
+  function zuruecksetzen() {
     S.patienten.clear();
     S.mittel.clear();
     S.gefahren.clear();
@@ -1424,11 +1540,34 @@ const TR = (function () {
     S.auswahl = null;
     S.filter.zelle = null;
     letzterFrame = 0;
-    init(window.SZENARIO, window.NB_GEO);
+  }
+
+  function neustart() {
+    zuruecksetzen();
+    init(AKTIV);
     emit("neustart");
-    emit("patienten"); emit("mittel"); emit("gefahren");
+    emit("patienten"); emit("mittel"); emit("gefahren"); emit("abschnitte");
     emit("funk"); emit("ereignisse"); emit("warnungen"); emit("transporte");
   }
+
+  /* Lagewechsel: anderes Gebiet, anderes Raster, anderes Wegenetz. Alles wird
+   * neu aufgebaut — die Karte hört auf "szenario" und zeichnet sich komplett
+   * neu, weil sich auch der Kartenausschnitt ändert. */
+  function szenarioWechseln(id) {
+    const sz = szenarien().find((s) => s.id === id);
+    if (!sz || (AKTIV && sz.id === AKTIV.id)) return false;
+    zuruecksetzen();
+    init(sz);
+    emit("szenario", sz);
+    emit("neustart");
+    emit("patienten"); emit("mittel"); emit("gefahren"); emit("abschnitte");
+    emit("funk"); emit("ereignisse"); emit("warnungen"); emit("transporte");
+    return true;
+  }
+
+  function szenarien() { return window.SZENARIEN || []; }
+  function aktivesSzenario() { return AKTIV; }
+  function geo() { return (AKTIV && AKTIV.geo) || { bbox: S.bbox, ways: [] }; }
 
   function neuerEinsatz(name) {
     S.sitzungen = S.sitzungen.map((s) => ({ ...s, aktiv: false }));
@@ -1451,5 +1590,6 @@ const TR = (function () {
     kennzahlen, lagemeldung, csvExport, auswaehlen, tempoSetzen, pauseUmschalten,
     kategorieSetzen, patientLoeschen, patientVerschieben, truppHinzufuegen, truppEntfernen,
     neustart, neuerEinsatz, funken, ereignis, graph,
+    szenarien, aktivesSzenario, szenarioWechseln, geo,
   };
 })();
