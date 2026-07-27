@@ -168,10 +168,74 @@
     }
   }
 
+  /* ----------------------------------------------------------------- Adresse
+   *
+   * Jede Übungslage hat eine eigene Adresse: /demo/muenchen/ öffnet die Demo
+   * direkt mit dieser Lage. Erkannt werden drei Schreibweisen, damit auch von
+   * Hand getippte oder verkürzte Links ankommen:
+   *
+   *   /demo/muenchen/        letzter Pfadabschnitt   (die geteilte Form)
+   *   /demo/?lage=muenchen   Abfrageteil            (Ziel der Einstiegsseiten)
+   *   /demo/#muenchen        Sprungmarke
+   *
+   * GitHub Pages kennt keine Weiterleitungsregeln. Zu jeder Lage gehört
+   * deshalb ein winziger Einstieg unter demo/<lage>/index.html, der auf
+   * ?lage=<lage> zeigt; die Adresszeile wird hier wieder auf die schöne Form
+   * gesetzt. */
+
+  function lagenKennung(text) {
+    const t = String(text || "").trim().toLowerCase();
+    if (!t) return null;
+    for (const sz of TR.szenarien()) {
+      if (sz.id === t) return sz.id;
+      if ((sz.alias || []).some((a) => a.toLowerCase() === t)) return sz.id;
+    }
+    return null;
+  }
+
+  // Pfad der Demo selbst — ohne Dateinamen und ohne angehängte Lagenkennung.
+  function demoBasis() {
+    let pfad = location.pathname;
+    if (/\.[a-z0-9]+$/i.test(pfad)) pfad = pfad.replace(/[^/]*$/, "");
+    const teile = pfad.split("/").filter(Boolean);
+    if (teile.length && lagenKennung(teile[teile.length - 1])) teile.pop();
+    return "/" + (teile.length ? teile.join("/") + "/" : "");
+  }
+
+  function lageAusAdresse() {
+    let pfad = location.pathname;
+    if (/\.[a-z0-9]+$/i.test(pfad)) pfad = pfad.replace(/[^/]*$/, "");
+    const teile = pfad.split("/").filter(Boolean);
+    return lagenKennung(teile[teile.length - 1]) ||
+      lagenKennung(new URLSearchParams(location.search).get("lage")) ||
+      lagenKennung(new URLSearchParams(location.search).get("szenario")) ||
+      lagenKennung(location.hash.replace(/^#/, "")) ||
+      null;
+  }
+
+  function adresseSetzen(id, neuerEintrag) {
+    if (!window.history || !history.replaceState) return;
+    const ziel = demoBasis() + id + "/";
+    if (location.pathname === ziel && !location.search && !location.hash) return;
+    try {
+      history[neuerEintrag ? "pushState" : "replaceState"]({ lage: id }, "", ziel);
+    } catch (e) { /* etwa bei file:// — dann bleibt die Adresse, wie sie ist */ }
+  }
+
   /* ------------------------------------------------------------------ Start */
 
   function start() {
-    TR.init(window.SZENARIEN[0]);
+    const gewuenscht = lageAusAdresse();
+    const startLage = TR.szenarien().find((sz) => sz.id === gewuenscht) || window.SZENARIEN[0];
+    TR.init(startLage);
+    adresseSetzen(startLage.id, false);
+
+    // Zurück-/Vorwärtstaste zwischen den Lagen
+    window.addEventListener("popstate", () => {
+      const id = lageAusAdresse();
+      if (id && TR.aktivesSzenario() && id !== TR.aktivesSzenario().id) TR.szenarioWechseln(id);
+      else lagewahlZeichnen();
+    });
     KARTE.init("map");
 
     kopfzeileAufbauen();
@@ -199,7 +263,7 @@
     TR.on("sitzungen", sitzungenZeichnen);
     TR.on("steuerung", steuerungZeichnen);
     TR.on("abschnitte", () => { abschnittListe(); inspektorZeichnen(); });
-    TR.on("szenario", () => { rasterFelderZeigen(); zellgroesse(); demoHinweis(); steuerungZeichnen(); });
+    TR.on("szenario", () => { rasterFelderZeigen(); zellgroesse(); demoHinweis(); titelSetzen(); steuerungZeichnen(); });
     TR.on("neustart", () => {
       syncAn = false;
       kopfzeileAufbauen();
@@ -221,6 +285,7 @@
     rasterFelderZeigen();
     zellgroesse();
     demoHinweis();
+    titelSetzen();
 
     requestAnimationFrame(schleife);
     setInterval(uhrZeichnen, 500);
@@ -427,6 +492,13 @@
   function rasterFelderZeigen() {
     $("raster-spalten").value = S.raster.spalten;
     $("raster-zeilen").value = S.raster.zeilen;
+  }
+
+  // Fenstertitel je Lage: ein geteilter Link soll im Tab und im Lesezeichen
+  // die Lage nennen, die er öffnet.
+  function titelSetzen() {
+    const sz = TR.aktivesSzenario();
+    document.title = "TriARge — " + (sz ? sz.kurz : "Lagebild Einsatzleitung") + " (Live-Demo)";
   }
 
   function demoHinweis() {
@@ -933,7 +1005,9 @@
   function bedienungVerdrahten() {
     $("btn-neustart").onclick = () => { TR.neustart(); };
     $("lage-wahl").onchange = () => {
-      if (!TR.szenarioWechseln($("lage-wahl").value)) lagewahlZeichnen();
+      const id = $("lage-wahl").value;
+      if (TR.szenarioWechseln(id)) adresseSetzen(id, true);   // teilbare Adresse
+      else lagewahlZeichnen();
     };
     $("btn-neuer-einsatz").onclick = () => {
       const name = prompt("Neuen Einsatz eröffnen — die bisherigen Daten bleiben unter dem aktuellen Einsatz gespeichert.\n\nBezeichnung (leer = automatisch):");

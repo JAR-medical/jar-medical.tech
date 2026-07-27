@@ -533,6 +533,7 @@ window.SZENARIEN.push((function () {
 
   return {
     id: "muenchen",
+    alias: ["münchen", "munich", "muc", "lebel", "altstadt"],
     kurz: "München · Lebensbedrohliche Einsatzlage Altstadt",
     sitzung: "München · Altstadt",
     geo: window.MUC_GEO,

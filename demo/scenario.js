@@ -363,6 +363,7 @@ window.SZENARIEN.push((function () {
 
   return {
     id: "neubiberg",
+    alias: ["nb", "explosion", "gasexplosion"],
     kurz: "Neubiberg · Explosion mit Teileinsturz",
     sitzung: "Neubiberg · Hauptstraße",
     geo: window.NB_GEO,

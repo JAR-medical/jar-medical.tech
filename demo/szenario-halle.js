@@ -389,6 +389,7 @@ window.SZENARIEN.push((function () {
 
   return {
     id: "halle",
+    alias: ["kroellwitz", "kröllwitz", "hochwasser", "saale", "halle-saale"],
     kurz: "Halle (Saale) · Hochwasser Kröllwitz",
     sitzung: "Halle · Kröllwitz",
     geo: window.HAL_GEO,
