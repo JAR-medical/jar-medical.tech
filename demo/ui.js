@@ -17,6 +17,99 @@
   let patSort = { spalte: "kat", ab: false };
   let syncAn = false;
 
+  /* --------------------------------------------------------- Seitenleisten
+   * Beide Leisten lassen sich in der Breite ziehen und ganz einklappen. Der
+   * Zustand wird lokal gespeichert, damit er beim nächsten Aufruf wieder steht. */
+
+  const LEISTEN = {
+    l: { rail: "rail-l", griff: "griff-l", eigenschaft: "--rail-l", standard: 274 },
+    r: { rail: "rail-r", griff: "griff-r", eigenschaft: "--rail-r", standard: 330 },
+  };
+  const LEISTE_MIN = 190, LEISTE_MAX = 560, LEISTE_ZU = 28;
+  let leisten = { l: { breite: 274, zu: false }, r: { breite: 330, zu: false } };
+
+  function leistenLaden() {
+    try {
+      const j = JSON.parse(localStorage.getItem("triarge.leisten") || "null");
+      if (j && j.l && j.r) {
+        for (const s of ["l", "r"]) {
+          leisten[s] = {
+            breite: Math.max(LEISTE_MIN, Math.min(LEISTE_MAX, +j[s].breite || LEISTEN[s].standard)),
+            zu: !!j[s].zu,
+          };
+        }
+      }
+    } catch (e) { /* kein gespeicherter Zustand */ }
+  }
+
+  function leistenSpeichern() {
+    try { localStorage.setItem("triarge.leisten", JSON.stringify(leisten)); } catch (e) { /* egal */ }
+  }
+
+  function leisteAnwenden(seite) {
+    const cfg = LEISTEN[seite], z = leisten[seite];
+    const rail = $(cfg.rail), griff = $(cfg.griff);
+    rail.classList.toggle("zu", z.zu);
+    griff.classList.toggle("gesperrt", z.zu);
+    $("app").style.setProperty(cfg.eigenschaft, (z.zu ? LEISTE_ZU : z.breite) + "px");
+    const btn = rail.querySelector(".rail-btn");
+    const einwaerts = seite === "l" ? "‹" : "›";
+    const auswaerts = seite === "l" ? "›" : "‹";
+    btn.textContent = z.zu ? auswaerts : einwaerts;
+    btn.title = z.zu ? "Leiste ausklappen" : "Leiste einklappen";
+    rail.setAttribute("aria-expanded", String(!z.zu));
+    // Hinweis: KARTE ist ein `const` auf oberster Ebene und liegt damit nicht
+    // am window-Objekt — hier also nicht über `window.KARTE` prüfen.
+    if (typeof KARTE !== "undefined" && KARTE.karte()) {
+      KARTE.karte().invalidateSize({ animate: false });
+    }
+  }
+
+  function leisteUmschalten(seite) {
+    leisten[seite].zu = !leisten[seite].zu;
+    leisteAnwenden(seite);
+    leistenSpeichern();
+  }
+
+  function leisteBreite(seite, px) {
+    leisten[seite].breite = Math.max(LEISTE_MIN, Math.min(LEISTE_MAX, Math.round(px)));
+    if (leisten[seite].zu) leisten[seite].zu = false;
+    leisteAnwenden(seite);
+  }
+
+  function leistenVerdrahten() {
+    leistenLaden();
+    for (const seite of ["l", "r"]) {
+      leisteAnwenden(seite);
+      const griff = $(LEISTEN[seite].griff);
+      griff.addEventListener("pointerdown", (e) => {
+        if (leisten[seite].zu || e.button !== 0) return;
+        e.preventDefault();
+        try { griff.setPointerCapture(e.pointerId); } catch (err) { /* ohne Capture weiterziehen */ }
+        griff.classList.add("aktiv");
+        const startX = e.clientX, startBreite = leisten[seite].breite;
+        const ziehen = (ev) => {
+          const d = seite === "l" ? ev.clientX - startX : startX - ev.clientX;
+          leisteBreite(seite, startBreite + d);
+        };
+        const loslassen = () => {
+          griff.classList.remove("aktiv");
+          griff.removeEventListener("pointermove", ziehen);
+          griff.removeEventListener("pointerup", loslassen);
+          griff.removeEventListener("pointercancel", loslassen);
+          leistenSpeichern();
+        };
+        griff.addEventListener("pointermove", ziehen);
+        griff.addEventListener("pointerup", loslassen);
+        griff.addEventListener("pointercancel", loslassen);
+      });
+      griff.addEventListener("dblclick", () => leisteUmschalten(seite));
+    }
+    for (const btn of document.querySelectorAll(".rail-btn")) {
+      btn.onclick = () => leisteUmschalten(btn.dataset.rail);
+    }
+  }
+
   /* ------------------------------------------------------------------ Start */
 
   function start() {
@@ -28,6 +121,7 @@
     filterAufbauen();
     legendeAufbauen();
     bedienungVerdrahten();
+    leistenVerdrahten();
 
     TR.on("patienten", () => {
       kennzahlen();
@@ -308,7 +402,9 @@
         <span class="k">abtransportiert</span><span class="v">${kz.transportiert}</span>
       </div>
       <p class="hinweis">Tasten: <b>Leertaste</b> Pause · <b>1–4</b> Tempo · <b>M</b> Messen ·
-         <b>G</b> Raster · <b>Esc</b> Auswahl aufheben</p>
+         <b>G</b> Raster · <b>[</b> / <b>]</b> Seitenleisten · <b>Esc</b> Auswahl aufheben</p>
+      <p class="hinweis">Die Seitenleisten lassen sich am Trennsteg breiter ziehen; ein Doppelklick
+         darauf oder die Schaltfläche in der Leistenüberschrift klappt sie ganz ein.</p>
     </div>`;
   }
 
@@ -837,7 +933,9 @@
         S.ebenen.raster = !S.ebenen.raster;
         ebenenAufbauen();
         KARTE.ebenenAnwenden();
-      } else if (e.key === "Escape") {
+      } else if (e.key === "[") leisteUmschalten("l");
+      else if (e.key === "]") leisteUmschalten("r");
+      else if (e.key === "Escape") {
         KARTE.messenUmschalten(false);
         werkzeugeZeichnen();
         TR.auswaehlen(null);

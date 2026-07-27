@@ -197,7 +197,7 @@ const TR = (function () {
     ereignisse: [],
     warnungen: [],
     transporte: [],
-    raster: { spalten: 8, zeilen: 6 },
+    raster: { spalten: 10, zeilen: 8 },   // ~139 x 120 m je Feld im vergrößerten Einsatzraum
     bbox: null,
     auswahl: null,         // {typ, id}
     filter: { text: "", kats: new Set(), nurOffen: false, zelle: null },

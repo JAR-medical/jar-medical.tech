@@ -7,7 +7,7 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds: MANV-Übungslage in Neubiberg auf echter OpenStreetMap-Karte — Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=5">
 </head>
 <body>
 
@@ -39,7 +39,12 @@
 
   <div class="kpibar" id="kpibar"></div>
 
-  <aside class="rail rail-l">
+  <aside class="rail rail-l" id="rail-l">
+    <div class="rail-kopf">
+      <button class="rail-btn" data-rail="l" type="button" title="Leiste einklappen">‹</button>
+      <span class="rail-titel">Lage &amp; Steuerung</span>
+    </div>
+    <div class="rail-inhalt">
 
     <section class="blk">
       <h2>Lage</h2>
@@ -63,8 +68,8 @@
       <h2>Einsatzraster</h2>
       <div class="zeile">
         <label class="lbl">Raster</label>
-        <input id="raster-spalten" class="num" type="number" min="2" max="26" value="8"> ×
-        <input id="raster-zeilen" class="num" type="number" min="2" max="40" value="6">
+        <input id="raster-spalten" class="num" type="number" min="2" max="26" value="10"> ×
+        <input id="raster-zeilen" class="num" type="number" min="2" max="40" value="8">
         <span class="hinweis" id="zellgroesse"></span>
       </div>
       <div class="zeile">
@@ -100,7 +105,10 @@
       <div id="mittel-liste" class="liste"></div>
     </section>
 
+    </div>
   </aside>
+
+  <div class="griff" id="griff-l" data-rail="l" title="Breite ziehen · Doppelklick klappt die Leiste ein"></div>
 
   <div class="mapwrap" id="karte">
     <div id="map"></div>
@@ -127,7 +135,14 @@
     <div class="map-status"><span id="koord">—</span></div>
   </div>
 
-  <aside class="rail rail-r">
+  <div class="griff" id="griff-r" data-rail="r" title="Breite ziehen · Doppelklick klappt die Leiste ein"></div>
+
+  <aside class="rail rail-r" id="rail-r">
+    <div class="rail-kopf">
+      <span class="rail-titel">Auswahl &amp; Meldungen</span>
+      <button class="rail-btn" data-rail="r" type="button" title="Leiste einklappen">›</button>
+    </div>
+    <div class="rail-inhalt">
 
     <section class="blk wachsend">
       <h2>Auswahl</h2>
@@ -144,6 +159,7 @@
       <div id="funk-liste" class="funk"></div>
     </section>
 
+    </div>
   </aside>
 
   <section class="dock">
@@ -163,10 +179,10 @@
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=4"></script>
-<script src="./scenario.js?v=4"></script>
-<script src="./engine.js?v=4"></script>
-<script src="./map.js?v=4"></script>
-<script src="./ui.js?v=4"></script>
+<script src="./data/neubiberg.js?v=5"></script>
+<script src="./scenario.js?v=5"></script>
+<script src="./engine.js?v=5"></script>
+<script src="./map.js?v=5"></script>
+<script src="./ui.js?v=5"></script>
 </body>
 </html>

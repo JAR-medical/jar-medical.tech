@@ -73,20 +73,36 @@ h2, h3, h4 { margin: 0; font-weight: 600; }
 
 /* -------------------------------------------------------------- Grundraster */
 
+/* Die Breite der beiden Seitenleisten steckt in Custom Properties, damit sie
+ * per Ziehgriff verstellt und eingeklappt werden kann, ohne dass die Regel
+ * selbst überschrieben wird — sonst griffen die Regeln für kleine Fenster nicht
+ * mehr. */
 #app {
   display: grid;
   height: calc(100vh - 30px);
-  grid-template-columns: 274px minmax(0, 1fr) 330px;
+  grid-template-columns: var(--rail-l, 274px) 5px minmax(0, 1fr) 5px var(--rail-r, 330px);
   grid-template-rows: 30px 28px minmax(0, 1fr) 208px;
   background: var(--linie);
   gap: 1px;
 }
-.topbar { grid-column: 1 / 4; grid-row: 1; }
-.kpibar { grid-column: 1 / 4; grid-row: 2; }
+.topbar  { grid-column: 1 / 6; grid-row: 1; }
+.kpibar  { grid-column: 1 / 6; grid-row: 2; }
 .rail-l  { grid-column: 1; grid-row: 3 / 5; }
-.mapwrap { grid-column: 2; grid-row: 3; }
-.rail-r  { grid-column: 3; grid-row: 3 / 5; }
-.dock    { grid-column: 2; grid-row: 4; }
+#griff-l { grid-column: 2; grid-row: 3 / 5; }
+.mapwrap { grid-column: 3; grid-row: 3; }
+.dock    { grid-column: 3; grid-row: 4; }
+#griff-r { grid-column: 4; grid-row: 3 / 5; }
+.rail-r  { grid-column: 5; grid-row: 3 / 5; }
+
+.griff { background: var(--flaeche-2); cursor: col-resize; position: relative; touch-action: none; }
+.griff::after {
+  content: ""; position: absolute; left: 1px; right: 1px; top: 50%;
+  height: 28px; margin-top: -14px; background: var(--linie);
+}
+.griff:hover, .griff.aktiv { background: var(--akzent); }
+.griff:hover::after, .griff.aktiv::after { background: rgba(255, 255, 255, .75); }
+.rail.zu + .griff, .griff.gesperrt { cursor: default; background: var(--flaeche-2); }
+.rail.zu + .griff::after { display: none; }
 
 /* ----------------------------------------------------------------- Kopf */
 
@@ -143,9 +159,41 @@ h2, h3, h4 { margin: 0; font-weight: 600; }
 /* -------------------------------------------------------------- Seitenleisten */
 
 .rail {
-  background: var(--flaeche); overflow-y: auto; overflow-x: hidden;
+  background: var(--flaeche); overflow: hidden;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.rail-kopf {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; background: var(--flaeche-2); border-bottom: 1px solid var(--linie);
+}
+.rail-titel {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--tinte-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rail-r .rail-titel { margin-right: auto; }
+.rail-l .rail-titel { margin-left: 0; }
+.rail-btn {
+  flex: 0 0 auto; width: 18px; height: 18px; padding: 0; line-height: 1;
+  border: 1px solid var(--linie); background: var(--flaeche); color: var(--tinte-2);
+}
+.rail-btn:hover { background: var(--flaeche-3); color: var(--tinte); }
+.rail-inhalt {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
   display: flex; flex-direction: column;
 }
+
+/* Eingeklappt: nur noch ein schmaler Streifen mit senkrechter Beschriftung. */
+.rail.zu .rail-inhalt { display: none; }
+.rail.zu .rail-kopf {
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  height: 100%; gap: 10px; padding: 5px 2px; border-bottom: 0;
+  border-right: 1px solid var(--linie);
+}
+.rail-r.zu .rail-kopf { border-right: 0; border-left: 1px solid var(--linie); }
+.rail.zu .rail-titel { writing-mode: vertical-rl; margin: 0; max-height: calc(100% - 32px); }
+/* Schaltfläche in beiden Leisten oben: links steht sie im Quelltext vorn,
+ * rechts hinten — deshalb dort die umgekehrte Richtung. */
+.rail-r.zu .rail-kopf { flex-direction: column-reverse; justify-content: flex-end; }
 .blk { border-bottom: 1px solid var(--linie); padding: 7px 9px 9px; }
 .blk.wachsend { flex: 1 1 auto; min-height: 140px; overflow-y: auto; }
 .blk h2 {
@@ -522,7 +570,6 @@ input[type="range"] { flex: 1; min-width: 90px; }
 /* ------------------------------------------------------------- Kleine Fenster */
 
 @media (max-width: 1400px) {
-  #app { grid-template-columns: 250px minmax(0, 1fr) 302px; }
   .map-legende { max-width: 300px; }
 }
 @media (min-width: 1101px) and (max-height: 840px) {
@@ -542,6 +589,16 @@ input[type="range"] { flex: 1; min-width: 90px; }
   .dock { grid-column: 1; grid-row: 4; height: 320px; }
   .rail-l { grid-column: 1; grid-row: 5; }
   .rail-r { grid-column: 1; grid-row: 6; }
+  .griff { display: none; }
+  /* Auf schmalen Fenstern stehen die Leisten untereinander; eingeklappt
+     werden sie dann flach statt schmal. */
+  .rail { max-height: 60vh; }
+  .rail.zu { max-height: none; }
+  .rail.zu .rail-kopf, .rail-r.zu .rail-kopf {
+    flex-direction: row; height: auto; border: 0; border-bottom: 1px solid var(--linie);
+    padding: 4px 6px; gap: 6px; justify-content: flex-start;
+  }
+  .rail.zu .rail-titel { writing-mode: horizontal-tb; max-height: none; }
   .map-legende { display: none; }
   html, body { height: auto; }
 }
