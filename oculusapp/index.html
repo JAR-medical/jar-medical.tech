@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#101418">
+  <title>J.A.R. AR-Client — Sichtung im Blickfeld</title>
+  <link rel="stylesheet" href="css/hud.css">
+  <!-- QR decode fallback (UMD, exposes window.jsQR); native BarcodeDetector used when present -->
+  <script src="vendor/jsQR.min.js" defer></script>
+</head>
+<body>
+
+  <!-- ============================ LANDING ============================ -->
+  <main id="start" class="screen">
+    <header class="brand">
+      <span class="logo">J.A.R.</span>
+      <span class="brand-tag">AR-Client · Sichtung im Blickfeld</span>
+    </header>
+
+    <p class="lede">
+      Der Sanitäter-Teil von <strong>TriARge</strong>: Marker scannen → Patientendaten
+      als HUD im Kamera-Durchblick der Quest → Befunde per Sprache dokumentieren.
+    </p>
+
+    <section class="modes">
+      <button id="mode-ar" class="mode" disabled>
+        <span class="mode-title">AR-Modus</span>
+        <span class="mode-note">wird geprüft …</span>
+      </button>
+      <button id="mode-cam" class="mode">
+        <span class="mode-title">Kamera-Modus</span>
+        <span class="mode-note">Live-QR über die Gerätekamera</span>
+      </button>
+      <button id="mode-sim" class="mode">
+        <span class="mode-title">Simulation</span>
+        <span class="mode-note">ohne Kamera — Marker antippen</span>
+      </button>
+    </section>
+
+    <section class="caps-wrap">
+      <h2>Gerät</h2>
+      <ul id="caps" class="caps"></ul>
+      <p class="hint">
+        Auf der <strong>Quest 2</strong> stehen die Passthrough-Kameras keiner App zur
+        Verfügung (Kamera-Zugriff gibt es erst ab Quest 3). Im AR-Modus wird der Patient
+        deshalb per <strong>Sprache</strong> oder <strong>Controller</strong> gewählt — die
+        gedruckten QR-Marker (siehe <code>assets/markers/</code>) nennen die Patientennummer.
+        Echtes QR-Scannen läuft im Kamera-Modus (Handy/Laptop).
+      </p>
+    </section>
+  </main>
+
+  <!-- ============================= STAGE ============================= -->
+  <section id="stage" class="screen hidden">
+    <!-- camera background (Kamera-Modus); transparent/hidden in AR + Sim -->
+    <video id="camera-bg" class="camera-bg hidden" playsinline muted></video>
+    <canvas id="scan-canvas" class="offscreen"></canvas>
+
+    <!-- HUD overlay: this element is handed to WebXR as the dom-overlay root -->
+    <div id="hud-overlay" class="hud-overlay scanning">
+
+      <div class="topbar">
+        <span id="mode-label" class="mode-label">—</span>
+        <span id="voice-status" class="voice-status">Mikrofon aus</span>
+      </div>
+
+      <!-- scanning reticle, shown while no patient is loaded -->
+      <div id="reticle" class="reticle" aria-hidden="true">
+        <div class="reticle-box"></div>
+        <span class="reticle-hint">Marker scannen · Patient wählen · „Patient sieben"</span>
+      </div>
+
+      <!-- the patient panel is injected here -->
+      <div id="hud" class="hud"></div>
+
+      <!-- controls -->
+      <div class="controls">
+        <div id="ctl-cats" class="cats">
+          <button data-cat="SK1" class="cat-btn b-SK1">Rot</button>
+          <button data-cat="SK2" class="cat-btn b-SK2">Gelb</button>
+          <button data-cat="SK3" class="cat-btn b-SK3">Grün</button>
+          <button data-cat="SK4" class="cat-btn b-SK4">Blau</button>
+          <button data-cat="DECEASED" class="cat-btn b-DECEASED">Schwarz</button>
+        </div>
+
+        <div class="actions">
+          <button id="ctl-speak" class="act">Vorlesen</button>
+          <button id="mic-btn" class="act mic">Mikro</button>
+          <button id="ctl-rescan" class="act">Neuer Marker</button>
+          <button id="ctl-exit" class="act exit">Beenden</button>
+        </div>
+
+        <div class="picker-wrap">
+          <span class="picker-label">Marker</span>
+          <div id="picker" class="picker"></div>
+        </div>
+
+        <form id="cmd-form" class="cmd-form" autocomplete="off">
+          <input id="cmd-input" class="cmd-input" type="text"
+                 placeholder="Textbefehl: z. B. „Maßnahme Tourniquet", „gelb", „7", „Hilfe"">
+          <button class="cmd-send" type="submit">↵</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </section>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
