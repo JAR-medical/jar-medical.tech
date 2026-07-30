@@ -70,15 +70,29 @@ export class XRPassthrough {
     // beforehand can consume it and make requestSession reject.
     let session;
     try {
+      // dom-overlay is OPTIONAL, not required: some headset browsers (e.g. on
+      // PICO) support immersive-ar but not dom-overlay. Marking it required makes
+      // requestSession reject with "session configuration not supported"; as an
+      // optional feature the session still starts and we detect below whether the
+      // HUD can actually be drawn.
       session = await navigator.xr.requestSession("immersive-ar", {
-        requiredFeatures: ["dom-overlay"],
-        optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
+        optionalFeatures: ["dom-overlay", "local-floor", "bounded-floor", "hand-tracking"],
         domOverlay: { root: this.overlayRoot },
       });
     } catch (err) {
       const name = err && err.name ? err.name + ": " : "";
       const msg = err && err.message ? err.message : "immersive-ar konnte nicht gestartet werden";
       throw new Error("AR-Sitzung abgelehnt — " + name + msg);
+    }
+
+    // The HTML HUD only appears in the headset if dom-overlay is actually active.
+    // Where it isn't, passthrough would show with no data — end cleanly and say so.
+    if (!(session.domOverlayState && session.domOverlayState.type)) {
+      try { await session.end(); } catch (_) {}
+      throw new Error(
+        "Dieser Browser unterstützt AR, aber kein „dom-overlay“ — das HUD kann " +
+        "nicht eingeblendet werden. Für die PICO die native App nutzen (README-PICO)."
+      );
     }
 
     // Context was created with xrCompatible:true; ensure it before the GL layer.
