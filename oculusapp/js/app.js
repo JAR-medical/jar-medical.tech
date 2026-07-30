@@ -134,11 +134,15 @@ function render() {
   if (app.markerId == null) {
     el.hud.innerHTML = "";
     el.hudOverlay.classList.add("scanning");
+    if (app.xr && app.xr.active)
+      app.xr.setState({ kind: "scanning", hint: "Patient wählen — Sprache, Controller oder Antippen" });
     return;
   }
   const p = resolvePatient(app.markerId);
   el.hud.innerHTML = p ? patientHUD(p) : unknownHUD(app.markerId);
   el.hudOverlay.classList.remove("scanning");
+  if (app.xr && app.xr.active)
+    app.xr.setState(p ? { kind: "patient", patient: p } : { kind: "unknown", markerId: app.markerId });
   highlightPicker();
 }
 
@@ -235,7 +239,6 @@ async function startAR() {
   showStage("AR-Modus — Passthrough");
   el.cameraBg.classList.add("hidden");
   app.xr = new XRPassthrough({
-    overlayRoot: el.hudOverlay,
     onStart: () => { toast("Passthrough aktiv — Patient per Sprache/Controller wählen"); rescan(); },
     onEnd: () => { app.xr = null; backToStart(); },
     onSelect: () => { if (app.markerId != null) app.voice.speak(spokenSummary(resolvePatient(app.markerId))); },
