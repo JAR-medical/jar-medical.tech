@@ -52,24 +52,37 @@ export class XRPassthrough {
 
   async start() {
     if (this.session) return;
-    if (!(await passthroughSupported())) {
-      throw new Error("Passthrough-AR wird auf diesem Gerät/Browser nicht unterstützt.");
+    if (typeof navigator === "undefined" || !navigator.xr) {
+      throw new Error("WebXR steht in diesem Browser nicht zur Verfügung.");
     }
 
+    // Create the GL context synchronously (no await) so the button tap's user
+    // activation is still live when we call requestSession below.
     const canvas = document.createElement("canvas");
     const gl = canvas.getContext("webgl", {
       xrCompatible: true, alpha: true, antialias: false, depth: false, stencil: false,
       preserveDrawingBuffer: false,
     });
     if (!gl) throw new Error("WebGL für die AR-Ebene nicht verfügbar.");
+
+    // Request the session FIRST. The Quest Browser requires transient user
+    // activation for immersive-ar; awaiting isSessionSupported()/makeXRCompatible()
+    // beforehand can consume it and make requestSession reject.
+    let session;
+    try {
+      session = await navigator.xr.requestSession("immersive-ar", {
+        requiredFeatures: ["dom-overlay"],
+        optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
+        domOverlay: { root: this.overlayRoot },
+      });
+    } catch (err) {
+      const name = err && err.name ? err.name + ": " : "";
+      const msg = err && err.message ? err.message : "immersive-ar konnte nicht gestartet werden";
+      throw new Error("AR-Sitzung abgelehnt — " + name + msg);
+    }
+
+    // Context was created with xrCompatible:true; ensure it before the GL layer.
     await gl.makeXRCompatible();
-
-    const session = await navigator.xr.requestSession("immersive-ar", {
-      requiredFeatures: ["dom-overlay"],
-      optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
-      domOverlay: { root: this.overlayRoot },
-    });
-
     session.updateRenderState({
       baseLayer: new XRWebGLLayer(session, gl, { alpha: true }),
     });
