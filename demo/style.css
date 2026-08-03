@@ -717,20 +717,27 @@ input[type="range"] { flex: 1; min-width: 90px; }
 @media (max-width: 620px) {
   html, body { height: auto; overflow: auto; }
   body { -webkit-text-size-adjust: 100%; }
+  /* Die Karte bekommt keine feste Höhe, sondern den Rest des Bildschirms:
+   * so kostet eine zweizeilige Kopfleiste oder ein aufgezogener unterer
+   * Bereich nur genau so viel Karte, wie er wirklich braucht. */
   #app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 62vh auto auto auto;
-    /* dvh: die Kartenhöhe wackelt nicht mit ein- und ausfahrender Adressleiste */
-    grid-template-rows: auto 62dvh auto auto auto;
+    grid-template-rows: auto minmax(220px, 1fr) auto auto auto;
     height: auto;
+    min-height: 100vh;
+    /* dvh: die Höhe wackelt nicht mit ein- und ausfahrender Adressleiste */
+    min-height: 100dvh;
   }
   .topbar { grid-column: 1; grid-row: 1; flex-wrap: wrap; height: auto; padding: 4px 8px; gap: 5px; }
   .mapwrap { grid-column: 1; grid-row: 2; }
-  .dock { grid-column: 1; grid-row: 3; height: 300px; }
+  /* Höhe kommt wie am Rechner aus --dock-h - sonst greifen Ziehsteg,
+   * Einklappen und „volle Höhe“ auf dem Telefon ins Leere. */
+  .dock { grid-column: 1; grid-row: 3; height: var(--dock-h, 208px); max-height: 70dvh; }
+  .dock.zu { height: auto; max-height: none; }
   .rail-l { grid-column: 1; grid-row: 4; }
   .rail-r { grid-column: 1; grid-row: 5; }
   .griff { display: none; }
-  .rail { max-height: 62vh; }
+  .rail { max-height: 62vh; max-height: 62dvh; }
   .rail.zu { max-height: none; }
   .rail.zu .rail-kopf, .rail-r.zu .rail-kopf {
     flex-direction: row; height: auto; border: 0; border-bottom: 1px solid var(--linie);
@@ -741,7 +748,8 @@ input[type="range"] { flex: 1; min-width: 90px; }
 
   /* Kopfzeile: der Einsatzname steht schon in der Auswahlliste daneben. */
   .tb-titel, .tb-sep { display: none; }
-  .tb-sel { flex: 1 1 150px; max-width: none; min-width: 0; }
+  /* Beide Auswahllisten teilen sich die erste Zeile. */
+  .tb-sel { flex: 1 1 calc(50% - 5px); max-width: none; min-width: 0; }
   .tb-spacer { display: none; }
 
   /* Kartenaufsätze: Breite nach Inhalt, aber nie bis unter die
@@ -762,6 +770,12 @@ input[type="range"] { flex: 1; min-width: 90px; }
   .dock-tabs::-webkit-scrollbar { display: none; }
   .dock-tabs .dtab { flex: 0 0 auto; }
   .dock-inhalt { -webkit-overflow-scrolling: touch; }
+  /* Die Tabellen sind breiter als das Telefon und werden seitlich geschoben -
+     enger gesetzt braucht es dafür deutlich weniger Wege. */
+  .tab th, .tab td { padding-left: 5px; padding-right: 5px; }
+  .tab td.lang { min-width: 150px; }
+  .dock-zwei { grid-template-columns: minmax(0, 1fr); }
+  .dock-zwei > div { border-right: 0; border-bottom: 1px solid var(--linie); }
 }
 
 /* Gesperrte Bedienelemente deutlich als gesperrt zeigen. */

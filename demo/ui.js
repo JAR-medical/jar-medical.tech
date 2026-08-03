@@ -1163,7 +1163,11 @@
   }
 
   function dockMax() {
-    return Math.max(DOCK_MIN, $("app").getBoundingClientRect().height - 190);
+    // Auf dem Telefon steht das Raster untereinander und ist höher als der
+    // Bildschirm; als Rahmen zählt dann das Fenster, sonst zöge „volle Höhe“
+    // den Bereich weit aus dem Bild.
+    const rahmen = Math.min($("app").getBoundingClientRect().height, window.innerHeight);
+    return Math.max(DOCK_MIN, rahmen - 190);
   }
 
   function dockAnwenden() {
