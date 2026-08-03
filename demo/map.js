@@ -1,4 +1,4 @@
-/* TriARge — Kartendarstellung (Leaflet + OpenStreetMap).
+/* TriARge - Kartendarstellung (Leaflet + OpenStreetMap).
  *
  * Die Karte ist das Hauptelement des Lagebilds: echte Kartengrundlage von
  * Neubiberg, darüber das Einsatzraster, die Einsatzabschnitte, die Gefahrenlage
@@ -48,13 +48,13 @@ const KARTE = (function () {
 
       /* Stufenloses Zoomen statt fester Zoomstufen.
        *
-       * `zoomSnap: 0` erlaubt jede Zwischenstufe — mit der Voreinstellung 1
+       * `zoomSnap: 0` erlaubt jede Zwischenstufe - mit der Voreinstellung 1
        * rastet jede Zoomänderung auf ganze Stufen ein, der Ausschnitt springt
        * also in Sprüngen von Faktor 2.
        *
        * `zoomAnimation: false` schaltet Leaflets Zoom-Trickbild ab: dabei wird
        * die gesamte Kartenebene per CSS vergrößert und erst am Ende neu
-       * gezeichnet — währenddessen wachsen und wandern alle Symbole sichtbar
+       * gezeichnet - währenddessen wachsen und wandern alle Symbole sichtbar
        * und rasten danach wieder ein. Ohne diese Animation wird jede
        * Zoomänderung sofort und maßstabsgetreu gezeichnet; die weichen
        * Übergänge übernehmen die Zoomfahrten weiter unten Bild für Bild. */
@@ -66,14 +66,14 @@ const KARTE = (function () {
     /* Flächen und Linien beim Zoomen neu projizieren statt sie zu skalieren.
      *
      * Leaflet zeichnet Kreise, Polygone und Linien in einen SVG-Container und
-     * legt beim Zoomen zunächst nur eine CSS-Vergrößerung darauf — das
+     * legt beim Zoomen zunächst nur eine CSS-Vergrößerung darauf - das
      * Trickbild seiner Zoomanimation. Erst zum Abschluss (`zoomend`) wird
      * wirklich neu gerechnet. Symbole sind davon nicht betroffen, die setzen
      * sich bei jedem `zoom` selbst neu.
      *
      * Beim stufenlosen Zoomen entstehen aber laufend Zwischenzustände. Solange
      * der Abschluss aussteht, steht der Container vergrößert da und alles
-     * Gezeichnete — Fahrwege der Trupps, Gefahrenbereiche, Abschnittskreise —
+     * Gezeichnete - Fahrwege der Trupps, Gefahrenbereiche, Abschnittskreise -
      * schwimmt sichtbar neben der Karte her. Gemessen: nach zwei Zwischen-
      * schritten ohne Abschluss lagen die Kreise 52 und 158 px neben ihrer
      * Koordinate.
@@ -141,7 +141,7 @@ const KARTE = (function () {
         basisSetzen("leer");
         const sel = document.getElementById("basiskarte");
         if (sel) sel.value = "leer";
-        TR.ereignis("system", "Keine Kartenkacheln erreichbar — Anzeige auf mitgeliefertes Wegenetz umgestellt");
+        TR.ereignis("system", "Keine Kartenkacheln erreichbar - Anzeige auf mitgeliefertes Wegenetz umgestellt");
       }
     }, 7000);
 
@@ -190,7 +190,7 @@ const KARTE = (function () {
       abschnitteZeichnen();
       gefahrenZeichnen();
     });
-    /* Lagewechsel: anderes Gebiet, anderes Raster, anderes Wegenetz — alle
+    /* Lagewechsel: anderes Gebiet, anderes Raster, anderes Wegenetz - alle
      * Ebenen werden neu gezeichnet und der Ausschnitt neu gesetzt. */
     TR.on("szenario", () => {
       messZuruecksetzen();
@@ -213,11 +213,11 @@ const KARTE = (function () {
    * auf einem Bildschirm, unter denen die Lage verschwindet. Deshalb bekommt
    * jedes Objekt einen Rang, und der Rang steuert zweierlei:
    *
-   *   Beschriftung — sie erscheint gestaffelt. Weit draußen trägt gar nichts
+   *   Beschriftung - sie erscheint gestaffelt. Weit draußen trägt gar nichts
    *   Text, dann kommen nacheinander die wichtigen Objekte dazu. Übrig bleibt
    *   auf jeder Stufe ein farbiger Punkt, der die Kategorie weiter trägt.
    *
-   *   Größe — Wichtiges schrumpft langsamer als Nachrangiges. Der Ausschnitt
+   *   Größe - Wichtiges schrumpft langsamer als Nachrangiges. Der Ausschnitt
    *   wird dadurch nicht nur kleiner, sondern sortiert sich: rote Patienten
    *   und kritische Gefahrenstellen bleiben aus der Übersicht heraus lesbar,
    *   Straßensperren und Ortskenntnis treten zurück.
@@ -254,7 +254,7 @@ const KARTE = (function () {
    * Die Flächen liegen ineinander: der Stromausfall (190 m) über dem
    * Gasbereich (100 m) über den Abschnittskreisen (22 bis 48 m) über dem
    * Schadensobjekt. Wer den Klick bekommt, entschied bisher die Zeichen-
-   * reihenfolge — also meist die größte Fläche, und die kleineren waren nicht
+   * reihenfolge - also meist die größte Fläche, und die kleineren waren nicht
    * mehr erreichbar. Stattdessen wird jetzt zentral entschieden: unter allen
    * getroffenen Flächen gewinnt die kleinste.
    *
@@ -288,7 +288,7 @@ const KARTE = (function () {
     }
     if (best) return { typ: best.typ, id: best.id };
     const zelle = TR.zelle(ll);
-    return zelle === "—" ? null : { typ: "zelle", id: zelle };
+    return zelle === "-" ? null : { typ: "zelle", id: zelle };
   }
 
   // Rang eines Einsatzmittels: wer einen Patienten trägt, rückt eine Stufe auf.
@@ -311,7 +311,7 @@ const KARTE = (function () {
   }
 
   /* Auf Telefonbreite ist der gesamte Einsatzraum nur ein Gedränge aus
-   * Symbolen. Dort beginnt die Karte an der Schadensstelle — der Überblick
+   * Symbolen. Dort beginnt die Karte an der Schadensstelle - der Überblick
    * ist eine Schaltfläche entfernt. */
   function startAusschnitt(animate) {
     const b = S.bbox;
@@ -383,7 +383,7 @@ const KARTE = (function () {
   /* Der Ankerpunkt einer Radgeste wird einmal bestimmt und für alle weiteren
    * Schritte behalten. Würde er bei jedem Schritt neu aus dem aktuellen
    * Kartenzustand gelesen, summierte sich die Pixelrundung, die Leaflet bei
-   * jedem Ausschnittwechsel vornimmt — die Karte kröche unter dem Zeiger weg
+   * jedem Ausschnittwechsel vornimmt - die Karte kröche unter dem Zeiger weg
    * (gemessen: rund 10 px über fünf Zoomstufen). */
   function ankerHalten(punkt) {
     const jetzt = performance.now();
@@ -420,7 +420,7 @@ const KARTE = (function () {
     const start = map.getZoom();
     const ziel = zoomGrenzen(zielZoom);
     if (Math.abs(ziel - start) < 1e-3) return map;
-    // Anker einmal für die ganze Fahrt festhalten — aus demselben Grund wie
+    // Anker einmal für die ganze Fahrt festhalten - aus demselben Grund wie
     // bei der Radgeste.
     const anker = punkt ? map.containerPointToLatLng(punkt) : null;
     const t0 = performance.now(), d = dauer || 240;
@@ -530,7 +530,7 @@ const KARTE = (function () {
 
       // Die Beschriftung sitzt am Nordrand des Abschnitts und ist dort
       // geografisch verankert. Ein Pixelversatz aus dem Meter-Radius (früher
-      // r/3) säße auf jeder Zoomstufe woanders — die Beschriftung wanderte
+      // r/3) säße auf jeder Zoomstufe woanders - die Beschriftung wanderte
       // beim Zoomen aus ihrem Abschnitt heraus.
       // Feste Symbolgröße: sonst richtet Leaflet die Beschriftung an ihrer
       // Textbreite aus und sie sitzt nicht mittig über dem Abschnitt.
@@ -582,7 +582,7 @@ const KARTE = (function () {
       if (umriss) {
         L.polygon(umriss, {
           pane: "pFlaeche", color: "#8c1c22", weight: 2, fillColor: "#b0262c", fillOpacity: 0.35,
-        }).bindTooltip(g.umrissText || ("Schadensobjekt — " + g.name), { sticky: true })
+        }).bindTooltip(g.umrissText || ("Schadensobjekt - " + g.name), { sticky: true })
           .addTo(G.gefahren);
         flaecheMerken({ typ: "gefahr", id: g.id, ecken: umriss, flaeche: 1 });
       }
@@ -633,14 +633,14 @@ const KARTE = (function () {
           iconSize: [18, 18], iconAnchor: [9, 9],
         }),
       }).addTo(G.sperren);
-      m.bindTooltip("Straßensperre — " + s.name + " (" + s.von + ")", { direction: "top" });
+      m.bindTooltip("Straßensperre - " + s.name + " (" + s.von + ")", { direction: "top" });
       m.on("click", (e) => { L.DomEvent.stop(e); TR.auswaehlen({ typ: "sperre", id: s.id }); });
     }
     for (const pts of TR.geo().rail || []) {
       const ll = [];
       for (let i = 0; i < pts.length; i += 2) ll.push([pts[i], pts[i + 1]]);
       L.polyline(ll, { pane: "pLinie", color: "#b0262c", weight: 3, dashArray: "10 6", opacity: 0.8 })
-        .bindTooltip("S7 gesperrt — Haltepunkt Neubiberg", { sticky: true })
+        .bindTooltip("S7 gesperrt - Haltepunkt Neubiberg", { sticky: true })
         .addTo(G.sperren);
     }
   }
@@ -664,7 +664,7 @@ const KARTE = (function () {
   /* ------------------------------------------------------------- Patienten */
 
   /* Der sichtbare Körper steckt in einem eigenen Element im Symbolkasten.
-   * Der Kasten behält seine feste Größe — daran hängt der Ankerpunkt —, und
+   * Der Kasten behält seine feste Größe - daran hängt der Ankerpunkt -, und
    * skaliert wird nur der Körper darin, aus seiner Mitte heraus. Würde man den
    * Kasten selbst skalieren, verschöbe sich der Anker und die Symbole wanderten
    * beim Zoomen aus ihrer Lage. */
@@ -722,7 +722,7 @@ const KARTE = (function () {
       v.spo2 != null ? "SpO₂ " + Math.round(v.spo2) + " %" : null,
       v.gcs != null ? "GCS " + Math.round(v.gcs) : null,
     ].filter(Boolean).join(" · ");
-    return "<b>Patient #" + p.id + "</b> — " + TR.KAT[p.kat].label + "<br>" +
+    return "<b>Patient #" + p.id + "</b> - " + TR.KAT[p.kat].label + "<br>" +
       TR.esc(TR.STATUS_TEXT[p.zustand] || p.zustand) + " · Raster " + TR.zelle(p.ll) +
       (vit ? "<br>" + vit : "");
   }
@@ -926,7 +926,7 @@ const KARTE = (function () {
   }
 
   // Beide Ansichten fahren weich: flyTo zeichnet Bild für Bild neu, statt die
-  // Kartenebene zu skalieren — die Symbole bleiben dabei auf ihrer Koordinate.
+  // Kartenebene zu skalieren - die Symbole bleiben dabei auf ihrer Koordinate.
   function gesamtansicht() {
     const b = S.bbox;
     S.verfolgt = null;

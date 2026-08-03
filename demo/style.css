@@ -1,4 +1,4 @@
-/* TriARge — Lagebild Einsatzleitung.
+/* TriARge - Lagebild Einsatzleitung.
  * Bewusst nüchtern gehalten: helle Oberfläche, dünne Trennlinien, dichte
  * Tabellen, Zahlen in Tabellenziffern. Farbe wird nur dort eingesetzt, wo sie
  * Bedeutung trägt (Sichtungskategorien, Gefahrenstufen, Status).
@@ -32,7 +32,7 @@
 
 * { box-sizing: border-box; }
 
-/* Die Seite selbst scrollt nie — gescrollt wird nur innerhalb der Panels.
+/* Die Seite selbst scrollt nie - gescrollt wird nur innerhalb der Panels.
  * Auf iPadOS verhindert das zusätzlich das Mitziehen der ganzen Seite. */
 html, body {
   margin: 0; padding: 0; height: 100%;
@@ -66,7 +66,7 @@ h2, h3, h4 { margin: 0; font-weight: 600; }
 
 /* Die Breite der beiden Seitenleisten steckt in Custom Properties, damit sie
  * per Ziehgriff verstellt und eingeklappt werden kann, ohne dass die Regel
- * selbst überschrieben wird — sonst griffen die Regeln für kleine Fenster nicht
+ * selbst überschrieben wird - sonst griffen die Regeln für kleine Fenster nicht
  * mehr. */
 #app {
   display: grid;
@@ -179,7 +179,7 @@ h2, h3, h4 { margin: 0; font-weight: 600; }
 .rail-r.zu .rail-kopf { border-right: 0; border-left: 1px solid var(--linie); }
 .rail.zu .rail-titel { writing-mode: vertical-rl; margin: 0; max-height: calc(100% - 32px); }
 /* Schaltfläche in beiden Leisten oben: links steht sie im Quelltext vorn,
- * rechts hinten — deshalb dort die umgekehrte Richtung. */
+ * rechts hinten - deshalb dort die umgekehrte Richtung. */
 .rail-r.zu .rail-kopf { flex-direction: column-reverse; justify-content: flex-end; }
 .blk { border-bottom: 1px solid var(--linie); padding: 7px 9px 9px; }
 .blk.wachsend { flex: 1 1 auto; min-height: 140px; overflow-y: auto; }
@@ -382,7 +382,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
  * Symbole beim Zoomen aus ihrer Lage. Drehungen und Zusatzelemente gehören
  * deshalb in innere Elemente bzw. in Pseudoelemente. */
 /* Der Symbolkasten bleibt in fester Größe stehen (daran hängt der Anker),
- * skaliert wird nur der Körper darin — aus seiner Mitte, damit das Symbol
+ * skaliert wird nur der Körper darin - aus seiner Mitte, damit das Symbol
  * über seiner Koordinate stehen bleibt. Der Maßstab kommt je Rang aus
  * --s1 … --s4, die map.js beim Zoomen setzt. */
 .mk {
@@ -561,7 +561,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
 /* -------------------------------------------------------------------- Funk */
 
 .funk { max-height: var(--funk-h, 280px); overflow-y: auto; }
-/* Ziehsteg unter einem Panel — zieht dessen Höhe auf. */
+/* Ziehsteg unter einem Panel - zieht dessen Höhe auf. */
 .hoehen-griff {
   height: 7px; margin-top: 4px; background: var(--flaeche-2); cursor: row-resize;
   position: relative; touch-action: none; border: 1px solid var(--linie-2);
@@ -668,7 +668,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
 }
 
 /* --------------------------------------------------------------- Tablet
- * Auf einem iPad bleibt das Spaltenlayout erhalten — gescrollt wird nur in den
+ * Auf einem iPad bleibt das Spaltenlayout erhalten - gescrollt wird nur in den
  * Panels, nie die Seite. Die Leisten starten dort eingeklappt (siehe ui.js),
  * damit die Karte die volle Breite bekommt. */
 @media (max-width: 1200px) {
@@ -696,11 +696,11 @@ input[type="range"] { flex: 1; min-width: 90px; }
   .griff { width: 100%; }
   .dock-griff { height: 9px; }
   .lg-schalter { padding: 5px 8px; }
-  /* Die Ziehstege liegen in eigenen Rasterspalten — auf Touch breiter. */
+  /* Die Ziehstege liegen in eigenen Rasterspalten - auf Touch breiter. */
   #app { grid-template-columns: var(--rail-l, 274px) 10px minmax(0, 1fr) 10px var(--rail-r, 330px); }
 
   /* Kartensymbole sind 14–26 px groß und damit als Fingerziel zu klein. Die
-   * Trefferfläche wächst über ein unsichtbares Feld im inneren Element — am
+   * Trefferfläche wächst über ein unsichtbares Feld im inneren Element - am
    * Symbol selbst dürfen weder `position` noch `transform` gesetzt werden
    * (siehe Hinweis bei .mk), und seine Größe bleibt unverändert. */
   .mk > .mk-korper::after { content: ""; position: absolute; inset: -9px; }
@@ -711,7 +711,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
 /* ------------------------------------------------- Telefon / sehr schmal
  * Erst hier stehen die Bereiche untereinander; dann darf die Seite scrollen.
  * Leitgedanke: die Karte bekommt so viel Höhe wie möglich, der Rahmen darum
- * so wenig wie nötig — und nichts läuft unerreichbar aus dem Bild. Was auf
+ * so wenig wie nötig - und nichts läuft unerreichbar aus dem Bild. Was auf
  * dem Telefon nichts nützt (Koordinatenanzeige, Legende, Ziehgriffe), bleibt
  * weg. */
 @media (max-width: 620px) {

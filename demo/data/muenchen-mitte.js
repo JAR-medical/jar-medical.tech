@@ -1,4 +1,4 @@
-/* Geodaten München — Altstadt und Hauptbahnhofsviertel.
+/* Geodaten München - Altstadt und Hauptbahnhofsviertel.
  *
  * ACHTUNG, Herkunft: anders als data/neubiberg.js ist dies KEIN
  * OpenStreetMap-Auszug. Es ist ein von Hand gesetztes, grobes Achsennetz der
@@ -15,7 +15,7 @@ window.MUC_GEO = {
   quelle: "vereinfachtes Achsennetz (keine OSM-Daten)",
   bbox: [48.13000, 11.55400, 48.15350, 11.59600],
   ways: [
-    // Fußgängerzone Karlsplatz — Marienplatz — Tal — Isartor
+    // Fußgängerzone Karlsplatz - Marienplatz - Tal - Isartor
     ["Neuhauser Straße / Kaufingerstraße", 2,
       [48.13940, 11.56580, 48.13900, 11.56850, 48.13850, 11.57120, 48.13740, 11.57550]],
     ["Tal", 0, [48.13740, 11.57550, 48.13660, 11.57840, 48.13580, 11.58120, 48.13520, 11.58360]],
@@ -44,7 +44,7 @@ window.MUC_GEO = {
     ["Sophienstraße", 1, [48.14260, 11.56480, 48.14320, 11.56800, 48.14400, 11.57180]],
     ["Kaufingertor-Passage", 2, [48.13900, 11.56850, 48.13800, 11.56900, 48.13720, 11.56980]],
     ["Rindermarkt", 2, [48.13740, 11.57550, 48.13640, 11.57420, 48.13560, 11.57300]],
-    ["Odeonsplatz — Hofgarten", 2, [48.14240, 11.57690, 48.14340, 11.57900, 48.14380, 11.58120]],
+    ["Odeonsplatz - Hofgarten", 2, [48.14240, 11.57690, 48.14340, 11.57900, 48.14380, 11.58120]],
     ["Salvatorplatz", 2, [48.14000, 11.57700, 48.14120, 11.57560, 48.14200, 11.57420]],
   ],
   // S-Bahn-Stammstrecke (Trasse stark vereinfacht, unterirdisch)

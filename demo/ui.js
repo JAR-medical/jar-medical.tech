@@ -1,4 +1,4 @@
-/* TriARge — Bedienoberfläche des Lagebilds.
+/* TriARge - Bedienoberfläche des Lagebilds.
  *
  * Alle Panels lesen den Zustand aus engine.js und schreiben über dessen
  * Funktionen zurück. Die Karte (map.js) ist das Hauptelement, die Leisten
@@ -13,7 +13,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = TR.esc;
   // Messwerte werden immer als ganze Zahl angezeigt.
-  const zahl = (v) => (v == null ? "—" : String(Math.round(v)));
+  const zahl = (v) => (v == null ? "-" : String(Math.round(v)));
 
   let dockTab = "patienten";
   let patSort = { spalte: "kat", ab: false };
@@ -68,7 +68,7 @@
     btn.title = z.zu ? "Leiste ausklappen" : "Leiste einklappen";
     rail.setAttribute("aria-expanded", String(!z.zu));
     // Hinweis: KARTE ist ein `const` auf oberster Ebene und liegt damit nicht
-    // am window-Objekt — hier also nicht über `window.KARTE` prüfen.
+    // am window-Objekt - hier also nicht über `window.KARTE` prüfen.
     if (typeof KARTE !== "undefined" && KARTE.karte()) {
       KARTE.karte().invalidateSize({ animate: false });
     }
@@ -194,7 +194,7 @@
     return null;
   }
 
-  // Pfad der Demo selbst — ohne Dateinamen und ohne angehängte Lagenkennung.
+  // Pfad der Demo selbst - ohne Dateinamen und ohne angehängte Lagenkennung.
   function demoBasis() {
     let pfad = location.pathname;
     if (/\.[a-z0-9]+$/i.test(pfad)) pfad = pfad.replace(/[^/]*$/, "");
@@ -220,7 +220,7 @@
     if (location.pathname === ziel && !location.search && !location.hash) return;
     try {
       history[neuerEintrag ? "pushState" : "replaceState"]({ lage: id }, "", ziel);
-    } catch (e) { /* etwa bei file:// — dann bleibt die Adresse, wie sie ist */ }
+    } catch (e) { /* etwa bei file:// - dann bleibt die Adresse, wie sie ist */ }
   }
 
   /* ------------------------------------------------------------------ Start */
@@ -310,7 +310,7 @@
     kennzahlen();
   }
 
-  /* Auswahl der Übungslage. Ein Wechsel baut das gesamte Lagebild neu auf —
+  /* Auswahl der Übungslage. Ein Wechsel baut das gesamte Lagebild neu auf -
    * anderes Gebiet, anderes Raster, andere Einsatzstellen. */
   function lagewahlZeichnen() {
     const aktiv = TR.aktivesSzenario();
@@ -334,7 +334,7 @@
       const p = $("pill-sync");
       p.textContent = "Cloud-Sync aktiv";
       p.className = "pill ok";
-      TR.funken("Fernmelder ELW 2", "Netzabdeckung stabil — Hybrid-Sync aktiv, Lagebild wird repliziert.");
+      TR.funken("Fernmelder ELW 2", "Netzabdeckung stabil - Hybrid-Sync aktiv, Lagebild wird repliziert.");
     }
   }
 
@@ -365,7 +365,7 @@
       ["im Behandlungsplatz", kz.imBHP, ""],
       ["abtransportiert", kz.transportiert, ""],
       ["noch am Schadensort", kz.offen, kz.offen > 6 ? "warn" : ""],
-      ["Ø Sichtungsdauer", kz.sichtSchnitt ? TR.zeit(kz.sichtSchnitt) : "—", ""],
+      ["Ø Sichtungsdauer", kz.sichtSchnitt ? TR.zeit(kz.sichtSchnitt) : "-", ""],
       ["RTW frei", kz.freieRTW + " / " + kz.rtwGesamt, kz.freieRTW === 0 ? "krit" : ""],
       ["offene Warnungen", kz.offeneWarnungen, kz.offeneWarnungen ? "krit" : ""],
     ];
@@ -500,7 +500,7 @@
   // die Lage nennen, die er öffnet.
   function titelSetzen() {
     const sz = TR.aktivesSzenario();
-    document.title = "TriARge — " + (sz ? sz.kurz : "Lagebild Einsatzleitung") + " (Live-Demo)";
+    document.title = "TriARge - " + (sz ? sz.kurz : "Lagebild Einsatzleitung") + " (Live-Demo)";
   }
 
   function demoHinweis() {
@@ -536,7 +536,7 @@
          <span class="lg"><i class="sp"></i>Straßensperre</span>
        </div>`;
 
-    // Standardmäßig eingeklappt — die Legende soll die Karte nicht zustellen.
+    // Standardmäßig eingeklappt - die Legende soll die Karte nicht zustellen.
     let offen = false;
     try { offen = localStorage.getItem("triarge.legende") === "offen"; } catch (e) { /* egal */ }
     const anwenden = () => {
@@ -599,7 +599,7 @@
       ? `<div class="insp-akt"><label class="lbl">Zielklinik</label>
          <select id="klinik-wahl" class="sel-klein">
            <option value="">automatisch (nach Kapazität)</option>
-           ${S.kliniken.map((k) => `<option value="${k.id}"${p.wunschKlinik === k.id ? " selected" : ""}>${esc(k.name)} — ${k.minuten} min, frei ${k.frei[p.kat] ?? 0}</option>`).join("")}
+           ${S.kliniken.map((k) => `<option value="${k.id}"${p.wunschKlinik === k.id ? " selected" : ""}>${esc(k.name)} - ${k.minuten} min, frei ${k.frei[p.kat] ?? 0}</option>`).join("")}
          </select></div>` : "";
 
     return `<div class="insp">
@@ -610,21 +610,21 @@
       <div class="katzeile">${katBtns}</div>
       <div class="dg">
         <span class="k">Zustand</span><span class="v">${esc(TR.STATUS_TEXT[p.zustand] || p.zustand)}</span>
-        <span class="k">Einsatzabschnitt</span><span class="v">${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).name || "") : "—"}</span>
+        <span class="k">Einsatzabschnitt</span><span class="v">${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).name || "") : "-"}</span>
         <span class="k">Rasterfeld</span><span class="v mono">${esc(TR.patientZelle(p))}${p.ll ? "" : " (zuletzt)"}</span>
-        <span class="k">Koordinate</span><span class="v mono">${p.ll ? p.ll[0].toFixed(5) + ", " + p.ll[1].toFixed(5) : "—"}</span>
+        <span class="k">Koordinate</span><span class="v mono">${p.ll ? p.ll[0].toFixed(5) + ", " + p.ll[1].toFixed(5) : "-"}</span>
         <span class="k">Atemfrequenz</span><span class="v">${zahl(v.af)} /min</span>
         <span class="k">Puls</span><span class="v">${zahl(v.puls)} /min</span>
-        <span class="k">SpO₂</span><span class="v${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${v.spo2 != null ? Math.round(v.spo2) + " %" : "—"}</span>
-        <span class="k">Blutdruck</span><span class="v">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") + " mmHg" : "—"}</span>
+        <span class="k">SpO₂</span><span class="v${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${v.spo2 != null ? Math.round(v.spo2) + " %" : "-"}</span>
+        <span class="k">Blutdruck</span><span class="v">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") + " mmHg" : "-"}</span>
         <span class="k">GCS</span><span class="v">${zahl(v.gcs)}</span>
-        <span class="k">Geschlecht / Alter</span><span class="v">${p.sex === "m" ? "männlich" : p.sex === "w" ? "weiblich" : "—"} / ${p.alter != null ? "ca. " + p.alter + " J." : "—"}</span>
+        <span class="k">Geschlecht / Alter</span><span class="v">${p.sex === "m" ? "männlich" : p.sex === "w" ? "weiblich" : "-"} / ${p.alter != null ? "ca. " + p.alter + " J." : "-"}</span>
         <span class="k">gehfähig</span><span class="v">${p.geh ? "ja" : "nein"}</span>
         <span class="k">ansprechbar</span><span class="v">${p.wach ? "ja" : "nein"}</span>
         <span class="k">Atemweg frei</span><span class="v">${p.atemweg ? "ja" : "nein"}</span>
-        <span class="k">Verletzungen</span><span class="v">${(p.verletzt || []).map(esc).join(", ") || "—"}</span>
-        <span class="k">Maßnahmen</span><span class="v">${(p.massnahmen || []).map(esc).join(", ") || "—"}</span>
-        <span class="k">zuletzt gesehen</span><span class="v">${p.gesehen ? esc(p.gesehen.von) + ", " + TR.uhr(p.gesehen.t) : "—"}</span>
+        <span class="k">Verletzungen</span><span class="v">${(p.verletzt || []).map(esc).join(", ") || "-"}</span>
+        <span class="k">Maßnahmen</span><span class="v">${(p.massnahmen || []).map(esc).join(", ") || "-"}</span>
+        <span class="k">zuletzt gesehen</span><span class="v">${p.gesehen ? esc(p.gesehen.von) + ", " + TR.uhr(p.gesehen.t) : "-"}</span>
         <span class="k">letzte Kontrolle</span><span class="v">${TR.zeit(S.simSek - p.letzteKontrolle)} her</span>
         ${klinik ? `<span class="k">Zielklinik</span><span class="v">${esc(klinik)}</span>` : ""}
       </div>
@@ -650,7 +650,7 @@
         <span class="k">Besatzung</span><span class="v">${m.besatzung}</span>
         <span class="k">Position</span><span class="v mono">${m.ll[0].toFixed(5)}, ${m.ll[1].toFixed(5)}</span>
         <span class="k">Rasterfeld</span><span class="v mono">${TR.zelle(m.ll)}</span>
-        <span class="k">Patient an Bord</span><span class="v">${p ? "#" + p.id + " — " + esc(KAT[p.kat].label) : "—"}</span>
+        <span class="k">Patient an Bord</span><span class="v">${p ? "#" + p.id + " - " + esc(KAT[p.kat].label) : "-"}</span>
         <span class="k">zurückgelegt</span><span class="v">${(m.gefahren / 1000).toFixed(2)} km</span>
         <span class="k">letzte Meldung</span><span class="v">${TR.zeit(S.simSek - m.letzterKontakt)} her</span>
       </div>
@@ -675,8 +675,8 @@
         <span class="k">Auftrag</span><span class="v">${esc(a.info)}</span>
         <span class="k">Belegung</span><span class="v">${pats.length}${a.kapazitaet ? " / " + a.kapazitaet + " Plätze" : ""}</span>
         <span class="k">Zusammensetzung</span><span class="v">${Object.keys(zaehl).length
-          ? Object.entries(zaehl).map(([k, n]) => n + "× " + KAT[k].label).join(", ") : "—"}</span>
-        <span class="k">Stammmittel</span><span class="v">${mittel.length ? mittel.map((m) => esc(m.name)).join(", ") : "—"}</span>
+          ? Object.entries(zaehl).map(([k, n]) => n + "× " + KAT[k].label).join(", ") : "-"}</span>
+        <span class="k">Stammmittel</span><span class="v">${mittel.length ? mittel.map((m) => esc(m.name)).join(", ") : "-"}</span>
         <span class="k">Koordinate</span><span class="v mono">${a.ll[0].toFixed(5)}, ${a.ll[1].toFixed(5)}</span>
         <span class="k">Rasterfeld</span><span class="v mono">${TR.zelle(a.ll)}</span>
         <span class="k">Radius</span><span class="v">${a.r} m</span>
@@ -753,7 +753,7 @@
       if (!t) return;
       if (t.dataset.setkat) TR.kategorieSetzen(S.auswahl.id, t.dataset.setkat);
       else if (t.dataset.loeschen) {
-        if (confirm("Patient #" + S.auswahl.id + " löschen? Nur für Fehlerkennungen — das Protokoll wird mit entfernt."))
+        if (confirm("Patient #" + S.auswahl.id + " löschen? Nur für Fehlerkennungen - das Protokoll wird mit entfernt."))
           TR.patientLoeschen(S.auswahl.id);
       } else if (t.dataset.zeigen) {
         const sel = S.auswahl;
@@ -884,15 +884,15 @@
           <td class="mono">#${p.id}</td>
           <td><i class="pkt k-${p.kat}"></i>${esc(KAT[p.kat].label)}</td>
           <td>${esc(TR.STATUS_TEXT[p.zustand] || p.zustand)}</td>
-          <td>${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).kurz || "") : "—"}</td>
+          <td>${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).kurz || "") : "-"}</td>
           <td class="mono${p.ll ? "" : " verlassen"}" title="${p.ll ? "aktuelles Rasterfeld" : "zuletzt bekanntes Rasterfeld vor dem Abtransport"}">${esc(feld)}</td>
           <td class="num">${zahl(v.af)}</td>
           <td class="num">${zahl(v.puls)}</td>
           <td class="num${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${zahl(v.spo2)}</td>
-          <td class="num">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") : "—"}</td>
+          <td class="num">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") : "-"}</td>
           <td class="num">${zahl(v.gcs)}</td>
           <td class="lang">${esc((p.verletzt || []).join(", "))}${(p.massnahmen || []).length ? " · <i>" + esc(p.massnahmen.join(", ")) + "</i>" : ""}</td>
-          <td>${p.gesehen ? esc(p.gesehen.von) + " " + TR.uhr(p.gesehen.t) : "—"}</td>
+          <td>${p.gesehen ? esc(p.gesehen.von) + " " + TR.uhr(p.gesehen.t) : "-"}</td>
         </tr>`;
       }).join("")}</tbody></table>
       ${liste.length ? "" : '<p class="hinweis pad">Keine Patienten entsprechen dem Filter.</p>'}`;
@@ -916,7 +916,7 @@
       ${S.sperren.map((s) => `<tr data-sperre="${s.id}">
         <td class="mono">SPR</td><td><span class="stufe s-1">Sperrung</span></td>
         <td>Straßensperre ${esc(s.name)}</td><td>eingerichtet</td><td>${esc(s.von)}</td>
-        <td class="mono">—</td><td class="mono">${TR.zelle(s.ll)}</td>
+        <td class="mono">-</td><td class="mono">${TR.zelle(s.ll)}</td>
         <td class="lang">Zufahrt nur für Einsatzfahrzeuge, Umleitung ausgeschildert.</td></tr>`).join("")}
       </tbody></table>`;
   }
@@ -925,7 +925,7 @@
     const t = S.transporte;
     return `<div class="dock-zwei">
       <div>
-        <h4>Zielkliniken — gemeldete freie Kapazität</h4>
+        <h4>Zielkliniken - gemeldete freie Kapazität</h4>
         <table class="tab">
           <thead><tr><th>Klinik</th><th>Versorgungsstufe</th><th class="num">km</th><th class="num">min</th>
             <th class="num">SK I</th><th class="num">SK II</th><th class="num">SK III</th>
@@ -936,7 +936,7 @@
             <td class="num${k.frei.SK1 === 0 ? " krit" : ""}">${k.frei.SK1}</td>
             <td class="num">${k.frei.SK2}</td><td class="num">${k.frei.SK3}</td>
             <td class="num">${k.schockraum}</td>
-            <td>${[k.kinder ? "Kindertraumatologie" : null, k.neuro ? "Neurochirurgie" : null].filter(Boolean).join(", ") || "—"}</td>
+            <td>${[k.kinder ? "Kindertraumatologie" : null, k.neuro ? "Neurochirurgie" : null].filter(Boolean).join(", ") || "-"}</td>
             <td class="num">${k.belegt}</td></tr>`).join("")}</tbody>
         </table>
       </div>
@@ -970,7 +970,7 @@
     return `<div class="lagemeldung">
       <div class="lm-akt">
         <button class="btn-klein" id="lm-kopieren" type="button">In Zwischenablage kopieren</button>
-        <span class="hinweis">Automatisch erzeugt aus dem aktuellen Lagebild — Stand ${TR.uhr(S.simSek)} Uhr.</span>
+        <span class="hinweis">Automatisch erzeugt aus dem aktuellen Lagebild - Stand ${TR.uhr(S.simSek)} Uhr.</span>
       </div>
       <pre id="lm-text">${esc(TR.lagemeldung())}</pre>
     </div>`;
@@ -1012,7 +1012,7 @@
       else lagewahlZeichnen();
     };
     $("btn-neuer-einsatz").onclick = () => {
-      const name = prompt("Neuen Einsatz eröffnen — die bisherigen Daten bleiben unter dem aktuellen Einsatz gespeichert.\n\nBezeichnung (leer = automatisch):");
+      const name = prompt("Neuen Einsatz eröffnen - die bisherigen Daten bleiben unter dem aktuellen Einsatz gespeichert.\n\nBezeichnung (leer = automatisch):");
       if (name === null) return;
       TR.neuerEinsatz(name.trim() || "Einsatz " + new Date().toLocaleString("de-DE"));
     };
@@ -1048,7 +1048,7 @@
     $("raster-zeilen").onchange = rasterAendern;
 
     /* Der Deckkraftregler wirkt ausschließlich auf einen geladenen Lageplan.
-     * Ohne Plan bleibt er gesperrt — sonst sieht es aus, als sei er kaputt. */
+     * Ohne Plan bleibt er gesperrt - sonst sieht es aus, als sei er kaputt. */
     const planStand = () => {
       const da = KARTE.planAktiv();
       $("plan-deck").disabled = !da;
@@ -1153,7 +1153,7 @@
     } catch (e) { /* kein gespeicherter Zustand */ }
     // Auf flachen Bildschirmen (Tablet quer) von vornherein niedriger ansetzen,
     // damit die Karte das Hauptelement bleibt. Auf einem quer gehaltenen
-    // Telefon bleibt selbst bei der Mindesthöhe kaum Karte übrig — dort
+    // Telefon bleibt selbst bei der Mindesthöhe kaum Karte übrig - dort
     // startet der Bereich eingeklappt und wird bei Bedarf aufgezogen.
     if (window.innerHeight < 480) dock.zu = true;
     else dock.hoehe = Math.max(140, Math.min(208, Math.round(window.innerHeight * 0.24)));
@@ -1237,7 +1237,7 @@
 
   /* Höhe des Sprechfunk-Protokolls frei ziehbar. Die Leiste selbst scrollt
    * weiter, aber das Protokoll kann so weit aufgezogen werden, wie Platz da
-   * ist — auf einem hohen Tabletbildschirm ist das der halbe Rand. */
+   * ist - auf einem hohen Tabletbildschirm ist das der halbe Rand. */
   const FUNK_MIN = 90, FUNK_STANDARD = 280;
 
   let funkHoehe = FUNK_STANDARD;

@@ -1,37 +1,30 @@
-/* Geodaten Halle (Saale) — Kröllwitz und Saaleaue.
+/* Geodaten Halle (Saale) - Talstraße, Amselgrund und Kröllwitz.
  *
- * ACHTUNG, Herkunft: anders als data/neubiberg.js ist dies KEIN
- * OpenStreetMap-Auszug. Es ist ein von Hand gesetztes, grobes Achsennetz der
- * Hauptstraßen und Uferwege. Es dient zwei Zwecken:
+ * Herkunft: handgeprüfte Ortsanker aus OpenStreetMap, aber KEIN vollständiger
+ * OpenStreetMap-Auszug. Das vereinfachte Achsennetz dient zwei Zwecken:
  *   1. Wegeführung der Einsatzmittel in der Simulation (statt Luftlinie),
  *   2. Notdarstellung, wenn keine Kartenkacheln erreichbar sind.
- * Es ist bewusst grob und nicht metergenau. Für die Anzeige im Normalbetrieb
- * wird die echte OpenStreetMap-Kachelkarte verwendet.
+ * Die Linien sind bewusst grob; im Normalbetrieb wird die echte
+ * OpenStreetMap-Kachelkarte verwendet.
  *
  * ways: [name, klasse, [lat,lon, lat,lon, ...]]  klasse 0=Hauptstr. 1=Nebenstr. 2=Fuss
  */
 
 window.HAL_GEO = {
-  quelle: "vereinfachtes Achsennetz (keine OSM-Daten)",
-  bbox: [51.49850, 11.92900, 51.51450, 11.96100],
+  quelle: "handgeprüfte Ortsanker, vereinfachtes Achsennetz (kein OSM-Auszug)",
+  bbox: [51.50080, 11.93580, 51.51580, 11.95620],
   ways: [
-    // Durchgangsachse Kröllwitz: Heideallee — Kröllwitzer Straße — Brücke
-    ["Heideallee", 0, [51.51180, 11.93150, 51.50960, 11.93620, 51.50790, 11.94010]],
-    ["Kröllwitzer Straße", 0, [51.50790, 11.94010, 51.50700, 11.94290, 51.50600, 11.94560]],
-    ["Kröllwitzer Brücke", 0, [51.50600, 11.94560, 51.50540, 11.94880, 51.50500, 11.95120]],
-    ["Talstraße", 0, [51.50790, 11.94010, 51.50560, 11.94120, 51.50360, 11.94210]],
-    ["Ernst-Grube-Straße", 0, [51.50360, 11.94210, 51.50190, 11.94020, 51.50050, 11.93800]],
-    ["Am Zollrain", 1, [51.50600, 11.94560, 51.50420, 11.94700, 51.50260, 11.94820]],
-    ["Blücherstraße", 1, [51.51180, 11.93150, 51.51020, 11.92980, 51.50840, 11.93000]],
-    ["Forsterstraße", 1, [51.50960, 11.93620, 51.50820, 11.93380, 51.50700, 11.93120]],
-    ["Uferweg Saale West", 2, [51.50950, 11.94420, 51.50760, 11.94480, 51.50560, 11.94620, 51.50340, 11.94760]],
-    ["Uferweg Saale Ost", 2, [51.50820, 11.95080, 51.50620, 11.95160, 51.50400, 11.95220]],
-    ["Peißnitzweg", 2, [51.50500, 11.95120, 51.50320, 11.95040, 51.50140, 11.94960]],
-    ["Anfahrt Nord (Dölauer Straße)", 0, [51.51420, 11.93400, 51.51300, 11.93220, 51.51180, 11.93150]],
-    ["Anfahrt Ost (Burgstraße)", 0, [51.50500, 11.95120, 51.50440, 11.95540, 51.50380, 11.95940]],
-    ["Kirchbergweg", 1, [51.50790, 11.94010, 51.50900, 11.94180, 51.50950, 11.94420]],
-    ["Wohnstraße Am Hang", 1, [51.50700, 11.94290, 51.50840, 11.94440, 51.50950, 11.94420]],
-    ["Zufahrt Klinikum", 1, [51.50190, 11.94020, 51.50120, 11.94260, 51.50060, 11.94480]],
+    // Talstraße/Amselgrund - der flache, hochwassergefährdete Uferraum.
+    ["Talstraße / Amselgrund", 0, [51.50404, 11.95224, 51.50334, 11.94840, 51.50280, 11.94560, 51.50177, 11.93683]],
+    ["Kröllwitzer Straße", 0, [51.50670, 11.94596, 51.50480, 11.94800, 51.50404, 11.95224]],
+    ["Giebichensteinbrücke", 0, [51.50404, 11.95224, 51.50460, 11.95330]],
+    ["Dölauer Straße", 0, [51.50796, 11.95181, 51.50670, 11.94596]],
+    ["Untere Papiermühlenstraße", 1, [51.50906, 11.95401, 51.50796, 11.95181, 51.50404, 11.95224]],
+    ["Ernst-Grube-Straße", 0, [51.50177, 11.93683, 51.50195, 11.93920, 51.50310, 11.94320, 51.50410, 11.94820]],
+    ["Kreuzvorwerk", 0, [51.50504, 11.94103, 51.50390, 11.94050, 51.50177, 11.93683]],
+    ["Heideallee", 0, [51.50177, 11.93683, 51.49960, 11.93710, 51.49702, 11.93724]],
+    ["Weinbergweg", 1, [51.49702, 11.93724, 51.49880, 11.93800, 51.50177, 11.93683]],
+    ["Uferweg Amselgrund", 2, [51.50334, 11.94840, 51.50300, 11.94920, 51.50260, 11.94980]],
   ],
   rail: [],
   buildings: [],
