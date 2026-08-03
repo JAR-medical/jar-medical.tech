@@ -1,0 +1,157 @@
+/* QR marker scanning.
+ *
+ * Two decode backends, picked at runtime:
+ *   1. BarcodeDetector — native, hardware-accelerated, present in Chromium
+ *      (Meta Quest Browser, Chrome on Android). Preferred when available.
+ *   2. jsQR — pure-JS fallback (vendored) for browsers without BarcodeDetector
+ *      (e.g. desktop Safari/Firefox used for testing).
+ *
+ * IMPORTANT (Quest 2): the Meta Quest 2 does NOT expose its passthrough cameras
+ * to any app — native or web (the Passthrough Camera API is Quest 3/3S only).
+ * So live QR scanning here uses getUserMedia, which on Quest 2 has no usable
+ * camera. This scanner therefore runs for real in "Kamera-Modus" on a phone or
+ * laptop; in headset AR mode the app identifies patients by voice/controller
+ * instead (see app.js). start() surfaces a clear error rather than hanging when
+ * no camera is available.
+ *
+ * Marker payload formats accepted (all resolve to a numeric marker id):
+ *   "JAR-P7"  ·  "JAR:7"  ·  ".../patient/7"  ·  "7"
+ */
+
+"use strict";
+
+/** Extract the numeric marker id from a decoded QR payload, or null. */
+export function parseMarkerPayload(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  let m =
+    /^JAR[-_ ]?P?[:#-]?\s*(\d{1,4})$/i.exec(s) ||        // JAR-P7, JAR:7, JARP7
+    /\/patient\/(\d{1,4})\b/i.exec(s) ||                  // .../patient/7
+    /\bpatient[=:]?\s*(\d{1,4})\b/i.exec(s) ||            // patient=7
+    /^(\d{1,4})$/.exec(s);                                // bare 7
+  return m ? Number(m[1]) : null;
+}
+
+export function barcodeDetectorAvailable() {
+  return typeof window !== "undefined" && "BarcodeDetector" in window;
+}
+
+export function jsQRAvailable() {
+  return typeof window !== "undefined" && typeof window.jsQR === "function";
+}
+
+/** True if any decode backend exists in this browser. */
+export function decodeSupported() {
+  return barcodeDetectorAvailable() || jsQRAvailable();
+}
+
+export class QRScanner {
+  /**
+   * @param {object} opts
+   * @param {HTMLVideoElement} opts.video   hidden/visible <video> for the stream
+   * @param {HTMLCanvasElement} opts.canvas  scratch canvas for jsQR frame grabs
+   * @param {(markerId:number, raw:string)=>void} opts.onMarker  fired on a fresh detection
+   * @param {(err:Error)=>void} [opts.onError]
+   * @param {number} [opts.cooldownMs=2500]  ignore repeats of the same marker within this window
+   */
+  constructor({ video, canvas, onMarker, onError, cooldownMs = 2500 }) {
+    this.video = video;
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d", { willReadFrequently: true });
+    this.onMarker = onMarker;
+    this.onError = onError || (() => {});
+    this.cooldownMs = cooldownMs;
+    this.stream = null;
+    this.detector = null;
+    this.running = false;
+    this._raf = null;
+    this._last = { id: null, at: 0 };
+  }
+
+  async start() {
+    if (this.running) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Dieses Gerät stellt der Web-App keine Kamera bereit (auf der Quest 2 erwartet — nutze Sprache/Controller zur Identifikation).");
+    }
+    if (!decodeSupported()) {
+      throw new Error("Kein QR-Decoder verfügbar (weder BarcodeDetector noch jsQR geladen).");
+    }
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    } catch (err) {
+      throw new Error("Kamerazugriff nicht möglich: " + (err && err.message ? err.message : err));
+    }
+    this.video.srcObject = this.stream;
+    this.video.setAttribute("playsinline", "");
+    this.video.muted = true;
+    await this.video.play().catch(() => {});
+
+    if (barcodeDetectorAvailable()) {
+      this.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+    }
+    this.running = true;
+    this._tick();
+  }
+
+  stop() {
+    this.running = false;
+    if (this._raf) cancelAnimationFrame(this._raf);
+    this._raf = null;
+    if (this.stream) {
+      this.stream.getTracks().forEach((t) => t.stop());
+      this.stream = null;
+    }
+    if (this.video) this.video.srcObject = null;
+  }
+
+  _emit(id, raw) {
+    const now = performance.now();
+    if (this._last.id === id && now - this._last.at < this.cooldownMs) return;
+    this._last = { id, at: now };
+    try { this.onMarker(id, raw); } catch (e) { this.onError(e); }
+  }
+
+  async _decodeFrame() {
+    const v = this.video;
+    if (!v || v.readyState < 2 || !v.videoWidth) return;
+
+    // Native detector path.
+    if (this.detector) {
+      try {
+        const codes = await this.detector.detect(v);
+        for (const c of codes) {
+          const id = parseMarkerPayload(c.rawValue);
+          if (id != null) return this._emit(id, c.rawValue);
+        }
+        return;
+      } catch (e) {
+        // Some frames throw transiently; fall through to jsQR if present.
+        if (!jsQRAvailable()) return;
+        this.detector = null; // stop trying the flaky native path
+      }
+    }
+
+    // jsQR fallback path.
+    if (jsQRAvailable()) {
+      const w = (this.canvas.width = v.videoWidth);
+      const h = (this.canvas.height = v.videoHeight);
+      this.ctx.drawImage(v, 0, 0, w, h);
+      const img = this.ctx.getImageData(0, 0, w, h);
+      const res = window.jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
+      if (res && res.data) {
+        const id = parseMarkerPayload(res.data);
+        if (id != null) this._emit(id, res.data);
+      }
+    }
+  }
+
+  _tick() {
+    if (!this.running) return;
+    this._decodeFrame().finally(() => {
+      if (this.running) this._raf = requestAnimationFrame(() => this._tick());
+    });
+  }
+}
