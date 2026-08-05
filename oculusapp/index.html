@@ -19,8 +19,9 @@
     </header>
 
     <p class="lede">
-      Der Sanitäter-Teil von <strong>TriARge</strong>: Marker scannen → Patientendaten
-      als HUD im Kamera-Durchblick der Quest → Befunde per Sprache dokumentieren.
+      Der Sanitäter-Teil von <strong>TriARge</strong>: Lagekarte im Blick → zum Patienten
+      gehen → <strong>Sichtung nach mSTaRT</strong> → Sichtungskategorie →
+      Patientenumhängekarte scannen → nächster Patient.
     </p>
 
     <section class="modes">
@@ -42,11 +43,16 @@
       <h2>Gerät</h2>
       <ul id="caps" class="caps"></ul>
       <p class="hint">
-        Auf der <strong>Quest 2</strong> stehen die Passthrough-Kameras keiner App zur
-        Verfügung (Kamera-Zugriff gibt es erst ab Quest 3). Im AR-Modus wird der Patient
-        deshalb per <strong>Sprache</strong> oder <strong>Controller</strong> gewählt — die
-        gedruckten QR-Marker (siehe <code>assets/markers/</code>) nennen die Patientennummer.
-        Echtes QR-Scannen läuft im Kamera-Modus (Handy/Laptop).
+        Im <strong>AR-Modus</strong> wird gezeigt und gepinched — der Ablauf läuft
+        vollständig über Handtracking. Die Umhängekarte lässt sich dort nicht scannen:
+        Headset-Browser bekommen keinen Zugriff auf die Passthrough-Kameras (auf der
+        Quest 2 gibt es ihn für gar keine App). Der Kartenschritt wird deshalb in AR
+        manuell bestätigt; echtes QR-Scannen läuft im <strong>Kamera-Modus</strong>
+        (Handy/Laptop) mit den gedruckten Karten aus <code>assets/markers/</code>.
+      </p>
+      <p class="hint">
+        <strong>Übungszweck.</strong> Die mSTaRT-Vorsichtung in dieser App ist eine
+        Übungshilfe eines Schülerprojekts, kein Medizinprodukt.
       </p>
     </section>
   </main>
@@ -58,49 +64,44 @@
     <canvas id="scan-canvas" class="offscreen"></canvas>
 
     <!-- HUD overlay: this element is handed to WebXR as the dom-overlay root -->
-    <div id="hud-overlay" class="hud-overlay scanning">
+    <div id="hud-overlay" class="hud-overlay">
 
       <div class="topbar">
         <span id="mode-label" class="mode-label">—</span>
         <span id="voice-status" class="voice-status">Mikrofon aus</span>
       </div>
 
-      <!-- scanning reticle, shown while no patient is loaded -->
-      <div id="reticle" class="reticle" aria-hidden="true">
-        <div class="reticle-box"></div>
-        <span class="reticle-hint">Marker scannen · Patient wählen · „Patient sieben"</span>
+      <!-- Ablaufschirm: Lagekarte links, aktueller Schritt rechts.
+           Dieselbe Beschreibung, die in AR auf die WebGL-Ebene gezeichnet wird. -->
+      <div id="flow" class="flow">
+        <aside class="flow-map">
+          <canvas id="flow-map" width="340" height="600"></canvas>
+        </aside>
+
+        <div class="flow-main">
+          <header class="flow-head">
+            <span id="flow-title" class="flow-title">J.A.R.</span>
+            <span id="flow-badge" class="flow-badge"></span>
+          </header>
+          <div id="flow-band" class="flow-band"></div>
+
+          <h2 id="flow-headline" class="flow-headline"></h2>
+          <p id="flow-hint" class="flow-hint"></p>
+          <div id="flow-progress" class="flow-progress"></div>
+          <div id="flow-body" class="flow-body"></div>
+
+          <div id="flow-buttons" class="flow-buttons"></div>
+          <p id="flow-status" class="flow-status"></p>
+        </div>
       </div>
 
-      <!-- the patient panel is injected here -->
-      <div id="hud" class="hud"></div>
+      <!-- Patientenakte, auf Wunsch eingeblendet -->
+      <div id="hud" class="hud hidden"></div>
 
-      <!-- controls -->
-      <div class="controls">
-        <div id="ctl-cats" class="cats">
-          <button data-cat="SK1" class="cat-btn b-SK1">Rot</button>
-          <button data-cat="SK2" class="cat-btn b-SK2">Gelb</button>
-          <button data-cat="SK3" class="cat-btn b-SK3">Grün</button>
-          <button data-cat="SK4" class="cat-btn b-SK4">Blau</button>
-          <button data-cat="DECEASED" class="cat-btn b-DECEASED">Schwarz</button>
-        </div>
-
-        <div class="actions">
-          <button id="ctl-speak" class="act">Vorlesen</button>
-          <button id="mic-btn" class="act mic">Mikro</button>
-          <button id="ctl-rescan" class="act">Neuer Marker</button>
-          <button id="ctl-exit" class="act exit">Beenden</button>
-        </div>
-
-        <div class="picker-wrap">
-          <span class="picker-label">Marker</span>
-          <div id="picker" class="picker"></div>
-        </div>
-
-        <form id="cmd-form" class="cmd-form" autocomplete="off">
-          <input id="cmd-input" class="cmd-input" type="text"
-                 placeholder="Textbefehl: z. B. „Maßnahme Tourniquet", „gelb", „7", „Hilfe"">
-          <button class="cmd-send" type="submit">↵</button>
-        </form>
+      <div class="actions">
+        <button id="ctl-record" class="act">Akte</button>
+        <button id="ctl-speak" class="act">Vorlesen</button>
+        <button id="ctl-exit" class="act exit">Beenden</button>
       </div>
     </div>
 

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>probe</title>
+  <link rel="stylesheet" href="../css/hud.css">
+</head>
+<body>
+  <div id="shots"></div>
+  <script type="module">
+    import { Workflow } from "../js/workflow.js";
+    import { drawScreen } from "../js/hudscreen.js";
+
+    // Nachbau des AR-Schirms: dieselbe Zeichenroutine, die auf die WebGL-Ebene geht.
+    const W = 1024, H = 872;
+    const from = Number(new URLSearchParams(location.search).get("from") || 1);
+    let shotNo = 0;
+
+    const flow = new Workflow();
+    let current = null;
+    flow.onScreen = (s) => { current = s; };
+    flow.onSpeak = () => {};
+    flow.onToast = () => {};
+
+    function shot(label) {
+      if (++shotNo < from) return;
+      const wrap = document.createElement("figure");
+      wrap.style.cssText = "margin:0 0 18px;padding:0";
+      const cap = document.createElement("figcaption");
+      cap.textContent = label;
+      cap.style.cssText = "font:600 15px/1.6 Helvetica,Arial;color:#9fb0c0;padding:4px 2px";
+      const c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      c.style.cssText = "width:100%;height:auto;display:block;border-radius:14px";
+      drawScreen(c.getContext("2d"), W, H, current, flow.mapModel(), { hover: 1, cursor: { x: 700, y: 700, pressed: false } });
+      wrap.appendChild(cap); wrap.appendChild(c);
+      document.getElementById("shots").appendChild(wrap);
+    }
+
+    const press = (re) => {
+      const b = current.buttons.find((x) => re.test(x.label));
+      if (!b) throw new Error("Knopf nicht gefunden: " + re + " — vorhanden: " + current.buttons.map(x => x.label).join(", "));
+      b.action();
+    };
+
+    try {
+      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+      flow.start();
+      shot("1 · Lage ausrichten");
+
+      press(/ausrichten/i);
+      shot("2 · Lagekarte");
+
+      flow.setPose({ x: -3, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+      flow.tick();
+      shot("3 · Patient erreicht");
+
+      press(/Sichtung starten/i);
+      shot("4 · mSTaRT Frage 1");
+
+      press(/^NEIN$/); press(/^NEIN$/);
+      shot("5 · mSTaRT Frage 3 mit Verlauf");
+
+      press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
+      shot("6 · Ergebnis");
+
+      press(/Karte scannen/i);
+      shot("7 · Karte scannen");
+
+      flow.onMarker(7);
+      shot("8 · falsche Karte");
+
+      press(/Nochmal/i);
+      flow.onMarker(1);
+      shot("9 · gebucht");
+
+      press(/Nächster/i);
+      shot("10 · zurück zur Lage, Patient gefärbt");
+
+      document.title = "OK " + document.querySelectorAll("canvas").length;
+    } catch (e) {
+      document.title = "ERR:" + e.message;
+      document.body.insertAdjacentHTML("afterbegin",
+        '<pre style="color:#ff6b6b;font:13px monospace;white-space:pre-wrap">' + e.stack + "</pre>");
+    }
+  </script>
+</body>
+</html>

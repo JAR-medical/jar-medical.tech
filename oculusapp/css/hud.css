@@ -177,3 +177,88 @@ body {
   .actions .act { flex: 1 1 40%; }
   .voice-status { max-width: 48%; }
 }
+
+/* ======================== ABLAUFSCHIRM (Workflow) ========================
+ * Flache Darstellung derselben Schirm-Beschreibung, die in AR auf die
+ * WebGL-Ebene gezeichnet wird (js/hudscreen.js). Lagekarte links, Schritt
+ * rechts — auf dem Handy untereinander. */
+
+.flow {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+.flow-map {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+}
+.flow-map-title {
+  margin: 2px 0 8px; font-size: 13px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase; color: var(--muted);
+}
+#flow-map { width: 100%; height: auto; display: block; }
+
+.flow-main {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 20px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 0;
+}
+.flow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.flow-title { font-size: 15px; font-weight: 700; letter-spacing: .08em; }
+.flow-badge { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.flow-band { height: 6px; border-radius: 3px; background: transparent; }
+.flow-headline { margin: 4px 0 0; font-size: clamp(24px, 4.4vw, 38px); line-height: 1.15; }
+.flow-hint { margin: 0; color: var(--muted); font-size: clamp(14px, 2.2vw, 17px); line-height: 1.45; }
+
+.flow-progress { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.flow-pips { display: flex; gap: 7px; }
+.flow-pip { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.flow-pip.on { background: #5aa2e6; transform: scale(1.2); }
+
+.flow-body { display: flex; flex-direction: column; gap: 6px; font-size: 15px; line-height: 1.45; }
+.flow-body .muted { color: var(--muted); }
+.flow-body .good { color: #7bd696; }
+.flow-body .warn { color: #f0d9a6; }
+
+.flow-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 8px; }
+.flow-btn {
+  flex: 1 1 150px;
+  min-height: 60px;
+  padding: 12px 18px;
+  font: 700 clamp(15px, 2.4vw, 20px)/1.2 var(--font);
+  color: var(--text);
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, transform .06s ease;
+}
+.flow-btn:hover { background: rgba(90, 162, 230, .22); border-color: #5aa2e6; }
+.flow-btn:active { transform: translateY(1px); }
+.flow-btn.primary { background: rgba(90, 162, 230, .30); border-color: rgba(90, 162, 230, .55); }
+.flow-btn.yes { background: rgba(41, 102, 66, .72); border-color: rgba(70, 167, 88, .6); }
+.flow-btn.no { background: rgba(107, 43, 45, .72); border-color: rgba(229, 72, 77, .5); }
+.flow-btn.lna { background: rgba(38, 69, 119, .72); border-color: rgba(62, 123, 250, .5); }
+.flow-btn.ghost { flex: 0 1 auto; }
+
+.flow-status { margin: 0; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+@media (max-width: 720px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow-map { order: 2; }
+}
+
+/* Patientenakte liegt über dem Ablaufschirm, statt ihn zu verdrängen. */
+#hud:not(.hidden) {
+  position: absolute; inset: 64px 16px 96px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+}
+.actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 12px; }

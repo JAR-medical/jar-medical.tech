@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>probe-dom</title>
+</head>
+<body>
+  <script type="module">
+    // Lädt die echte Seite, startet die echte app.js und klickt den Ablauf
+    // durch — damit die flache Darstellung genauso geprüft wird wie die AR-Sicht.
+    const q = new URLSearchParams(location.search);
+    const stop = q.get("stop") || "frage";
+
+    const html = await (await fetch("../index.html")).text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    document.head.insertAdjacentHTML("afterbegin", '<base href="../">');
+    document.head.insertAdjacentHTML("beforeend", doc.head.innerHTML);
+    document.body.innerHTML = doc.body.innerHTML;
+
+    history.replaceState(null, "", "?mode=sim");
+    await import("../js/app.js");
+    await new Promise((r) => setTimeout(r, 300));
+
+    const app = window.__jar;
+    const press = (re) => {
+      const b = [...document.querySelectorAll("#flow-buttons .flow-btn")]
+        .find((x) => re.test(x.textContent));
+      if (!b) throw new Error("Knopf fehlt: " + re + " — da: " +
+        [...document.querySelectorAll("#flow-buttons .flow-btn")].map((x) => x.textContent).join(", "));
+      b.click();
+    };
+
+    try {
+      press(/#1 · C2/);                      // Patient wählen
+      press(/Sichtung starten/);
+      if (stop !== "start") { press(/^NEIN$/); press(/^NEIN$/); }
+      if (stop === "ergebnis" || stop === "karte" || stop === "akte") {
+        press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
+      }
+      if (stop === "karte") press(/Karte scannen/);
+      if (stop === "akte") document.getElementById("ctl-record").click();
+      document.title = "OK " + app.screen.state;
+    } catch (e) {
+      document.title = "ERR:" + e.message;
+      document.body.insertAdjacentHTML("afterbegin",
+        '<pre style="color:#ff6b6b;font:13px monospace;white-space:pre-wrap;position:relative;z-index:99">' + e.stack + "</pre>");
+    }
+  </script>
+</body>
+</html>
