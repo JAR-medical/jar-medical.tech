@@ -21,10 +21,10 @@
 
 "use strict";
 
-import { MARKER_IDS, CATEGORY_META, resolvePatient,
-         setCategory, addTreatment, pushProtocol, markSeen } from "./data.js";
+import { patientIds, createPatient, CATEGORY_META, resolvePatient,
+         setCategory, addTreatment, pushProtocol, markSeen, assignCard } from "./data.js";
 import { MStartSession, MAX_STEPS, DISCLAIMER } from "./mstart.js";
-import { ScenarioLayout } from "./layout.js";
+import { FieldMap, distance as layoutDistance, nearest as layoutNearest } from "./layout.js";
 
 const cat = (c) => CATEGORY_META[c] || CATEGORY_META.UNSIGHTED;
 
@@ -33,18 +33,16 @@ export class Workflow {
    * @param {object} [opts]
    * @param {number} [opts.approachRadius] Meter, ab wann ein Patient „erreicht“ ist
    * @param {number} [opts.releaseRadius]  Meter, ab wann er wieder losgelassen wird
-   * @param {number} [opts.cellSize]       Meter je Rasterzelle
-   * @param {number} [opts.fieldDistance]  Meter von der Ausrichtungspose zur Feldmitte
    */
-  constructor({ approachRadius = 2.5, releaseRadius = 4, cellSize = 3, fieldDistance = 6 } = {}) {
+  constructor({ approachRadius = 2.5, releaseRadius = 4 } = {}) {
     this.approachRadius = approachRadius;
     this.releaseRadius = releaseRadius;
 
-    this.layout = new ScenarioLayout({ cellSize, fieldDistance });
-    this.layout.build(MARKER_IDS.map(resolvePatient));
+    this.map = new FieldMap();
     this.session = new MStartSession();
 
     this.state = "align";
+    this.aligned = false;
     this.target = null;
     this.result = null;
     this.done = new Set();
@@ -67,7 +65,6 @@ export class Workflow {
   /* ------------------------------------------------------------ Eingaben */
 
   start() {
-    if (!this.layout.hasCells) { this.goToLage(); return; }
     this.enterAlign();
   }
 
@@ -82,40 +79,56 @@ export class Workflow {
   /** Einmal pro Frame: prüft, ob der Trupp bei jemandem angekommen ist. */
   tick() {
     if (this.state !== "lage" && this.state !== "approach") return;
-    if (!this.layout.aligned) return;
+    if (!this.aligned) return;
     if (this._pickedByHand && this.state === "approach") return;
 
-    if (this._suppressed !== null &&
-        this.layout.distance(this._suppressed, this.position) > this.releaseRadius)
-      this._suppressed = null;
+    if (this._suppressed !== null) {
+      const p = resolvePatient(this._suppressed);
+      if (p && p.pos && layoutDistance(p.pos, this.position) > this.releaseRadius) {
+        this._suppressed = null;
+      }
+    }
 
-    const hit = this.layout.nearest(this.position, this._candidates(true), this.approachRadius)
-             || this.layout.nearest(this.position, this._candidates(false), this.approachRadius);
+    const openCandidates = this._candidates(true).map(resolvePatient);
+    const closedCandidates = this._candidates(false).map(resolvePatient);
+    
+    let hit = layoutNearest(this.position, openCandidates, this.approachRadius);
+    if (!hit) hit = layoutNearest(this.position, closedCandidates, this.approachRadius);
 
-    if (hit && hit.markerId !== this.target) {
-      this.target = hit.markerId;
+    if (hit && hit.patient.marker_id !== this.target) {
+      this.target = hit.patient.marker_id;
       this._pickedByHand = false;
       this.enterApproach();
       return;
     }
 
-    if (this.state === "approach" && this.target !== null && !this._pickedByHand &&
-        this.layout.distance(this.target, this.position) > this.releaseRadius) {
-      this.target = null;
-      this.goToLage();
+    if (this.state === "approach" && this.target !== null && !this._pickedByHand) {
+      const p = resolvePatient(this.target);
+      if (p && p.pos && layoutDistance(p.pos, this.position) > this.releaseRadius) {
+        this.target = null;
+        this.goToLage();
+      }
     }
   }
 
   _candidates(openOnly) {
-    return MARKER_IDS.filter((id) =>
+    return patientIds().filter((id) =>
       id !== this._suppressed && (!openOnly || !this.done.has(id)));
   }
 
   alignHere() {
-    this.layout.align(this.position, this.forward);
+    this.aligned = true;
     this.say("Lage ausgerichtet.");
     this.target = null;
     this.goToLage();
+  }
+
+  createNewPatient() {
+    if (!this.aligned) return;
+    const p = createPatient(this.position, "AR-Client");
+    this.target = p.marker_id;
+    this._pickedByHand = true;
+    this.enterApproach();
   }
 
   /** Patient direkt wählen (Lagekarte antippen, Liste, Deep-Link). */
@@ -164,14 +177,7 @@ export class Workflow {
   /** Ein gescannter JAR-P<n>-Code. */
   onMarker(markerId) {
     if (this.state !== "scan") return;
-    if (markerId !== this.target) {
-      // Die Karte ist der körperliche Beleg — niemals still auf die falsche
-      // Akte buchen, sondern fragen.
-      this.state = "scan-mismatch";
-      this.say("Karte passt nicht.");
-      this._emitMismatch(markerId);
-      return;
-    }
+    // Der Marker könnte irgendetwas sein, deshalb commit:
     this.commit(markerId, `Karte #${markerId} gescannt`);
   }
 
@@ -179,19 +185,21 @@ export class Workflow {
     if (!this.result) { this.goToLage(); return; }
 
     this.scanArmed = false;
-    setCategory(markerId, this.result.category);
-    markSeen(markerId, "AR-Client");
-    for (const m of this.result.measures) addTreatment(markerId, m);
-    pushProtocol(markerId, { transcript: "mSTaRT: " + this.result.trail.join(" · ") });
-    pushProtocol(markerId, { transcript: this.result.why + " — " + how });
+    setCategory(this.target, this.result.category);
+    markSeen(this.target, "AR-Client");
+    for (const m of this.result.measures) addTreatment(this.target, m);
+    pushProtocol(this.target, { transcript: "mSTaRT: " + this.result.trail.join(" · ") });
+    pushProtocol(this.target, { transcript: this.result.why + " — " + how });
 
-    this.done.add(markerId);
-    this.target = markerId;
+    // Zuweisung der gescannten ID (Karte) zu diesem Patienten
+    if (markerId !== "unbekannt") assignCard(this.target, markerId);
+
+    this.done.add(this.target);
     this.state = "bestaetigt";
 
     const c = cat(this.result.category);
-    this.say(`Patient ${markerId} auf ${c.spoken} gebucht.`);
-    this.onToast(`Patient #${markerId} → ${c.short}`, "ok");
+    this.say(`Patient ${this.target} auf ${c.spoken} gebucht.`);
+    this.onToast(`Patient #${this.target} → ${c.short}`, "ok");
     this._emitBestaetigt(how);
   }
 
@@ -269,18 +277,17 @@ export class Workflow {
    * Position. Ohne Ausrichtung gibt es keine Positionen — dann nichts.
    */
   worldTags(maxDistance = 12) {
-    if (!this.layout.aligned) return [];
+    if (!this.aligned) return [];
     const tags = [];
-    for (const id of MARKER_IDS) {
+    for (const id of patientIds()) {
       const p = resolvePatient(id);
-      const pos = this.layout.world(id);
-      if (!p || !pos) continue;
-      const d = this.layout.distance(id, this.position);
+      if (!p || !p.pos) continue;
+      const d = layoutDistance(p.pos, this.position);
       if (d > maxDistance) continue;
       const c = cat(p.category);
       tags.push({
-        id, pos, distance: d,
-        cell: this.layout.cellLabel(id),
+        id, pos: p.pos, distance: d,
+        cell: `#${id}`,
         short: c.short,
         color: c.color,
         sighted: this.done.has(id),
@@ -295,8 +302,9 @@ export class Workflow {
    * ausgerichtet ist. Sonst null — dann setzt xr.js sie einmal vor den Träger.
    */
   cardAnchor() {
-    if (this.target === null || !this.layout.aligned) return null;
-    return this.layout.world(this.target);
+    if (this.target === null || !this.aligned) return null;
+    const p = resolvePatient(this.target);
+    return p ? p.pos : null;
   }
 
   /** Die Beschreibung des aktuellen Schirms. */
@@ -332,11 +340,9 @@ export class Workflow {
   statusLine() {
     if (this.notice) return this.notice;
     if (this.state === "scan" || this.state === "scan-mismatch")
-      // Ohne Kamera muss dastehen, WO der Knopf ist — die Statuszeile hängt am
-      // Blickfeldrand, der Knopf auf der Karte beim Patienten.
       return this.cameraLive
         ? "Scanner aktiv — Karte ins Blickfeld"
-        : "Kein Scanner im Headset — auf der Patientenkarte „Manuell bestätigen“ auslösen";
+        : "Scanner nicht verfügbar — Zuordnung manuell bestätigen";
     return DISCLAIMER;
   }
 
@@ -349,25 +355,32 @@ export class Workflow {
   }
 
   _screenLage(s) {
-    const open = MARKER_IDS.filter((id) => !this.done.has(id)).length;
+    const pids = patientIds();
+    const open = pids.filter((id) => !this.done.has(id)).length;
     s.title = "LAGE";
-    s.headline = open > 0 ? `${open} Patienten offen` : "Alle Patienten gesichtet";
-    s.hint = this.layout.aligned
-      ? "Zum nächsten Patienten gehen oder einen Punkt auf der Lagekarte wählen."
-      : "Lage ist nicht ausgerichtet — Patient auf der Lagekarte wählen.";
+    s.headline = open > 0 ? `${open} Patienten offen` : (pids.length > 0 ? "Alle Patienten gesichtet" : "Keine Patienten");
+    s.hint = this.aligned
+      ? "Zum nächsten Patienten gehen, neuen anlegen oder auf der Karte wählen."
+      : "Lage ist nicht ausgerichtet.";
     s.buttons = this._nearbyButtons();
+    if (this.aligned) {
+      s.buttons.push({ label: "+ Neuer Patient hier", tint: "primary", action: () => this.createNewPatient() });
+    }
     return s;
   }
 
   /** Die drei nächsten offenen Patienten als Direktwahl. */
   _nearbyButtons() {
-    const openIds = MARKER_IDS.filter((id) => !this.done.has(id));
-    const sorted = this.layout.aligned
-      ? openIds.slice().sort((a, b) =>
-          this.layout.distance(a, this.position) - this.layout.distance(b, this.position))
+    const openIds = patientIds().filter((id) => !this.done.has(id));
+    const sorted = this.aligned
+      ? openIds.slice().sort((a, b) => {
+          const pa = resolvePatient(a); const pb = resolvePatient(b);
+          if (!pa || !pa.pos || !pb || !pb.pos) return 0;
+          return layoutDistance(pa.pos, this.position) - layoutDistance(pb.pos, this.position);
+        })
       : openIds;
     return sorted.slice(0, 3).map((id) => ({
-      label: `#${id} · ${this.layout.cellLabel(id)}`,
+      label: `Patient #${id}`,
       tint: "ghost",
       action: () => this.selectPatient(id),
     }));
@@ -375,14 +388,14 @@ export class Workflow {
 
   _screenApproach(s) {
     const p = resolvePatient(this.target);
-    const d = this.layout.aligned ? this.layout.distance(this.target, this.position) : Infinity;
+    const d = this.aligned && p && p.pos ? layoutDistance(p.pos, this.position) : Infinity;
 
     s.title = `PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.headline = `Patient #${this.target}`;
     s.hint = Number.isFinite(d) && d < 50
-      ? `${d.toFixed(1)} m entfernt · Feld ${this.layout.cellLabel(this.target)}`
-      : `Feld ${this.layout.cellLabel(this.target)}`;
+      ? `${d.toFixed(1)} m entfernt`
+      : "";
 
     if (this.done.has(this.target))
       s.body.push({ text: `Bereits gesichtet: ${cat(p.category).label}`, color: "warn" });
@@ -402,7 +415,7 @@ export class Workflow {
   _screenSichtung(s) {
     const node = this.session.node;
     s.title = `SICHTUNG · PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.headline = node.question;
     s.hint = node.hint;
     s.progress = { step: this.session.stepNumber, total: MAX_STEPS };
@@ -421,7 +434,7 @@ export class Workflow {
   _screenErgebnis(s) {
     const c = cat(this.result.category);
     s.title = `ERGEBNIS · PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.band = c.color;
     s.headline = c.label;
     s.headlineColor = c.color;
@@ -442,7 +455,7 @@ export class Workflow {
   _screenScan(s) {
     const c = cat(this.result.category);
     s.title = `KARTE · PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.band = c.color;
     s.headline = "Patientenumhängekarte scannen";
     s.hint = this.cameraLive
@@ -451,8 +464,8 @@ export class Workflow {
     s.body.push({ text: `Zu buchen: ${c.label}`, color: "cat", color2: c.color });
 
     s.buttons = [
-      { label: "Manuell bestätigen", tint: "primary",
-        action: () => this.commit(this.target, "manuell bestätigt") },
+      { label: "Manuell bestätigen (Keine Karte)", tint: "primary",
+        action: () => this.commit("unbekannt", "manuell bestätigt") },
       { label: "Zurück", tint: "ghost",
         action: () => { this.scanArmed = false; this.state = "ergebnis"; this._emitErgebnis(); } },
     ];
@@ -462,11 +475,11 @@ export class Workflow {
   _screenMismatch(s) {
     const scanned = this._mismatch;
     s.title = `KARTE · PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.band = "#f5b301";
-    s.headline = `Karte #${scanned} ≠ Patient #${this.target}`;
-    s.hint = "Die gescannte Umhängekarte gehört zu einer anderen Nummer.";
-    s.body.push({ text: `Entweder die richtige Karte scannen oder die gescannte übernehmen — dann wird auf Patient #${scanned} gebucht.` });
+    s.headline = `Karte gescannt`;
+    s.hint = "Karte scannen fortsetzen oder bestätigen.";
+    s.body.push({ text: `Gescannte Karte: #${scanned}` });
 
     s.buttons = [
       { label: `Karte #${scanned} übernehmen`, tint: "primary",
@@ -479,7 +492,7 @@ export class Workflow {
   _screenBestaetigt(s) {
     const c = cat(this.result.category);
     s.title = `GEBUCHT · PATIENT #${this.target}`;
-    s.badge = this.layout.cellLabel(this.target);
+    s.badge = `#${this.target}`;
     s.band = c.color;
     s.headline = `${c.short} gebucht`;
     s.headlineColor = c.color;
@@ -495,45 +508,50 @@ export class Workflow {
     const counts = { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, open: 0 };
     const dots = [];
 
-    for (const id of MARKER_IDS) {
+    const positions = [];
+    for (const id of patientIds()) {
       const p = resolvePatient(id);
-      if (!p) continue;
+      if (p && p.pos) positions.push(p.pos);
+    }
+    this.map.fit(positions, this.aligned ? this.position : null);
+
+    for (const id of patientIds()) {
+      const p = resolvePatient(id);
+      if (!p || !p.pos) continue;
       const sighted = this.done.has(id);
       if (counts[p.category] !== undefined) counts[p.category]++;
       if (!sighted) counts.open++;
 
-      const uv = this.layout.normalizedFor(id);
-      if (!uv) continue;
-      // Farbe ist immer die eingetragene Kategorie (das gemeinsame Lagebild);
-      // `sighted` entscheidet nur, ob der Punkt gefüllt oder hohl gezeichnet wird.
+      const uv = this.map.project(p.pos);
       dots.push({ id, uv, sighted, color: cat(p.category).color, target: id === this.target });
     }
 
-    const medic = this.layout.aligned
-      ? { uv: this.layout.normalizedFromWorld(this.position),
-          heading: this.layout.headingDegrees(this.forward) }
+    const medic = this.aligned
+      ? { uv: this.map.project(this.position),
+          heading: this.map.heading(this.forward) }
       : null;
 
     let footer, hint;
-    if (!this.layout.aligned) {
+    if (!this.aligned) {
       footer = "Lage nicht ausgerichtet";
       hint = "„Lage ausrichten“ am Feldrand bestätigen";
     } else if (this.target !== null) {
-      const d = this.layout.distance(this.target, this.position);
-      footer = `Patient #${this.target} · ${this.layout.cellLabel(this.target)} · ${d.toFixed(1)} m`;
+      const p = resolvePatient(this.target);
+      const d = p && p.pos ? layoutDistance(p.pos, this.position) : Infinity;
+      footer = `Patient #${this.target} · ${d.toFixed(1)} m`;
       hint = d <= this.approachRadius ? "in Reichweite" : "hingehen oder wählen";
     } else {
       footer = "kein Patient in Reichweite";
-      hint = "hingehen oder auf der Karte wählen";
+      hint = "hingehen, wählen oder neuen anlegen";
     }
 
     return {
-      columns: this.layout.columns,
-      rows: this.layout.rows,
-      minCol: this.layout.minCol,
-      minRow: this.layout.minRow,
+      columns: 1,
+      rows: 1,
+      minCol: 0,
+      minRow: 0,
       dots, medic, counts, footer, hint,
-      aligned: this.layout.aligned,
+      aligned: this.aligned,
     };
   }
 }

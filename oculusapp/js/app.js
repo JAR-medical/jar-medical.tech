@@ -21,7 +21,7 @@
 
 "use strict";
 
-import { MARKER_IDS, resolvePatient } from "./data.js";
+import { patientIds, resolvePatient } from "./data.js";
 import { QRScanner, decodeSupported, barcodeDetectorAvailable, jsQRAvailable } from "./qr.js";
 import { Voice, synthesisAvailable } from "./voice.js";
 import { XRPassthrough, passthroughSupported } from "./xr.js";
@@ -241,7 +241,22 @@ async function startAR() {
   el.cameraBg.classList.add("hidden");
 
   app.flow = makeFlow();
-  app.flow.cameraLive = false;      // Headset-Browser sehen die Kameras nicht
+  
+  app.scanner = new QRScanner({
+    video: el.cameraBg,
+    canvas: el.scanCanvas,
+    onMarker: (id) => {
+      if (app.flow.scanArmed) app.flow.onMarker(id);
+      else app.flow.selectPatient(id);
+    },
+    onError: (e) => console.warn("Scanner-Fehler:", e.message),
+  });
+  try {
+    await app.scanner.start();
+    app.flow.cameraLive = true;
+  } catch (err) {
+    app.flow.cameraLive = false;
+  }
 
   app.xr = new XRPassthrough({
     onStart: () => { toast("Passthrough aktiv — zeigen und pinchen"); app.flow.start(); },
@@ -366,7 +381,7 @@ function boot() {
   if (boot2) {
     Promise.resolve(boot2()).then(() => {
       const pid = Number(q.get("patient"));
-      if (pid && MARKER_IDS.includes(pid) && app.flow) app.flow.selectPatient(pid);
+      if (pid && patientIds().includes(pid) && app.flow) app.flow.selectPatient(pid);
     });
   }
 }
