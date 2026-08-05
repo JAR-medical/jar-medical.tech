@@ -179,81 +179,98 @@ body {
 }
 
 /* ======================== ABLAUFSCHIRM (Workflow) ========================
- * Flache Darstellung derselben Schirm-Beschreibung, die in AR auf die
- * WebGL-Ebene gezeichnet wird (js/hudscreen.js). Lagekarte links, Schritt
- * rechts — auf dem Handy untereinander. */
+ * Flach dasselbe wie in der Brille: Randinformation in den Ecken, der Schritt
+ * in der Mitte. Keine Kacheln, keine Rundungen — Haarlinien, Versalien-Labels,
+ * Tabellenziffern. Farbe trägt nur Bedeutung (Sichtungskategorien). */
 
 .flow {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(240px, 340px) 1fr;
-  gap: 16px;
-  align-items: stretch;
+  grid-template-columns: 1fr minmax(320px, 620px) 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  align-items: start;
 }
-.flow-map {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 12px;
-}
-.flow-map-title {
-  margin: 2px 0 8px; font-size: 13px; font-weight: 700;
-  letter-spacing: .10em; text-transform: uppercase; color: var(--muted);
-}
-#flow-map { width: 100%; height: auto; display: block; }
 
-.flow-main {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 18px 20px 16px;
-  display: flex; flex-direction: column; gap: 10px;
+.hud-key {
+  font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.72);
+}
+.hud-key.dim { color: rgba(255,255,255,.45); }
+
+.hud-corner { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hud-corner.tl { grid-area: 1 / 1; align-items: flex-start; }
+.hud-corner.tr { grid-area: 1 / 3; align-items: flex-end; text-align: right; }
+.hud-corner.bl { grid-area: 3 / 1; align-items: flex-start; }
+.hud-corner.br { grid-area: 3 / 3; align-items: flex-end; text-align: right; }
+.hud-corner.tl, .hud-corner.tr { border-bottom: 1px solid rgba(255,255,255,.22); padding-bottom: 8px; }
+
+#flow-map { width: 100%; max-width: 340px; height: auto; display: block; }
+
+.flow-counts { display: flex; gap: 16px; font-variant-numeric: tabular-nums; }
+.flow-count { display: inline-flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; }
+.flow-count i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.flow-progress { display: flex; align-items: center; gap: 10px; font-size: 12px;
+  letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.flow-pips { display: flex; gap: 5px; }
+.flow-pip { width: 14px; height: 3px; background: rgba(255,255,255,.22); }
+.flow-pip.on { background: #7cc0ff; }
+
+/* Der Schritt: mittige Spalte, über die ganze Höhe. */
+.flow-card {
+  grid-area: 1 / 2 / 4 / 3;
+  display: flex; flex-direction: column; gap: 12px;
   min-height: 0;
 }
-.flow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.flow-title { font-size: 15px; font-weight: 700; letter-spacing: .08em; }
-.flow-badge { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.flow-band { height: 6px; border-radius: 3px; background: transparent; }
-.flow-headline { margin: 4px 0 0; font-size: clamp(24px, 4.4vw, 38px); line-height: 1.15; }
-.flow-hint { margin: 0; color: var(--muted); font-size: clamp(14px, 2.2vw, 17px); line-height: 1.45; }
+.flow-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.flow-band { height: 3px; background: rgba(255,255,255,.28); }
+.flow-headline { margin: 10px 0 0; font-size: clamp(26px, 4.6vw, 42px); font-weight: 600; line-height: 1.1; }
+.flow-hint { margin: 0; color: rgba(255,255,255,.78); font-size: clamp(14px, 2.1vw, 18px); line-height: 1.45; }
 
-.flow-progress { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
-.flow-pips { display: flex; gap: 7px; }
-.flow-pip { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
-.flow-pip.on { background: #5aa2e6; transform: scale(1.2); }
+.flow-body { display: flex; flex-direction: column; gap: 5px; font-size: 15px; line-height: 1.45; }
+.flow-body .muted { color: rgba(255,255,255,.55); }
+.flow-body .good { color: #8ee2a4; }
+.flow-body .warn { color: #f2dfae; }
 
-.flow-body { display: flex; flex-direction: column; gap: 6px; font-size: 15px; line-height: 1.45; }
-.flow-body .muted { color: var(--muted); }
-.flow-body .good { color: #7bd696; }
-.flow-body .warn { color: #f0d9a6; }
+.flow-vitals { display: flex; flex-wrap: wrap; gap: 26px; margin-top: auto;
+  padding-top: 12px; border-top: 1px solid rgba(255,255,255,.18); }
+.flow-vital { display: flex; flex-direction: column; gap: 2px; }
+.flow-vital span { font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(255,255,255,.45); }
+.flow-vital strong { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-.flow-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 8px; }
+.flow-buttons { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
 .flow-btn {
-  flex: 1 1 150px;
-  min-height: 60px;
-  padding: 12px 18px;
-  font: 700 clamp(15px, 2.4vw, 20px)/1.2 var(--font);
+  flex: 1 1 140px;
+  min-height: 62px;
+  padding: 10px 16px;
+  font: 600 clamp(15px, 2.3vw, 20px)/1.2 var(--font);
   color: var(--text);
-  background: rgba(255, 255, 255, .09);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: rgba(8,11,15,.35);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 0;
   cursor: pointer;
-  transition: background .12s ease, border-color .12s ease, transform .06s ease;
+  transition: background .1s linear, border-color .1s linear;
 }
-.flow-btn:hover { background: rgba(90, 162, 230, .22); border-color: #5aa2e6; }
-.flow-btn:active { transform: translateY(1px); }
-.flow-btn.primary { background: rgba(90, 162, 230, .30); border-color: rgba(90, 162, 230, .55); }
-.flow-btn.yes { background: rgba(41, 102, 66, .72); border-color: rgba(70, 167, 88, .6); }
-.flow-btn.no { background: rgba(107, 43, 45, .72); border-color: rgba(229, 72, 77, .5); }
-.flow-btn.lna { background: rgba(38, 69, 119, .72); border-color: rgba(62, 123, 250, .5); }
-.flow-btn.ghost { flex: 0 1 auto; }
+.flow-btn:hover { background: rgba(255,255,255,.16); border-color: #fff; }
+.flow-btn.primary { border-color: #7cc0ff; }
+.flow-btn.yes { border-color: #46a758; }
+.flow-btn.no { border-color: #e5484d; }
+.flow-btn.lna { border-color: #3e7bfa; }
+.flow-btn.ghost { flex: 0 1 auto; border-color: rgba(255,255,255,.32); }
 
-.flow-status { margin: 0; color: var(--muted); font-size: 12.5px; text-align: center; }
+.flow-status { font-size: 12px; color: rgba(255,255,255,.45); }
 
-@media (max-width: 720px) {
-  .flow { grid-template-columns: 1fr; }
-  .flow-map { order: 2; }
+@media (max-width: 900px) {
+  .flow { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
+  .hud-corner.tl { grid-area: 1 / 1; }
+  .hud-corner.tr { grid-area: 1 / 1; align-items: flex-start; text-align: left; border: 0; }
+  .flow-card { grid-area: 2 / 1; }
+  .hud-corner.bl { grid-area: 3 / 1; }
+  .hud-corner.br { grid-area: 4 / 1; align-items: flex-start; text-align: left; }
 }
 
 /* Patientenakte liegt über dem Ablaufschirm, statt ihn zu verdrängen. */
@@ -262,3 +279,24 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 .actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 12px; }
+
+/* Restliche Bedienelemente auf dieselbe Sprache bringen: keine Pillen,
+ * keine Rundungen, Umriss statt Fond. */
+.mode-label, .voice-status {
+  background: none; border: 0; border-radius: 0; padding: 0;
+  font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.55);
+}
+.act {
+  background: rgba(8,11,15,.35);
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 0;
+  color: var(--text);
+  padding: 10px 18px;
+  font: 600 14px/1 var(--font);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.act:hover { background: rgba(255,255,255,.14); border-color: #fff; }
+.act.exit { border-color: rgba(229,72,77,.55); }
+.topbar { padding-bottom: 4px; }

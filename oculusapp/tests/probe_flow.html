@@ -9,10 +9,17 @@
   <div id="shots"></div>
   <script type="module">
     import { Workflow } from "../js/workflow.js";
-    import { drawScreen } from "../js/hudscreen.js";
+    import { drawHudLayer, drawCard, drawTag } from "../js/hudscreen.js";
 
-    // Nachbau des AR-Schirms: dieselbe Zeichenroutine, die auf die WebGL-Ebene geht.
-    const W = 1024, H = 872;
+    /* Zusammenschau der drei AR-Ebenen auf einer Fläche: kopffestes HUD,
+     * raumfeste Handlungskarte, raumfeste Schilder. Die Größenverhältnisse
+     * entsprechen den Rechtecken in xr.js (HUD 2,20 m, Karte 0,86 m, Schild
+     * 0,44 m breit), damit beurteilbar ist, wie viel Blickfeld was einnimmt.
+     * Der Hintergrund tut so, als wäre er Durchblick. */
+    const W = 1536, H = 864;
+    const CARD_SCALE = 0.86 / 2.20;
+    const TAG_SCALE = 0.44 / 2.20;
+
     const from = Number(new URLSearchParams(location.search).get("from") || 1);
     let shotNo = 0;
 
@@ -22,24 +29,62 @@
     flow.onSpeak = () => {};
     flow.onToast = () => {};
 
+    const off = (w, h) => {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      return c;
+    };
+
+    function passthrough(ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#6d7580"); g.addColorStop(0.52, "#8a8f96"); g.addColorStop(1, "#4a4f56");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      for (let i = 0; i < 9; i++) ctx.fillRect(i * 190 + 40, 300 + (i % 3) * 60, 120, 260);
+    }
+
     function shot(label) {
       if (++shotNo < from) return;
+
       const wrap = document.createElement("figure");
       wrap.style.cssText = "margin:0 0 18px;padding:0";
       const cap = document.createElement("figcaption");
       cap.textContent = label;
       cap.style.cssText = "font:600 15px/1.6 Helvetica,Arial;color:#9fb0c0;padding:4px 2px";
-      const c = document.createElement("canvas");
-      c.width = W; c.height = H;
-      c.style.cssText = "width:100%;height:auto;display:block;border-radius:14px";
-      drawScreen(c.getContext("2d"), W, H, current, flow.mapModel(), { hover: 1, cursor: { x: 700, y: 700, pressed: false } });
+
+      const c = off(W, H);
+      c.style.cssText = "width:100%;height:auto;display:block";
+      const ctx = c.getContext("2d");
+      passthrough(ctx);
+
+      const hud = off(W, H);
+      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel());
+      ctx.drawImage(hud, 0, 0);
+
+      // Schilder dort, wo Patienten im Raum stünden (zwei zur Anschauung).
+      const tags = flow.worldTags().filter((t) => !t.target);
+      const tagW = W * TAG_SCALE, tagH = tagW * (176 / 512);
+      [[W * 0.26, H * 0.44], [W * 0.76, H * 0.40]].forEach(([tx, ty], i) => {
+        const t = tags[i];
+        if (!t) return;
+        const tc = off(512, 176);
+        drawTag(tc.getContext("2d"), 512, 176, t);
+        ctx.drawImage(tc, tx - tagW / 2, ty - tagH / 2, tagW, tagH);
+      });
+
+      const cw = W * CARD_SCALE, ch = cw * (640 / 900);
+      const card = off(900, 640);
+      drawCard(card.getContext("2d"), 900, 640, current, { hover: 0 });
+      ctx.drawImage(card, W / 2 - cw / 2, H * 0.53 - ch / 2, cw, ch);
+
       wrap.appendChild(cap); wrap.appendChild(c);
       document.getElementById("shots").appendChild(wrap);
     }
 
     const press = (re) => {
       const b = current.buttons.find((x) => re.test(x.label));
-      if (!b) throw new Error("Knopf nicht gefunden: " + re + " — vorhanden: " + current.buttons.map(x => x.label).join(", "));
+      if (!b) throw new Error("Knopf nicht gefunden: " + re + " — vorhanden: " +
+        current.buttons.map((x) => x.label).join(", "));
       b.action();
     };
 
@@ -51,7 +96,7 @@
       press(/ausrichten/i);
       shot("2 · Lagekarte");
 
-      flow.setPose({ x: -3, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+      flow.setPose({ x: -2.6, y: 1.7, z: -0.4 }, { x: 0.2, y: 0, z: 1 });
       flow.tick();
       shot("3 · Patient erreicht");
 
@@ -59,7 +104,7 @@
       shot("4 · mSTaRT Frage 1");
 
       press(/^NEIN$/); press(/^NEIN$/);
-      shot("5 · mSTaRT Frage 3 mit Verlauf");
+      shot("5 · Frage 3 mit Verlauf");
 
       press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
       shot("6 · Ergebnis");
@@ -75,7 +120,7 @@
       shot("9 · gebucht");
 
       press(/Nächster/i);
-      shot("10 · zurück zur Lage, Patient gefärbt");
+      shot("10 · zurück zur Lage");
 
       document.title = "OK " + document.querySelectorAll("canvas").length;
     } catch (e) {

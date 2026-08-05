@@ -14,10 +14,15 @@ Lage ausrichten ─▶ Lagekarte ─▶ zum Patienten gehen ─▶ „Sichtung s
 ```
 
 - **See-through (Passthrough)** — an `immersive-ar` WebXR session shows the real
-  world through the headset cameras, with the Ablaufschirm floating in it.
-- **Bedienung ist Handtracking** — zeigen und pinchen, keine Controller. Der
-  Schirm liegt körperfest im Raum: er bleibt stehen, während man darauf zeigt,
-  und zieht erst nach, wenn man sich wirklich wegdreht.
+  world through the headset cameras.
+- **Es ist ein HUD, kein Fenster.** Randinformation sitzt an den Rändern des
+  Blickfelds und ist kopffest: Zustand oben links, Zählung oben rechts,
+  Lagekarte unten links, Hinweis unten rechts. Die Mitte bleibt frei.
+- **Patientendaten hängen im Raum.** Über jedem Patienten in der Nähe steht sein
+  Schild (Nummer, Feld, Kategorie) an seiner Position — es bleibt dort, wenn man
+  den Kopf dreht. Die Handlungskarte mit Frage und Antwortknöpfen steht ebenfalls
+  raumfest beim Patienten, den man gerade sichtet.
+- **Bedienung ist Handtracking** — zeigen und pinchen, keine Controller.
 - **Lagekarte** — das Ablage-Raster aus dem Datensatz (`C2`, `B3`, …) als Karte,
   mit der eigenen Position und Blickrichtung. Hohle Punkte stehen noch aus,
   gefüllte sind gesichtet.
@@ -94,9 +99,10 @@ oculusapp/
 │  ├─ mstart.js          das mSTaRT-Schema als Entscheidungsbaum (reine Logik)
 │  ├─ layout.js          Rasterzellen → Meter, Raumausrichtung, Lagekarten-Koordinaten
 │  ├─ workflow.js        der Ablauf als Zustandsmaschine — kennt keine Darstellung
-│  ├─ hudscreen.js       zeichnet Schirm + Lagekarte auf Canvas (AR) und liefert
-│  │                     die Trefferflächen der Knöpfe für den Handstrahl
-│  ├─ xr.js              WebXR-Sitzung: körperfester Schirm, Handstrahl, Pinch
+│  ├─ hudscreen.js       zeichnet die drei AR-Ebenen (Rand-HUD, Handlungskarte,
+│  │                     Patientenschilder) und liefert die Trefferflächen
+│  ├─ xr.js              WebXR-Sitzung: kopffestes HUD, raumfeste Karte und
+│  │                     Schilder, Handstrahl und Pinch
 │  ├─ hudcanvas.js       Patientenakte auf Canvas
 │  ├─ hud.js             Patientenakte als DOM
 │  ├─ qr.js              QR: BarcodeDetector → jsQR-Fallback; liest JAR-P<n>

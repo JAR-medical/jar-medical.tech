@@ -71,27 +71,42 @@
         <span id="voice-status" class="voice-status">Mikrofon aus</span>
       </div>
 
-      <!-- Ablaufschirm: Lagekarte links, aktueller Schritt rechts.
-           Dieselbe Beschreibung, die in AR auf die WebGL-Ebene gezeichnet wird. -->
+      <!-- Wie in der Brille: Randinformation außen, Handlungsschritt in der
+           Mitte. Dieselbe Beschreibung, die AR auf die WebGL-Ebene zeichnet. -->
       <div id="flow" class="flow">
-        <aside class="flow-map">
-          <canvas id="flow-map" width="340" height="600"></canvas>
-        </aside>
 
-        <div class="flow-main">
-          <header class="flow-head">
-            <span id="flow-title" class="flow-title">J.A.R.</span>
-            <span id="flow-badge" class="flow-badge"></span>
-          </header>
+        <div class="hud-corner tl">
+          <span id="flow-title" class="hud-key">J.A.R.</span>
+          <div id="flow-progress" class="flow-progress"></div>
+        </div>
+
+        <div class="hud-corner tr">
+          <span id="flow-open" class="hud-key"></span>
+          <div id="flow-counts" class="flow-counts"></div>
+        </div>
+
+        <div class="hud-corner bl">
+          <span class="hud-key">Lagekarte</span>
+          <canvas id="flow-map" width="340" height="300"></canvas>
+        </div>
+
+        <div class="hud-corner br">
+          <span id="flow-status" class="flow-status"></span>
+        </div>
+
+        <!-- der Schritt selbst: kein Kasten, nur Type und Umrisse -->
+        <div class="flow-card">
+          <div class="flow-card-head">
+            <span id="flow-card-title" class="hud-key"></span>
+            <span id="flow-badge" class="hud-key dim"></span>
+          </div>
           <div id="flow-band" class="flow-band"></div>
 
           <h2 id="flow-headline" class="flow-headline"></h2>
           <p id="flow-hint" class="flow-hint"></p>
-          <div id="flow-progress" class="flow-progress"></div>
           <div id="flow-body" class="flow-body"></div>
-
+          <div id="flow-vitals" class="flow-vitals"></div>
           <div id="flow-buttons" class="flow-buttons"></div>
-          <p id="flow-status" class="flow-status"></p>
         </div>
       </div>
 

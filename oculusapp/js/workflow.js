@@ -249,6 +249,56 @@ export class Workflow {
   _emitMismatch(scanned) { this._mismatch = scanned; this.emit(); }
   _emitBestaetigt(how) { this._how = how; this.emit(); }
 
+  /** Vitalwerte des Zielpatienten als Zahlenreihe für die Karte. */
+  vitalsOf(markerId) {
+    const p = resolvePatient(markerId);
+    if (!p || !p.vitals) return [];
+    const v = p.vitals;
+    const out = [];
+    if (v.breathing_rate != null) out.push({ label: "AF", value: String(v.breathing_rate) });
+    if (v.pulse != null) out.push({ label: "Puls", value: String(v.pulse) });
+    if (v.spo2 != null) out.push({ label: "SpO₂", value: v.spo2 + "%" });
+    if (v.bp_systolic != null)
+      out.push({ label: "RR", value: v.bp_systolic + (v.bp_diastolic != null ? "/" + v.bp_diastolic : "") });
+    if (v.gcs != null) out.push({ label: "GCS", value: String(v.gcs) });
+    return out;
+  }
+
+  /**
+   * Was raumfest an den Patienten hängt: ein Schild je Patient an seiner
+   * Position. Ohne Ausrichtung gibt es keine Positionen — dann nichts.
+   */
+  worldTags(maxDistance = 12) {
+    if (!this.layout.aligned) return [];
+    const tags = [];
+    for (const id of MARKER_IDS) {
+      const p = resolvePatient(id);
+      const pos = this.layout.world(id);
+      if (!p || !pos) continue;
+      const d = this.layout.distance(id, this.position);
+      if (d > maxDistance) continue;
+      const c = cat(p.category);
+      tags.push({
+        id, pos, distance: d,
+        cell: this.layout.cellLabel(id),
+        short: c.short,
+        color: c.color,
+        sighted: this.done.has(id),
+        target: id === this.target,
+      });
+    }
+    return tags;
+  }
+
+  /**
+   * Wo die Handlungskarte im Raum hängt: beim Zielpatienten, sobald die Lage
+   * ausgerichtet ist. Sonst null — dann setzt xr.js sie einmal vor den Träger.
+   */
+  cardAnchor() {
+    if (this.target === null || !this.layout.aligned) return null;
+    return this.layout.world(this.target);
+  }
+
   /** Die Beschreibung des aktuellen Schirms. */
   screen() {
     const s = {
@@ -261,6 +311,8 @@ export class Workflow {
       body: [],
       progress: null,
       buttons: [],
+      cardTitle: this.target !== null ? `Patient #${this.target}` : "",
+      vitals: this.target !== null ? this.vitalsOf(this.target) : [],
       status: this.statusLine(),
     };
 

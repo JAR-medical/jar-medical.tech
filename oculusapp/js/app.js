@@ -48,6 +48,10 @@ const el = {
   flow: $("flow"),
   flowMap: $("flow-map"),
   flowTitle: $("flow-title"),
+  flowCardTitle: $("flow-card-title"),
+  flowOpen: $("flow-open"),
+  flowCounts: $("flow-counts"),
+  flowVitals: $("flow-vitals"),
   flowBadge: $("flow-badge"),
   flowBand: $("flow-band"),
   flowHeadline: $("flow-headline"),
@@ -119,8 +123,9 @@ function renderScreen(screen) {
   app.screen = screen;
 
   el.flowTitle.textContent = screen.title || "J.A.R.";
+  el.flowCardTitle.textContent = screen.cardTitle || "";
   el.flowBadge.textContent = screen.badge || "";
-  el.flowBand.style.background = screen.band || "transparent";
+  el.flowBand.style.background = screen.band || "rgba(255,255,255,.28)";
 
   el.flowHeadline.textContent = screen.headline || "";
   el.flowHeadline.style.color = screen.headlineColor || "";
@@ -131,19 +136,68 @@ function renderScreen(screen) {
     const pips = Array.from({ length: screen.progress.total }, (_, i) =>
       `<span class="flow-pip${i < screen.progress.step ? " on" : ""}"></span>`).join("");
     el.flowProgress.innerHTML =
-      `<span>Schritt ${screen.progress.step} von ${screen.progress.total}</span><span class="flow-pips">${pips}</span>`;
+      `<span>Schritt ${screen.progress.step}/${screen.progress.total}</span><span class="flow-pips">${pips}</span>`;
   } else el.flowProgress.innerHTML = "";
 
-  el.flowBody.innerHTML = (screen.body || [])
-    .map((item) => {
-      const cls = ["muted", "good", "warn"].includes(item.color) ? ` class="${item.color}"` : "";
-      const style = item.color === "cat" && item.color2 ? ` style="color:${item.color2}"` : "";
-      return `<div${cls}${style}></div>`;
-    })
-    .join("");
-  // Text getrennt setzen — Patientendaten dürfen nie als Markup landen.
-  [...el.flowBody.children].forEach((node, i) => (node.textContent = screen.body[i].text));
+  renderBody(screen);
+  renderVitals(screen);
+  renderCounts();
+  renderButtons(screen);
 
+  drawMap();
+  if (app.xr && app.xr.active) {
+    app.xr.setContent(screen, app.flow.mapModel(), app.flow.worldTags(), app.flow.cardAnchor());
+    if (!app.flow.cardAnchor()) app.xr.recenter();   // kein Patient → neu vor den Träger
+  }
+  if (app.recordOpen) renderRecord();
+}
+
+/* Text wird immer per textContent gesetzt — Patientendaten dürfen nie als
+ * Markup interpretiert werden. */
+function renderBody(screen) {
+  el.flowBody.innerHTML = "";
+  for (const item of screen.body || []) {
+    const div = document.createElement("div");
+    if (["muted", "good", "warn"].includes(item.color)) div.className = item.color;
+    if (item.color === "cat" && item.color2) div.style.color = item.color2;
+    div.textContent = item.text;
+    el.flowBody.appendChild(div);
+  }
+}
+
+function renderVitals(screen) {
+  el.flowVitals.innerHTML = "";
+  for (const v of screen.vitals || []) {
+    const d = document.createElement("div");
+    d.className = "flow-vital";
+    const s = document.createElement("span");
+    s.textContent = v.label;
+    const b = document.createElement("strong");
+    b.textContent = v.value;
+    d.appendChild(s); d.appendChild(b);
+    el.flowVitals.appendChild(d);
+  }
+}
+
+function renderCounts() {
+  if (!app.flow) return;
+  const c = app.flow.mapModel().counts;
+  el.flowOpen.textContent = `${c.open} offen`;
+  const items = [["#e5484d", c.SK1], ["#f5b301", c.SK2], ["#46a758", c.SK3],
+                 ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
+  el.flowCounts.innerHTML = "";
+  for (const [color, n] of items) {
+    const span = document.createElement("span");
+    span.className = "flow-count";
+    const dot = document.createElement("i");
+    dot.style.background = color;
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(String(n)));
+    el.flowCounts.appendChild(span);
+  }
+}
+
+function renderButtons(screen) {
   el.flowButtons.innerHTML = "";
   (screen.buttons || []).forEach((b, i) => {
     const btn = document.createElement("button");
@@ -155,13 +209,6 @@ function renderScreen(screen) {
     };
     el.flowButtons.appendChild(btn);
   });
-
-  drawMap();
-  if (app.xr && app.xr.active) {
-    app.xr.setContent(screen, app.flow.mapModel());
-    app.xr.recenter();
-  }
-  if (app.recordOpen) renderRecord();
 }
 
 function drawMap() {
@@ -202,8 +249,9 @@ async function startAR() {
     onPose: (pos, fwd) => app.flow.setPose(pos, fwd),
     onFrame: () => {
       app.flow.tick();
-      // Die Karte lebt (eigene Position); xr.js drosselt das Neuzeichnen selbst.
-      app.xr.setContent(null, app.flow.mapModel());
+      // Lagekarte und Schilder leben mit der eigenen Position; xr.js drosselt
+      // das Neuzeichnen selbst.
+      app.xr.setContent(null, app.flow.mapModel(), app.flow.worldTags(), app.flow.cardAnchor());
     },
   });
 
