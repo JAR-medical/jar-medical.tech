@@ -7,9 +7,10 @@
  *
  * Drei Sorten Rechtecke, bewusst unterschiedlich verankert:
  *
- *   HUD      folgt dem Kopf **träge**: es hängt an einer gedämpften Blickrichtung
- *            mit Totzone, treibt also ein Stück mit, statt angeschweißt zu sein.
- *            Randinformation, nicht bedienbar.
+ *   HUD      steht still, bis der Blick eine große Schwelle überschreitet (40°) —
+ *            dann zieht es einmal um und steht wieder. Man kann also frei
+ *            herumschauen, ohne dass es mitschwimmt. Randinformation, nicht
+ *            bedienbar.
  *   Karte    raumfest beim Patienten, dreht sich nur zum Betrachter. Sie bleibt
  *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst.
  *   Schilder raumfest an jedem Patienten in der Nähe.
@@ -41,9 +42,11 @@ const HUD_W = 1536, HUD_H = 864;
 const HUD_DIST = 0.95;
 const HUD_HALF_W = 0.82;                 // ≈ 82° Breite
 const HUD_HALF_H = HUD_HALF_W * (HUD_H / HUD_W);
-const HUD_TAU = 0.28;                    // Sekunden Nachlauf
-const HUD_LEASH = 24 * Math.PI / 180;    // so weit darf der Blick wandern, bevor es folgt
-const HUD_SETTLE = 4 * Math.PI / 180;    // und so nah muss es wieder dran sein, um zu ruhen
+// Das HUD steht still, bis der Blick weit genug abgewandert ist — dann zieht es
+// einmal um und steht wieder. Kein Mitschwimmen dazwischen.
+const HUD_LEASH = 40 * Math.PI / 180;    // so weit darf der Blick wandern
+const HUD_MOVE_TAU = 0.16;               // wie schnell es dann umzieht
+const HUD_ARRIVED = 1.5 * Math.PI / 180; // ab hier gilt der Umzug als beendet
 
 // Pinch aus den Fingergelenken: Schwellen mit Hysterese, damit es nicht flattert.
 const PINCH_ON = 0.028;                  // Meter zwischen Daumen- und Zeigefingerspitze
@@ -170,8 +173,9 @@ export class XRPassthrough {
     this._hudDirty = true;
     this._hudDrawnAt = 0;
 
-    this._hudDir = null;                   // gedämpfte Blickrichtung
-    this._hudFollowing = false;
+    this._hudDir = null;                   // gehaltene Blickrichtung des HUD
+    this._hudTarget = null;
+    this._hudMoving = false;
     this._lastFrameAt = 0;
     this._placed = null;
     this._tagTex = new Map();
@@ -391,22 +395,36 @@ export class XRPassthrough {
   }
 
   /**
-   * Das HUD hängt an einer langen Leine: der Blick darf weit darin umherwandern
-   * (HUD_LEASH), ohne dass sich etwas rührt. Erst jenseits davon zieht es weich
-   * nach — und zwar so lange, bis es wieder dicht am Blick sitzt (HUD_SETTLE),
-   * sonst würde es genau an der Grenze zappeln.
+   * Das HUD bleibt liegen, wo es liegt, solange der Blick innerhalb von
+   * HUD_LEASH umherwandert — man kann also frei herumschauen, das HUD sogar aus
+   * dem Blick verlieren, ohne dass sich etwas rührt. Erst wenn der Blick diese
+   * Schwelle überschreitet, zieht es **einmal** um: das Ziel wird in dem Moment
+   * festgehalten und angesteuert, danach steht es wieder still. Es schwimmt
+   * nicht mit dem Kopf mit — wer weiterdreht, löst schlicht den nächsten Umzug
+   * aus.
+   *
+   * Die Position bleibt am Kopf hängen (HUD_DIST voraus in der gehaltenen
+   * Richtung), sonst liefe man beim Gehen davon.
    */
   _hudPose(head, dt) {
     const look = norm3(forwardOf(head));
-    if (!this._hudDir) this._hudDir = look;
+    if (!this._hudDir) { this._hudDir = look; this._hudTarget = look; }
 
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, look))));
-    if (angle > HUD_LEASH) this._hudFollowing = true;
+    const angleFromLook = (v) => Math.acos(Math.max(-1, Math.min(1, dot3(v, look))));
 
-    if (this._hudFollowing) {
-      const t = 1 - Math.exp(-dt / HUD_TAU);
-      this._hudDir = norm3(add3(this._hudDir, scale3(sub(look, this._hudDir), t)));
-      if (angle < HUD_SETTLE) this._hudFollowing = false;
+    if (!this._hudMoving && angleFromLook(this._hudDir) > HUD_LEASH) {
+      this._hudMoving = true;
+      this._hudTarget = look;              // Ziel einmal festhalten, nicht nachführen
+    }
+
+    if (this._hudMoving) {
+      const t = 1 - Math.exp(-dt / HUD_MOVE_TAU);
+      this._hudDir = norm3(add3(this._hudDir, scale3(sub(this._hudTarget, this._hudDir), t)));
+      const rest = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, this._hudTarget))));
+      if (rest < HUD_ARRIVED) {
+        this._hudDir = this._hudTarget;
+        this._hudMoving = false;
+      }
     }
 
     const pos = add3(head.position, scale3(this._hudDir, HUD_DIST));
@@ -722,6 +740,8 @@ export class XRPassthrough {
     this._rects = [];
     this._cursorWorld = null;
     this._hudDir = null;
+    this._hudTarget = null;
+    this._hudMoving = false;
     this._placed = null;
     this.onEnd();
   }
