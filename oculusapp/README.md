@@ -52,8 +52,11 @@ python3 -m http.server 8765          # http://<mac-ip>:8765
 `localhost` is a secure context; for AR on a headset over the network you still
 need HTTPS (a tunnel like `cloudflared`, or the deployed copy).
 
-Print the cards: open `assets/markers/markers.html` and print, or use the
-individual `assets/markers/JAR-P<n>.svg` files.
+**Print the Patientenumhängekarten:** `assets/markers/patientenkarten.pdf`
+(A4, 3 Seiten, 12 Karten) — oder `patientenkarten.html` im Browser drucken.
+Ausschneiden, oben rechts lochen, dem Patienten umhängen. Die
+Sichtungskategorie steht bewusst **nicht** darauf: sie entsteht erst bei der
+Sichtung und wird danach per Scan auf die Karte gebucht.
 
 ---
 
@@ -114,8 +117,10 @@ oculusapp/
 │  └─ probe_dom.html     klickt den flachen Ablauf durch
 ├─ Unity/                nativer PICO-/Quest-Build (siehe Unity/README-PICO.md)
 ├─ vendor/jsQR.min.js    QR-Decoder-Fallback
-├─ make_markers.py       erzeugt die druckbaren Karten (segno)
-└─ assets/markers/       JAR-P1..JAR-P12.svg + markers.html (Druckbogen)
+├─ make_cards.py         erzeugt den Druckbogen der Umhängekarten (segno)
+├─ make_markers.py       erzeugt die nackten QR-Marker (segno)
+└─ assets/markers/       patientenkarten.pdf/.html (Umhängekarten, zum Drucken)
+                         JAR-P1..JAR-P12.svg + markers.html (nackte Marker)
 ```
 
 ### Prüfen
@@ -130,10 +135,18 @@ durch — beide über einen lokalen Server öffnen und mit `--screenshot` abgrei
 
 ### Karten neu erzeugen
 ```sh
-python3 make_markers.py
+../../.venv/bin/python make_cards.py
 ```
 Nutzt `segno`. Die Nutzlast ist `JAR-P<id>`; `qr.js` versteht `JAR-P7`, `JAR:7`,
 `.../patient/7` und die nackte `7`.
+
+Zwei Dinge daran sind nicht verhandelbar und stehen deshalb im Skript
+kommentiert: **Fehlerkorrektur H** (bei niedrigeren Stufen wählt segno für so
+kurze Nutzlasten ein Micro-QR, und jsQR liest Micro-QR nicht) und eine
+**viewBox** am SVG (ohne sie rastert die Grafik beim Verkleinern falsch und ist
+nicht mehr scanbar). `tests/probe_qr.html` prüft beides, indem es jeden Code aus
+dem fertigen Bogen mit jsQR decodiert — klar, in Kameragröße und schräg mit
+Rauschen.
 
 ---
 
