@@ -22,7 +22,12 @@ Lage ausrichten ─▶ Lagekarte ─▶ zum Patienten gehen ─▶ „Sichtung s
   Schild (Nummer, Feld, Kategorie) an seiner Position — es bleibt dort, wenn man
   den Kopf dreht. Die Handlungskarte mit Frage und Antwortknöpfen steht ebenfalls
   raumfest beim Patienten, den man gerade sichtet.
-- **Bedienung ist Handtracking** — zeigen und pinchen, keine Controller.
+- **Bedienung im Browser: Blick + Verweilen.** Ein Fadenkreuz liegt in der
+  Blickmitte; wer einen Knopf 1,1 s anschaut, löst ihn aus. Controller werden
+  ebenfalls bedient (Strahl + Trigger). **Handtracking gibt es hier nicht:** der
+  PICO-Browser stellt die WebXR-Hand-Input-Schnittstelle nicht bereit, es
+  kommen keine Fingergelenke an. Wer echtes Handtracking will, nimmt den
+  nativen Build (`Unity/README-PICO.md`) — dort ist es der Normalfall.
 - **Lagekarte** — das Ablage-Raster aus dem Datensatz (`C2`, `B3`, …) als Karte,
   mit der eigenen Position und Blickrichtung. Hohle Punkte stehen noch aus,
   gefüllte sind gesichtet.
