@@ -41,8 +41,13 @@ const HUD_W = 1536, HUD_H = 864;
 const HUD_DIST = 0.95;
 const HUD_HALF_W = 0.82;                 // ≈ 82° Breite
 const HUD_HALF_H = HUD_HALF_W * (HUD_H / HUD_W);
-const HUD_TAU = 0.22;                    // Sekunden Nachlauf
-const HUD_DEADZONE = 2.5 * Math.PI / 180;
+const HUD_TAU = 0.28;                    // Sekunden Nachlauf
+const HUD_LEASH = 24 * Math.PI / 180;    // so weit darf der Blick wandern, bevor es folgt
+const HUD_SETTLE = 4 * Math.PI / 180;    // und so nah muss es wieder dran sein, um zu ruhen
+
+// Pinch aus den Fingergelenken: Schwellen mit Hysterese, damit es nicht flattert.
+const PINCH_ON = 0.028;                  // Meter zwischen Daumen- und Zeigefingerspitze
+const PINCH_OFF = 0.045;
 
 // Raumfeste Handlungskarte beim Patienten.
 const CARD_W = 900, CARD_H = 640;
@@ -166,12 +171,16 @@ export class XRPassthrough {
     this._hudDrawnAt = 0;
 
     this._hudDir = null;                   // gedämpfte Blickrichtung
+    this._hudFollowing = false;
     this._lastFrameAt = 0;
     this._placed = null;
     this._tagTex = new Map();
+    this._hands = new Map();               // handedness → Pinch-Zustand
+    this._pendingActivate = false;
 
     // Diagnose — beantwortet „warum reagiert nichts?" ohne Kabel.
-    this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, gaze: false, feature: "?" };
+    this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, joints: 0,
+                   pinchCm: null, gaze: false, feature: "?" };
 
     this._frameBound = (t, f) => this._onFrame(t, f);
     this._onSelectBound = () => { this._diag.selects++; this._hudDirty = true; this._activate(); };
@@ -381,17 +390,25 @@ export class XRPassthrough {
     ]);
   }
 
-  /** HUD zieht dem Blick träge nach — mit Totzone, damit es bei ruhigem Kopf steht. */
+  /**
+   * Das HUD hängt an einer langen Leine: der Blick darf weit darin umherwandern
+   * (HUD_LEASH), ohne dass sich etwas rührt. Erst jenseits davon zieht es weich
+   * nach — und zwar so lange, bis es wieder dicht am Blick sitzt (HUD_SETTLE),
+   * sonst würde es genau an der Grenze zappeln.
+   */
   _hudPose(head, dt) {
     const look = norm3(forwardOf(head));
     if (!this._hudDir) this._hudDir = look;
-    else {
-      const angle = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, look))));
-      if (angle > HUD_DEADZONE) {
-        const t = 1 - Math.exp(-dt / HUD_TAU);
-        this._hudDir = norm3(add3(this._hudDir, scale3(sub(look, this._hudDir), t)));
-      }
+
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, look))));
+    if (angle > HUD_LEASH) this._hudFollowing = true;
+
+    if (this._hudFollowing) {
+      const t = 1 - Math.exp(-dt / HUD_TAU);
+      this._hudDir = norm3(add3(this._hudDir, scale3(sub(look, this._hudDir), t)));
+      if (angle < HUD_SETTLE) this._hudFollowing = false;
     }
+
     const pos = add3(head.position, scale3(this._hudDir, HUD_DIST));
     return { pos, basis: basisFromNormal(scale3(this._hudDir, -1)) };
   }
@@ -407,15 +424,35 @@ export class XRPassthrough {
 
   /* --------------------------------------------------------------- Zeigen */
 
-  /** Alle Strahlen: Hände, Controller — und ersatzweise der Blick. */
+  /**
+   * Alle Strahlen: Hände (aus den Gelenken), Controller — ersatzweise der Blick.
+   *
+   * Hände werden NICHT über `targetRaySpace` und `select` genommen, sondern
+   * direkt aus den Fingergelenken: Richtung vom Handgelenk zur Zeigefingerspitze,
+   * Pinch aus dem Abstand Daumen- zu Zeigefingerspitze. Beides braucht nur
+   * `frame.getJointPose`, das jeder Browser mit Handtracking liefert — anders als
+   * Zielstrahl und `select`, die auf manchen Geräten ausbleiben.
+   */
   _rays(frame, head) {
     const out = [];
-    let hands = 0;
+    let hands = 0, jointed = 0;
     const kinds = new Set();
+    let pinchCm = null;
 
     for (const src of this.session.inputSources) {
-      if (src.hand) hands++;
       if (src.targetRayMode) kinds.add(src.hand ? "hand" : src.targetRayMode);
+
+      if (src.hand) {
+        hands++;
+        const ray = this._handRay(frame, src);
+        if (ray) {
+          jointed++;
+          if (pinchCm === null || ray.pinchDistance < pinchCm) pinchCm = ray.pinchDistance;
+          out.push(ray);
+          continue;                      // Gelenke schlagen den Zielstrahl
+        }
+      }
+
       if (!src.targetRaySpace) continue;
       const pose = frame.getPose(src.targetRaySpace, this.refSpace);
       if (!pose) continue;
@@ -428,7 +465,9 @@ export class XRPassthrough {
 
     this._diag.sources = this.session.inputSources.length;
     this._diag.hands = hands;
+    this._diag.joints = jointed;
     this._diag.kinds = kinds.size ? [...kinds].join("+") : "—";
+    this._diag.pinchCm = pinchCm === null ? null : Math.round(pinchCm * 100);
     this._diag.gaze = out.length === 0;
 
     // Nichts da, worauf man zeigen könnte → der Blick zeigt.
@@ -436,6 +475,53 @@ export class XRPassthrough {
       out.push({ origin: head.position, dir: norm3(forwardOf(head)), gaze: true });
 
     return out;
+  }
+
+  /** Strahl und Pinch einer Hand aus ihren Gelenken. null, wenn sie fehlen. */
+  _handRay(frame, src) {
+    if (typeof frame.getJointPose !== "function" || !src.hand) return null;
+
+    const joint = (name) => {
+      try {
+        const space = src.hand.get(name);
+        if (!space) return null;
+        const pose = frame.getJointPose(space, this.refSpace);
+        return pose ? pose.transform.position : null;
+      } catch (_) {
+        return null;                     // Browser meldet Gelenke, liefert aber keine
+      }
+    };
+
+    const wrist = joint("wrist");
+    const indexTip = joint("index-finger-tip");
+    const thumbTip = joint("thumb-tip");
+    const knuckle = joint("index-finger-metacarpal") || joint("index-finger-phalanx-proximal");
+    if (!indexTip || !thumbTip || !(wrist || knuckle)) return null;
+
+    const from = knuckle || wrist;
+    const dir = norm3(sub(indexTip, from));
+    const gap = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y, indexTip.z - thumbTip.z);
+
+    const key = src.handedness || "unknown";
+    const prev = this._hands.get(key) || { pinching: false, dir, origin: from };
+    const pinching = prev.pinching ? gap < PINCH_OFF : gap < PINCH_ON;
+
+    // Beim Zupacken krümmt sich der Zeigefinger zum Daumen — würde der Strahl
+    // mitwandern, zeigte man im Moment des Auslösens woandershin. Also wird die
+    // Richtung mit dem Zugreifen eingefroren.
+    const aim = pinching ? prev.dir : dir;
+    const origin = pinching ? prev.origin : from;
+
+    const down = pinching && !prev.pinching;
+    this._hands.set(key, { pinching, dir: aim, origin });
+
+    if (down) {
+      this._diag.selects++;
+      this._hudDirty = true;
+      this._pendingActivate = true;      // erst auslösen, wenn der Zeiger steht
+    }
+
+    return { origin, dir: aim, gaze: false, pinching, pinchDistance: gap };
   }
 
   _updatePointer(rays, cardPos, cardBasis, now) {
@@ -475,6 +561,13 @@ export class XRPassthrough {
       : 0;
     if (Math.abs(dwell - this._dwell) > 0.02) { this._dwell = dwell; this._cardDirty = true; }
     if (dwell >= 1) { this._dwell = 0; this._activate(); }
+
+    // Ein Pinch aus den Gelenken löst erst hier aus — nachdem feststeht, worauf
+    // der eingefrorene Strahl in diesem Frame zeigt.
+    if (this._pendingActivate) {
+      this._pendingActivate = false;
+      this._activate();
+    }
   }
 
   _activate() {

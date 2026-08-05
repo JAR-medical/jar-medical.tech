@@ -78,6 +78,29 @@ function scrim(ctx, x, y, w, h, color = C.scrimStrong) {
   ctx.fillRect(x, y, w, h);
 }
 
+/**
+ * Unterlage für einen Anzeigeblock: dunkle Fläche, damit die Schrift über jedem
+ * Untergrund trägt, ein Hauch der zugehörigen Farbe darüber und eine kräftige
+ * Kante an der Führungsseite. Flach und ungerundet — die Farbe ordnet zu, sie
+ * dekoriert nicht.
+ */
+function block(ctx, x, y, w, h, accent = null, edge = "left") {
+  ctx.fillStyle = "rgba(6,9,13,0.58)";
+  ctx.fillRect(x, y, w, h);
+
+  if (accent) {
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = accent;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = accent;
+    if (edge === "left") ctx.fillRect(x, y, 4, h);
+    else if (edge === "right") ctx.fillRect(x + w - 4, y, 4, h);
+    else if (edge === "top") ctx.fillRect(x, y, w, 4);
+  }
+}
+
 function wrap(ctx, text, maxW) {
   const words = String(text ?? "").split(/\s+/).filter(Boolean);
   const lines = [];
@@ -123,7 +146,7 @@ export function drawHudLayer(ctx, W, H, screen, map, diag) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
 
-  const pad = Math.round(W * 0.045);
+  const pad = Math.round(W * 0.038);
   topLeft(ctx, pad, pad, screen, diag);
   topRight(ctx, W - pad, pad, map);
   bottomLeft(ctx, pad, H - pad, map);
@@ -131,6 +154,9 @@ export function drawHudLayer(ctx, W, H, screen, map, diag) {
 }
 
 function topLeft(ctx, x, y, screen, diag) {
+  const lines = (screen.progress ? 1 : 0) + (diag ? 1 : 0) + (diag && diag.selects === 0 ? 1 : 0);
+  block(ctx, x - 14, y - 12, 470, 62 + lines * 30, C.accent);
+
   caps(ctx, screen.title || "J.A.R.", x, y + 20, 22, C.dim);
   rule(ctx, x, y + 38, 430, C.rule);
 
@@ -152,10 +178,12 @@ function topLeft(ctx, x, y, screen, diag) {
   // heraus die Frage „warum reagiert nichts?".
   if (diag) {
     const zeigt = diag.gaze ? "Blick" : diag.kinds;
-    caps(ctx, `Eingabe ${diag.sources} · ${zeigt} · Hände ${diag.hands} · Pinch ${diag.selects}`,
+    const gelenke = diag.joints ? `Gelenke ${diag.joints}` : "keine Gelenke";
+    const spalt = diag.pinchCm == null ? "—" : diag.pinchCm + " cm";
+    caps(ctx, `Eingabe ${diag.sources} · ${zeigt} · ${gelenke} · Spalt ${spalt} · Pinch ${diag.selects}`,
          x, ly, 15, diag.gaze ? "#f2dfae" : C.faint);
     if (diag.selects === 0)
-      caps(ctx, "Auslösen durch Verweilen", x, ly + 24, 15, "#f2dfae");
+      caps(ctx, "Auslösen durch Verweilen", x, ly + 26, 15, "#f2dfae");
   }
 }
 
@@ -164,6 +192,7 @@ function topRight(ctx, x, y, map) {
   const items = [["#e5484d", c.SK1], ["#f5b301", c.SK2], ["#46a758", c.SK3],
                  ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
 
+  block(ctx, x - 456, y - 12, 470, 110, C.accent, "right");
   caps(ctx, `${c.open} offen`, x, y + 20, 22, C.dim, "right");
   rule(ctx, x - 430, y + 38, 430, C.rule);
 
@@ -181,13 +210,19 @@ function bottomLeft(ctx, x, yBottom, map) {
   const w = 400, h = 300;
   const y = yBottom - h - 38;
 
+  block(ctx, x - 14, y - 40, w + 34, h + 62, C.accent);
   caps(ctx, "Lagekarte", x, y - 14, 18, C.faint);
   drawGrid(ctx, x, y, w, h, map, { compact: true });
   T(ctx, map.footer || "", x, yBottom - 4, { size: 23, weight: 500, color: C.dim });
 }
 
 function bottomRight(ctx, x, yBottom, screen) {
-  T(ctx, screen.status || "", x, yBottom - 4, { size: 21, color: C.faint, align: "right" });
+  const text = screen.status || "";
+  if (!text) return;
+  ctx.font = `400 21px ${F}`;
+  const w = ctx.measureText(text).width;
+  block(ctx, x - w - 26, yBottom - 34, w + 40, 44, null);
+  T(ctx, text, x, yBottom - 4, { size: 21, color: C.dim, align: "right" });
 }
 
 /* ------------------------------------------------------------ Lagekarte */
@@ -271,6 +306,9 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
 
   const pad = 34;
   const w = W - pad * 2;
+
+  // Unterlage in der Farbe, um die es geht: die Sichtungskategorie, sonst Akzent.
+  block(ctx, 0, 0, W, H, screen.band || C.accent, "top");
 
   caps(ctx, screen.cardTitle || screen.title || "", pad, pad + 18, 19, C.dim);
   if (screen.badge) caps(ctx, screen.badge, W - pad, pad + 18, 19, C.faint, "right");
