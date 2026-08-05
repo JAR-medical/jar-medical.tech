@@ -332,7 +332,11 @@ export class Workflow {
   statusLine() {
     if (this.notice) return this.notice;
     if (this.state === "scan" || this.state === "scan-mismatch")
-      return this.cameraLive ? "Scanner aktiv — Karte ins Blickfeld" : "Scanner aus — manuell bestätigen";
+      // Ohne Kamera muss dastehen, WO der Knopf ist — die Statuszeile hängt am
+      // Blickfeldrand, der Knopf auf der Karte beim Patienten.
+      return this.cameraLive
+        ? "Scanner aktiv — Karte ins Blickfeld"
+        : "Kein Scanner im Headset — auf der Patientenkarte „Manuell bestätigen“ auslösen";
     return DISCLAIMER;
   }
 

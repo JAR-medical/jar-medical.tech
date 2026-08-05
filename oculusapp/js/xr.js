@@ -57,6 +57,8 @@ const CARD_W = 900, CARD_H = 640;
 const CARD_HALF_W = 0.56;
 const CARD_HALF_H = CARD_HALF_W * (CARD_H / CARD_W);
 const CARD_PLACE_DIST = 1.25;
+const CARD_VIEW_CONE = 45 * Math.PI / 180;   // so weit darf sie aus dem Blick sein
+const CARD_RECALL_S = 1.2;                   // danach wird sie herangeholt
 
 // Raumfeste Schilder an den Patienten.
 const TAG_W = 512, TAG_H = 176;
@@ -181,6 +183,8 @@ export class XRPassthrough {
     this._tagTex = new Map();
     this._hands = new Map();               // handedness → Pinch-Zustand
     this._pendingActivate = false;
+    this._recalled = false;                // Karte wurde vor den Träger geholt
+    this._cardAwayFor = 0;
 
     // Diagnose — beantwortet „warum reagiert nichts?" ohne Kabel.
     this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, joints: 0,
@@ -251,7 +255,13 @@ export class XRPassthrough {
   }
 
   setContent(screen, map, tags, anchor) {
-    if (screen) { this._screen = screen; this._cardDirty = true; this._hudDirty = true; }
+    if (screen) {
+      this._screen = screen;
+      this._cardDirty = true;
+      this._hudDirty = true;
+      this._recalled = false;              // neuer Schritt → wieder beim Patienten
+      this._cardAwayFor = 0;
+    }
     if (map) { this._map = map; this._hudDirty = true; }
     if (tags) this._tags = tags;
     if (anchor !== undefined) this._anchor = anchor;
@@ -431,8 +441,31 @@ export class XRPassthrough {
     return { pos, basis: basisFromNormal(scale3(this._hudDir, -1)) };
   }
 
-  _cardPose(head) {
-    if (this._anchor) return this._anchor;
+  /**
+   * Die Handlungskarte steht raumfest beim Patienten — solange sie dort auch zu
+   * sehen ist. Die Patientenposition stammt aus dem ausgerichteten Raster und
+   * trifft die Wirklichkeit nur ungefähr; liegt sie daneben, hinge der einzige
+   * bedienbare Teil der Anwendung außerhalb des Blickfelds, und auf dem HUD
+   * stünde eine Aufforderung ohne sichtbaren Knopf.
+   *
+   * Deshalb: wer die Karte länger als CARD_RECALL_S nicht im Blick hat, bekommt
+   * sie vor sich geholt. Sie bleibt dann dort, bis der nächste Schritt beginnt.
+   */
+  _cardPose(head, dt) {
+    if (this._anchor && !this._recalled) {
+      const toCard = norm3(sub(this._anchor, head.position));
+      const look = norm3(forwardOf(head));
+      const off = Math.acos(Math.max(-1, Math.min(1, dot3(toCard, look))));
+
+      this._cardAwayFor = off > CARD_VIEW_CONE ? this._cardAwayFor + dt : 0;
+      if (this._cardAwayFor > CARD_RECALL_S) {
+        this._recalled = true;
+        this._placed = null;
+      } else {
+        return this._anchor;
+      }
+    }
+
     if (!this._placed) {
       const fwd = flatten(forwardOf(head));
       this._placed = add3(head.position, add3(scale3(fwd, CARD_PLACE_DIST), { x: 0, y: -0.08, z: 0 }));
@@ -622,7 +655,7 @@ export class XRPassthrough {
     this.onFrame();
 
     const hud = this._hudPose(head, dt);
-    const cardPos = this._cardPose(head);
+    const cardPos = this._cardPose(head, dt);
     const cardBasis = basisFacing(cardPos, head.position);
 
     const rays = this._rays(frame, head);
@@ -739,6 +772,8 @@ export class XRPassthrough {
     this._tagTex.clear();
     this._rects = [];
     this._cursorWorld = null;
+    this._recalled = false;
+    this._cardAwayFor = 0;
     this._hudDir = null;
     this._hudTarget = null;
     this._hudMoving = false;
