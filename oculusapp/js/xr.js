@@ -5,19 +5,22 @@
  * Rechtecke in der WebGL-Ebene gelegt. Der Augenpuffer wird vollständig
  * transparent gelöscht, damit rundherum die Wirklichkeit stehen bleibt.
  *
- * Drei Sorten von Rechtecken, bewusst unterschiedlich verankert:
+ * Drei Sorten Rechtecke, bewusst unterschiedlich verankert:
  *
- *   HUD      kopffest, groß, in der Mitte leer — Zustand, Zählung, Lagekarte und
- *            Hinweis sitzen an den Rändern des Blickfelds. Nicht bedienbar.
- *   Karte    raumfest beim Patienten, dreht sich nur um die Hochachse zum
- *            Betrachter. Sie bleibt stehen, wo der Patient liegt — auch wenn man
- *            den Kopf wegdreht. Hier wird gezeigt und gepinched.
- *   Schilder raumfest an jedem Patienten in der Nähe: Nummer, Feld, Kategorie.
+ *   HUD      folgt dem Kopf **träge**: es hängt an einer gedämpften Blickrichtung
+ *            mit Totzone, treibt also ein Stück mit, statt angeschweißt zu sein.
+ *            Randinformation, nicht bedienbar.
+ *   Karte    raumfest beim Patienten, dreht sich nur zum Betrachter. Sie bleibt
+ *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst.
+ *   Schilder raumfest an jedem Patienten in der Nähe.
  *
- * Bedienung: jede Eingabequelle hat einen `targetRaySpace` — bei Händen der
- * Pinch-Strahl. Der Strahl wird mit der Ebene der Karte geschnitten, der Treffer
- * in Canvas-Pixel umgerechnet und mit den Knopf-Rechtecken verglichen, die
- * hudscreen.js zurückgibt. `select` (der abgeschlossene Pinch) löst aus.
+ * Bedienung — und was passiert, wenn das Gerät nicht mitspielt:
+ *   Jede Eingabequelle mit `targetRaySpace` (Hand-Pinch-Strahl oder Controller)
+ *   bekommt einen sichtbaren Strahl, damit man sieht, wohin man zeigt. Gibt es
+ *   gar keine, übernimmt der **Blick** als Zeiger. Ausgelöst wird entweder durch
+ *   `select` (Pinch/Trigger) **oder** durch Verweilen auf einem Knopf. Damit ist
+ *   der Ablauf auch dann bedienbar, wenn ein Browser weder Handtracking meldet
+ *   noch `select` schickt — und die Diagnosezeile oben links sagt, was er meldet.
  */
 
 "use strict";
@@ -33,28 +36,35 @@ export async function passthroughSupported() {
   }
 }
 
-// Kopffeste HUD-Ebene: breit genug, dass die Ecken wirklich am Rand sitzen.
+// Kopfnahes HUD: nah genug, dass die Ränder ohne Kopfdrehen lesbar sind.
 const HUD_W = 1536, HUD_H = 864;
-const HUD_DIST = 1.5;
-const HUD_HALF_W = 1.10;
+const HUD_DIST = 0.95;
+const HUD_HALF_W = 0.82;                 // ≈ 82° Breite
 const HUD_HALF_H = HUD_HALF_W * (HUD_H / HUD_W);
+const HUD_TAU = 0.22;                    // Sekunden Nachlauf
+const HUD_DEADZONE = 2.5 * Math.PI / 180;
 
 // Raumfeste Handlungskarte beim Patienten.
 const CARD_W = 900, CARD_H = 640;
-const CARD_HALF_W = 0.43;
+const CARD_HALF_W = 0.56;
 const CARD_HALF_H = CARD_HALF_W * (CARD_H / CARD_W);
-const CARD_PLACE_DIST = 1.6;          // wenn es (noch) keinen Patienten gibt
+const CARD_PLACE_DIST = 1.25;
 
 // Raumfeste Schilder an den Patienten.
 const TAG_W = 512, TAG_H = 176;
-const TAG_HALF_W = 0.22;
+const TAG_HALF_W = 0.30;
 const TAG_HALF_H = TAG_HALF_W * (TAG_H / TAG_W);
-const TAG_LIFT = -0.15;               // Meter unter Augenhöhe
+const TAG_LIFT = -0.15;
+const TAG_RANGE = 9;                     // Meter
 
 const CURSOR_PX = 64;
-const CURSOR_HALF = 0.014;
+const CURSOR_HALF = 0.018;
 
-const HUD_REDRAW_MS = 150;            // die Karte zeigt die eigene Position live
+const BEAM_HALF_W = 0.004;               // Meter, halbe Strahlbreite
+const BEAM_LEN = 1.6;                    // Länge, wenn der Strahl nichts trifft
+
+const DWELL_MS = 1400;                   // Verweilen als Ersatz für den Pinch
+const HUD_REDRAW_MS = 150;
 
 const VERT_SRC = `
   attribute vec2 aPos;
@@ -85,9 +95,18 @@ function mul(a, b) {                       // spaltenweise 4x4: a * b
 }
 
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
-const scale3 = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
 const add3 = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+const scale3 = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
+const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const cross3 = (a, b) => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+});
+function norm3(v) {
+  const l = Math.hypot(v.x, v.y, v.z);
+  return l < 1e-6 ? { x: 0, y: 0, z: -1 } : { x: v.x / l, y: v.y / l, z: v.z / l };
+}
 
 /** Blickrichtung (-Z) aus einer XRRigidTransform. */
 function forwardOf(transform) {
@@ -100,29 +119,26 @@ function flatten(v) {
   return len < 1e-4 ? { x: 0, y: 0, z: -1 } : { x: v.x / len, y: 0, z: v.z / len };
 }
 
-/** Gierwinkel, sodass die Normale des Rechtecks auf `toward` zeigt. */
-function faceYaw(pos, toward) {
-  return Math.atan2(toward.x - pos.x, toward.z - pos.z);
+/** Basis für ein Rechteck, dessen Normale `n` ist (Welt-Oben als Hilfsachse). */
+function basisFromNormal(n) {
+  const normal = norm3(n);
+  let right = cross3({ x: 0, y: 1, z: 0 }, normal);
+  if (Math.hypot(right.x, right.y, right.z) < 1e-4) right = { x: 1, y: 0, z: 0 };
+  right = norm3(right);
+  const up = cross3(normal, right);
+  return { right, up, normal };
 }
 
-// kopffest: fest im Sichtraum, -Z vor dem Auge
-const HUD_MODEL = new Float32Array([
-  HUD_HALF_W, 0, 0, 0,
-  0, HUD_HALF_H, 0, 0,
-  0, 0, 1, 0,
-  0, 0, -HUD_DIST, 1,
-]);
+/** Gierbasis: Rechteck steht senkrecht und dreht sich nur zum Betrachter. */
+function basisFacing(pos, viewer) {
+  const yaw = Math.atan2(viewer.x - pos.x, viewer.z - pos.z);
+  const s = Math.sin(yaw), c = Math.cos(yaw);
+  return { right: { x: c, y: 0, z: -s }, up: { x: 0, y: 1, z: 0 }, normal: { x: s, y: 0, z: c } };
+}
 
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  /**
-   * @param {object} opts
-   * @param {()=>void}        [opts.onStart]
-   * @param {()=>void}        [opts.onEnd]
-   * @param {(pos,fwd)=>void} [opts.onPose]   Kopfpose je Frame (Nähe-Erkennung)
-   * @param {()=>void}        [opts.onFrame]  je Frame, nach der Pose
-   */
   constructor({ onStart, onEnd, onPose, onFrame } = {}) {
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
@@ -138,20 +154,27 @@ export class XRPassthrough {
                   counts: { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, open: 0 },
                   footer: "", hint: "", aligned: false };
     this._tags = [];
-    this._anchor = null;                   // Weltposition des Zielpatienten
+    this._anchor = null;
 
     this._rects = [];
     this._hover = -1;
+    this._hoverSince = 0;
+    this._dwell = 0;
     this._pinching = false;
     this._cardDirty = true;
     this._hudDirty = true;
     this._hudDrawnAt = 0;
 
-    this._placed = null;                   // Ersatzpose, wenn kein Patient da ist
-    this._tagTex = new Map();              // id → {tex, key}
+    this._hudDir = null;                   // gedämpfte Blickrichtung
+    this._lastFrameAt = 0;
+    this._placed = null;
+    this._tagTex = new Map();
+
+    // Diagnose — beantwortet „warum reagiert nichts?" ohne Kabel.
+    this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, gaze: false, feature: "?" };
 
     this._frameBound = (t, f) => this._onFrame(t, f);
-    this._onSelectBound = () => this._activate();
+    this._onSelectBound = () => { this._diag.selects++; this._hudDirty = true; this._activate(); };
     this._onSelectStart = () => { this._pinching = true; };
     this._onSelectEnd = () => { this._pinching = false; };
   }
@@ -170,15 +193,25 @@ export class XRPassthrough {
     });
     if (!gl) throw new Error("WebGL für die AR-Ebene nicht verfügbar.");
 
-    // Sitzung zuerst anfordern, solange die Nutzeraktion des Knopfdrucks gilt.
-    let session;
-    try {
-      session = await navigator.xr.requestSession("immersive-ar", {
-        optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
-      });
-    } catch (err) {
-      const name = err && err.name ? err.name + ": " : "";
-      const msg = err && err.message ? err.message : "immersive-ar konnte nicht gestartet werden";
+    // Manche Browser melden Hände nur, wenn `hand-tracking` verbindlich
+    // angefordert wurde — sie scheitern dann aber, wenn sie es nicht können.
+    // Also erst verbindlich versuchen, dann ohne.
+    const attempts = [
+      { requiredFeatures: ["hand-tracking"], optionalFeatures: ["local-floor", "bounded-floor"], tag: "hand-tracking (required)" },
+      { optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"], tag: "hand-tracking (optional)" },
+    ];
+
+    let session = null, lastErr = null;
+    for (const a of attempts) {
+      try {
+        session = await navigator.xr.requestSession("immersive-ar", a);
+        this._diag.feature = a.tag;
+        break;
+      } catch (err) { lastErr = err; }
+    }
+    if (!session) {
+      const name = lastErr && lastErr.name ? lastErr.name + ": " : "";
+      const msg = lastErr && lastErr.message ? lastErr.message : "immersive-ar konnte nicht gestartet werden";
       throw new Error("AR-Sitzung abgelehnt — " + name + msg);
     }
 
@@ -197,18 +230,13 @@ export class XRPassthrough {
     session.addEventListener("select", this._onSelectBound);
     session.addEventListener("selectstart", this._onSelectStart);
     session.addEventListener("selectend", this._onSelectEnd);
+    session.addEventListener("inputsourceschange", () => { this._hudDirty = true; });
     session.addEventListener("end", () => this._cleanup());
 
     this.onStart();
     session.requestAnimationFrame(this._frameBound);
   }
 
-  /**
-   * @param {object|null} screen  neuer Schirm (null = unverändert)
-   * @param {object|null} map     neue Kartendaten
-   * @param {Array|null}  tags    raumfeste Patientenschilder
-   * @param {object|null} anchor  Weltposition des Zielpatienten für die Karte
-   */
   setContent(screen, map, tags, anchor) {
     if (screen) { this._screen = screen; this._cardDirty = true; this._hudDirty = true; }
     if (map) { this._map = map; this._hudDirty = true; }
@@ -216,7 +244,6 @@ export class XRPassthrough {
     if (anchor !== undefined) this._anchor = anchor;
   }
 
-  /** Karte neu setzen, wenn es (noch) keinen Patienten im Raum gibt. */
   recenter() { this._placed = null; }
 
   async end() {
@@ -260,7 +287,9 @@ export class XRPassthrough {
     this.hudTex = this._texture();
     this.cardTex = this._texture();
     this.cursorTex = this._texture();
+    this.beamTex = this._texture();
     this._uploadCursor();
+    this._uploadBeam();
   }
 
   _canvas(w, h) {
@@ -303,15 +332,29 @@ export class XRPassthrough {
     c.width = c.height = CURSOR_PX;
     const g = c.getContext("2d");
     const r = CURSOR_PX / 2;
-    g.strokeStyle = "rgba(255,255,255,0.9)";
-    g.lineWidth = 3;
-    g.beginPath(); g.arc(r, r, r - 5, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = "rgba(0,0,0,0.55)";
+    g.lineWidth = 7;
+    g.beginPath(); g.arc(r, r, r - 6, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.95)";
+    g.lineWidth = 3.5;
+    g.beginPath(); g.arc(r, r, r - 6, 0, Math.PI * 2); g.stroke();
     g.fillStyle = "#ffffff";
-    g.beginPath(); g.arc(r, r, 6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(r, r, 7, 0, Math.PI * 2); g.fill();
     this._upload(this.cursorTex, c);
   }
 
-  /** Schilder ändern sich selten — Textur nur bei geändertem Inhalt neu. */
+  _uploadBeam() {
+    const c = document.createElement("canvas");
+    c.width = 8; c.height = 64;
+    const g = c.getContext("2d");
+    const grad = g.createLinearGradient(0, 64, 0, 0);      // hinten schwach, vorn hell
+    grad.addColorStop(0, "rgba(255,255,255,0.05)");
+    grad.addColorStop(1, "rgba(255,255,255,0.85)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 8, 64);
+    this._upload(this.beamTex, c);
+  }
+
   _tagTexture(tag) {
     const key = `${tag.id}|${tag.short}|${tag.sighted}|${tag.cell}`;
     let entry = this._tagTex.get(tag.id);
@@ -329,15 +372,6 @@ export class XRPassthrough {
 
   /* ------------------------------------------------------ Posen im Raum */
 
-  _basis(yaw) {
-    const s = Math.sin(yaw), c = Math.cos(yaw);
-    return {
-      right: { x: c, y: 0, z: -s },
-      up: { x: 0, y: 1, z: 0 },
-      normal: { x: s, y: 0, z: c },
-    };
-  }
-
   _model(pos, basis, halfW, halfH) {
     return new Float32Array([
       basis.right.x * halfW, basis.right.y * halfW, basis.right.z * halfW, 0,
@@ -347,69 +381,126 @@ export class XRPassthrough {
     ]);
   }
 
-  /** Wo die Handlungskarte steht: beim Patienten, sonst einmal vor dem Träger. */
+  /** HUD zieht dem Blick träge nach — mit Totzone, damit es bei ruhigem Kopf steht. */
+  _hudPose(head, dt) {
+    const look = norm3(forwardOf(head));
+    if (!this._hudDir) this._hudDir = look;
+    else {
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, look))));
+      if (angle > HUD_DEADZONE) {
+        const t = 1 - Math.exp(-dt / HUD_TAU);
+        this._hudDir = norm3(add3(this._hudDir, scale3(sub(look, this._hudDir), t)));
+      }
+    }
+    const pos = add3(head.position, scale3(this._hudDir, HUD_DIST));
+    return { pos, basis: basisFromNormal(scale3(this._hudDir, -1)) };
+  }
+
   _cardPose(head) {
     if (this._anchor) return this._anchor;
     if (!this._placed) {
       const fwd = flatten(forwardOf(head));
-      this._placed = add3(head.position, add3(scale3(fwd, CARD_PLACE_DIST), { x: 0, y: -0.1, z: 0 }));
+      this._placed = add3(head.position, add3(scale3(fwd, CARD_PLACE_DIST), { x: 0, y: -0.08, z: 0 }));
     }
     return this._placed;
   }
 
   /* --------------------------------------------------------------- Zeigen */
 
-  _updatePointer(frame, cardPos, cardBasis) {
-    let best = null;
+  /** Alle Strahlen: Hände, Controller — und ersatzweise der Blick. */
+  _rays(frame, head) {
+    const out = [];
+    let hands = 0;
+    const kinds = new Set();
 
     for (const src of this.session.inputSources) {
+      if (src.hand) hands++;
+      if (src.targetRayMode) kinds.add(src.hand ? "hand" : src.targetRayMode);
       if (!src.targetRaySpace) continue;
       const pose = frame.getPose(src.targetRaySpace, this.refSpace);
       if (!pose) continue;
+      out.push({
+        origin: pose.transform.position,
+        dir: norm3(forwardOf(pose.transform)),
+        gaze: false,
+      });
+    }
 
-      const origin = pose.transform.position;
-      const dir = forwardOf(pose.transform);
+    this._diag.sources = this.session.inputSources.length;
+    this._diag.hands = hands;
+    this._diag.kinds = kinds.size ? [...kinds].join("+") : "—";
+    this._diag.gaze = out.length === 0;
 
-      const denom = dot3(cardBasis.normal, dir);
+    // Nichts da, worauf man zeigen könnte → der Blick zeigt.
+    if (out.length === 0)
+      out.push({ origin: head.position, dir: norm3(forwardOf(head)), gaze: true });
+
+    return out;
+  }
+
+  _updatePointer(rays, cardPos, cardBasis, now) {
+    let best = null;
+
+    for (const ray of rays) {
+      const denom = dot3(cardBasis.normal, ray.dir);
       if (Math.abs(denom) < 1e-5) continue;
-      const dist = dot3(cardBasis.normal, sub(cardPos, origin)) / denom;
-      if (dist < 0.05 || dist > 8) continue;
+      const dist = dot3(cardBasis.normal, sub(cardPos, ray.origin)) / denom;
+      if (dist < 0.05 || dist > 12) continue;
 
-      const hit = add3(origin, scale3(dir, dist));
+      const hit = add3(ray.origin, scale3(ray.dir, dist));
       const rel = sub(hit, cardPos);
       const u = dot3(rel, cardBasis.right) / CARD_HALF_W;
       const v = dot3(rel, cardBasis.up) / CARD_HALF_H;
       if (u < -1 || u > 1 || v < -1 || v > 1) continue;
 
       if (!best || dist < best.dist)
-        best = { dist, hit, px: ((u + 1) / 2) * CARD_W, py: ((1 - v) / 2) * CARD_H };
+        best = { dist, hit, ray, px: ((u + 1) / 2) * CARD_W, py: ((1 - v) / 2) * CARD_H };
     }
 
     const hover = best ? hitTest(this._rects, best.px, best.py) : -1;
-    if (hover !== this._hover) { this._hover = hover; this._cardDirty = true; }
+    if (hover !== this._hover) {
+      this._hover = hover;
+      this._hoverSince = now;
+      this._cardDirty = true;
+    }
     this._cursorWorld = best ? best.hit : null;
+    this._hitDist = best ? best.dist : null;
+
+    // Verweilen ersetzt den Pinch — aber nur, solange nie einer angekommen ist.
+    // Sobald das Gerät einmal `select` geschickt hat, wäre Verweilen nur noch
+    // eine Falle, die beim bloßen Hinschauen auslöst.
+    const dwellArmed = this._diag.selects === 0;
+    const dwell = dwellArmed && this._hover >= 0
+      ? Math.min(1, (now - this._hoverSince) / DWELL_MS)
+      : 0;
+    if (Math.abs(dwell - this._dwell) > 0.02) { this._dwell = dwell; this._cardDirty = true; }
+    if (dwell >= 1) { this._dwell = 0; this._activate(); }
   }
 
   _activate() {
     if (this._hover < 0) return;
     const b = (this._screen.buttons || [])[this._hover];
     if (b && typeof b.action === "function") {
-      this._hover = -1;                    // der neue Schirm hat andere Knöpfe
+      this._hover = -1;
+      this._dwell = 0;
       b.action();
     }
   }
 
   /* ----------------------------------------------------------- Frame-Lauf */
 
-  _onFrame(_t, frame) {
+  _onFrame(t, frame) {
     const session = this.session;
     if (!session) return;
     session.requestAnimationFrame(this._frameBound);
 
+    const dt = this._lastFrameAt ? Math.min(0.1, (t - this._lastFrameAt) / 1000) : 0.016;
+    this._lastFrameAt = t;
+
     const gl = this.gl;
     const layer = session.renderState.baseLayer;
     gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
-    gl.clearColor(0, 0, 0, 0);             // durchsichtig → Passthrough bleibt
+    gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     const pose = frame.getViewerPose(this.refSpace);
@@ -419,17 +510,21 @@ export class XRPassthrough {
     this.onPose(head.position, flatten(forwardOf(head)));
     this.onFrame();
 
+    const hud = this._hudPose(head, dt);
     const cardPos = this._cardPose(head);
-    const cardBasis = this._basis(faceYaw(cardPos, head.position));
-    this._updatePointer(frame, cardPos, cardBasis);
+    const cardBasis = basisFacing(cardPos, head.position);
+
+    const rays = this._rays(frame, head);
+    this._updatePointer(rays, cardPos, cardBasis, t);
 
     if (this._cardDirty) {
-      this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen, { hover: this._hover });
+      this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen,
+                             { hover: this._hover, dwell: this._dwell });
       this._upload(this.cardTex, this.cardCanvas.el);
       this._cardDirty = false;
     }
     if (this._hudDirty || performance.now() - this._hudDrawnAt > HUD_REDRAW_MS) {
-      drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map);
+      drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map, this._diag);
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();
@@ -438,7 +533,7 @@ export class XRPassthrough {
     gl.useProgram(this.prog);
     gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);     // vormultipliziertes Alpha
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.enableVertexAttribArray(this.aPos);
@@ -448,22 +543,41 @@ export class XRPassthrough {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.uTex, 0);
 
+    const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
     const cardModel = this._model(cardPos, cardBasis, CARD_HALF_W, CARD_HALF_H);
 
-    // Schilder: raumfest an den Patienten, nur um die Hochachse gedreht.
     const tagDraws = [];
     for (const tag of this._tags) {
-      if (tag.target) continue;            // dort steht schon die Karte
+      if (tag.target || (tag.distance != null && tag.distance > TAG_RANGE)) continue;
       const pos = { x: tag.pos.x, y: tag.pos.y + TAG_LIFT, z: tag.pos.z };
-      const basis = this._basis(faceYaw(pos, head.position));
-      tagDraws.push({ tex: this._tagTexture(tag), model: this._model(pos, basis, TAG_HALF_W, TAG_HALF_H) });
+      tagDraws.push({
+        tex: this._tagTexture(tag),
+        model: this._model(pos, basisFacing(pos, head.position), TAG_HALF_W, TAG_HALF_H),
+      });
+    }
+
+    // Strahlen: sichtbar machen, wohin gezeigt wird — sonst sieht man bei einem
+    // Fehlzeiger gar nichts und hält das Handtracking für kaputt.
+    const beamModels = [];
+    for (const ray of rays) {
+      if (ray.gaze) continue;              // der Blick braucht keinen Strahl
+      const len = this._hitDist && this._cursorWorld ? this._hitDist : BEAM_LEN;
+      const centre = add3(ray.origin, scale3(ray.dir, len / 2));
+      const toViewer = norm3(sub(head.position, centre));
+      let side = cross3(ray.dir, toViewer);
+      if (Math.hypot(side.x, side.y, side.z) < 1e-4) side = { x: 1, y: 0, z: 0 };
+      side = norm3(side);
+      beamModels.push(this._model(centre, {
+        right: side,
+        up: ray.dir,
+        normal: norm3(cross3(side, ray.dir)),
+      }, BEAM_HALF_W, len / 2));
     }
 
     let cursorModel = null;
-    if (this._cursorWorld) {
-      const front = add3(this._cursorWorld, scale3(cardBasis.normal, 0.004));
-      cursorModel = this._model(front, cardBasis, CURSOR_HALF, CURSOR_HALF);
-    }
+    if (this._cursorWorld)
+      cursorModel = this._model(add3(this._cursorWorld, scale3(cardBasis.normal, 0.004)),
+                                cardBasis, CURSOR_HALF, CURSOR_HALF);
 
     for (const view of pose.views) {
       const vp = layer.getViewport(view);
@@ -471,20 +585,25 @@ export class XRPassthrough {
       gl.viewport(vp.x, vp.y, vp.width, vp.height);
       const viewProj = mul(view.projectionMatrix, view.transform.inverse.matrix);
 
-      // Randinformation zuerst, damit alles Raumfeste darüber liegt.
       gl.bindTexture(gl.TEXTURE_2D, this.hudTex);
-      gl.uniformMatrix4fv(this.uMVP, false, mul(view.projectionMatrix, HUD_MODEL));
+      gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, hudModel));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      for (const t of tagDraws) {
-        gl.bindTexture(gl.TEXTURE_2D, t.tex);
-        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, t.model));
+      for (const t2 of tagDraws) {
+        gl.bindTexture(gl.TEXTURE_2D, t2.tex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, t2.model));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
       gl.bindTexture(gl.TEXTURE_2D, this.cardTex);
       gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cardModel));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      gl.bindTexture(gl.TEXTURE_2D, this.beamTex);
+      for (const m of beamModels) {
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, m));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
 
       if (cursorModel) {
         gl.bindTexture(gl.TEXTURE_2D, this.cursorTex);
@@ -504,11 +623,12 @@ export class XRPassthrough {
     this.session = null;
     this.gl = null;
     this.refSpace = null;
-    this.hudTex = this.cardTex = this.cursorTex = this.prog = this.vbo = null;
+    this.hudTex = this.cardTex = this.cursorTex = this.beamTex = this.prog = this.vbo = null;
     this.hudCanvas = this.cardCanvas = this.tagCanvas = null;
     this._tagTex.clear();
     this._rects = [];
     this._cursorWorld = null;
+    this._hudDir = null;
     this._placed = null;
     this.onEnd();
   }

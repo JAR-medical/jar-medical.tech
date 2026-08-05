@@ -17,8 +17,8 @@
      * 0,44 m breit), damit beurteilbar ist, wie viel Blickfeld was einnimmt.
      * Der Hintergrund tut so, als wäre er Durchblick. */
     const W = 1536, H = 864;
-    const CARD_SCALE = 0.86 / 2.20;
-    const TAG_SCALE = 0.44 / 2.20;
+    const CARD_SCALE = 1.12 / 1.64;      // Karte 1,12 m gegen HUD-Breite 1,64 m
+    const TAG_SCALE = 0.60 / 1.64;
 
     const from = Number(new URLSearchParams(location.search).get("from") || 1);
     let shotNo = 0;
@@ -58,7 +58,8 @@
       passthrough(ctx);
 
       const hud = off(W, H);
-      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel());
+      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel(),
+                   { sources: 2, kinds: "hand", hands: 2, selects: 3, gaze: false });
       ctx.drawImage(hud, 0, 0);
 
       // Schilder dort, wo Patienten im Raum stünden (zwei zur Anschauung).
@@ -74,7 +75,7 @@
 
       const cw = W * CARD_SCALE, ch = cw * (640 / 900);
       const card = off(900, 640);
-      drawCard(card.getContext("2d"), 900, 640, current, { hover: 0 });
+      drawCard(card.getContext("2d"), 900, 640, current, { hover: 0, dwell: 0.45 });
       ctx.drawImage(card, W / 2 - cw / 2, H * 0.53 - ch / 2, cw, ch);
 
       wrap.appendChild(cap); wrap.appendChild(c);

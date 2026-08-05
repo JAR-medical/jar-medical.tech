@@ -119,31 +119,43 @@ function ring(ctx, x, y, r, color, width = 2) {
  * @param {object} screen von workflow.screen()
  * @param {object} map    von workflow.mapModel()
  */
-export function drawHudLayer(ctx, W, H, screen, map) {
+export function drawHudLayer(ctx, W, H, screen, map, diag) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
 
-  const pad = Math.round(W * 0.05);
-  topLeft(ctx, pad, pad, screen);
+  const pad = Math.round(W * 0.045);
+  topLeft(ctx, pad, pad, screen, diag);
   topRight(ctx, W - pad, pad, map);
   bottomLeft(ctx, pad, H - pad, map);
   bottomRight(ctx, W - pad, H - pad, screen);
 }
 
-function topLeft(ctx, x, y, screen) {
-  caps(ctx, screen.title || "J.A.R.", x, y + 16, 17, C.dim);
-  rule(ctx, x, y + 30, 360, C.rule);
+function topLeft(ctx, x, y, screen, diag) {
+  caps(ctx, screen.title || "J.A.R.", x, y + 20, 22, C.dim);
+  rule(ctx, x, y + 38, 430, C.rule);
 
+  let ly = y + 74;
   if (screen.progress) {
     const { step, total } = screen.progress;
-    caps(ctx, `Schritt ${step}/${total}`, x, y + 60, 14, C.faint);
+    caps(ctx, `Schritt ${step}/${total}`, x, ly, 18, C.faint);
     for (let i = 0; i < total; i++) {
       const on = i < step;
       ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(x + 160 + i * 20, y + 50, 14, 5);
+      ctx.fillRect(x + 205 + i * 26, ly - 13, 19, 7);
       ctx.fillStyle = on ? C.accent : "rgba(255,255,255,0.28)";
-      ctx.fillRect(x + 160 + i * 20, y + 51, 13, 3);
+      ctx.fillRect(x + 205 + i * 26, ly - 12, 18, 4);
     }
+    ly += 34;
+  }
+
+  // Diagnose: was meldet der Browser als Eingabe? Beantwortet aus der Brille
+  // heraus die Frage „warum reagiert nichts?".
+  if (diag) {
+    const zeigt = diag.gaze ? "Blick" : diag.kinds;
+    caps(ctx, `Eingabe ${diag.sources} · ${zeigt} · Hände ${diag.hands} · Pinch ${diag.selects}`,
+         x, ly, 15, diag.gaze ? "#f2dfae" : C.faint);
+    if (diag.selects === 0)
+      caps(ctx, "Auslösen durch Verweilen", x, ly + 24, 15, "#f2dfae");
   }
 }
 
@@ -152,30 +164,30 @@ function topRight(ctx, x, y, map) {
   const items = [["#e5484d", c.SK1], ["#f5b301", c.SK2], ["#46a758", c.SK3],
                  ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
 
-  caps(ctx, `${c.open} offen`, x, y + 16, 17, C.dim, "right");
-  rule(ctx, x - 360, y + 30, 360, C.rule);
+  caps(ctx, `${c.open} offen`, x, y + 20, 22, C.dim, "right");
+  rule(ctx, x - 430, y + 38, 430, C.rule);
 
   // Zählung rechtsbündig: Zahl, davor der Farbpunkt.
   let cx = x;
   for (let i = items.length - 1; i >= 0; i--) {
     const [color, n] = items[i];
-    const w = T(ctx, n, cx, y + 62, { size: 23, weight: 600, align: "right" });
-    disc(ctx, cx - w - 13, y + 54, 6, color);
-    cx -= w + 38;
+    const w = T(ctx, n, cx, y + 80, { size: 30, weight: 600, align: "right" });
+    disc(ctx, cx - w - 16, y + 70, 8, color);
+    cx -= w + 48;
   }
 }
 
 function bottomLeft(ctx, x, yBottom, map) {
-  const w = 320, h = 250;
-  const y = yBottom - h - 30;
+  const w = 400, h = 300;
+  const y = yBottom - h - 38;
 
-  caps(ctx, "Lagekarte", x, y - 12, 14, C.faint);
+  caps(ctx, "Lagekarte", x, y - 14, 18, C.faint);
   drawGrid(ctx, x, y, w, h, map, { compact: true });
-  T(ctx, map.footer || "", x, yBottom - 2, { size: 18, weight: 500, color: C.dim });
+  T(ctx, map.footer || "", x, yBottom - 4, { size: 23, weight: 500, color: C.dim });
 }
 
 function bottomRight(ctx, x, yBottom, screen) {
-  T(ctx, screen.status || "", x, yBottom - 2, { size: 17, color: C.faint, align: "right" });
+  T(ctx, screen.status || "", x, yBottom - 4, { size: 21, color: C.faint, align: "right" });
 }
 
 /* ------------------------------------------------------------ Lagekarte */
@@ -197,7 +209,7 @@ function drawGrid(ctx, x, y, w, h, map, { compact = false } = {}) {
   gridPath(ctx, fx, fy, fw, fh, cols, rows);
   ctx.stroke();
 
-  const ls = compact ? 12 : 14;
+  const ls = compact ? 16 : 14;
   for (let c = 0; c < cols; c++)
     caps(ctx, String.fromCharCode(65 + map.minCol + c),
          fx + (fw * (c + 0.5)) / cols, fy + fh + 15, ls, C.faint, "center");
@@ -210,7 +222,7 @@ function drawGrid(ctx, x, y, w, h, map, { compact = false } = {}) {
     y: fy + fh - Math.max(-0.12, Math.min(1.12, uv.y)) * fh,
   });
 
-  const r = compact ? 7 : 10;
+  const r = compact ? 9 : 10;
   for (const d of map.dots) {
     const p = toXY(d.uv);
     if (d.target) ring(ctx, p.x, p.y, r + 6, C.accent, 2);
@@ -260,8 +272,8 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
   const pad = 34;
   const w = W - pad * 2;
 
-  caps(ctx, screen.cardTitle || screen.title || "", pad, pad + 16, 16, C.dim);
-  if (screen.badge) caps(ctx, screen.badge, W - pad, pad + 16, 16, C.faint, "right");
+  caps(ctx, screen.cardTitle || screen.title || "", pad, pad + 18, 19, C.dim);
+  if (screen.badge) caps(ctx, screen.badge, W - pad, pad + 18, 19, C.faint, "right");
 
   // Die Sichtungsfarbe ist eine Linie, kein Banner.
   if (screen.band) {
@@ -273,18 +285,18 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
 
   let y = pad + 104;
 
-  const big = (screen.headline || "").length > 26 ? 40 : 48;
+  const big = (screen.headline || "").length > 26 ? 44 : 52;
   ctx.font = `600 ${big}px ${F}`;
   for (const line of wrap(ctx, screen.headline, w).slice(0, 2)) {
     T(ctx, line, pad, y, { size: big, weight: 600, color: screen.headlineColor || C.ink });
     y += big + 8;
   }
 
-  y += 20;
-  ctx.font = `400 21px ${F}`;
+  y += 22;
+  ctx.font = `400 23px ${F}`;
   for (const line of wrap(ctx, screen.hint, w).slice(0, 3)) {
-    T(ctx, line, pad, y, { size: 21, color: C.dim });
-    y += 30;
+    T(ctx, line, pad, y, { size: 23, color: C.dim });
+    y += 32;
   }
 
   y += 20;
@@ -294,16 +306,16 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
                 : item.color === "warn" ? "#f2dfae"
                 : item.color === "cat" ? (item.color2 || C.ink)
                 : C.ink;
-    ctx.font = `400 20px ${F}`;
+    ctx.font = `400 22px ${F}`;
     for (const line of wrap(ctx, item.text, w).slice(0, 3)) {
-      T(ctx, line, pad, y, { size: 20, color });
-      y += 28;
+      T(ctx, line, pad, y, { size: 22, color });
+      y += 30;
     }
     y += 6;
   }
 
-  if (screen.vitals && screen.vitals.length) vitalsRow(ctx, pad, H - 226, w, screen.vitals);
-  return buttons(ctx, pad, H - 146, w, screen.buttons || [], opts.hover);
+  if (screen.vitals && screen.vitals.length) vitalsRow(ctx, pad, H - 236, w, screen.vitals);
+  return buttons(ctx, pad, H - 152, w, screen.buttons || [], opts.hover, opts.dwell || 0);
 }
 
 /** Vitalwerte als Zahlenreihe mit Kleinlabels — kein Kachelgitter. */
@@ -311,20 +323,20 @@ function vitalsRow(ctx, x, y, w, vitals) {
   rule(ctx, x, y - 30, w, C.ruleSoft);
   let cx = x;
   for (const v of vitals) {
-    caps(ctx, v.label, cx, y - 6, 13, C.faint);
-    const vw = T(ctx, v.value, cx, y + 30, { size: 32, weight: 600 });
-    cx += Math.max(100, vw + 58);
+    caps(ctx, v.label, cx, y - 6, 15, C.faint);
+    const vw = T(ctx, v.value, cx, y + 32, { size: 36, weight: 600 });
+    cx += Math.max(108, vw + 62);
   }
 }
 
 /** Knöpfe: Umriss, kein Fond. Gefüllt wird nur, worauf gezeigt wird. */
-function buttons(ctx, x, y, w, list, hover) {
+function buttons(ctx, x, y, w, list, hover, dwell = 0) {
   const rects = [];
   if (!list.length) return rects;
 
   const gap = 14;
   const bw = (w - gap * (list.length - 1)) / list.length;
-  const bh = 92;
+  const bh = 104;
 
   list.forEach((b, i) => {
     const bx = x + i * (bw + gap);
@@ -341,7 +353,14 @@ function buttons(ctx, x, y, w, list, hover) {
     ctx.lineWidth = on ? 3 : 1.5;
     ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), bh);
 
-    const size = list.length > 2 ? 24 : 30;
+    // Verweil-Anzeige: füllt sich, wenn der Zeiger auf dem Knopf liegt. Sie ist
+    // der Ersatz für den Pinch, falls das Gerät kein `select` schickt.
+    if (on && dwell > 0) {
+      ctx.fillStyle = "rgba(124,192,255,0.85)";
+      ctx.fillRect(bx + 2, y + bh - 8, (bw - 4) * Math.min(1, dwell), 6);
+    }
+
+    const size = list.length > 2 ? 26 : 32;
     ctx.font = `600 ${size}px ${F}`;
     const lines = wrap(ctx, b.label, bw - 28).slice(0, 2);
     lines.forEach((line, li) =>
