@@ -1,4 +1,4 @@
-/* Geodaten Neubiberg (Ortsmitte) — Auszug aus OpenStreetMap, ODbL.
+/* Geodaten Neubiberg (Ortsmitte) - Auszug aus OpenStreetMap, ODbL.
  * © OpenStreetMap-Mitwirkende, https://www.openstreetmap.org/copyright
  * Erzeugt aus einer Overpass-Abfrage; Koordinaten auf 5 Nachkommastellen (~1 m).
  * ways: [name, klasse, [lat,lon, lat,lon, ...]]  klasse 0=Hauptstr. 1=Nebenstr. 2=Fuss

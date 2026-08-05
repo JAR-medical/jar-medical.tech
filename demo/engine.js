@@ -1,11 +1,11 @@
-/* TriARge — Simulationskern der Live-Demo.
+/* TriARge - Simulationskern der Live-Demo.
  *
  * Im Produkt liefert der FastAPI-Hub den Zustand per REST + WebSocket. Auf einer
  * statischen Seite gibt es keinen Backend-Prozess, deshalb erzeugt diese Datei
  * denselben Zustand lokal: Einsatzkräfte bewegen sich auf dem echten Wegenetz
  * (OpenStreetMap), sichten und transportieren Patienten, Gefahrenstellen
  * verändern sich, Warnregeln laufen mit. Die Oberfläche (map.js, ui.js) liest
- * nur diesen Zustand — sie kennt die Simulation nicht.
+ * nur diesen Zustand - sie kennt die Simulation nicht.
  */
 
 "use strict";
@@ -14,10 +14,10 @@ const TR = (function () {
   /* ------------------------------------------------------------ Kategorien */
 
   const KAT = {
-    SK1: { kurz: "I", label: "SK I — rot", farbe: "#d1232a", ord: 0 },
-    SK2: { kurz: "II", label: "SK II — gelb", farbe: "#e39400", ord: 1 },
-    SK3: { kurz: "III", label: "SK III — grün", farbe: "#177d3c", ord: 2 },
-    SK4: { kurz: "IV", label: "SK IV — blau", farbe: "#1f5fa8", ord: 3 },
+    SK1: { kurz: "I", label: "SK I - rot", farbe: "#d1232a", ord: 0 },
+    SK2: { kurz: "II", label: "SK II - gelb", farbe: "#e39400", ord: 1 },
+    SK3: { kurz: "III", label: "SK III - grün", farbe: "#177d3c", ord: 2 },
+    SK4: { kurz: "IV", label: "SK IV - blau", farbe: "#1f5fa8", ord: 3 },
     TOT: { kurz: "T", label: "verstorben", farbe: "#22262b", ord: 4 },
     UNG: { kurz: "?", label: "ungesichtet", farbe: "#8b9199", ord: 5 },
   };
@@ -109,7 +109,7 @@ const TR = (function () {
     return best;
   }
 
-  // Binärer Heap — reicht für ~2.500 Knoten deutlich aus.
+  // Binärer Heap - reicht für ~2.500 Knoten deutlich aus.
   function Heap() {
     const a = [];
     return {
@@ -243,10 +243,10 @@ const TR = (function () {
 
   function zelle(ll) {
     const b = S.bbox;
-    if (!b) return "—";
+    if (!b) return "-";
     const c = Math.floor(((ll[1] - b[1]) / (b[3] - b[1])) * S.raster.spalten);
     const r = Math.floor(((b[2] - ll[0]) / (b[2] - b[0])) * S.raster.zeilen);
-    if (c < 0 || r < 0 || c >= S.raster.spalten || r >= S.raster.zeilen) return "—";
+    if (c < 0 || r < 0 || c >= S.raster.spalten || r >= S.raster.zeilen) return "-";
     return String.fromCharCode(65 + c) + (r + 1);
   }
 
@@ -254,12 +254,12 @@ const TR = (function () {
    * aktuellen Position bestimmt und gemerkt; nach dem Abtransport bleibt das
    * zuletzt bekannte Feld stehen, damit die Spalte nicht leer läuft. */
   function patientZelle(p) {
-    if (!p.ll) return p.letzteZelle || "—";
+    if (!p.ll) return p.letzteZelle || "-";
     const z = zelle(p.ll);
     // Ab dem Aufsitzen auf das Transportmittel wird nicht mehr nachgeführt,
     // sonst bliebe am Ende nur der Punkt stehen, an dem das Fahrzeug den
     // Einsatzraum verlassen hat.
-    if (z !== "—" && p.zustand !== "transport") p.letzteZelle = z;
+    if (z !== "-" && p.zustand !== "transport") p.letzteZelle = z;
     return z;
   }
 
@@ -334,7 +334,7 @@ const TR = (function () {
       ({ ...k, frei: { ...k.frei }, startFrei: { ...k.frei }, belegt: 0 }));
     S.sitzungen = [{ name: (szenario.sitzung || S.einsatz.name) + " " + (S.einsatz.alarmiert || ""), aktiv: true }];
 
-    // Abschnitte mit `t` entstehen erst im Verlauf — eine Lage, die sich
+    // Abschnitte mit `t` entstehen erst im Verlauf - eine Lage, die sich
     // ausweitet, hat ihre Abschnitte nicht von Anfang an stehen.
     for (const a of szenario.abschnitte) {
       S.abschnitte.set(a.id, { ...a, erkanntT: a.t || 0, aktiv: !a.t });
@@ -362,7 +362,7 @@ const TR = (function () {
 
     S.startZeit = Date.now();
     S.simSek = 0;
-    ereignis("system", "Einsatz eröffnet — " + S.einsatz.stichwort);
+    ereignis("system", "Einsatz eröffnet - " + S.einsatz.stichwort);
   }
 
   let ROSTER = [], FUNK_SKRIPT = [], naechsterFunk = 0, naechsterPatient = 0;
@@ -383,7 +383,7 @@ const TR = (function () {
       verschlechtert: v.verschlechtert || null, verschlechtertGetan: false,
       trupp: v.trupp,
     };
-    proto(p, "client", "AR-Client", "Marker erkannt — Sichtung ausstehend.");
+    proto(p, "client", "AR-Client", "Marker erkannt - Sichtung ausstehend.");
     S.patienten.set(p.id, p);
     ereignis("patient", "Marker #" + p.id + " erkannt (" + zelle(p.ll) + ")", { typ: "patient", id: p.id });
     emit("patienten");
@@ -460,7 +460,7 @@ const TR = (function () {
   /* ------------------------------------------------------------- Rollen
    * Die Simulation braucht bestimmte Abschnitte (Ablage, Behandlungsplatz,
    * Bereitstellungsraum …). Welcher Abschnitt das ist, sagt die Lage über
-   * `rollen` — sonst ließe sich keine Lage mit mehreren Einsatzstellen und
+   * `rollen` - sonst ließe sich keine Lage mit mehreren Einsatzstellen und
    * mehreren Ablagen bauen. Fehlt eine Rolle, greift der frühere feste Name.
    * Die Zustandsbezeichnung eines Patienten (PA, BHP, …) bleibt davon
    * unberührt, sie ist unabhängig vom konkreten Abschnitt. */
@@ -642,7 +642,7 @@ const TR = (function () {
   function transportStarten(p, m, klinik) {
     if (p.ll) {
       const z = zelle(p.ll);
-      if (z !== "—") p.letzteZelle = z;   // Feld der Übergabe festhalten
+      if (z !== "-") p.letzteZelle = z;   // Feld der Übergabe festhalten
     }
     klinik.frei[p.kat] = Math.max(0, klinik.frei[p.kat] - 1);
     klinik.belegt++;
@@ -691,7 +691,7 @@ const TR = (function () {
     if (truppNeuerAuftrag(m, rettung)) return;
 
     if (rettung) {
-      // Um die eigene Einsatzstelle streifen — bei mehreren Stellen wäre ein
+      // Um die eigene Einsatzstelle streifen - bei mehreren Stellen wäre ein
       // gemeinsamer Mittelpunkt für die meisten Trupps der falsche Ort.
       const eigen = S.abschnitte.get(m.basis);
       m.status = "Erkundung Schadensbereich";
@@ -759,7 +759,7 @@ const TR = (function () {
         p.zustand = "getragen";
         p.abschnitt = null;
         const ziel = rollenZiel("ablage", m.ll);
-        proto(p, "client", m.name, "Rettung aus dem Schadensbereich — Transport in die " + ziel.name + ".");
+        proto(p, "client", m.name, "Rettung aus dem Schadensbereich - Transport in die " + ziel.name + ".");
         fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:ablage:" + ziel.id);
         m.status = "Rettung #" + p.id + " → Patientenablage";
         m.wartet = 5 + Math.random() * 5;
@@ -779,7 +779,7 @@ const TR = (function () {
       p.gesehen = { von: m.name, t: S.simSek };
       const rolle = p.kat === "TOT" ? "verstorbene" : auftrag === "abholenSchaden" ? "ablage" : "behandlung";
       const ziel = rollenZiel(rolle, m.ll);
-      proto(p, "client", m.name, "Übernahme durch " + m.name + " — Transport nach " + ziel.name + ".");
+      proto(p, "client", m.name, "Übernahme durch " + m.name + " - Transport nach " + ziel.name + ".");
       fahrtAuftrag(m, streu(ziel.ll, ziel.r * 0.55), true, "abliefern:" + rolle + ":" + ziel.id);
       m.wartet = 3 + Math.random() * 3;
       return;
@@ -911,7 +911,7 @@ const TR = (function () {
           p.belegtVon = null;
           const tr = S.transporte.find((t) => t.patient === p.id && t.status === "unterwegs");
           if (tr) tr.status = "übergeben";
-          proto(p, "client", m.name, "Luftrettung — an Zielklinik übergeben.");
+          proto(p, "client", m.name, "Luftrettung - an Zielklinik übergeben.");
           emit("patienten");
           emit("transporte");
         }
@@ -955,7 +955,7 @@ const TR = (function () {
         const massnahme = REEVAL[Math.floor(Math.random() * REEVAL.length)];
         proto(p, "client", m.name, massnahme);
         // Versorgung wirkt: der Ausgangswert der Messreihe verbessert sich mit.
-        // Messwerte bleiben ganzzahlig — sie werden am Monitor abgelesen, nicht gerechnet.
+        // Messwerte bleiben ganzzahlig - sie werden am Monitor abgelesen, nicht gerechnet.
         const b = p.basisVit || (p.basisVit = { ...p.vit });
         if (p.vit.spo2 != null && p.vit.spo2 < 94) {
           b.spo2 = Math.round(Math.min(97, (b.spo2 ?? p.vit.spo2) + 3 + Math.random() * 2));
@@ -1040,14 +1040,14 @@ const TR = (function () {
       if (!g.aktiv && S.simSek >= g.erkanntT) {
         g.aktiv = true;
         ereignis("gefahr", "Gefahrenstelle erkannt: " + g.name, { typ: "gefahr", id: g.id });
-        funken("EA 1 Lageerkundung", g.name + " — " + g.info.split(".")[0] + ".");
+        funken("EA 1 Lageerkundung", g.name + " - " + g.info.split(".")[0] + ".");
         emit("gefahren");
       }
       if (!g.aktiv) continue;
 
       /* Messwerte laufen datengesteuert: die Lage gibt vor, wann der Trend
        * dreht (Armatur geschlossen, Scheitel erreicht) und ab welchem Wert die
-       * Gefahr als beherrscht gilt — samt der Texte dazu. */
+       * Gefahr als beherrscht gilt - samt der Texte dazu. */
       if (g.messwert) {
         const mw = g.messwert;
         if (mw.wendeT != null && S.simSek > mw.wendeT && mw.trend > 0) {
@@ -1077,7 +1077,7 @@ const TR = (function () {
   }
 
   /* Die Kliniken melden im Verlauf wieder Kapazität nach (Verlegungen,
-   * freigewordene Schockräume) — sonst läuft die Zielklinikplanung leer. */
+   * freigewordene Schockräume) - sonst läuft die Zielklinikplanung leer. */
   let klinikAkku = 0;
 
   function klinikTakt(dt) {
@@ -1093,7 +1093,7 @@ const TR = (function () {
     emit("transporte");
   }
 
-  /* Funkloch im Trümmerbereich: ein Trupp ist zeitweise nicht erreichbar — die
+  /* Funkloch im Trümmerbereich: ein Trupp ist zeitweise nicht erreichbar - die
    * Warnregel "Funkkontakt" wird dadurch tatsächlich ausgelöst. */
   function sonderlagen() {
     const t = S.mittel.get("T3");
@@ -1102,7 +1102,7 @@ const TR = (function () {
     if (soll && !t.funkstille) {
       t.funkstille = true;
       t.online = false;
-      funken("Fernmelder ELW 2", "Rettungstrupp 3 auf Kanal 31 nicht erreichbar — vermutlich Funkschatten im Trümmerbereich.");
+      funken("Fernmelder ELW 2", "Rettungstrupp 3 auf Kanal 31 nicht erreichbar - vermutlich Funkschatten im Trümmerbereich.");
       ereignis("system", "Funkkontakt zu Rettungstrupp 3 abgerissen", { typ: "mittel", id: "T3" });
     } else if (!soll && t.funkstille) {
       t.funkstille = false;
@@ -1131,7 +1131,7 @@ const TR = (function () {
       }
       if (p.ll && p.vit && p.vit.spo2 != null && p.vit.spo2 < 90 && (p.kat === "SK1" || p.kat === "SK2")) {
         warnen("spo2-" + p.id, 3, "Sättigungsabfall Patient #" + p.id,
-          "SpO₂ " + Math.round(p.vit.spo2) + " % — " + KAT[p.kat].label + ", " + (STATUS_TEXT[p.zustand] || p.zustand) + ".",
+          "SpO₂ " + Math.round(p.vit.spo2) + " % - " + KAT[p.kat].label + ", " + (STATUS_TEXT[p.zustand] || p.zustand) + ".",
           { typ: "patient", id: p.id });
       } else {
         warnungWeg("spo2-" + p.id);
@@ -1164,14 +1164,14 @@ const TR = (function () {
         transportOffen + "× SK I transportbereit, alle RTW gebunden. Nachforderung über ILS prüfen.", null);
     } else warnungWeg("rtw-mangel");
 
-    // Messwerte über ihrer Warnschwelle melden sich selbst — unabhängig davon,
+    // Messwerte über ihrer Warnschwelle melden sich selbst - unabhängig davon,
     // ob es ein Gasmesswert, ein Pegelstand oder eine Ölausbreitung ist.
     for (const g of S.gefahren.values()) {
       const mw = g.messwert;
       if (!mw || mw.warn == null) continue;
       if (g.aktiv && mw.wert > mw.warn) {
         warnen("messwert-" + g.id, g.stufe >= 3 ? 3 : 2,
-          g.name + " — " + Math.round(mw.wert) + " " + mw.einheit,
+          g.name + " - " + Math.round(mw.wert) + " " + mw.einheit,
           mw.label + " über der Warnschwelle von " + mw.warn + " " + mw.einheit + ". " +
           (g.info || "").split(".")[0] + ".",
           { typ: "gefahr", id: g.id });
@@ -1243,7 +1243,7 @@ const TR = (function () {
         if (v.massnahmen) p.massnahmen = v.massnahmen.slice();
         p.transportBereit = p.zustand === "BHP";
         proto(p, "client", "Trag-Trupp SEG 2", v.befund);
-        ereignis("sichtung", "Patient #" + p.id + " verschlechtert — Umsichtung auf " + KAT[v.kat].label,
+        ereignis("sichtung", "Patient #" + p.id + " verschlechtert - Umsichtung auf " + KAT[v.kat].label,
           { typ: "patient", id: p.id });
         emit("patienten");
       }
@@ -1302,7 +1302,7 @@ const TR = (function () {
     emit("frame");
   }
 
-  // Messwerte schwanken um den erhobenen Ausgangswert — keine freie Drift, sonst
+  // Messwerte schwanken um den erhobenen Ausgangswert - keine freie Drift, sonst
   // rutschen unauffällige Patienten irgendwann in den Alarmbereich.
   function vitalDrift() {
     const kand = [...S.patienten.values()].filter(
@@ -1333,20 +1333,20 @@ const TR = (function () {
   const NACH_POOL = [
     { kat: "SK3", geh: true, verletzt: ["Prellungen", "Schock"], massnahmen: [],
       vit: { af: 16, puls: 86, spo2: 98, gcs: 15 },
-      befund: "Anwohner aus dem Nachbarhaus, leicht verletzt, gehfähig — grün." },
+      befund: "Anwohner aus dem Nachbarhaus, leicht verletzt, gehfähig - grün." },
     { kat: "SK3", geh: true, verletzt: ["Rauchgasexposition, leicht"], massnahmen: ["Sauerstoff"],
       vit: { af: 18, puls: 92, spo2: 96, gcs: 15 },
-      befund: "Reizhusten nach Rauchexposition, kreislaufstabil — grün, Kontrolle im BHP." },
+      befund: "Reizhusten nach Rauchexposition, kreislaufstabil - grün, Kontrolle im BHP." },
     { kat: "SK2", geh: false, verletzt: ["Sprunggelenksfraktur", "Platzwunde"], massnahmen: ["Schienung", "Analgesie"],
       vit: { af: 18, puls: 100, spo2: 96, rrs: 126, gcs: 15 },
-      befund: "Bei der Räumung des Treppenhauses gestürzt — gelb." },
+      befund: "Bei der Räumung des Treppenhauses gestürzt - gelb." },
     { kat: "SK2", geh: false, verletzt: ["Kreislaufkollaps", "Exsikkose"], massnahmen: ["Volumen", "Monitoring"],
       vit: { af: 20, puls: 108, spo2: 95, rrs: 96, gcs: 14 },
-      befund: "Ältere Person aus dem Rückgebäude, Kreislauf grenzwertig — gelb." },
+      befund: "Ältere Person aus dem Rückgebäude, Kreislauf grenzwertig - gelb." },
     { kat: "SK1", geh: false, verletzt: ["Verschüttung Unterschenkel", "Crush-Syndrom möglich"],
       massnahmen: ["Volumen", "Analgesie", "Wärmeerhalt"],
       vit: { af: 26, puls: 122, spo2: 91, rrs: 98, gcs: 13 },
-      befund: "Spät aus Teilverschüttung befreit, Crush-Problematik — rot." },
+      befund: "Spät aus Teilverschüttung befreit, Crush-Problematik - rot." },
   ];
 
   const NACH_MELDER = ["Rettungstrupp 1", "Rettungstrupp 2", "Rettungstrupp 3",
@@ -1370,7 +1370,7 @@ const TR = (function () {
   const AMBIENT = [
     { t: "{m} an Einsatzleitung: Patient {p} übernommen, Transport läuft.", pat: true },
     { t: "Behandlungsplatz an EA 4: Patient {p} transportbereit.", pat: true },
-    { t: "NEF 71/1: Reevaluation Patient {p} — Kreislauf stabil.", pat: true },
+    { t: "NEF 71/1: Reevaluation Patient {p} - Kreislauf stabil.", pat: true },
     { t: "Betreuungsstelle: Patient {p} registriert, keine Verschlechterung.", pat: true },
     { t: "EA 4 Transport: nächstes Rettungsmittel in zwei Minuten frei.", pat: false },
     { t: "Einsatzleitung an alle Abschnitte: Vollzähligkeitsmeldung an S1.", pat: false },
@@ -1424,7 +1424,7 @@ const TR = (function () {
   function lagemeldung() {
     const kz = kennzahlen();
     const L = [];
-    L.push("LAGEMELDUNG — " + S.einsatz.name);
+    L.push("LAGEMELDUNG - " + S.einsatz.name);
     L.push("Stichwort: " + S.einsatz.stichwort);
     L.push("Einsatzort: " + S.einsatz.ort);
     L.push("Stand: " + uhr(S.simSek) + " Uhr (Einsatzzeit " + zeit(S.simSek) + ")");
@@ -1456,18 +1456,18 @@ const TR = (function () {
     for (const g of S.gefahren.values()) {
       if (!g.aktiv) continue;
       L.push("   [" + (g.stufe === 3 ? "KRITISCH" : g.stufe === 2 ? "ERHÖHT" : "GERING") + "] " +
-        g.name + " — " + g.status + " (" + g.verantwortlich + ")");
+        g.name + " - " + g.status + " (" + g.verantwortlich + ")");
     }
     L.push("");
     L.push("5. EINSATZABSCHNITTE");
-    for (const a of S.abschnitte.values()) L.push("   " + a.kurz.padEnd(12) + a.name + " — " + a.leitung);
+    for (const a of S.abschnitte.values()) L.push("   " + a.kurz.padEnd(12) + a.name + " - " + a.leitung);
     L.push("");
     L.push("6. OFFENE PUNKTE");
     const offene = S.warnungen.filter((w) => !w.quittiert);
     if (!offene.length) L.push("   keine");
     for (const w of offene) L.push("   - " + w.titel + ": " + w.text);
     L.push("");
-    L.push("Simulierte Übungslage — keine echten Personendaten. TriARge Live-Demo.");
+    L.push("Simulierte Übungslage - keine echten Personendaten. TriARge Live-Demo.");
     return L.join("\n");
   }
 
@@ -1551,7 +1551,7 @@ const TR = (function () {
   }
 
   /* Lagewechsel: anderes Gebiet, anderes Raster, anderes Wegenetz. Alles wird
-   * neu aufgebaut — die Karte hört auf "szenario" und zeichnet sich komplett
+   * neu aufgebaut - die Karte hört auf "szenario" und zeichnet sich komplett
    * neu, weil sich auch der Kartenausschnitt ändert. */
   function szenarioWechseln(id) {
     const sz = szenarien().find((s) => s.id === id);
