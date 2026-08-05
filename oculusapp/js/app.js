@@ -290,7 +290,7 @@ async function startCamera() {
   } catch (err) {
     app.scanner = null;
     app.flow.cameraLive = false;
-    app.flow.setNotice("Keine Kamera — Zuordnung manuell bestätigen");
+    app.flow.setNotice(err.message);     // steht dauerhaft unten rechts
     toast(err.message, "warn");
   }
 }
