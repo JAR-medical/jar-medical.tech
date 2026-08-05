@@ -73,7 +73,7 @@ const CURSOR_HALF = 0.018;
 const BEAM_HALF_W = 0.004;               // Meter, halbe Strahlbreite
 const BEAM_LEN = 1.6;                    // Länge, wenn der Strahl nichts trifft
 
-const DWELL_MS = 1400;                   // Verweilen als Ersatz für den Pinch
+const DWELL_MS = 1100;                   // Verweilen als Ersatz für den Pinch
 const HUD_REDRAW_MS = 150;
 
 const VERT_SRC = `
@@ -188,7 +188,7 @@ export class XRPassthrough {
 
     // Diagnose — beantwortet „warum reagiert nichts?" ohne Kabel.
     this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, joints: 0,
-                   pinchCm: null, gaze: false, feature: "?" };
+                   pinchCm: null, gaze: false, feature: "?", granted: "?" };
 
     this._frameBound = (t, f) => this._onFrame(t, f);
     this._onSelectBound = () => { this._diag.selects++; this._hudDirty = true; this._activate(); };
@@ -239,6 +239,14 @@ export class XRPassthrough {
       .requestReferenceSpace("local-floor")
       .catch(() => session.requestReferenceSpace("local"))
       .catch(() => session.requestReferenceSpace("viewer"));
+
+    // Die Sitzung weiß selbst, welche Merkmale sie bekommen hat. Das ist die
+    // eindeutige Auskunft darüber, ob Handtracking überhaupt bewilligt wurde —
+    // alles andere wäre Raten.
+    try {
+      const feats = session.enabledFeatures;
+      this._diag.granted = feats ? (feats.includes("hand-tracking") ? "ja" : "nein") : "?";
+    } catch (_) { this._diag.granted = "?"; }
 
     this.gl = gl;
     this.session = session;
@@ -719,9 +727,17 @@ export class XRPassthrough {
     }
 
     let cursorModel = null;
-    if (this._cursorWorld)
+    if (this._cursorWorld) {
       cursorModel = this._model(add3(this._cursorWorld, scale3(cardBasis.normal, 0.004)),
                                 cardBasis, CURSOR_HALF, CURSOR_HALF);
+    } else if (this._diag.gaze) {
+      // Nichts getroffen, aber der Blick zeigt: Fadenkreuz mitten im Blickfeld,
+      // damit man überhaupt zielen kann.
+      const look = norm3(forwardOf(head));
+      const at = add3(head.position, scale3(look, 1.0));
+      cursorModel = this._model(at, basisFromNormal(scale3(look, -1)),
+                                CURSOR_HALF * 0.6, CURSOR_HALF * 0.6);
+    }
 
     for (const view of pose.views) {
       const vp = layer.getViewport(view);

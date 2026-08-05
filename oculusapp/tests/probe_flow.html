@@ -59,7 +59,8 @@
 
       const hud = off(W, H);
       drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel(),
-                   { sources: 2, kinds: "hand", hands: 2, selects: 3, gaze: false });
+                   { sources: 0, kinds: "—", hands: 0, joints: 0, pinchCm: null, selects: 0,
+                     gaze: true, granted: "nein", feature: "hand-tracking (optional)" });
       ctx.drawImage(hud, 0, 0);
 
       // Schilder dort, wo Patienten im Raum stünden (zwei zur Anschauung).

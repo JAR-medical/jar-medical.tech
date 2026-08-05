@@ -154,8 +154,8 @@ export function drawHudLayer(ctx, W, H, screen, map, diag) {
 }
 
 function topLeft(ctx, x, y, screen, diag) {
-  const lines = (screen.progress ? 1 : 0) + (diag ? 1 : 0) + (diag && diag.selects === 0 ? 1 : 0);
-  block(ctx, x - 14, y - 12, 470, 62 + lines * 30, C.accent);
+  const lines = (screen.progress ? 1 : 0) + (diag ? 2 : 0) + (diag && diag.selects === 0 ? 1 : 0);
+  block(ctx, x - 14, y - 12, 520, 62 + lines * 28, C.accent);
 
   caps(ctx, screen.title || "J.A.R.", x, y + 20, 22, C.dim);
   rule(ctx, x, y + 38, 430, C.rule);
@@ -182,8 +182,10 @@ function topLeft(ctx, x, y, screen, diag) {
     const spalt = diag.pinchCm == null ? "—" : diag.pinchCm + " cm";
     caps(ctx, `Eingabe ${diag.sources} · ${zeigt} · ${gelenke} · Spalt ${spalt} · Pinch ${diag.selects}`,
          x, ly, 15, diag.gaze ? "#f2dfae" : C.faint);
+    caps(ctx, `Handtracking bewilligt: ${diag.granted || "?"} · ${diag.feature || "?"}`,
+         x, ly + 24, 14, C.faint);
     if (diag.selects === 0)
-      caps(ctx, "Auslösen durch Verweilen", x, ly + 26, 15, "#f2dfae");
+      caps(ctx, "Zielen mit dem Blick · Auslösen durch Verweilen", x, ly + 48, 15, "#f2dfae");
   }
 }
 
