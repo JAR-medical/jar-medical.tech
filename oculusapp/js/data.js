@@ -29,6 +29,16 @@ export const CATEGORY_META = {
 const PATIENTS = new Map();      // laufende Nummer → Akte
 let nextId = 1;
 
+/* In welcher Tätigkeit gerade gearbeitet wird (tasks.js). Steht in jeder
+ * Protokollzeile: sonst ließe sich später nicht mehr sagen, ob eine Kategorie
+ * aus der Vorsichtung des Trupps oder aus der ärztlichen Sichtung stammt. Die
+ * Tätigkeit gehört zur Sitzung, nicht zur einzelnen Akte — im Produkt wäre das
+ * die Rolle am angemeldeten Gerät. */
+let activeTask = null;
+
+export function setActiveTask(label) { activeTask = label || null; }
+export function getActiveTask() { return activeTask; }
+
 export function patientIds() { return [...PATIENTS.keys()]; }
 export function patientCount() { return PATIENTS.size; }
 export function resolvePatient(id) { return PATIENTS.get(id) || null; }
@@ -45,6 +55,7 @@ export function createPatient(pos, by = "AR-Client") {
     card: null,                  // Nummer der Umhängekarte, sobald zugewiesen
     pos: pos ? { x: pos.x, y: pos.y, z: pos.z } : null,
     category: "UNSIGHTED",
+    transported: false,          // vom Behandlungsplatz abtransportiert
     sex: null, age_estimate: null,
     ambulatory: null, conscious: null, airway_clear: null,
     location: null,
@@ -78,10 +89,10 @@ export function cardHolder(card) {
   return null;
 }
 
-export function pushProtocol(id, { source = "client", author = "AR-Client", transcript }) {
+export function pushProtocol(id, { source = "client", author = "AR-Client", transcript, task = activeTask }) {
   const p = resolvePatient(id);
   if (!p || !transcript) return;
-  p.protocol.push({ source, author, transcript, at: new Date().toISOString() });
+  p.protocol.push({ source, author, task: task || null, transcript, at: new Date().toISOString() });
   p.updated_at = new Date().toISOString();
 }
 
@@ -95,8 +106,30 @@ export function setCategory(id, category) {
 export function addTreatment(id, treatment) {
   const p = resolvePatient(id);
   if (!p || !treatment) return;
-  if (!p.treatments.includes(treatment)) p.treatments.push(treatment);
+  if (p.treatments.includes(treatment)) return;      // schon festgehalten
+  p.treatments.push(treatment);
   touch(p, `Maßnahme: ${treatment}`);
+}
+
+/** Eine irrtümlich festgehaltene Maßnahme wieder herausnehmen — mit Eintrag. */
+export function removeTreatment(id, treatment) {
+  const p = resolvePatient(id);
+  if (!p || !treatment) return;
+  const i = p.treatments.indexOf(treatment);
+  if (i < 0) return;
+  p.treatments.splice(i, 1);
+  touch(p, `Maßnahme zurückgenommen: ${treatment}`);
+}
+
+/**
+ * Abtransport vom Behandlungsplatz. Der Patient bleibt in der Lage stehen — wo
+ * er lag, ist Teil des Lagebilds —, wird aber als versorgt und weg geführt.
+ */
+export function markTransported(id, on = true) {
+  const p = resolvePatient(id);
+  if (!p || p.transported === !!on) return;
+  p.transported = !!on;
+  touch(p, on ? "Abtransport gebucht" : "Abtransport zurückgenommen");
 }
 
 export function addInjury(id, injury) {
@@ -114,10 +147,11 @@ export function markSeen(id, by = "AR-Client") {
 /** Zählt die Kategorien über alle Patienten dieses Einsatzes. */
 export function tally() {
   const t = { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, UNSIGHTED: 0,
-              total: PATIENTS.size, ohneKarte: 0 };
+              total: PATIENTS.size, ohneKarte: 0, abtransportiert: 0 };
   for (const p of PATIENTS.values()) {
     if (t[p.category] !== undefined) t[p.category]++;
     if (p.card == null) t.ohneKarte++;
+    if (p.transported) t.abtransportiert++;
   }
   return t;
 }
@@ -126,6 +160,7 @@ export function tally() {
 export function resetEinsatz() {
   PATIENTS.clear();
   nextId = 1;
+  activeTask = null;
 }
 
 function touch(p, transcript) {

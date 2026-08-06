@@ -264,6 +264,20 @@ body {
 
 .flow-status { font-size: 12px; color: rgba(255,255,255,.45); }
 
+/* Randknöpfe: was jederzeit möglich ist (Patient anlegen, Tätigkeit wechseln,
+ * abbrechen). Klein und am Rand — in der Brille sitzen sie an derselben Stelle,
+ * damit die Mitte des Blickfelds frei bleibt. */
+.flow-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.flow-actions:empty { display: none; }
+.flow-actions .flow-btn {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 16px;
+  font: 600 14px/1.2 var(--font);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 @media (max-width: 900px) {
   .flow { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
   .hud-corner.tl { grid-area: 1 / 1; }
@@ -271,6 +285,7 @@ body {
   .flow-card { grid-area: 2 / 1; }
   .hud-corner.bl { grid-area: 3 / 1; }
   .hud-corner.br { grid-area: 4 / 1; align-items: flex-start; text-align: left; }
+  .flow-actions { justify-content: flex-start; }
 }
 
 /* Patientenakte liegt über dem Ablaufschirm, statt ihn zu verdrängen. */

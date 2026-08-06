@@ -1,16 +1,26 @@
 /* Der Einsatzablauf — einmal geschrieben, zweimal dargestellt.
  *
- *   Lagekarte ─▶ „Neuer Patient" (entsteht dort, wo man steht)
- *             ─▶ mSTaRT (6 Fragen) ─▶ Sichtungskategorie
- *             ─▶ Umhängekarte zuweisen ─▶ nächster
+ *   Tätigkeit wählen ─▶ Lage ─▶ Stelle am Boden zeigen ─▶ „Neuer Patient"
+ *                    ─▶ was die Tätigkeit vorsieht ─▶ zurück zur Lage
  *
  * Es gibt keine mitgelieferten Patienten. Wer vor einem liegt, wird angelegt —
- * an der Position, an der der Trupp gerade steht. Erst danach bekommt er eine
- * Kartennummer, weil im Feld auch erst gesichtet und dann angehängt wird.
+ * an der Stelle, auf die man mit dem Controller zeigt (in AR), sonst dort, wo
+ * man steht. Erst danach bekommt er eine Kartennummer, weil im Feld auch erst
+ * gesichtet und dann angehängt wird.
+ *
+ * Was am Patienten passiert, hängt an der **Tätigkeit** (tasks.js): dieselbe
+ * App ist für den vorsichtenden Trupp, den sichtenden LNA, die Registrierung
+ * und den Behandlungsplatz je ein anderer Ablauf. Gewählt wird sie zu Beginn,
+ * gewechselt jederzeit über die Lage.
  *
  * Dieses Modul kennt weder Canvas noch DOM noch WebXR. Es hält den Zustand,
  * entscheidet und beschreibt den nächsten Schirm als Datenstruktur, die sowohl
- * die AR-Ebene als auch die flache Darstellung rendern.
+ * die AR-Ebene als auch die flache Darstellung rendern. Zwei Sorten Knöpfe:
+ *
+ *   buttons     der Handlungsschritt selbst — raumfeste Karte beim Patienten
+ *   hudActions  kleine, kopffeste Knöpfe am Rand des Blickfelds; sie stehen für
+ *               das, was jederzeit möglich ist (neuen Patienten anlegen,
+ *               Tätigkeit wechseln, abbrechen) und brauchen keine große Fläche
  *
  * Jeder Schreibzugriff auf eine Akte geht durch data.js — die Naht, an der
  * später der Hub hängt.
@@ -19,9 +29,12 @@
 "use strict";
 
 import { CATEGORY_META, patientIds, resolvePatient, createPatient, assignCard,
-         cardHolder, setCategory, addTreatment, pushProtocol, markSeen, tally } from "./data.js";
+         cardHolder, setCategory, addTreatment, removeTreatment, markTransported,
+         pushProtocol, markSeen, setActiveTask, tally } from "./data.js";
 import { MStartSession, MAX_STEPS, DISCLAIMER } from "./mstart.js";
 import { FieldMap, distance, nearest } from "./layout.js";
+import { TASKS, DEFAULT_TASK, findTask, primaryLabel, MEASURES,
+         SIGHTING_CATEGORIES } from "./tasks.js";
 
 const cat = (c) => CATEGORY_META[c] || CATEGORY_META.UNSIGHTED;
 
@@ -30,15 +43,21 @@ export class Workflow {
    * @param {object} [opts]
    * @param {number} [opts.approachRadius] Meter, ab wann ein angelegter Patient „erreicht" ist
    * @param {number} [opts.releaseRadius]  Meter, ab wann er wieder losgelassen wird
+   * @param {boolean} [opts.pointing]      Stelle wird gezeigt (AR) statt am eigenen Standort angelegt
    */
-  constructor({ approachRadius = 2, releaseRadius = 3.5 } = {}) {
+  constructor({ approachRadius = 2, releaseRadius = 3.5, pointing = false } = {}) {
     this.approachRadius = approachRadius;
     this.releaseRadius = releaseRadius;
+
+    // Nur in AR gibt es einen Zeiger, mit dem sich eine Stelle am Boden wählen
+    // lässt. Flach (Kamera, Simulation) entsteht der Patient dort, wo man steht.
+    this.pointing = pointing;
 
     this.map = new FieldMap();
     this.session = new MStartSession();
 
-    this.state = "lage";
+    this.state = "auftrag";
+    this.task = null;             // gewählte Tätigkeit (Objekt aus tasks.js)
     this.target = null;           // die Akte, an der gerade gearbeitet wird
     this.result = null;
     this.scanArmed = false;
@@ -57,7 +76,7 @@ export class Workflow {
 
   /* ------------------------------------------------------------ Eingaben */
 
-  start() { this.goToLage(); }
+  start() { this.goToAuftrag(); }
 
   setPose(position, forward, floorY = null) {
     this._pose = { position, forward };
@@ -83,12 +102,75 @@ export class Workflow {
    */
   tick() {}
 
-  /** Hier liegt einer — Akte anlegen und sofort sichten. */
+  /* ------------------------------------------------------------ Tätigkeit */
+
+  goToAuftrag() {
+    this.state = "auftrag";
+    this.target = null;
+    this.result = null;
+    this.scanArmed = false;
+    this._conflict = null;
+    this.session.reset();
+    this.emit();
+  }
+
+  /** Tätigkeit wählen — sie entscheidet, was am Patienten passiert. */
+  chooseTask(id) {
+    const t = findTask(id) || findTask(DEFAULT_TASK);
+    if (!t) return;
+    this.task = t;
+    setActiveTask(t.label);          // ab jetzt steht sie in jeder Protokollzeile
+    this.say(`Tätigkeit: ${t.spoken}.`);
+    this.onToast(`Tätigkeit: ${t.label}`, "ok");
+    this.goToLage();
+  }
+
+  /* --------------------------------------------------- Patient anlegen */
+
+  /**
+   * „Neuer Patient" — in AR wird die Stelle am Boden erst gezeigt, flach
+   * entsteht er sofort am eigenen Standort.
+   */
   newPatient() {
-    // Der Patient liegt am Boden, nicht auf Kopfhöhe.
-    this.target = createPatient({ x: this.position.x, y: this.floorY, z: this.position.z });
+    if (this.state !== "lage") return;
+    if (!this.task || !this.task.canCreate) {
+      this.onToast(`${this.task ? this.task.label : "Diese Tätigkeit"} legt keine Patienten an`, "warn");
+      return;
+    }
+    if (this.pointing) { this.beginPlacement(); return; }
+    this.placeAt(null);
+  }
+
+  /** Stelle am Boden zeigen. Bestätigt wird mit Trigger, Pinch oder Verweilen. */
+  beginPlacement() {
+    this.state = "platzieren";
+    this.emit();
+    this.say("Stelle am Boden zeigen und auslösen.");
+  }
+
+  cancelPlacement() {
+    if (this.state !== "platzieren") return;
+    this.goToLage();
+  }
+
+  /**
+   * Die Stelle steht — Akte dort anlegen und weiter in das, was die Tätigkeit
+   * vorsieht.
+   * @param {{x:number,y:number,z:number}|null} point null = eigener Standort
+   */
+  placeAt(point) {
+    if (this.state !== "lage" && this.state !== "platzieren") return;
+
+    const usable = point && Number.isFinite(point.x) && Number.isFinite(point.z);
+    const at = usable
+      ? { x: point.x, y: Number.isFinite(point.y) ? point.y : this.floorY, z: point.z }
+      // Der Patient liegt am Boden, nicht auf Kopfhöhe.
+      : { x: this.position.x, y: this.floorY, z: this.position.z };
+
+    this.target = createPatient(at);
     this.say(`Patient ${this.target.marker_id} angelegt.`);
-    this.startSichtung();
+    this.onToast(`Patient #${this.target.marker_id} angelegt`, "ok");
+    this._atPatient();
   }
 
   /** Auf den Marker am Boden geklickt. */
@@ -98,6 +180,19 @@ export class Workflow {
     this.target = p;
     this.enterApproach();
   }
+
+  /** Was die gewählte Tätigkeit am Patienten tut. */
+  _atPatient() {
+    if (!this.target) { this.goToLage(); return; }
+    switch (this.task ? this.task.opens : null) {
+      case "kategorie": return this.enterKategorie();
+      case "karte":     return this.enterKarte();
+      case "behandlung":return this.enterBehandlung();
+      default:          return this.startSichtung();
+    }
+  }
+
+  /* ------------------------------------------------------- Vorsichtung */
 
   startSichtung() {
     this.session.reset();
@@ -127,6 +222,77 @@ export class Workflow {
     this.emit();
   }
 
+  /* --------------------------------------------------- ärztliche Sichtung */
+
+  enterKategorie() {
+    if (!this.target) { this.goToLage(); return; }
+    this.state = "kategorie";
+    this.emit();
+    this.say("Sichtungskategorie wählen.");
+  }
+
+  /**
+   * Ärztliche Sichtung: die Kategorie wird festgestellt, nicht errechnet — und
+   * genau so protokolliert, damit sie später nicht mit einer mSTaRT-Vorsichtung
+   * verwechselt wird.
+   */
+  chooseCategory(key) {
+    if (this.state !== "kategorie" || !this.target) return;
+    if (!CATEGORY_META[key] || key === "UNSIGHTED") return;
+
+    const id = this.target.marker_id;
+    setCategory(id, key);
+    pushProtocol(id, { transcript: `Ärztliche Sichtung: ${cat(key).label}` });
+    markSeen(id);
+    this.result = null;              // kein mSTaRT-Ergebnis, also nichts nachbuchen
+    this.say(`Kategorie ${cat(key).spoken}.`);
+
+    if (this.target.card == null) { this.enterKarte(); return; }
+    this.state = "bestaetigt";
+    this.onToast(`#${id} · ${cat(key).short}`, "ok");
+    this.emit();
+  }
+
+  /* ------------------------------------------------ Behandlung & Transport */
+
+  enterBehandlung() {
+    if (!this.target) { this.goToLage(); return; }
+    this.state = "behandlung";
+    this.emit();
+  }
+
+  /** Maßnahme festhalten — nochmaliges Drücken nimmt sie zurück. */
+  toggleMeasure(name) {
+    if (this.state !== "behandlung" || !this.target) return;
+    const id = this.target.marker_id;
+    if (this.target.treatments.includes(name)) {
+      removeTreatment(id, name);
+      this.say(`${name} zurückgenommen.`);
+    } else {
+      addTreatment(id, name);
+      this.say(`${name} festgehalten.`);
+    }
+    markSeen(id);
+    this.emit();
+  }
+
+  /** Abtransport buchen — oder zurücknehmen, wenn er schon gebucht war. */
+  toggleTransport() {
+    if (this.state !== "behandlung" || !this.target) return;
+    const id = this.target.marker_id;
+    const on = !this.target.transported;
+    markTransported(id, on);
+    markSeen(id);
+    if (on) {
+      this.say(`Patient ${id} abtransportiert.`);
+      this.onToast(`#${id} abtransportiert`, "ok");
+      this.state = "bestaetigt";
+    } else {
+      this.say("Abtransport zurückgenommen.");
+    }
+    this.emit();
+  }
+
   /* ------------------------------------------------------- Kartenschritt */
 
   enterKarte() {
@@ -134,7 +300,7 @@ export class Workflow {
     this.state = "karte";
     this.scanArmed = true;
     this._conflict = null;
-    this._cardDraft = this.freeCardNumber();
+    this._cardDraft = this.target.card != null ? this.target.card : this.freeCardNumber();
     this.emit();
   }
 
@@ -237,6 +403,7 @@ export class Workflow {
   screen() {
     const s = {
       state: this.state,
+      task: this.task ? this.task.short : "",
       title: "J.A.R.",
       cardTitle: this.target ? `Patient #${this.target.marker_id}` : "",
       badge: this.target && this.target.card != null ? `Karte #${this.target.card}` : "",
@@ -246,13 +413,22 @@ export class Workflow {
       body: [],
       progress: null,
       buttons: [],
+      // Die raumfeste Handlungskarte wird nur gezeigt, wenn wirklich ein Schritt
+      // ansteht. In der Lage bleibt die Mitte frei — da schaut man durch.
+      showCard: true,
+      hudActions: [],
+      placing: false,
       status: this.statusLine(),
     };
 
     switch (this.state) {
+      case "auftrag": return this._auftrag(s);
       case "lage": return this._lage(s);
+      case "platzieren": return this._platzieren(s);
       case "approach": return this._approach(s);
       case "sichtung": return this._sichtung(s);
+      case "kategorie": return this._kategorie(s);
+      case "behandlung": return this._behandlung(s);
       case "ergebnis": return this._ergebnis(s);
       case "karte": return this._karte(s);
       case "karte-belegt": return this._konflikt(s);
@@ -263,23 +439,58 @@ export class Workflow {
 
   statusLine() {
     if (this.notice) return this.notice;
+    if (this.state === "auftrag") return "Tätigkeit bestimmt den Ablauf am Patienten";
+    if (this.state === "platzieren")
+      return this.pointing ? "Auf den Boden zeigen und auslösen" : "Wird am eigenen Standort angelegt";
     if (this.state === "karte")
       return this.cameraLive ? "Karte in den Blick halten" : "Nummer wählen und übernehmen";
     return DISCLAIMER;
   }
 
+  /** Kopffeste Kleinknöpfe: was jederzeit möglich ist. */
+  _hudActions() {
+    const out = [];
+    if (this.task && this.task.canCreate)
+      out.push({ label: "Neuer Patient", tint: "primary", action: () => this.newPatient() });
+    out.push({ label: "Tätigkeit", tint: "ghost", action: () => this.goToAuftrag() });
+    return out;
+  }
+
+  _auftrag(s) {
+    s.title = "TÄTIGKEIT";
+    s.headline = "Was machst du gerade?";
+    s.hint = "Die Tätigkeit bestimmt, was passiert, wenn du einen Patienten öffnest.";
+    s.buttons = TASKS.map((t) => ({
+      label: t.label,
+      tint: t.id === "vorsichtung" ? "primary" : "ghost",
+      action: () => this.chooseTask(t.id),
+    }));
+    s.body = TASKS.map((t) => ({ text: `${t.label} — ${t.note}`, color: "muted" }));
+    return s;
+  }
+
   _lage(s) {
     const t = tally();
     s.title = "LAGE";
+    s.showCard = false;              // kein großer Schirm, nur die Randanzeige
     s.headline = t.total === 0 ? "Noch kein Patient erfasst" : `${t.total} Patienten erfasst`;
-    s.hint = "Vor dem Patienten stehen und anlegen. Die Position wird dabei festgehalten.";
-    if (t.ohneKarte > 0)
-      s.body.push({ text: `${t.ohneKarte} ohne Karte`, color: "warn" });
+    s.hint = this.task && this.task.canCreate
+      ? "„Neuer Patient“ legt einen an — oder einen Marker am Boden anklicken."
+      : "Einen Marker am Boden anklicken.";
+    if (t.ohneKarte > 0) s.body.push({ text: `${t.ohneKarte} ohne Karte`, color: "warn" });
+    s.hudActions = this._hudActions();
+    return s;
+  }
 
-    s.hint = t.total === 0
-      ? "Vor dem Verletzten stehen und anlegen. Die Position wird festgehalten."
-      : "Vor dem Verletzten stehen und anlegen — oder einen Marker am Boden anklicken.";
-    s.buttons = [{ label: "Neuer Patient", tint: "primary", action: () => this.newPatient() }];
+  _platzieren(s) {
+    s.title = "STELLE WÄHLEN";
+    s.showCard = false;              // der Ring am Boden ist die Anzeige
+    s.placing = true;
+    s.headline = "Wo liegt er?";
+    s.hint = "Auf die Stelle am Boden zeigen und auslösen.";
+    s.hudActions = [
+      { label: "Abbrechen", tint: "ghost", action: () => this.cancelPlacement() },
+    ];
     return s;
   }
 
@@ -292,14 +503,16 @@ export class Workflow {
     s.body.push({ text: p.category === "UNSIGHTED" ? "noch nicht gesichtet" : c.label,
                   color: p.category === "UNSIGHTED" ? "muted" : "cat", color2: c.color });
     if (p.card != null) s.body.push({ text: `Umhängekarte #${p.card}`, color: "muted" });
+    if (p.transported) s.body.push({ text: "abtransportiert", color: "good" });
 
     s.buttons = [
-      { label: p.category === "UNSIGHTED" ? "Sichtung starten" : "Neu sichten",
-        tint: "primary", action: () => this.startSichtung() },
-      { label: "Zurück", tint: "ghost", action: () => this.goToLage() },
+      { label: primaryLabel(this.task, p), tint: "primary", action: () => this._atPatient() },
     ];
-    if (p.card == null && p.category !== "UNSIGHTED")
-      s.buttons.splice(1, 0, { label: "Karte zuweisen", tint: "ghost", action: () => this.enterKarte() });
+    // Die Karte nachtragen, wo sie zur Tätigkeit passt und noch fehlt.
+    const sightingTask = this.task && (this.task.id === "vorsichtung" || this.task.id === "sichtung");
+    if (sightingTask && p.card == null && p.category !== "UNSIGHTED")
+      s.buttons.push({ label: "Karte zuweisen", tint: "ghost", action: () => this.enterKarte() });
+    s.buttons.push({ label: "Zurück", tint: "ghost", action: () => this.goToLage() });
     return s;
   }
 
@@ -318,6 +531,53 @@ export class Workflow {
         ? { label: "Zurück", tint: "ghost", action: () => this.stepBack() }
         : { label: "Abbrechen", tint: "ghost", action: () => this.goToLage() },
     ];
+    return s;
+  }
+
+  _kategorie(s) {
+    const p = this.target;
+    const c = cat(p.category);
+    s.title = "SICHTUNG (ÄRZTLICH)";
+    s.headline = "Sichtungskategorie";
+    s.hint = "Ärztliche Entscheidung — kein Algorithmus. SK IV ist hier regulär.";
+    s.band = p.category === "UNSIGHTED" ? null : c.color;
+    if (p.category !== "UNSIGHTED")
+      s.body.push({ text: "bisher: " + c.label, color: "cat", color2: c.color });
+
+    s.buttons = SIGHTING_CATEGORIES.map((key) => ({
+      label: CATEGORY_META[key].short,
+      tint: "cat",
+      color: CATEGORY_META[key].color,
+      action: () => this.chooseCategory(key),
+    }));
+    s.buttons.push({ label: "Zurück", tint: "ghost", action: () => this.enterApproach() });
+    return s;
+  }
+
+  _behandlung(s) {
+    const p = this.target;
+    const c = cat(p.category);
+    s.title = "BEHANDLUNG";
+    s.band = p.category === "UNSIGHTED" ? null : c.color;
+    s.headline = p.category === "UNSIGHTED" ? "Ungesichtet" : c.label;
+    s.headlineColor = p.category === "UNSIGHTED" ? "" : c.color;
+    s.hint = p.transported
+      ? "Abtransport gebucht."
+      : "Maßnahme antippen — nochmal antippen nimmt sie zurück.";
+    s.body.push(p.treatments.length
+      ? { text: "Maßnahmen: " + p.treatments.join(", "), color: "good" }
+      : { text: "keine Maßnahmen festgehalten", color: "muted" });
+
+    s.buttons = MEASURES.map((m) => ({
+      label: (p.treatments.includes(m) ? "✓ " : "") + m,
+      tint: p.treatments.includes(m) ? "yes" : "ghost",
+      action: () => this.toggleMeasure(m),
+    }));
+    s.buttons.push({
+      label: p.transported ? "Transport zurück" : "Abtransport",
+      tint: "primary", action: () => this.toggleTransport(),
+    });
+    s.buttons.push({ label: "Fertig", tint: "ghost", action: () => this.goToLage() });
     return s;
   }
 
@@ -375,9 +635,13 @@ export class Workflow {
     const c = cat(p.category);
     s.title = "ERFASST";
     s.band = c.color;
-    s.headline = `#${p.marker_id} · Karte #${p.card}`;
+    // Derselbe Schirm schließt alle Tätigkeiten ab — was erreicht wurde, steht
+    // in der Akte, nicht in einem eigenen Zustand.
+    s.headline = p.transported ? `#${p.marker_id} abtransportiert`
+               : p.card != null ? `#${p.marker_id} · Karte #${p.card}`
+               : `#${p.marker_id} erfasst`;
     s.headlineColor = c.color;
-    s.hint = c.label;
+    s.hint = p.card == null && !p.transported ? c.label + " · ohne Karte" : c.label;
     s.buttons = [{ label: "Weiter", tint: "primary", action: () => this.goToLage() }];
     return s;
   }
@@ -395,12 +659,16 @@ export class Workflow {
       uv: this.map.project(p.pos),
       color: cat(p.category).color,
       sighted: p.category !== "UNSIGHTED",
+      transported: !!p.transported,
       target: p === this.target,
     }));
 
     const t = tally();
     let footer, hint;
-    if (patients.length === 0) {
+    if (this.state === "auftrag") {
+      footer = "Tätigkeit wählen";
+      hint = `${t.total} erfasst`;
+    } else if (patients.length === 0) {
       footer = "Lage leer";
       hint = "„Neuer Patient“ beim ersten Verletzten";
     } else if (this.target) {
@@ -437,6 +705,7 @@ export class Workflow {
         short: c.short,
         color: c.color,
         sighted: p.category !== "UNSIGHTED",
+        transported: !!p.transported,
         target: p === this.target,
       });
     }

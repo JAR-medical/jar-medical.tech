@@ -1,13 +1,16 @@
 /* Die Anzeige — als HUD, nicht als Fenster.
  *
- * Drei getrennte Ebenen, weil sie unterschiedlich im Raum hängen (siehe xr.js):
+ * Vier getrennte Ebenen, weil sie unterschiedlich im Raum hängen (siehe xr.js):
  *
  *   drawHudLayer  Randinformation, kopffest: Zustand oben links, Zählung oben
  *                 rechts, Lagekarte unten links, Hinweis unten rechts. Die Mitte
- *                 bleibt frei — da schaut man durch.
+ *                 bleibt frei — da schaut man durch. Dazu eine Reihe kleiner
+ *                 Knöpfe unten (`screen.hudActions`) für das, was jederzeit
+ *                 möglich ist; sie liefert deren Trefferflächen zurück.
  *   drawCard      der Handlungsschritt, raumfest beim Patienten: Frage, Antwort,
  *                 Vitalwerte. Liefert die Trefferflächen für den Handstrahl.
- *   drawTag       kleines Schild je Patient, raumfest an seiner Position.
+ *   drawMarker    Bodenmarker je Patient, raumfest an seiner Position.
+ *   drawReticle   der Ring, mit dem beim Anlegen die Stelle am Boden gezeigt wird.
  *
  * Gestaltung: keine Kacheln, keine Rundungen, keine Schlagschatten. Haarlinien,
  * Versalien-Kleinlabels, Tabellenziffern, und Farbe ausschließlich für
@@ -141,8 +144,10 @@ function ring(ctx, x, y, r, color, width = 2) {
  * Kopffeste Randinformation. Die Bildmitte bleibt leer — da schaut man durch.
  * @param {object} screen von workflow.screen()
  * @param {object} map    von workflow.mapModel()
+ * @param {{hover?:number, dwell?:number}} [opts] Zeigerzustand der HUD-Knöpfe
+ * @returns {Array<{x,y,w,h,index}>} Trefferflächen von `screen.hudActions`
  */
-export function drawHudLayer(ctx, W, H, screen, map) {
+export function drawHudLayer(ctx, W, H, screen, map, opts = {}) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
 
@@ -151,26 +156,87 @@ export function drawHudLayer(ctx, W, H, screen, map) {
   topRight(ctx, W - pad, pad, map);
   bottomLeft(ctx, pad, H - pad, map);
   bottomRight(ctx, W - pad, H - pad, screen);
+  return hudButtons(ctx, pad, H - pad, W, screen.hudActions || [],
+                    opts.hover ?? -1, opts.dwell || 0);
 }
 
 function topLeft(ctx, x, y, screen) {
-  const lines = screen.progress ? 1 : 0;
-  block(ctx, x - 14, y - 12, 430, 60 + lines * 30, C.accent);
+  // Unter dem Zustand steht, in welcher Tätigkeit gearbeitet wird, und — während
+  // der Vorsichtung — der Schritt. Beides je eine Zeile, nur wenn es sie gibt.
+  const sub = [];
+  if (screen.task) sub.push("task");
+  if (screen.progress) sub.push("progress");
+  block(ctx, x - 14, y - 12, 430, 60 + sub.length * 30, C.accent);
 
   caps(ctx, screen.title || "J.A.R.", x, y + 20, 22, C.dim);
   rule(ctx, x, y + 38, 390, C.rule);
 
-  if (screen.progress) {
-    const { step, total } = screen.progress;
-    caps(ctx, `Schritt ${step}/${total}`, x, y + 74, 18, C.faint);
-    for (let i = 0; i < total; i++) {
-      const on = i < step;
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(x + 205 + i * 26, y + 61, 19, 7);
-      ctx.fillStyle = on ? C.accent : "rgba(255,255,255,0.28)";
-      ctx.fillRect(x + 205 + i * 26, y + 62, 18, 4);
+  let sy = y + 68;
+  for (const kind of sub) {
+    if (kind === "task") {
+      caps(ctx, screen.task, x, sy + 6, 16, C.faint);
+    } else {
+      const { step, total } = screen.progress;
+      caps(ctx, `Schritt ${step}/${total}`, x, sy + 6, 18, C.faint);
+      for (let i = 0; i < total; i++) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(x + 205 + i * 26, sy - 7, 19, 7);
+        ctx.fillStyle = i < step ? C.accent : "rgba(255,255,255,0.28)";
+        ctx.fillRect(x + 205 + i * 26, sy - 6, 18, 4);
+      }
     }
+    sy += 30;
   }
+}
+
+/* ------------------------------------------------------------ HUD-Knöpfe
+ *
+ * Was jederzeit möglich ist — einen Patienten anlegen, die Tätigkeit wechseln,
+ * abbrechen — gehört nicht auf einen raumfesten Schirm vor dem Gesicht, sondern
+ * als kleiner Knopf an den Rand des Blickfelds. Die Reihe sitzt rechts neben der
+ * Lagekarte und über der Statuszeile; die Mitte bleibt frei.
+ *
+ * Sie wird nur in Zuständen ohne Handlungskarte benutzt (Lage, Stelle wählen).
+ * Läge doch einmal eine Karte davor, gewinnt beim Zeigen die Karte — sie wird
+ * auch darüber gezeichnet (siehe xr.js).
+ */
+
+const ACT_W = 300, ACT_H = 76, ACT_GAP = 18;
+const ACT_LEFT = 452;          // rechts an der Lagekarte vorbei
+
+function hudButtons(ctx, pad, yBottom, W, list, hover, dwell) {
+  const rects = [];
+  if (!list.length) return rects;
+
+  const x0 = pad + ACT_LEFT;
+  const y = yBottom - 54 - ACT_H;                 // über der Statuszeile
+  const room = W - pad - x0 - ACT_GAP * (list.length - 1);
+  const bw = Math.max(150, Math.min(ACT_W, room / list.length));
+
+  list.forEach((b, i) => {
+    const bx = x0 + i * (bw + ACT_GAP);
+    const on = hover === i;
+    const tint = b.tint === "primary" ? C.accent : "rgba(255,255,255,0.55)";
+
+    ctx.fillStyle = on ? "rgba(255,255,255,0.20)" : "rgba(8,11,15,0.62)";
+    ctx.fillRect(bx, y, bw, ACT_H);
+    ctx.fillStyle = tint;
+    ctx.globalAlpha = on ? 0.22 : 0.12;
+    ctx.fillRect(bx, y, bw, ACT_H);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = on ? "#ffffff" : tint;
+    ctx.lineWidth = on ? 3 : 1.5;
+    ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), ACT_H);
+
+    if (on && dwell > 0) {
+      ctx.fillStyle = "rgba(124,192,255,0.85)";
+      ctx.fillRect(bx + 2, y + ACT_H - 7, (bw - 4) * Math.min(1, dwell), 5);
+    }
+
+    caps(ctx, b.label, bx + bw / 2, y + ACT_H / 2 + 8, 21, C.ink, "center");
+    rects.push({ x: bx, y, w: bw, h: ACT_H, index: i });
+  });
+  return rects;
 }
 
 function topRight(ctx, x, y, map) {
@@ -240,10 +306,14 @@ function drawField(ctx, x, y, w, h, map, { compact = false } = {}) {
   const r = compact ? 9 : 11;
   for (const d of map.dots) {
     const p = toXY(d.uv);
+    // Abtransportierte bleiben stehen — wo einer lag, gehört zum Lagebild —,
+    // treten aber zurück, damit die offenen Fälle vorn bleiben.
+    if (d.transported) ctx.globalAlpha = 0.4;
     if (d.target) ring(ctx, p.x, p.y, r + 7, C.accent, 2);
     if (d.sighted) disc(ctx, p.x, p.y, r, d.color);
     else ring(ctx, p.x, p.y, r - 1, d.color, 2);
     T(ctx, d.id, p.x, p.y + 5, { size: compact ? 13 : 15, weight: 600, align: "center" });
+    ctx.globalAlpha = 1;
   }
 
   if (map.medic) {
@@ -334,8 +404,10 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
     y += 6;
   }
 
-  if (screen.vitals && screen.vitals.length) vitalsRow(ctx, pad, H - 236, w, screen.vitals);
-  return buttons(ctx, pad, H - 152, w, screen.buttons || [], opts.hover, opts.dwell || 0);
+  const grid = buttonGrid(screen.buttons || [], H - 48);
+  if (screen.vitals && screen.vitals.length)
+    vitalsRow(ctx, pad, grid.top - 84, w, screen.vitals);
+  return buttons(ctx, pad, w, screen.buttons || [], grid, opts.hover, opts.dwell || 0);
 }
 
 /** Vitalwerte als Zahlenreihe mit Kleinlabels — kein Kachelgitter. */
@@ -349,46 +421,66 @@ function vitalsRow(ctx, x, y, w, vitals) {
   }
 }
 
+/**
+ * Wie die Knöpfe unter der Karte liegen. Bis zu drei stehen nebeneinander;
+ * mehr bricht in eine zweite Reihe um (die Kategoriewahl hat sechs), die dann
+ * etwas flacher ausfällt, damit der Text darüber Platz behält.
+ */
+function buttonGrid(list, yBottom) {
+  const gap = 14;
+  const perRow = list.length <= 3 ? Math.max(1, list.length) : Math.ceil(list.length / 2);
+  const rows = Math.max(1, Math.ceil(list.length / perRow));
+  const bh = rows > 1 ? 88 : 104;
+  return { gap, perRow, rows, bh, top: yBottom - rows * bh - (rows - 1) * gap };
+}
+
 /** Knöpfe: Umriss, kein Fond. Gefüllt wird nur, worauf gezeigt wird. */
-function buttons(ctx, x, y, w, list, hover, dwell = 0) {
+function buttons(ctx, x, w, list, grid, hover, dwell = 0) {
   const rects = [];
   if (!list.length) return rects;
 
-  const gap = 14;
-  const bw = (w - gap * (list.length - 1)) / list.length;
-  const bh = 104;
+  const { gap, perRow, rows, bh, top } = grid;
+  const size = perRow > 2 ? 25 : 32;
+  let i = 0;
 
-  list.forEach((b, i) => {
-    const bx = x + i * (bw + gap);
-    const on = hover === i;
-    const tint = b.tint === "yes" ? "#46a758"
-               : b.tint === "no" ? "#e5484d"
-               : b.tint === "lna" ? "#3e7bfa"
-               : b.tint === "primary" ? C.accent
-               : "rgba(255,255,255,0.55)";
+  for (let r = 0; r < rows; r++) {
+    const n = Math.min(perRow, list.length - i);
+    const bw = (w - gap * (n - 1)) / n;
+    const y = top + r * (bh + gap);
 
-    ctx.fillStyle = on ? "rgba(255,255,255,0.20)" : "rgba(8,11,15,0.42)";
-    ctx.fillRect(bx, y, bw, bh);
-    ctx.strokeStyle = on ? "#ffffff" : tint;
-    ctx.lineWidth = on ? 3 : 1.5;
-    ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), bh);
+    for (let k = 0; k < n; k++, i++) {
+      const b = list[i];
+      const bx = x + k * (bw + gap);
+      const on = hover === i;
+      const tint = b.color ? b.color
+                 : b.tint === "yes" ? "#46a758"
+                 : b.tint === "no" ? "#e5484d"
+                 : b.tint === "lna" ? "#3e7bfa"
+                 : b.tint === "primary" ? C.accent
+                 : "rgba(255,255,255,0.55)";
 
-    // Verweil-Anzeige: füllt sich, wenn der Zeiger auf dem Knopf liegt. Sie ist
-    // der Ersatz für den Pinch, falls das Gerät kein `select` schickt.
-    if (on && dwell > 0) {
-      ctx.fillStyle = "rgba(124,192,255,0.85)";
-      ctx.fillRect(bx + 2, y + bh - 8, (bw - 4) * Math.min(1, dwell), 6);
+      ctx.fillStyle = on ? "rgba(255,255,255,0.20)" : "rgba(8,11,15,0.42)";
+      ctx.fillRect(bx, y, bw, bh);
+      ctx.strokeStyle = on ? "#ffffff" : tint;
+      ctx.lineWidth = on ? 3 : 1.5;
+      ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), bh);
+
+      // Verweil-Anzeige: füllt sich, wenn der Zeiger auf dem Knopf liegt. Sie ist
+      // der Ersatz für den Pinch, falls das Gerät kein `select` schickt.
+      if (on && dwell > 0) {
+        ctx.fillStyle = "rgba(124,192,255,0.85)";
+        ctx.fillRect(bx + 2, y + bh - 8, (bw - 4) * Math.min(1, dwell), 6);
+      }
+
+      ctx.font = `600 ${size}px ${F}`;
+      const lines = wrap(ctx, b.label, bw - 28).slice(0, 2);
+      lines.forEach((line, li) =>
+        T(ctx, line, bx + bw / 2, y + bh / 2 + 10 + (li - (lines.length - 1) / 2) * 28,
+          { size, weight: 600, align: "center" }));
+
+      rects.push({ x: bx, y, w: bw, h: bh, index: i });
     }
-
-    const size = list.length > 2 ? 26 : 32;
-    ctx.font = `600 ${size}px ${F}`;
-    const lines = wrap(ctx, b.label, bw - 28).slice(0, 2);
-    lines.forEach((line, li) =>
-      T(ctx, line, bx + bw / 2, y + bh / 2 + 10 + (li - (lines.length - 1) / 2) * 28,
-        { size, weight: 600, align: "center" }));
-
-    rects.push({ x: bx, y, w: bw, h: bh, index: i });
-  });
+  }
   return rects;
 }
 
@@ -403,11 +495,15 @@ function buttons(ctx, x, y, w, list, hover, dwell = 0) {
  * muss er aus jeder Richtung als Kreis funktionieren und darf keine Kante
  * haben, die eine Blickrichtung behauptet.
  *
- * @param {object} m {id, color, sighted, card, hover}
+ * @param {object} m {id, color, sighted, card, transported, hover}
  */
 export function drawMarker(ctx, W, H, m) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
+
+  // Abtransportierte bleiben liegen, wo sie lagen, treten aber zurück: der Ring
+  // ist dann Ortsangabe, keine offene Aufgabe mehr.
+  if (m.transported) ctx.globalAlpha = 0.45;
 
   const cx = W / 2, cy = H / 2;
   const outer = W * 0.46;
@@ -440,13 +536,87 @@ export function drawMarker(ctx, W, H, m) {
   }
 
   T(ctx, "#" + m.id, cx, cy + W * 0.09, { size: W * 0.30, weight: 600, align: "center" });
-  caps(ctx, m.card != null ? `Karte ${m.card}` : "ohne Karte",
+  caps(ctx, m.transported ? "abtransportiert" : m.card != null ? `Karte ${m.card}` : "ohne Karte",
        cx, cy + W * 0.30, W * 0.062, m.sighted ? C.dim : C.faint, "center");
+
+  ctx.globalAlpha = 1;
 }
 
 function hexA(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/* ==================================================== Stelle am Boden */
+
+/**
+ * Der Ring, mit dem beim Anlegen die Stelle gezeigt wird. Er wandert flach über
+ * den Boden dorthin, wohin der Controller zeigt, und wird bestätigt — deshalb
+ * gestrichelt und offen: was hier liegt, ist noch nichts, sondern ein Vorschlag.
+ *
+ * Der Bogen am Rand ist die Verweil-Anzeige. Sie ist auf Geräten ohne Trigger
+ * (Blicksteuerung im PICO-Browser) die einzige Rückmeldung darüber, dass gleich
+ * ausgelöst wird, und muss deshalb an der Stelle stehen, auf die man schaut —
+ * nicht am Rand des Blickfelds.
+ *
+ * @param {{ok?:boolean, dwell?:number, distance?:number}} m
+ */
+export function drawReticle(ctx, W, H, m = {}) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.textBaseline = "alphabetic";
+
+  const cx = W / 2, cy = H / 2;
+  const r = W * 0.33;
+  const tone = m.ok === false ? "#f5b301" : C.accent;
+
+  const glow = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.35);
+  glow.addColorStop(0, "rgba(0,0,0,0.34)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.35, 0, Math.PI * 2); ctx.fill();
+
+  ctx.setLineDash([W * 0.055, W * 0.042]);
+  ctx.strokeStyle = "rgba(0,0,0,0.65)";
+  ctx.lineWidth = W * 0.038;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = tone;
+  ctx.lineWidth = W * 0.022;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fadenkreuz: der Mittelpunkt ist die Stelle, nicht der Ring.
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.lineWidth = W * 0.026;
+  crosshair(ctx, cx, cy, r * 0.42);
+  ctx.strokeStyle = tone;
+  ctx.lineWidth = W * 0.012;
+  crosshair(ctx, cx, cy, r * 0.42);
+
+  const dwell = Math.min(1, Math.max(0, m.dwell || 0));
+  if (dwell > 0) {
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.lineWidth = W * 0.046;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.2, -Math.PI / 2, -Math.PI / 2 + dwell * Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = W * 0.03;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.2, -Math.PI / 2, -Math.PI / 2 + dwell * Math.PI * 2);
+    ctx.stroke();
+  }
+
+  caps(ctx, m.ok === false ? "Boden anvisieren" : "Hier anlegen",
+       cx, cy + r * 0.82, W * 0.062, C.ink, "center");
+  if (m.ok !== false && m.distance != null)
+    caps(ctx, `${m.distance.toFixed(1)} m`, cx, cy - r * 0.55, W * 0.05, C.faint, "center");
+}
+
+function crosshair(ctx, cx, cy, len) {
+  ctx.beginPath();
+  ctx.moveTo(cx - len, cy); ctx.lineTo(cx + len, cy);
+  ctx.moveTo(cx, cy - len); ctx.lineTo(cx, cy + len);
+  ctx.stroke();
 }
 
 /* ------------------------------------------------------ flache Lagekarte */

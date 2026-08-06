@@ -2,13 +2,15 @@
  *
  * Ein Ablauf, drei Betriebsarten:
  *
- *   Lagekarte ─▶ zum Patienten ─▶ Sichtung nach mSTaRT ─▶ Sichtungskategorie
- *             ─▶ Patientenumhängekarte scannen ─▶ nächster Patient
+ *   Tätigkeit wählen ─▶ Lagekarte ─▶ Patient anlegen oder anklicken
+ *                    ─▶ was die Tätigkeit vorsieht ─▶ nächster Patient
  *
  *   • AR-Modus     — Passthrough auf PICO/Quest (xr.js). Der Ablaufschirm liegt
- *                    körperfest im Raum, bedient wird er mit Handtracking:
- *                    zeigen und pinchen. Kamerazugriff haben Headset-Browser
- *                    nicht, deshalb wird die Karte dort manuell bestätigt.
+ *                    körperfest im Raum, bedient wird er mit Blick oder
+ *                    Controller. Nur hier wird die Stelle eines neuen Patienten
+ *                    am Boden gezeigt (`pointing`); Kamerazugriff haben
+ *                    Headset-Browser meist nicht, dann wird die Karte manuell
+ *                    bestätigt.
  *   • Kamera-Modus — dieselben Schirme flach, dazu echtes QR-Scannen über die
  *                    Gerätekamera (qr.js). Das ist die Betriebsart, in der der
  *                    Kartenschritt wirklich scannt.
@@ -47,6 +49,9 @@ const el = {
   caps: $("caps"),
   flow: $("flow"),
   flowMap: $("flow-map"),
+  flowCard: $("flow-card"),
+  flowActions: $("flow-actions"),
+  flowTask: $("flow-task"),
   flowTitle: $("flow-title"),
   flowCardTitle: $("flow-card-title"),
   flowOpen: $("flow-open"),
@@ -123,6 +128,10 @@ function renderScreen(screen) {
   app.screen = screen;
 
   el.flowTitle.textContent = screen.title || "J.A.R.";
+  el.flowTask.textContent = screen.task || "";
+  // In der Lage steht kein Schritt an: dann bleibt die Mitte frei und es gibt
+  // nur die kleinen Knöpfe am Rand — flach genauso wie in der Brille.
+  el.flowCard.classList.toggle("hidden", screen.showCard === false);
   el.flowCardTitle.textContent = screen.cardTitle || "";
   el.flowBadge.textContent = screen.badge || "";
   el.flowBand.style.background = screen.band || "rgba(255,255,255,.28)";
@@ -142,7 +151,8 @@ function renderScreen(screen) {
   renderBody(screen);
   renderVitals(screen);
   renderCounts();
-  renderButtons(screen);
+  renderButtons(el.flowButtons, screen.buttons || [], () => app.screen.buttons);
+  renderButtons(el.flowActions, screen.hudActions || [], () => app.screen.hudActions);
 
   drawMap();
   if (app.xr && app.xr.active) {
@@ -182,7 +192,7 @@ function renderVitals(screen) {
 function renderCounts() {
   if (!app.flow) return;
   const c = app.flow.mapModel().counts;
-  el.flowOpen.textContent = `${c.open} offen`;
+  el.flowOpen.textContent = `${c.total} erfasst`;      // dieselbe Zeile wie in der Brille
   const items = [["#e5484d", c.SK1], ["#f5b301", c.SK2], ["#46a758", c.SK3],
                  ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
   el.flowCounts.innerHTML = "";
@@ -197,17 +207,23 @@ function renderCounts() {
   }
 }
 
-function renderButtons(screen) {
-  el.flowButtons.innerHTML = "";
-  (screen.buttons || []).forEach((b, i) => {
+/**
+ * Knöpfe einer Leiste zeichnen. Ausgelöst wird immer über den **aktuellen**
+ * Schirm (`live()`), nie über die Liste von eben — sonst führte ein Klick auf
+ * einen Knopf, der gerade neu gezeichnet wurde, die Handlung des alten aus.
+ */
+function renderButtons(host, list, live) {
+  host.innerHTML = "";
+  list.forEach((b, i) => {
     const btn = document.createElement("button");
     btn.className = "flow-btn " + (b.tint || "ghost");
+    if (b.color) btn.style.borderColor = b.color;
     btn.textContent = b.label;
     btn.onclick = () => {
-      const current = app.screen;
-      if (current && current.buttons[i]) current.buttons[i].action();
+      const now = live();
+      if (now && now[i]) now[i].action();
     };
-    el.flowButtons.appendChild(btn);
+    host.appendChild(btn);
   });
 }
 
@@ -216,17 +232,18 @@ function drawMap() {
   drawMapPanel(mapCtx, el.flowMap.width, el.flowMap.height, app.flow.mapModel());
 }
 
+/* `flow.target` ist die Akte selbst, keine Nummer — sie noch einmal
+ * aufzulösen lieferte nur `null`, und die Akte blieb leer. */
 function renderRecord() {
-  const id = app.flow ? app.flow.target : null;
-  const p = id != null ? resolvePatient(id) : null;
+  const p = app.flow ? app.flow.target : null;
   el.hud.innerHTML = p ? patientHUD(p) : "";
   el.hud.classList.toggle("hidden", !p || !app.recordOpen);
 }
 
 /* ------------------------------------------------------------- Ablauf */
 
-function makeFlow() {
-  const flow = new Workflow();
+function makeFlow({ pointing = false } = {}) {
+  const flow = new Workflow({ pointing });
   flow.onScreen = renderScreen;
   flow.onSpeak = (text) => app.voice && app.voice.speak(text);
   flow.onToast = toast;
@@ -240,7 +257,9 @@ async function startAR() {
   showStage("AR-Modus — Passthrough");
   el.cameraBg.classList.add("hidden");
 
-  app.flow = makeFlow();
+  // Nur hier gibt es einen Zeiger: die Stelle für einen neuen Patienten wird
+  // am Boden gewählt, statt am eigenen Standort angenommen zu werden.
+  app.flow = makeFlow({ pointing: true });
 
   app.xr = new XRPassthrough({
     // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
@@ -249,6 +268,7 @@ async function startAR() {
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
     onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
+    onPlace: (point) => app.flow.placeAt(point),
     onStereoIssue: (note) => app.flow.setNotice(note),
     onFrame: () => {
       app.flow.tick();
@@ -314,7 +334,7 @@ function startSim() {
   el.cameraBg.classList.add("hidden");
   app.flow = makeFlow();
   app.flow.start();
-  toast("Simulation — Patienten anlegen und sichten");
+  toast("Simulation — Tätigkeit wählen, dann Patienten anlegen");
 }
 
 function showStage(label) {

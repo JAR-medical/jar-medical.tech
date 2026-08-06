@@ -22,16 +22,18 @@
     await new Promise((r) => setTimeout(r, 300));
 
     const app = window.__jar;
+    // Knöpfe stehen auf dem Ablaufschirm oder als Randknöpfe am HUD.
+    const knoepfe = () => [...document.querySelectorAll("#flow-buttons .flow-btn, #flow-actions .flow-btn")];
     const press = (re) => {
-      const b = [...document.querySelectorAll("#flow-buttons .flow-btn")]
-        .find((x) => re.test(x.textContent));
+      const b = knoepfe().find((x) => re.test(x.textContent));
       if (!b) throw new Error("Knopf fehlt: " + re + " — da: " +
-        [...document.querySelectorAll("#flow-buttons .flow-btn")].map((x) => x.textContent).join(", "));
+        knoepfe().map((x) => x.textContent).join(", "));
       b.click();
     };
 
     try {
-      app.flow.setPose({ x: 1, y: 1.7, z: -2 }, { x: 0, y: 0, z: -1 });
+      app.flow.setPose({ x: 1, y: 1.7, z: -2 }, { x: 0, y: 0, z: -1 }, 0);
+      press(/^Vorsichtung$/);
       press(/Neuer Patient/);
       if (stop !== "start") { press(/^NEIN$/); press(/^NEIN$/); }
       if (stop === "ergebnis" || stop === "karte" || stop === "akte") {

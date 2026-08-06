@@ -77,6 +77,7 @@
 
         <div class="hud-corner tl">
           <span id="flow-title" class="hud-key">J.A.R.</span>
+          <span id="flow-task" class="hud-key dim"></span>
           <div id="flow-progress" class="flow-progress"></div>
         </div>
 
@@ -90,12 +91,15 @@
           <canvas id="flow-map" width="340" height="300"></canvas>
         </div>
 
+        <!-- Was jederzeit möglich ist: kleine Knöpfe am Rand, nicht auf dem
+             Ablaufschirm. In der Brille sitzen sie an derselben Stelle. -->
         <div class="hud-corner br">
+          <div id="flow-actions" class="flow-actions"></div>
           <span id="flow-status" class="flow-status"></span>
         </div>
 
         <!-- der Schritt selbst: kein Kasten, nur Type und Umrisse -->
-        <div class="flow-card">
+        <div id="flow-card" class="flow-card">
           <div class="flow-card-head">
             <span id="flow-card-title" class="hud-key"></span>
             <span id="flow-badge" class="hud-key dim"></span>

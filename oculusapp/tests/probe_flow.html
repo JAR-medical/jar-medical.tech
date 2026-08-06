@@ -9,7 +9,7 @@
   <div id="shots"></div>
   <script type="module">
     import { Workflow } from "../js/workflow.js";
-    import { drawHudLayer, drawCard, drawMarker } from "../js/hudscreen.js";
+    import { drawHudLayer, drawCard, drawMarker, drawReticle } from "../js/hudscreen.js";
 
     /* Zusammenschau der drei AR-Ebenen auf einer Fläche: kopffestes HUD,
      * raumfeste Handlungskarte, raumfeste Schilder. Die Größenverhältnisse
@@ -58,7 +58,8 @@
       passthrough(ctx);
 
       const hud = off(W, H);
-      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel());
+      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel(),
+                   { hover: current.hudActions.length ? 0 : -1, dwell: 0.6 });
       ctx.drawImage(hud, 0, 0);
 
       // Bodenmarker dort, wo Patienten lägen. Flach am Boden heißt im Bild:
@@ -77,47 +78,85 @@
         ctx.restore();
       });
 
-      const cw = W * CARD_SCALE, ch = cw * (640 / 900);
-      const card = off(900, 640);
-      drawCard(card.getContext("2d"), 900, 640, current, { hover: 0, dwell: 0.45 });
-      ctx.drawImage(card, W / 2 - cw / 2, H * 0.53 - ch / 2, cw, ch);
+      // Beim Anlegen liegt statt der Karte ein Ring auf dem Boden.
+      if (current.placing) {
+        const rc = off(256, 256);
+        drawReticle(rc.getContext("2d"), 256, 256, { ok: true, distance: 2.4, dwell: 0.55 });
+        const rw = W * (0.60 / 1.64);
+        ctx.save();
+        ctx.translate(W * 0.5, H * 0.80);
+        ctx.scale(1, 0.42);
+        ctx.drawImage(rc, -rw / 2, -rw / 2, rw, rw);
+        ctx.restore();
+      }
+
+      // Der Ablaufschirm nur, wenn wirklich ein Schritt ansteht.
+      if (current.showCard !== false) {
+        const cw = W * CARD_SCALE, ch = cw * (640 / 900);
+        const card = off(900, 640);
+        drawCard(card.getContext("2d"), 900, 640, current, { hover: 0, dwell: 0.45 });
+        ctx.drawImage(card, W / 2 - cw / 2, H * 0.53 - ch / 2, cw, ch);
+      }
 
       wrap.appendChild(cap); wrap.appendChild(c);
       document.getElementById("shots").appendChild(wrap);
     }
 
     const press = (re) => {
-      const b = current.buttons.find((x) => re.test(x.label));
+      const list = [...current.buttons, ...current.hudActions];
+      const b = list.find((x) => re.test(x.label));
       if (!b) throw new Error("Knopf nicht gefunden: " + re + " — vorhanden: " +
-        current.buttons.map((x) => x.label).join(", "));
+        list.map((x) => x.label).join(", "));
       b.action();
     };
 
     try {
-      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 });
+      flow.pointing = true;                 // wie in der Brille: Stelle zeigen
+      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
       flow.start();
-      shot("1 · leere Lage");
+      shot("1 · Tätigkeit wählen");
 
-      flow.setPose({ x: 1.5, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
+      press(/^Vorsichtung$/);
+      shot("2 · leere Lage — nur Randanzeige und ein kleiner Knopf");
+
+      flow.setPose({ x: 1.5, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 }, 0);
       press(/Neuer Patient/);
-      shot("2 · mSTaRT Frage 1");
+      shot("3 · Stelle am Boden zeigen");
+
+      flow.placeAt({ x: 1.5, y: 0, z: -5.4 });
+      shot("4 · mSTaRT Frage 1");
 
       press(/^NEIN$/); press(/^NEIN$/);
-      shot("3 · Frage 3 mit Verlauf");
+      shot("5 · Frage 3 mit Verlauf");
 
       press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
-      shot("4 · Ergebnis");
+      shot("6 · Ergebnis");
 
       press(/Karte zuweisen/);
-      shot("5 · Karte zuweisen");
+      shot("7 · Karte zuweisen");
 
       press(/übernehmen/);
-      shot("6 · erfasst");
+      shot("8 · erfasst");
 
       press(/Weiter/);
-      flow.setPose({ x: 9, y: 1.7, z: -6 }, { x: 0.4, y: 0, z: -1 });
-      flow.tick();
-      shot("7 · Lage mit einem Patienten");
+      flow.setPose({ x: 9, y: 1.7, z: -6 }, { x: 0.4, y: 0, z: -1 }, 0);
+      shot("9 · Lage mit einem Patienten");
+
+      // Die anderen Tätigkeiten: derselbe Rahmen, ein anderer Schritt.
+      press(/Tätigkeit/);
+      press(/^Sichtung/);
+      flow.openPatient(flow.patients()[0]);
+      shot("10 · Patient geöffnet (ärztliche Sichtung)");
+      press(/Kategorie/);
+      shot("11 · Kategorie festlegen — sechs Knöpfe in zwei Reihen");
+
+      press(/^ROT$/);
+      press(/Weiter/);
+      press(/Tätigkeit/);
+      press(/^Behandlung/);
+      flow.openPatient(flow.patients()[0]);
+      press(/^Behandlung$/);
+      shot("12 · Behandlung & Transport");
 
       document.title = "OK " + document.querySelectorAll("canvas").length;
     } catch (e) {

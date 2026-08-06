@@ -5,17 +5,24 @@
  * Rechtecke in der WebGL-Ebene gelegt. Der Augenpuffer wird vollständig
  * transparent gelöscht, damit rundherum die Wirklichkeit stehen bleibt.
  *
- * Drei Sorten Rechtecke, bewusst unterschiedlich verankert:
+ * Vier Sorten Rechtecke, bewusst unterschiedlich verankert:
  *
  *   HUD      steht still, bis der Blick eine große Schwelle überschreitet (40°) —
  *            dann zieht es einmal um und steht wieder. Man kann also frei
- *            herumschauen, ohne dass es mitschwimmt. Randinformation, nicht
- *            bedienbar.
+ *            herumschauen, ohne dass es mitschwimmt. Randinformation — und unten
+ *            eine Reihe kleiner Knöpfe (`screen.hudActions`), die anders als der
+ *            Rest bedienbar ist.
  *   Karte    raumfest beim Patienten, dreht sich nur zum Betrachter. Sie bleibt
- *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst.
+ *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst. Es
+ *            gibt sie nur, wenn wirklich ein Schritt ansteht (`screen.showCard`).
  *   Marker liegen flach auf dem Boden beim Patienten — und sind zugleich die
  *            Schaltfläche: ein Patient wird geöffnet, indem man seinen Marker
  *            anklickt. Nichts geht von selbst auf.
+ *   Ring     beim Anlegen eines Patienten: er wandert über den Boden dorthin,
+ *            wohin gezeigt wird, und legt beim Auslösen die Stelle fest.
+ *
+ * Wenn sich zwei überlagern, gewinnt beim Zeigen das, was auch obenauf
+ * gezeichnet wird: Karte vor HUD-Knöpfen vor Boden.
  *
  * Bedienung:
  *   Controller und Hände zeigen über ihren `targetRaySpace`, sichtbar als
@@ -27,7 +34,7 @@
 
 "use strict";
 
-import { drawHudLayer, drawCard, drawMarker, hitTest } from "./hudscreen.js";
+import { drawHudLayer, drawCard, drawMarker, drawReticle, hitTest } from "./hudscreen.js";
 
 export async function passthroughSupported() {
   if (typeof navigator === "undefined" || !navigator.xr) return false;
@@ -66,6 +73,25 @@ const MARK_PX = 512;                     // quadratische Textur
 const MARK_HALF = 0.35;                  // 70 cm Durchmesser
 const MARK_LIFT = 0.01;                  // 1 cm über dem Boden gegen Z-Kampf
 const MARK_RANGE = 25;                   // Meter
+
+// Die Stelle, an der ein neuer Patient angelegt wird: ein Ring, der über den
+// Boden wandert. Die Reichweite ist begrenzt — ein Patient, der 30 m weiter
+// entstünde, wäre ein Zeigefehler und keine Absicht.
+const PLACE_PX = 256;
+const PLACE_HALF = 0.30;                 // 60 cm Ring
+const PLACE_MIN = 0.5;                   // Meter vor den Füßen
+const PLACE_MAX = 8;
+const PLACE_AHEAD = 2.0;                 // wenn der Strahl den Boden nicht trifft
+const PLACE_STEADY = 0.30;               // so weit darf die Stelle beim Verweilen wandern
+
+// Augentest (?augentest=1): Schild im Sichtraum der Ansicht, 1,2 m vor dem Auge —
+// deshalb ohne view.transform, nur mit der Projektion multipliziert.
+const EYE_MODEL = new Float32Array([
+  0.30, 0, 0, 0,
+  0, 0.15, 0, 0,
+  0, 0, 1, 0,
+  0, 0, -1.2, 1,
+]);
 
 const CURSOR_PX = 64;
 const CURSOR_HALF = 0.018;
@@ -162,7 +188,7 @@ function basisFacing(pos, viewer) {
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onStereoIssue,
+  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onStereoIssue,
                 eyeTest = false } = {}) {
     this.eyeTest = eyeTest;
     this.onStart = onStart || (() => {});
@@ -170,13 +196,15 @@ export class XRPassthrough {
     this.onPose = onPose || (() => {});
     this.onFrame = onFrame || (() => {});
     this.onMarkerPick = onMarkerPick || (() => {});
+    this.onPlace = onPlace || (() => {});
     this.onStereoIssue = onStereoIssue || (() => {});
 
     this.session = null;
     this.gl = null;
     this.refSpace = null;
 
-    this._screen = { title: "J.A.R.", headline: "", hint: "", body: [], buttons: [], status: "" };
+    this._screen = { title: "J.A.R.", headline: "", hint: "", body: [], buttons: [],
+                     hudActions: [], showCard: true, placing: false, status: "" };
     this._map = { dots: [], medic: null, spanMeters: 8,
                   counts: { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, UNSIGHTED: 0,
                             total: 0, ohneKarte: 0 },
@@ -187,6 +215,9 @@ export class XRPassthrough {
     this._rects = [];
     this._hover = -1;
     this._hoverSince = 0;
+    this._hudRects = [];
+    this._hudHover = -1;
+    this._hudHoverSince = 0;
     this._dwell = 0;
     this._pinching = false;
     this._cardDirty = true;
@@ -205,6 +236,10 @@ export class XRPassthrough {
     this._cardAwayFor = 0;
     this._markHover = null;                // Bodenmarker unter dem Zeiger
     this._markHoverSince = 0;
+    this._place = null;                    // Stelle am Boden beim Anlegen
+    this._placeAnchor = null;              // Bezugspunkt für das ruhige Verweilen
+    this._placeSteadyAt = 0;
+    this._reticleKey = null;
     this._stereoNote = null;
 
 
@@ -292,6 +327,13 @@ export class XRPassthrough {
       this._screen = screen;
       this._cardDirty = true;
       this._hudDirty = true;
+      // Die Trefferflächen gehören zum alten Schirm. Bis neu gezeichnet ist,
+      // gibt es keine — sonst träfe ein Auslösen im selben Moment den Knopf,
+      // der eben noch an dieser Stelle stand.
+      this._rects = [];
+      this._hudRects = [];
+      this._hover = -1;
+      this._hudHover = -1;
       this._recalled = false;              // neuer Schritt → wieder beim Patienten
       this._cardAwayFor = 0;
     }
@@ -316,6 +358,7 @@ export class XRPassthrough {
     this.hudCanvas = this._canvas(HUD_W, HUD_H);
     this.cardCanvas = this._canvas(CARD_W, CARD_H);
     this.markCanvas = this._canvas(MARK_PX, MARK_PX);
+    this.placeCanvas = this._canvas(PLACE_PX, PLACE_PX);
 
     const vs = this._shader(gl.VERTEX_SHADER, VERT_SRC);
     const fs = this._shader(gl.FRAGMENT_SHADER, FRAG_SRC);
@@ -342,6 +385,7 @@ export class XRPassthrough {
 
     this.hudTex = this._texture();
     this.cardTex = this._texture();
+    this.placeTex = this._texture();
     this.cursorTex = this._texture();
     this.beamTex = this._texture();
     this._uploadCursor();
@@ -442,7 +486,7 @@ export class XRPassthrough {
 
   /** Markertextur — nur neu, wenn sich am Inhalt etwas ändert. */
   _markTexture(m) {
-    const key = `${m.id}|${m.short}|${m.sighted}|${m.card}|${m.hover ? 1 : 0}`;
+    const key = `${m.id}|${m.short}|${m.sighted}|${m.card}|${m.transported ? 1 : 0}|${m.hover ? 1 : 0}`;
     let entry = this._markTex.get(m.id);
     if (!entry) {
       entry = { tex: this._texture(), key: null };
@@ -454,6 +498,22 @@ export class XRPassthrough {
       entry.key = key;
     }
     return entry.tex;
+  }
+
+  /**
+   * Ring für die Stelle am Boden. Nur neu, wenn sich sichtbar etwas ändert —
+   * die Entfernung steht auf ein Zehntel gerundet darauf, ruhige Hand heißt
+   * also gar keine Neuzeichnung.
+   */
+  _reticleTexture(place, dwell) {
+    const key = `${place.ok ? 1 : 0}|${place.distance.toFixed(1)}|${Math.round(dwell * 12)}`;
+    if (this._reticleKey !== key) {
+      drawReticle(this.placeCanvas.ctx, PLACE_PX, PLACE_PX,
+                  { ok: place.ok, distance: place.distance, dwell });
+      this._upload(this.placeTex, this.placeCanvas.el);
+      this._reticleKey = key;
+    }
+    return this.placeTex;
   }
 
   /* ------------------------------------------------------ Posen im Raum */
@@ -638,50 +698,102 @@ export class XRPassthrough {
     return { origin, dir: aim, gaze: false, pinching, pinchDistance: gap };
   }
 
-  _updatePointer(rays, cardPos, cardBasis, now, head) {
+  /**
+   * Wo trifft der nächste Strahl dieses Rechteck? Liefert die Trefferstelle
+   * zusätzlich in Texturkoordinaten, damit `hitTest` damit arbeiten kann.
+   */
+  _planeHit(rays, pos, basis, halfW, halfH, texW, texH) {
     let best = null;
-
     for (const ray of rays) {
-      const denom = dot3(cardBasis.normal, ray.dir);
+      const denom = dot3(basis.normal, ray.dir);
       if (Math.abs(denom) < 1e-5) continue;
-      const dist = dot3(cardBasis.normal, sub(cardPos, ray.origin)) / denom;
+      const dist = dot3(basis.normal, sub(pos, ray.origin)) / denom;
       if (dist < 0.05 || dist > 12) continue;
 
       const hit = add3(ray.origin, scale3(ray.dir, dist));
-      const rel = sub(hit, cardPos);
-      const u = dot3(rel, cardBasis.right) / CARD_HALF_W;
-      const v = dot3(rel, cardBasis.up) / CARD_HALF_H;
+      const rel = sub(hit, pos);
+      const u = dot3(rel, basis.right) / halfW;
+      const v = dot3(rel, basis.up) / halfH;
       if (u < -1 || u > 1 || v < -1 || v > 1) continue;
 
       if (!best || dist < best.dist)
-        best = { dist, hit, ray, px: ((u + 1) / 2) * CARD_W, py: ((1 - v) / 2) * CARD_H };
+        best = { dist, hit, px: ((u + 1) / 2) * texW, py: ((1 - v) / 2) * texH };
     }
+    return best;
+  }
 
-    const hover = best ? hitTest(this._rects, best.px, best.py) : -1;
+  /**
+   * Zeiger auswerten. Reihenfolge = Zeichenreihenfolge: was oben liegt, wird
+   * auch getroffen. Handlungskarte, dann die kleinen HUD-Knöpfe, dann der Boden
+   * — beim Anlegen als Stelle, sonst als Patientenmarker.
+   */
+  _updatePointer(rays, card, hud, now, head) {
+    const placing = !!this._screen.placing;
+    const showCard = this._screen.showCard !== false;
+
+    const cardHit = showCard
+      ? this._planeHit(rays, card.pos, card.basis, CARD_HALF_W, CARD_HALF_H, CARD_W, CARD_H)
+      : null;
+    const hover = cardHit ? hitTest(this._rects, cardHit.px, cardHit.py) : -1;
     if (hover !== this._hover) {
       this._hover = hover;
       this._hoverSince = now;
       this._cardDirty = true;
     }
 
-    // Bodenmarker: nur anvisierbar, wenn die Karte nichts abbekommen hat —
-    // sonst würde man beim Antworten versehentlich Patienten anklicken.
-    const markHit = best ? null : this._pickMarker(rays);
+    // Die HUD-Ebene füllt das ganze Blickfeld; getroffen ist sie nur dort, wo
+    // wirklich ein Knopf liegt — sonst ließe sich nichts dahinter mehr zeigen.
+    const hudHit = hover >= 0 || !this._hudRects.length
+      ? null
+      : this._planeHit(rays, hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H, HUD_W, HUD_H);
+    const hudHover = hudHit ? hitTest(this._hudRects, hudHit.px, hudHit.py) : -1;
+    if (hudHover !== this._hudHover) {
+      this._hudHover = hudHover;
+      this._hudHoverSince = now;
+      this._hudDirty = true;
+    }
+
+    const floorFree = hover < 0 && hudHover < 0;
+
+    // Stelle am Boden — nur beim Anlegen, und dann statt der Marker: sonst
+    // klickte man beim Zeigen versehentlich vorhandene Patienten an.
+    this._place = placing && floorFree ? this._placementPoint(rays, head) : null;
+    if (this._place) {
+      const a = this._placeAnchor;
+      if (!a || Math.hypot(this._place.point.x - a.x, this._place.point.z - a.z) > PLACE_STEADY) {
+        this._placeAnchor = this._place.point;
+        this._placeSteadyAt = now;
+      }
+    } else {
+      this._placeAnchor = null;
+    }
+
+    const markHit = !placing && floorFree ? this._pickMarker(rays) : null;
     if (markHit !== this._markHover) {
       this._markHover = markHit;
       this._markHoverSince = now;
     }
 
-    this._cursorWorld = best ? best.hit : (markHit ? markHit.point : null);
-    this._hitDist = best ? best.dist : (markHit ? markHit.dist : null);
+    this._cursorWorld = cardHit ? cardHit.hit
+                      : hudHit && hudHover >= 0 ? hudHit.hit
+                      : markHit ? markHit.point : null;
+    this._hitDist = cardHit ? cardHit.dist
+                  : hudHit && hudHover >= 0 ? hudHit.dist
+                  : this._place ? this._place.dist
+                  : markHit ? markHit.dist : null;
 
+    // Verweilen ersetzt den Pinch nur auf Geräten, die nie ein `select`
+    // schicken. Beim Anlegen zählt zusätzlich, dass die Stelle ruhig liegt.
     const dwellArmed = this._diag.selects === 0;
-    const target = this._hover >= 0 ? this._hoverSince
-                 : markHit ? this._markHoverSince : null;
-    const dwell = dwellArmed && target !== null ? Math.min(1, (now - target) / DWELL_MS) : 0;
+    const since = this._hover >= 0 ? this._hoverSince
+                : this._hudHover >= 0 ? this._hudHoverSince
+                : this._place ? this._placeSteadyAt
+                : markHit ? this._markHoverSince : null;
+    const dwell = dwellArmed && since !== null ? Math.min(1, (now - since) / DWELL_MS) : 0;
     if (Math.abs(dwell - this._dwell) > 0.02) {
       this._dwell = dwell;
       if (this._hover >= 0) this._cardDirty = true;
+      if (this._hudHover >= 0) this._hudDirty = true;
     }
     if (dwell >= 1) { this._dwell = 0; this._activate(); }
 
@@ -689,6 +801,57 @@ export class XRPassthrough {
       this._pendingActivate = false;
       this._activate();
     }
+  }
+
+  /**
+   * Wohin der Zeiger auf dem Boden trifft. Es kommt immer eine brauchbare
+   * Stelle heraus: zeigt der Strahl über den Horizont, wird eine Armlänge
+   * voraus angenommen und das gesagt; zeigt er sehr weit, wird auf die
+   * Reichweite gekürzt, statt einen Patienten in der Ferne entstehen zu lassen.
+   */
+  _placementPoint(rays, head) {
+    const floor = this.floorY != null ? this.floorY : head.position.y - 1.6;
+    const eye = head.position;
+
+    let hit = null, aim = null;
+    for (const ray of rays) {
+      if (!aim) aim = ray;
+      if (ray.dir.y > -1e-3) continue;                  // zielt nicht nach unten
+      const dist = (floor - ray.origin.y) / ray.dir.y;
+      if (dist <= 0) continue;
+      const p = add3(ray.origin, scale3(ray.dir, dist));
+      const reach = Math.hypot(p.x - eye.x, p.z - eye.z);
+      if (!hit || reach < hit.reach) hit = { p, reach, origin: ray.origin };
+    }
+
+    let point, ok;
+    const from = hit ? hit.origin : aim ? aim.origin : eye;
+    if (hit) {
+      point = { x: hit.p.x, y: floor, z: hit.p.z };
+      ok = true;
+    } else {
+      const fwd = flatten(aim ? aim.dir : { x: 0, y: 0, z: -1 });
+      point = { x: eye.x + fwd.x * PLACE_AHEAD, y: floor, z: eye.z + fwd.z * PLACE_AHEAD };
+      ok = false;                                       // „Boden anvisieren"
+    }
+
+    // Auf die Reichweite kürzen, ohne die Richtung zu verlieren.
+    let dx = point.x - eye.x, dz = point.z - eye.z;
+    const reach = Math.hypot(dx, dz);
+    if (reach < 1e-4) { dx = 0; dz = -1; }
+    const clamped = Math.max(PLACE_MIN, Math.min(PLACE_MAX, reach));
+    if (Math.abs(clamped - reach) > 1e-4) {
+      const k = clamped / (reach < 1e-4 ? 1 : reach);
+      point = { x: eye.x + dx * k, y: floor, z: eye.z + dz * k };
+    }
+
+    // `distance` steht auf dem Ring (waagerecht, vom Kopf aus — so wie man
+    // Entfernungen im Feld schätzt); `dist` ist die Strahllänge zum Zeichnen.
+    return {
+      point, ok,
+      distance: clamped,
+      dist: Math.hypot(point.x - from.x, point.y - from.y, point.z - from.z),
+    };
   }
 
   /** Welcher Bodenmarker liegt unter einem der Strahlen? */
@@ -709,17 +872,31 @@ export class XRPassthrough {
   }
 
   _activate() {
+    this._dwell = 0;
+
     if (this._hover >= 0) {
       const b = (this._screen.buttons || [])[this._hover];
       this._hover = -1;
-      this._dwell = 0;
       if (b && typeof b.action === "function") b.action();
+      return;
+    }
+    if (this._hudHover >= 0) {
+      const b = (this._screen.hudActions || [])[this._hudHover];
+      this._hudHover = -1;
+      this._hudDirty = true;
+      if (b && typeof b.action === "function") b.action();
+      return;
+    }
+    if (this._place) {
+      const point = this._place.point;
+      this._place = null;
+      this._placeAnchor = null;
+      this.onPlace(point);
       return;
     }
     if (this._markHover) {
       const id = this._markHover.marker.id;
       this._markHover = null;
-      this._dwell = 0;
       this.onMarkerPick(id);
     }
   }
@@ -746,30 +923,40 @@ export class XRPassthrough {
 
     const hud = this._hudPose(head, dt);
     const cardPos = this._cardPose(head, dt);
-    const cardBasis = basisFacing(cardPos, head.position);
+    const card = { pos: cardPos, basis: basisFacing(cardPos, head.position) };
+    const showCard = this._screen.showCard !== false;
 
     const rays = this._rays(frame, head);
-    this._updatePointer(rays, cardPos, cardBasis, t, head);
+    this._updatePointer(rays, card, hud, t, head);
 
     // ---- Zeichnen auf Canvas + Texturen hochladen -------------------------
     // Bewusst vor dem Binden des Augenpuffers: texImage2D mitten in der
     // Zeichenphase hat sich als Quelle von Zustandsfehlern erwiesen, und für
     // das zweite Auge braucht es ohnehin nichts Neues.
-    if (this._cardDirty) {
+    if (showCard && this._cardDirty) {
       this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen,
                              { hover: this._hover, dwell: this._dwell });
       this._upload(this.cardTex, this.cardCanvas.el);
       this._cardDirty = false;
     }
+    if (!showCard) this._rects = [];
     if (this._hudDirty || performance.now() - this._hudDrawnAt > HUD_REDRAW_MS) {
-      drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map);
+      this._hudRects = drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map,
+                                    { hover: this._hudHover, dwell: this._dwell });
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();
     }
 
     const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
-    const cardModel = this._model(cardPos, cardBasis, CARD_HALF_W, CARD_HALF_H);
+    const cardModel = this._model(card.pos, card.basis, CARD_HALF_W, CARD_HALF_H);
+
+    let placeModel = null;
+    if (this._place) {
+      this._reticleTexture(this._place, this._dwell);
+      const at = { x: this._place.point.x, y: this._place.point.y + MARK_LIFT, z: this._place.point.z };
+      placeModel = this._model(at, basisFloor(at, head.position), PLACE_HALF, PLACE_HALF);
+    }
 
     const markDraws = [];
     for (const m of this._tags) {
@@ -785,7 +972,9 @@ export class XRPassthrough {
     const beamModels = [];
     for (const ray of rays) {
       if (ray.gaze) continue;
-      const len = this._hitDist && this._cursorWorld ? this._hitDist : BEAM_LEN;
+      // Der Strahl endet dort, wo er trifft — auch am Boden, wo der Ring liegt
+      // und es keinen Zeigerpunkt gibt.
+      const len = this._hitDist || BEAM_LEN;
       const centre = add3(ray.origin, scale3(ray.dir, len / 2));
       const toViewer = norm3(sub(head.position, centre));
       let side = cross3(ray.dir, toViewer);
@@ -798,8 +987,12 @@ export class XRPassthrough {
 
     let cursorModel = null;
     if (this._cursorWorld) {
-      cursorModel = this._model(add3(this._cursorWorld, scale3(cardBasis.normal, 0.004)),
-                                cardBasis, CURSOR_HALF, CURSOR_HALF);
+      // Der Zeigerpunkt kann auf der Karte, auf einem HUD-Knopf oder am Boden
+      // liegen — er wird deshalb zum Betrachter gedreht und nicht an die
+      // Ausrichtung der Karte gehängt.
+      const toEye = norm3(sub(head.position, this._cursorWorld));
+      cursorModel = this._model(add3(this._cursorWorld, scale3(toEye, 0.004)),
+                                basisFromNormal(toEye), CURSOR_HALF, CURSOR_HALF);
     } else if (this._diag.gaze) {
       const look = norm3(forwardOf(head));
       const at = add3(head.position, scale3(look, 1.0));
@@ -859,9 +1052,17 @@ export class XRPassthrough {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
-      gl.bindTexture(gl.TEXTURE_2D, this.cardTex);
-      gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cardModel));
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      if (placeModel) {
+        gl.bindTexture(gl.TEXTURE_2D, this.placeTex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, placeModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      if (showCard) {
+        gl.bindTexture(gl.TEXTURE_2D, this.cardTex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cardModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
 
       gl.bindTexture(gl.TEXTURE_2D, this.beamTex);
       for (const m of beamModels) {
@@ -908,10 +1109,16 @@ export class XRPassthrough {
     this.session = null;
     this.gl = null;
     this.refSpace = null;
-    this.hudTex = this.cardTex = this.cursorTex = this.beamTex = this.prog = this.vbo = null;
-    this.hudCanvas = this.cardCanvas = this.markCanvas = null;
+    this.hudTex = this.cardTex = this.placeTex = this.cursorTex = this.beamTex =
+      this.prog = this.vbo = null;
+    this.hudCanvas = this.cardCanvas = this.markCanvas = this.placeCanvas = null;
     this._markTex.clear();
     this._rects = [];
+    this._hudRects = [];
+    this._hudHover = -1;
+    this._place = null;
+    this._placeAnchor = null;
+    this._reticleKey = null;
     this._cursorWorld = null;
     this._recalled = false;
     this._cardAwayFor = 0;

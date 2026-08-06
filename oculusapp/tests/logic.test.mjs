@@ -12,6 +12,7 @@
 import { MStartSession, MAX_STEPS, NODES, FIRST_STEP } from "../js/mstart.js";
 import { FieldMap, distance, nearest } from "../js/layout.js";
 import { Workflow } from "../js/workflow.js";
+import { TASKS, findTask, primaryLabel, MEASURES } from "../js/tasks.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
          tally, resetEinsatz } from "../js/data.js";
 
@@ -192,19 +193,28 @@ function workflow() {
   w.start();
 
   const last = () => screens[screens.length - 1];
+  // Knöpfe stehen auf dem Ablaufschirm oder — was jederzeit geht — am HUD-Rand.
+  const all = () => [...last().buttons, ...last().hudActions];
   const press = (re) => {
-    const b = last().buttons.find((x) => re.test(x.label));
+    const b = all().find((x) => re.test(x.label));
     if (!b) throw new Error("Knopf fehlt: " + re + " — da: " +
-      last().buttons.map((x) => x.label).join(", "));
+      all().map((x) => x.label).join(", "));
     b.action();
   };
 
-  check(w.state === "lage", "startet bei der Lage");
+  check(w.state === "auftrag", "startet bei der Tätigkeitswahl");
+  check(last().buttons.length === TASKS.length, "jede Tätigkeit steht zur Wahl");
+  press(/^Vorsichtung$/);
+  check(w.state === "lage" && w.task.id === "vorsichtung", "Wahl führt in die Lage");
   check(/kein Patient/i.test(last().headline), "leere Lage wird benannt");
+  check(last().showCard === false, "die Lage zeigt keinen großen Schirm");
+  check(last().hudActions.some((b) => /Neuer Patient/.test(b.label)),
+        "„Neuer Patient“ ist ein kleiner Knopf am HUD-Rand");
+  check(last().buttons.length === 0, "und steht nicht auf dem Ablaufschirm");
 
   w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 }, 0);
   press(/Neuer Patient/);
-  check(w.state === "sichtung", "Anlegen führt direkt in die Sichtung");
+  check(w.state === "sichtung", "ohne Zeiger führt Anlegen direkt in die Sichtung");
   check(patientCount() === 1, "genau ein Patient angelegt");
   check(w.target.pos.x === 2 && w.target.pos.z === -3, "an der eigenen Position angelegt");
   check(w.target.pos.y === 0, "Marker liegt auf dem Boden, nicht auf Kopfhöhe");
@@ -278,6 +288,146 @@ function workflow() {
   check(w.cardAnchor() !== null, "Handlungskarte hat einen Ankerpunkt beim Patienten");
 }
 
+/* ------------------------------------------------------- Stelle am Boden */
+
+/** Kleiner Prüfstand: ein Ablauf, seine Schirme und ein Knopfdruck. */
+function rig(opts = {}) {
+  const w = new Workflow(opts);
+  const screens = [];
+  w.onScreen = (s) => screens.push(s);
+  w.start();
+  const last = () => screens[screens.length - 1];
+  const all = () => [...last().buttons, ...last().hudActions];
+  const press = (re) => {
+    const b = all().find((x) => re.test(x.label));
+    if (!b) throw new Error("Knopf fehlt: " + re + " — da: " +
+      all().map((x) => x.label).join(", "));
+    b.action();
+  };
+  return { w, last, all, press };
+}
+
+function platzieren() {
+  console.log("Patient anlegen — Stelle am Boden");
+  resetEinsatz();
+
+  const { w, last, press } = rig({ pointing: true });
+  press(/^Vorsichtung$/);
+  w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+
+  press(/Neuer Patient/);
+  check(w.state === "platzieren", "mit Zeiger wird erst die Stelle gewählt");
+  check(last().placing === true, "der Schirm sagt der AR-Ebene, dass gezeigt wird");
+  check(last().showCard === false, "auch dabei bleibt die Mitte frei");
+  check(patientCount() === 0, "vor der Bestätigung entsteht nichts");
+
+  press(/Abbrechen/);
+  check(w.state === "lage" && patientCount() === 0, "Abbrechen legt nichts an");
+
+  press(/Neuer Patient/);
+  w.placeAt({ x: 3.5, y: 0, z: -4.25 });
+  check(patientCount() === 1, "die bestätigte Stelle legt den Patienten an");
+  check(w.target.pos.x === 3.5 && w.target.pos.z === -4.25, "er liegt dort, wohin gezeigt wurde");
+  check(w.target.pos.y === 0, "und auf dem Boden");
+  check(w.state === "sichtung", "danach geht es weiter wie gewohnt");
+
+  // Ohne brauchbaren Punkt bleibt der eigene Standort der Notbehelf.
+  w.goToLage();
+  w.setPose({ x: -2, y: 1.7, z: 7 }, { x: 0, y: 0, z: -1 }, 0);
+  press(/Neuer Patient/);
+  w.placeAt(null);
+  check(w.target.pos.x === -2 && w.target.pos.z === 7, "ohne Punkt: am eigenen Standort");
+
+  // Ein Patient entsteht nur aus der Lage heraus, nicht mitten im Ablauf.
+  const before = patientCount();
+  w.placeAt({ x: 99, y: 0, z: 99 });
+  check(patientCount() === before, "während der Sichtung legt nichts an");
+}
+
+/* ------------------------------------------------------------ Tätigkeiten */
+
+function taetigkeiten() {
+  console.log("Tätigkeiten");
+
+  // --- ärztliche Sichtung: Kategorie wird gesetzt, nicht errechnet ---------
+  resetEinsatz();
+  {
+    const { w, last, press } = rig();
+    press(/^Sichtung/);
+    check(w.task.id === "sichtung", "ärztliche Sichtung gewählt");
+    w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+    press(/Neuer Patient/);
+    check(w.state === "kategorie", "kein mSTaRT, sondern die Kategoriewahl");
+    check(last().buttons.some((b) => /BLAU/.test(b.label)),
+          "SK IV ist hier reguläre Wahl, kein Override");
+
+    press(/^GELB$/);
+    check(resolvePatient(1).category === "SK2", "Kategorie in der Akte");
+    check(w.state === "karte", "ohne Karte geht es zum Kartenschritt");
+    check(resolvePatient(1).protocol.some((e) => /Ärztliche Sichtung/.test(e.transcript)),
+          "als ärztliche Sichtung protokolliert");
+    check(resolvePatient(1).protocol.every((e) => e.task === "Sichtung (ärztlich)"),
+          "die Tätigkeit steht in jeder Protokollzeile");
+    check(!resolvePatient(1).protocol.some((e) => /mSTaRT/.test(e.transcript)),
+          "kein mSTaRT-Pfad untergeschoben");
+
+    press(/übernehmen/);
+    check(w.state === "bestaetigt" && resolvePatient(1).card === 1, "Karte zugewiesen");
+  }
+
+  // --- Registrierung: direkt zum Kartenschritt ----------------------------
+  {
+    const { w, press } = rig();
+    press(/^Registrierung$/);
+    w.openPatient(resolvePatient(1));
+    check(w.state === "approach", "Marker öffnet den Patienten");
+    check(primaryLabel(findTask("registrierung"), resolvePatient(1)) === "Karte ändern",
+          "hat schon eine Karte → „Karte ändern“");
+    press(/Karte ändern/);
+    check(w.state === "karte", "Registrierung springt in den Kartenschritt");
+    check(w._cardDraft === 1, "die getragene Nummer steht schon da");
+    press(/\+/);
+    press(/übernehmen/);
+    check(resolvePatient(1).card === 2, "Nummer geändert");
+    check(resolvePatient(1).category === "SK2", "die Kategorie bleibt unangetastet");
+  }
+
+  // --- Behandlung & Transport --------------------------------------------
+  {
+    const { w, last, press } = rig();
+    press(/^Behandlung/);
+    check(w.task.canCreate === false, "Behandlung legt keine Patienten an");
+    check(last().hudActions.every((b) => !/Neuer Patient/.test(b.label)),
+          "und bietet den Knopf gar nicht erst an");
+
+    w.openPatient(resolvePatient(1));
+    press(/^Behandlung$/);
+    check(w.state === "behandlung", "Behandlungsschirm");
+
+    press(new RegExp("^" + MEASURES[0] + "$"));
+    check(resolvePatient(1).treatments.includes(MEASURES[0]), "Maßnahme festgehalten");
+    press(new RegExp("✓ " + MEASURES[0]));
+    check(!resolvePatient(1).treatments.includes(MEASURES[0]), "nochmal drücken nimmt sie zurück");
+    check(resolvePatient(1).protocol.some((e) => /zurückgenommen/.test(e.transcript)),
+          "die Rücknahme steht im Protokoll");
+
+    press(/^Abtransport$/);
+    check(resolvePatient(1).transported === true, "Abtransport gebucht");
+    check(w.state === "bestaetigt", "und abgeschlossen");
+    check(/abtransportiert/.test(last().headline), "der Abschluss benennt ihn");
+    check(tally().abtransportiert === 1, "Zählung kennt den Abtransport");
+    check(w.worldTags()[0].transported === true, "der Bodenmarker weiß davon");
+  }
+
+  // --- Wechsel jederzeit ---------------------------------------------------
+  {
+    const { w, press } = rig();
+    press(/^Vorsichtung$/);
+    press(/Tätigkeit/);
+    check(w.state === "auftrag", "Tätigkeit lässt sich aus der Lage wechseln");
+  }
+}
+
 /* ---------------------------------------------------------------- main */
 
 mstartBranches();
@@ -285,6 +435,8 @@ mstartBack();
 akten();
 lagekarte();
 workflow();
+platzieren();
+taetigkeiten();
 
 console.log();
 console.log(failed === 0
