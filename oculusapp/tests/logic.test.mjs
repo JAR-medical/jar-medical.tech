@@ -124,8 +124,8 @@ function akten() {
 
   check(patientCount() === 0, "Einsatz beginnt leer — keine Beispieldaten");
 
-  const a = createPatient({ x: 1, y: 1.7, z: -2 });
-  const b = createPatient({ x: 4, y: 1.7, z: -2 });
+  const a = createPatient({ x: 1, y: 0, z: -2 });
+  const b = createPatient({ x: 4, y: 0, z: -2 });
   check(a.marker_id === 1 && b.marker_id === 2, "laufende Nummern in Anlagereihenfolge");
   check(a.category === "UNSIGHTED", "frisch angelegt = ungesichtet");
   check(a.card === null, "frisch angelegt = ohne Karte");
@@ -202,11 +202,12 @@ function workflow() {
   check(w.state === "lage", "startet bei der Lage");
   check(/kein Patient/i.test(last().headline), "leere Lage wird benannt");
 
-  w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
+  w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 }, 0);
   press(/Neuer Patient/);
   check(w.state === "sichtung", "Anlegen führt direkt in die Sichtung");
   check(patientCount() === 1, "genau ein Patient angelegt");
   check(w.target.pos.x === 2 && w.target.pos.z === -3, "an der eigenen Position angelegt");
+  check(w.target.pos.y === 0, "Marker liegt auf dem Boden, nicht auf Kopfhöhe");
 
   const answer = (yes) => press(yes ? /^JA$/ : /^NEIN$/);
   answer(false); answer(false); answer(true); answer(false); answer(true); answer(true);
@@ -231,13 +232,12 @@ function workflow() {
   press(/Weiter/);
   check(w.state === "lage", "zurück zur Lage");
 
-  // Direkt danebenstehen darf nicht sofort zurückspringen.
-  w.tick();
-  check(w.state === "lage", "gerade verlassener Patient wird nicht neu gegriffen");
+  // Danebenstehen darf NICHTS aufmachen — ein Patient wird angeklickt.
+  for (let i = 0; i < 5; i++) w.tick();
+  check(w.state === "lage", "Nähe allein öffnet nichts");
 
-  // Zweiter Patient, gescannte Karte, die schon vergeben ist.
-  w.setPose({ x: 12, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
-  w.tick();
+  // Zweiter Patient, Karte, die schon vergeben ist.
+  w.setPose({ x: 12, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 }, 0);
   press(/Neuer Patient/);
   answer(true);                                    // kritische Blutung → SK I
   check(w.result.category === "SK1", "zweiter Patient SK I");
@@ -253,12 +253,9 @@ function workflow() {
 
   press(/Weiter/);
 
-  // Weggehen und wiederkommen darf einen bestehenden Patienten wieder anbieten.
-  w.setPose({ x: 40, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
-  w.tick();
-  w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
-  w.tick();
-  check(w.state === "approach" && w.target.marker_id === 1, "bestehender Patient wieder anlaufbar");
+  // Ein bestehender Patient wird über seinen Marker geöffnet.
+  w.openPatient(resolvePatient(1));
+  check(w.state === "approach" && w.target.marker_id === 1, "Marker öffnet den Patienten");
   check(last().buttons.some((b) => /Neu sichten/.test(b.label)), "Neusichtung angeboten");
 
   // SK IV nur als ausdrücklicher Override.
@@ -276,7 +273,8 @@ function workflow() {
   check(m.medic && typeof m.medic.heading === "number", "eigene Position mit Blickrichtung");
 
   const tags = w.worldTags();
-  check(tags.length >= 1, "raumfeste Schilder für Patienten in der Nähe");
+  check(tags.length >= 1, "Marker am Boden für Patienten in der Nähe");
+  check(tags.every((t) => t.pos.y === 0), "alle Marker auf Bodenhöhe");
   check(w.cardAnchor() !== null, "Handlungskarte hat einen Ankerpunkt beim Patienten");
 }
 

@@ -245,7 +245,8 @@ async function startAR() {
   app.xr = new XRPassthrough({
     onStart: () => { toast("Passthrough aktiv"); app.flow.start(); },
     onEnd: () => { app.xr = null; backToStart(); },
-    onPose: (pos, fwd) => app.flow.setPose(pos, fwd),
+    onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
+    onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
     onFrame: () => {
       app.flow.tick();
       // Lagekarte und Schilder leben mit der eigenen Position; xr.js drosselt

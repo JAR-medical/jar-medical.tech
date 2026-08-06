@@ -45,10 +45,10 @@ export class Workflow {
     this.cameraLive = false;
     this.notice = "";
 
-    this._suppressed = null;
     this._cardDraft = 1;          // Nummer im Zuweisen-Schritt
     this._conflict = null;
     this._pose = { position: { x: 0, y: 0, z: 0 }, forward: { x: 0, y: 0, z: -1 } };
+    this._floorY = null;
 
     this.onScreen = () => {};
     this.onSpeak = () => {};
@@ -59,46 +59,43 @@ export class Workflow {
 
   start() { this.goToLage(); }
 
-  setPose(position, forward) { this._pose = { position, forward }; }
+  setPose(position, forward, floorY = null) {
+    this._pose = { position, forward };
+    if (floorY !== null) this._floorY = floorY;
+  }
   get position() { return this._pose.position; }
   get forward() { return this._pose.forward; }
 
+  /** Wo der Boden liegt — Marker gehören dorthin, nicht auf Augenhöhe. */
+  get floorY() {
+    return this._floorY !== undefined && this._floorY !== null
+      ? this._floorY
+      : this.position.y - 1.6;      // Notbehelf ohne Bodenreferenz
+  }
+
   patients() { return patientIds().map(resolvePatient).filter(Boolean); }
 
-  /** Einmal pro Frame: bin ich bei einem schon angelegten Patienten angekommen? */
-  tick() {
-    if (this.state !== "lage" && this.state !== "approach") return;
-
-    if (this._suppressed && distance(this.position, this._suppressed.pos) > this.releaseRadius)
-      this._suppressed = null;
-
-    const near = nearest(this.position,
-                         this.patients().filter((p) => p !== this._suppressed),
-                         this.approachRadius);
-
-    if (near && near.patient !== this.target) {
-      this.target = near.patient;
-      this.enterApproach();
-      return;
-    }
-    if (this.state === "approach" && this.target &&
-        distance(this.position, this.target.pos) > this.releaseRadius) {
-      this.target = null;
-      this.goToLage();
-    }
-  }
+  /**
+   * Einmal pro Frame. Hier wird bewusst NICHTS aufgemacht: früher sprang die
+   * Handlungskarte auf, sobald man in die Nähe eines Patienten kam — beim
+   * Umhergehen also dauernd. Ein Patient wird geöffnet, indem man seinen Marker
+   * am Boden anklickt, und sonst nicht.
+   */
+  tick() {}
 
   /** Hier liegt einer — Akte anlegen und sofort sichten. */
   newPatient() {
-    this.target = createPatient(this.position);
+    // Der Patient liegt am Boden, nicht auf Kopfhöhe.
+    this.target = createPatient({ x: this.position.x, y: this.floorY, z: this.position.z });
     this.say(`Patient ${this.target.marker_id} angelegt.`);
     this.startSichtung();
   }
 
+  /** Auf den Marker am Boden geklickt. */
   openPatient(p) {
     if (!p) return;
+    if (this.state !== "lage" && this.state !== "approach") return;
     this.target = p;
-    if (this._suppressed === p) this._suppressed = null;
     this.enterApproach();
   }
 
@@ -214,7 +211,6 @@ export class Workflow {
   /* -------------------------------------------------------------- Schirme */
 
   goToLage() {
-    if (this.target) this._suppressed = this.target;
     this.state = "lage";
     this.target = null;
     this.scanArmed = false;
@@ -280,19 +276,11 @@ export class Workflow {
     if (t.ohneKarte > 0)
       s.body.push({ text: `${t.ohneKarte} ohne Karte`, color: "warn" });
 
+    s.hint = t.total === 0
+      ? "Vor dem Verletzten stehen und anlegen. Die Position wird festgehalten."
+      : "Vor dem Verletzten stehen und anlegen — oder einen Marker am Boden anklicken.";
     s.buttons = [{ label: "Neuer Patient", tint: "primary", action: () => this.newPatient() }];
-    for (const p of this._nearby(2))
-      s.buttons.push({ label: `#${p.marker_id} öffnen`, tint: "ghost", action: () => this.openPatient(p) });
     return s;
-  }
-
-  _nearby(limit) {
-    return this.patients()
-      .filter((p) => p.pos)
-      .map((p) => ({ p, d: distance(this.position, p.pos) }))
-      .sort((a, b) => a.d - b.d)
-      .slice(0, limit)
-      .map((x) => x.p);
   }
 
   _approach(s) {
@@ -433,8 +421,8 @@ export class Workflow {
     };
   }
 
-  /** Raumfeste Schilder an den angelegten Patienten. */
-  worldTags(maxDistance = 12) {
+  /** Marker am Boden — anklickbar, das ist der Weg zu einem Patienten. */
+  worldTags(maxDistance = 20) {
     const out = [];
     for (const p of this.patients()) {
       if (!p.pos) continue;

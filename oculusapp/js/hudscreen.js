@@ -392,36 +392,61 @@ function buttons(ctx, x, y, w, list, hover, dwell = 0) {
   return rects;
 }
 
-/* ======================================================= Patientenschild */
+/* ====================================================== Bodenmarker */
 
 /**
- * Kleines raumfestes Schild an einem Patienten. Es muss auch aus zehn Metern
- * lesbar sein, deshalb hier — anders als auf der Karte — eine schmale Fläche.
- * @param {object} tag {id, cell, short, color, sighted} — `cell` ist die Karte
+ * Der Marker, der am Boden beim Patienten liegt. Er ist gleichzeitig die
+ * Schaltfläche: angeklickt wird der Patient, nicht ein Knopf, der von selbst
+ * aufgeht.
+ *
+ * Gezeichnet als Ring mit Nummer — er wird flach auf den Boden gelegt, also
+ * muss er aus jeder Richtung als Kreis funktionieren und darf keine Kante
+ * haben, die eine Blickrichtung behauptet.
+ *
+ * @param {object} m {id, color, sighted, card, hover}
  */
-export function drawTag(ctx, W, H, tag) {
+export function drawMarker(ctx, W, H, m) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
 
-  const h = H - 44;
-  scrim(ctx, 0, 0, W, h);
-  ctx.fillStyle = tag.color;
-  ctx.fillRect(0, 0, 7, h);
+  const cx = W / 2, cy = H / 2;
+  const outer = W * 0.46;
 
-  // Führungslinie nach unten: das Schild schwebt über dem Patienten.
-  ctx.strokeStyle = "rgba(0,0,0,0.6)";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(W / 2, h); ctx.lineTo(W / 2, H - 4);
-  ctx.stroke();
-  ctx.strokeStyle = C.rule;
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  // Weicher Schein nach außen, damit der Ring auch auf hellem Boden steht.
+  const glow = ctx.createRadialGradient(cx, cy, outer * 0.55, cx, cy, outer);
+  glow.addColorStop(0, "rgba(0,0,0,0.45)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy, outer, 0, Math.PI * 2); ctx.fill();
 
-  T(ctx, "#" + tag.id, 24, 60, { size: 44, weight: 600 });
-  caps(ctx, tag.cell, W - 22, 34, 16, C.faint, "right");
-  caps(ctx, tag.sighted ? tag.short : "offen", W - 22, 66, 20,
-       tag.sighted ? tag.color : C.dim, "right");
+  // Fläche in der Sichtungsfarbe, außen kräftiger Ring.
+  ctx.fillStyle = m.sighted ? hexA(m.color, 0.42) : "rgba(8,11,15,0.55)";
+  ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = "rgba(0,0,0,0.65)";
+  ctx.lineWidth = W * 0.055;
+  ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = m.hover ? "#ffffff" : m.color;
+  ctx.lineWidth = W * (m.hover ? 0.045 : 0.032);
+  ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.stroke();
+
+  // Ungesichtet: gestrichelter Innenring als „steht noch aus".
+  if (!m.sighted) {
+    ctx.setLineDash([W * 0.05, W * 0.04]);
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = W * 0.016;
+    ctx.beginPath(); ctx.arc(cx, cy, outer * 0.58, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  T(ctx, "#" + m.id, cx, cy + W * 0.09, { size: W * 0.30, weight: 600, align: "center" });
+  caps(ctx, m.card != null ? `Karte ${m.card}` : "ohne Karte",
+       cx, cy + W * 0.30, W * 0.062, m.sighted ? C.dim : C.faint, "center");
+}
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 /* ------------------------------------------------------ flache Lagekarte */

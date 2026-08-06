@@ -9,7 +9,7 @@
   <div id="shots"></div>
   <script type="module">
     import { Workflow } from "../js/workflow.js";
-    import { drawHudLayer, drawCard, drawTag } from "../js/hudscreen.js";
+    import { drawHudLayer, drawCard, drawMarker } from "../js/hudscreen.js";
 
     /* Zusammenschau der drei AR-Ebenen auf einer Fläche: kopffestes HUD,
      * raumfeste Handlungskarte, raumfeste Schilder. Die Größenverhältnisse
@@ -18,7 +18,7 @@
      * Der Hintergrund tut so, als wäre er Durchblick. */
     const W = 1536, H = 864;
     const CARD_SCALE = 1.12 / 1.64;      // Karte 1,12 m gegen HUD-Breite 1,64 m
-    const TAG_SCALE = 0.60 / 1.64;
+    const MARK_SCALE = 0.70 / 1.64;      // Marker 70 cm
 
     const from = Number(new URLSearchParams(location.search).get("from") || 1);
     let shotNo = 0;
@@ -61,15 +61,20 @@
       drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel());
       ctx.drawImage(hud, 0, 0);
 
-      // Schilder dort, wo Patienten im Raum stünden (zwei zur Anschauung).
-      const tags = flow.worldTags().filter((t) => !t.target);
-      const tagW = W * TAG_SCALE, tagH = tagW * (176 / 512);
-      [[W * 0.26, H * 0.44], [W * 0.76, H * 0.40]].forEach(([tx, ty], i) => {
-        const t = tags[i];
-        if (!t) return;
-        const tc = off(512, 176);
-        drawTag(tc.getContext("2d"), 512, 176, t);
-        ctx.drawImage(tc, tx - tagW / 2, ty - tagH / 2, tagW, tagH);
+      // Bodenmarker dort, wo Patienten lägen. Flach am Boden heißt im Bild:
+      // weiter unten und perspektivisch flacher — hier nur angedeutet.
+      const marks = flow.worldTags();
+      const mw = W * MARK_SCALE;
+      [[W * 0.30, H * 0.72], [W * 0.68, H * 0.66]].forEach(([tx, ty], i) => {
+        const m = marks[i];
+        if (!m) return;
+        const mc = off(512, 512);
+        drawMarker(mc.getContext("2d"), 512, 512, { ...m, hover: i === 0 });
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.scale(1, 0.42);                  // liegt auf dem Boden
+        ctx.drawImage(mc, -mw / 2, -mw / 2, mw, mw);
+        ctx.restore();
       });
 
       const cw = W * CARD_SCALE, ch = cw * (640 / 900);

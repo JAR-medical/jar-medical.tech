@@ -13,7 +13,9 @@
  *            bedienbar.
  *   Karte    raumfest beim Patienten, dreht sich nur zum Betrachter. Sie bleibt
  *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst.
- *   Schilder raumfest an jedem Patienten in der Nähe.
+ *   Marker liegen flach auf dem Boden beim Patienten — und sind zugleich die
+ *            Schaltfläche: ein Patient wird geöffnet, indem man seinen Marker
+ *            anklickt. Nichts geht von selbst auf.
  *
  * Bedienung:
  *   Controller und Hände zeigen über ihren `targetRaySpace`, sichtbar als
@@ -25,7 +27,7 @@
 
 "use strict";
 
-import { drawHudLayer, drawCard, drawTag, hitTest } from "./hudscreen.js";
+import { drawHudLayer, drawCard, drawMarker, hitTest } from "./hudscreen.js";
 
 export async function passthroughSupported() {
   if (typeof navigator === "undefined" || !navigator.xr) return false;
@@ -59,12 +61,11 @@ const CARD_PLACE_DIST = 1.25;
 const CARD_VIEW_CONE = 45 * Math.PI / 180;   // so weit darf sie aus dem Blick sein
 const CARD_RECALL_S = 1.2;                   // danach wird sie herangeholt
 
-// Raumfeste Schilder an den Patienten.
-const TAG_W = 512, TAG_H = 176;
-const TAG_HALF_W = 0.30;
-const TAG_HALF_H = TAG_HALF_W * (TAG_H / TAG_W);
-const TAG_LIFT = -0.15;
-const TAG_RANGE = 9;                     // Meter
+// Marker liegen flach auf dem Boden beim Patienten und sind anklickbar.
+const MARK_PX = 512;                     // quadratische Textur
+const MARK_HALF = 0.35;                  // 70 cm Durchmesser
+const MARK_LIFT = 0.01;                  // 1 cm über dem Boden gegen Z-Kampf
+const MARK_RANGE = 25;                   // Meter
 
 const CURSOR_PX = 64;
 const CURSOR_HALF = 0.018;
@@ -138,6 +139,19 @@ function basisFromNormal(n) {
   return { right, up, normal };
 }
 
+/**
+ * Basis für ein flach auf dem Boden liegendes Rechteck. Die Normale zeigt nach
+ * oben, die Textoberkante vom Betrachter weg — so liest sich die Beschriftung
+ * aus jeder Richtung richtig herum, ohne dass der Marker eine Vorderseite hätte.
+ */
+function basisFloor(pos, viewer) {
+  let away = { x: pos.x - viewer.x, y: 0, z: pos.z - viewer.z };
+  if (Math.hypot(away.x, away.z) < 1e-4) away = { x: 0, y: 0, z: 1 };
+  const up = norm3(away);
+  const right = norm3(cross3(up, { x: 0, y: 1, z: 0 }));
+  return { right, up, normal: cross3(right, up) };
+}
+
 /** Gierbasis: Rechteck steht senkrecht und dreht sich nur zum Betrachter. */
 function basisFacing(pos, viewer) {
   const yaw = Math.atan2(viewer.x - pos.x, viewer.z - pos.z);
@@ -148,11 +162,12 @@ function basisFacing(pos, viewer) {
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  constructor({ onStart, onEnd, onPose, onFrame } = {}) {
+  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick } = {}) {
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
     this.onPose = onPose || (() => {});
     this.onFrame = onFrame || (() => {});
+    this.onMarkerPick = onMarkerPick || (() => {});
 
     this.session = null;
     this.gl = null;
@@ -180,11 +195,14 @@ export class XRPassthrough {
     this._hudMoving = false;
     this._lastFrameAt = 0;
     this._placed = null;
-    this._tagTex = new Map();
+    this._markTex = new Map();
     this._hands = new Map();               // handedness → Pinch-Zustand
     this._pendingActivate = false;
     this._recalled = false;                // Karte wurde vor den Träger geholt
     this._cardAwayFor = 0;
+    this._markHover = null;                // Bodenmarker unter dem Zeiger
+    this._markHoverSince = 0;
+
 
     // Intern: steuert Fadenkreuz und Verweil-Auslösung. Wird nicht angezeigt —
     // die Frage, was das Gerät liefert, ist beantwortet.
@@ -235,10 +253,13 @@ export class XRPassthrough {
     await gl.makeXRCompatible();
     session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl, { alpha: true }) });
 
-    this.refSpace = await session
-      .requestReferenceSpace("local-floor")
-      .catch(() => session.requestReferenceSpace("local"))
-      .catch(() => session.requestReferenceSpace("viewer"));
+    // Mit „local-floor" liegt der Boden bei y = 0 — dorthin gehören die Marker.
+    this.floorY = 0;
+    this.refSpace = await session.requestReferenceSpace("local-floor").catch(async () => {
+      this.floorY = null;                  // ohne Bodenreferenz schätzt der Ablauf
+      return session.requestReferenceSpace("local")
+        .catch(() => session.requestReferenceSpace("viewer"));
+    });
 
     // Die Sitzung weiß selbst, welche Merkmale sie bekommen hat. Das ist die
     // eindeutige Auskunft darüber, ob Handtracking überhaupt bewilligt wurde —
@@ -290,7 +311,7 @@ export class XRPassthrough {
 
     this.hudCanvas = this._canvas(HUD_W, HUD_H);
     this.cardCanvas = this._canvas(CARD_W, CARD_H);
-    this.tagCanvas = this._canvas(TAG_W, TAG_H);
+    this.markCanvas = this._canvas(MARK_PX, MARK_PX);
 
     const vs = this._shader(gl.VERTEX_SHADER, VERT_SRC);
     const fs = this._shader(gl.FRAGMENT_SHADER, FRAG_SRC);
@@ -386,16 +407,17 @@ export class XRPassthrough {
     this._upload(this.beamTex, c);
   }
 
-  _tagTexture(tag) {
-    const key = `${tag.id}|${tag.short}|${tag.sighted}|${tag.cell}`;
-    let entry = this._tagTex.get(tag.id);
+  /** Markertextur — nur neu, wenn sich am Inhalt etwas ändert. */
+  _markTexture(m) {
+    const key = `${m.id}|${m.short}|${m.sighted}|${m.card}|${m.hover ? 1 : 0}`;
+    let entry = this._markTex.get(m.id);
     if (!entry) {
       entry = { tex: this._texture(), key: null };
-      this._tagTex.set(tag.id, entry);
+      this._markTex.set(m.id, entry);
     }
     if (entry.key !== key) {
-      drawTag(this.tagCanvas.ctx, TAG_W, TAG_H, tag);
-      this._upload(entry.tex, this.tagCanvas.el);
+      drawMarker(this.markCanvas.ctx, MARK_PX, MARK_PX, m);
+      this._upload(entry.tex, this.markCanvas.el);
       entry.key = key;
     }
     return entry.tex;
@@ -583,7 +605,7 @@ export class XRPassthrough {
     return { origin, dir: aim, gaze: false, pinching, pinchDistance: gap };
   }
 
-  _updatePointer(rays, cardPos, cardBasis, now) {
+  _updatePointer(rays, cardPos, cardBasis, now, head) {
     let best = null;
 
     for (const ray of rays) {
@@ -608,34 +630,64 @@ export class XRPassthrough {
       this._hoverSince = now;
       this._cardDirty = true;
     }
-    this._cursorWorld = best ? best.hit : null;
-    this._hitDist = best ? best.dist : null;
 
-    // Verweilen ersetzt den Pinch — aber nur, solange nie einer angekommen ist.
-    // Sobald das Gerät einmal `select` geschickt hat, wäre Verweilen nur noch
-    // eine Falle, die beim bloßen Hinschauen auslöst.
+    // Bodenmarker: nur anvisierbar, wenn die Karte nichts abbekommen hat —
+    // sonst würde man beim Antworten versehentlich Patienten anklicken.
+    const markHit = best ? null : this._pickMarker(rays);
+    if (markHit !== this._markHover) {
+      this._markHover = markHit;
+      this._markHoverSince = now;
+    }
+
+    this._cursorWorld = best ? best.hit : (markHit ? markHit.point : null);
+    this._hitDist = best ? best.dist : (markHit ? markHit.dist : null);
+
     const dwellArmed = this._diag.selects === 0;
-    const dwell = dwellArmed && this._hover >= 0
-      ? Math.min(1, (now - this._hoverSince) / DWELL_MS)
-      : 0;
-    if (Math.abs(dwell - this._dwell) > 0.02) { this._dwell = dwell; this._cardDirty = true; }
+    const target = this._hover >= 0 ? this._hoverSince
+                 : markHit ? this._markHoverSince : null;
+    const dwell = dwellArmed && target !== null ? Math.min(1, (now - target) / DWELL_MS) : 0;
+    if (Math.abs(dwell - this._dwell) > 0.02) {
+      this._dwell = dwell;
+      if (this._hover >= 0) this._cardDirty = true;
+    }
     if (dwell >= 1) { this._dwell = 0; this._activate(); }
 
-    // Ein Pinch aus den Gelenken löst erst hier aus — nachdem feststeht, worauf
-    // der eingefrorene Strahl in diesem Frame zeigt.
     if (this._pendingActivate) {
       this._pendingActivate = false;
       this._activate();
     }
   }
 
+  /** Welcher Bodenmarker liegt unter einem der Strahlen? */
+  _pickMarker(rays) {
+    let best = null;
+    for (const m of this._tags) {
+      const centre = { x: m.pos.x, y: m.pos.y + MARK_LIFT, z: m.pos.z };
+      for (const ray of rays) {
+        if (Math.abs(ray.dir.y) < 1e-4) continue;
+        const dist = (centre.y - ray.origin.y) / ray.dir.y;      // Ebene y = const
+        if (dist < 0.05 || dist > MARK_RANGE) continue;
+        const hit = add3(ray.origin, scale3(ray.dir, dist));
+        if (Math.hypot(hit.x - centre.x, hit.z - centre.z) > MARK_HALF) continue;
+        if (!best || dist < best.dist) best = { marker: m, dist, point: hit };
+      }
+    }
+    return best;
+  }
+
   _activate() {
-    if (this._hover < 0) return;
-    const b = (this._screen.buttons || [])[this._hover];
-    if (b && typeof b.action === "function") {
+    if (this._hover >= 0) {
+      const b = (this._screen.buttons || [])[this._hover];
       this._hover = -1;
       this._dwell = 0;
-      b.action();
+      if (b && typeof b.action === "function") b.action();
+      return;
+    }
+    if (this._markHover) {
+      const id = this._markHover.marker.id;
+      this._markHover = null;
+      this._dwell = 0;
+      this.onMarkerPick(id);
     }
   }
 
@@ -659,7 +711,7 @@ export class XRPassthrough {
     if (!pose) return;
 
     const head = pose.transform;
-    this.onPose(head.position, flatten(forwardOf(head)));
+    this.onPose(head.position, flatten(forwardOf(head)), this.floorY);
     this.onFrame();
 
     const hud = this._hudPose(head, dt);
@@ -667,7 +719,7 @@ export class XRPassthrough {
     const cardBasis = basisFacing(cardPos, head.position);
 
     const rays = this._rays(frame, head);
-    this._updatePointer(rays, cardPos, cardBasis, t);
+    this._updatePointer(rays, cardPos, cardBasis, t, head);
 
     if (this._cardDirty) {
       this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen,
@@ -698,32 +750,15 @@ export class XRPassthrough {
     const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
     const cardModel = this._model(cardPos, cardBasis, CARD_HALF_W, CARD_HALF_H);
 
-    const tagDraws = [];
-    for (const tag of this._tags) {
-      if (tag.target || (tag.distance != null && tag.distance > TAG_RANGE)) continue;
-      const pos = { x: tag.pos.x, y: tag.pos.y + TAG_LIFT, z: tag.pos.z };
-      tagDraws.push({
-        tex: this._tagTexture(tag),
-        model: this._model(pos, basisFacing(pos, head.position), TAG_HALF_W, TAG_HALF_H),
+    const markDraws = [];
+    for (const m of this._tags) {
+      if (m.distance != null && m.distance > MARK_RANGE) continue;
+      const pos = { x: m.pos.x, y: m.pos.y + MARK_LIFT, z: m.pos.z };
+      const hovered = !!(this._markHover && this._markHover.marker.id === m.id);
+      markDraws.push({
+        tex: this._markTexture({ ...m, hover: hovered }),
+        model: this._model(pos, basisFloor(pos, head.position), MARK_HALF, MARK_HALF),
       });
-    }
-
-    // Strahlen: sichtbar machen, wohin gezeigt wird — sonst sieht man bei einem
-    // Fehlzeiger gar nichts und hält das Handtracking für kaputt.
-    const beamModels = [];
-    for (const ray of rays) {
-      if (ray.gaze) continue;              // der Blick braucht keinen Strahl
-      const len = this._hitDist && this._cursorWorld ? this._hitDist : BEAM_LEN;
-      const centre = add3(ray.origin, scale3(ray.dir, len / 2));
-      const toViewer = norm3(sub(head.position, centre));
-      let side = cross3(ray.dir, toViewer);
-      if (Math.hypot(side.x, side.y, side.z) < 1e-4) side = { x: 1, y: 0, z: 0 };
-      side = norm3(side);
-      beamModels.push(this._model(centre, {
-        right: side,
-        up: ray.dir,
-        normal: norm3(cross3(side, ray.dir)),
-      }, BEAM_HALF_W, len / 2));
     }
 
     let cursorModel = null;
@@ -749,9 +784,9 @@ export class XRPassthrough {
       gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, hudModel));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      for (const t2 of tagDraws) {
-        gl.bindTexture(gl.TEXTURE_2D, t2.tex);
-        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, t2.model));
+      for (const m of markDraws) {
+        gl.bindTexture(gl.TEXTURE_2D, m.tex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, m.model));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
@@ -784,8 +819,8 @@ export class XRPassthrough {
     this.gl = null;
     this.refSpace = null;
     this.hudTex = this.cardTex = this.cursorTex = this.beamTex = this.prog = this.vbo = null;
-    this.hudCanvas = this.cardCanvas = this.tagCanvas = null;
-    this._tagTex.clear();
+    this.hudCanvas = this.cardCanvas = this.markCanvas = null;
+    this._markTex.clear();
     this._rects = [];
     this._cursorWorld = null;
     this._recalled = false;

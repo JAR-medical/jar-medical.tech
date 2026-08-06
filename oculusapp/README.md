@@ -22,9 +22,12 @@ Lagekarte ─▶ „Neuer Patient" (entsteht dort, wo du stehst)
 - **Es ist ein HUD, kein Fenster.** Randinformation kopffest an den Rändern des
   Blickfelds, die Mitte bleibt frei. Es steht still, bis der Blick 40°
   abgewandert ist, und zieht dann in einem Zug um.
-- **Patientendaten hängen im Raum.** Über jedem angelegten Patienten steht sein
-  Schild an seiner Position; die Handlungskarte steht beim Patienten, an dem du
-  arbeitest — und wird herangeholt, wenn du sie länger nicht im Blick hast.
+- **Marker liegen am Boden.** Über jedem angelegten Patienten liegt ein Ring an
+  seiner Stelle — gefüllt in der Sichtungsfarbe, gestrichelt solange ungesichtet.
+  Der Marker **ist** die Schaltfläche: einen Patienten öffnest du, indem du
+  seinen Marker anklickst. Von selbst geht nichts auf.
+- **Die Handlungskarte** steht beim Patienten, an dem du arbeitest, und wird
+  herangeholt, wenn du sie länger nicht im Blick hast.
 - **Bedienung im Browser: Blick + Verweilen.** Fadenkreuz in der Blickmitte, 1,1 s
   auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger).
   **Handtracking gibt es hier nicht:** der PICO-Browser stellt die
@@ -101,16 +104,16 @@ oculusapp/
 │  ├─ layout.js          Lagekarte: Weltpositionen → Kartenfläche, Ausschnitt, Distanzen
 │  ├─ workflow.js        der Ablauf als Zustandsmaschine — kennt keine Darstellung
 │  ├─ hudscreen.js       zeichnet die drei AR-Ebenen (Rand-HUD, Handlungskarte,
-│  │                     Patientenschilder) und liefert die Trefferflächen
-│  ├─ xr.js              WebXR-Sitzung: kopffestes HUD, raumfeste Karte und
-│  │                     Schilder, Handstrahl und Pinch
+│  │                     Bodenmarker) und liefert die Trefferflächen
+│  ├─ xr.js              WebXR-Sitzung: kopffestes HUD, raumfeste Karte,
+│  │                     anklickbare Bodenmarker, Strahl und Auslösen
 │  ├─ hudcanvas.js       Patientenakte auf Canvas
 │  ├─ hud.js             Patientenakte als DOM
 │  ├─ qr.js              QR: BarcodeDetector → jsQR-Fallback; liest JAR-P<n>
 │  ├─ voice.js           Sprachausgabe (und ein Kommando-Parser für den Quest-Build)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     86 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf
+│  ├─ logic.test.mjs     88 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
 │  ├─ probe_dom.html     klickt den flachen Ablauf durch
 │  └─ probe_qr.html      decodiert jede gedruckte Karte mit jsQR
