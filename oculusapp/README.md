@@ -103,6 +103,22 @@ Die Startseite prüft das Gerät und sperrt, was es nicht kann.
 
 **Deep link:** `index.html?mode=sim` springt direkt in eine Betriebsart.
 
+### Kein Spielbereich
+
+Die App verlangt **keine gezeichnete Fläche**. `bounded-floor` — das einzige
+WebXR-Merkmal, für das die Brille eine eingerichtete Spielfläche braucht — wird
+nie angefordert; als Bezugsraum genügt `local-floor`, und wenn auch das nicht zu
+haben ist, läuft alles mit `local` weiter und die Bodenhöhe wird einmal aus der
+Kopfhöhe geschätzt (dann steht beim Start „Bodenhöhe geschätzt"). Die
+Sitzungsanforderung hat drei Stufen und die letzte verlangt gar nichts.
+
+Fragt die Brille beim Start trotzdem nach einer Fläche, ist das **ihre eigene
+Sicherheitsgrenze** und nicht diese App — eine Systemeinstellung, an die eine
+Webseite nicht herankommt. Abhilfe: in den Einstellungen der Brille von
+Raumgröße auf **stationär / Sitzmodus** umstellen; dann wird nur noch die
+Bodenhöhe bestätigt. Wie das Menü heißt, unterscheidet sich je nach Gerät und
+Firmware (Quest: Physischer Raum → Grenze; PICO: Sicherheitsgrenze).
+
 ---
 
 ## Die vier Tätigkeiten

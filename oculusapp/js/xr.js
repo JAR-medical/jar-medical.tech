@@ -362,12 +362,20 @@ export class XRPassthrough {
     });
     if (!gl) throw new Error("WebGL für die AR-Ebene nicht verfügbar.");
 
+    // `bounded-floor` wird bewusst NIE angefordert. Es ist das einzige Merkmal,
+    // für das die Brille eine **gezeichnete Spielfläche** verlangt — und benutzt
+    // wurde es hier nie: als Bezugsraum kommt `local-floor` zum Einsatz, die
+    // Lagekarte rechnet mit echten Koordinaten und nicht mit Raumgrenzen. Es
+    // stand nur in der Liste und hat Einrichtung erzwungen, die niemand braucht.
+    //
     // Manche Browser melden Hände nur, wenn `hand-tracking` verbindlich
     // angefordert wurde — sie scheitern dann aber, wenn sie es nicht können.
-    // Also erst verbindlich versuchen, dann ohne.
+    // Also erst verbindlich versuchen, dann ohne, dann ganz ohne Zusätze: die
+    // letzte Stufe verlangt nichts, was über eine blanke Sitzung hinausgeht.
     const attempts = [
-      { requiredFeatures: ["hand-tracking"], optionalFeatures: ["local-floor", "bounded-floor"], tag: "hand-tracking (required)" },
-      { optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"], tag: "hand-tracking (optional)" },
+      { requiredFeatures: ["hand-tracking"], optionalFeatures: ["local-floor"], tag: "hand-tracking (required)" },
+      { optionalFeatures: ["local-floor", "hand-tracking"], tag: "hand-tracking (optional)" },
+      { tag: "ohne Zusatzmerkmale" },
     ];
 
     let session = null, lastErr = null;
@@ -390,6 +398,10 @@ export class XRPassthrough {
     });
 
     // Mit „local-floor" liegt der Boden bei y = 0 — dorthin gehören die Marker.
+    // Gibt die Brille ihn nicht her (etwa im Sitz-/Stationärmodus ohne
+    // eingerichtete Fläche), läuft alles mit „local" weiter und die Bodenhöhe
+    // wird geschätzt. Das ist ungenauer, aber kein Grund, den Einsatz zu
+    // verweigern.
     this.floorY = 0;
     this.refSpace = await session.requestReferenceSpace("local-floor").catch(async () => {
       this.floorY = null;                  // ohne Bodenreferenz schätzt der Ablauf

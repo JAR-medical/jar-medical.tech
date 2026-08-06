@@ -293,7 +293,15 @@ async function startAR() {
   app.xr = new XRPassthrough({
     // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
     eyeTest: new URLSearchParams(location.search).get("augentest") === "1",
-    onStart: () => { toast("Passthrough aktiv"); app.flow.start(); },
+    onStart: () => {
+      // Ohne „local-floor" (Sitz-/Stationärmodus, keine eingerichtete Fläche)
+      // wird die Bodenhöhe geschätzt. Der Ablauf funktioniert, die Marker
+      // können aber ein Stück daneben liegen — das gehört gesagt.
+      toast(app.xr && app.xr.floorY == null
+        ? "Passthrough aktiv — Bodenhöhe geschätzt"
+        : "Passthrough aktiv");
+      app.flow.start();
+    },
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
     onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
