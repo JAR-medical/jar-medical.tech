@@ -247,6 +247,7 @@ async function startAR() {
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
     onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
+    onStereoIssue: (note) => app.flow.setNotice(note),
     onFrame: () => {
       app.flow.tick();
       // Lagekarte und Schilder leben mit der eigenen Position; xr.js drosselt

@@ -162,12 +162,13 @@ function basisFacing(pos, viewer) {
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick } = {}) {
+  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onStereoIssue } = {}) {
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
     this.onPose = onPose || (() => {});
     this.onFrame = onFrame || (() => {});
     this.onMarkerPick = onMarkerPick || (() => {});
+    this.onStereoIssue = onStereoIssue || (() => {});
 
     this.session = null;
     this.gl = null;
@@ -202,6 +203,7 @@ export class XRPassthrough {
     this._cardAwayFor = 0;
     this._markHover = null;                // Bodenmarker unter dem Zeiger
     this._markHoverSince = 0;
+    this._stereoNote = null;
 
 
     // Intern: steuert Fadenkreuz und Verweil-Auslösung. Wird nicht angezeigt —
@@ -703,9 +705,6 @@ export class XRPassthrough {
 
     const gl = this.gl;
     const layer = session.renderState.baseLayer;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
 
     const pose = frame.getViewerPose(this.refSpace);
     if (!pose) return;
@@ -721,6 +720,10 @@ export class XRPassthrough {
     const rays = this._rays(frame, head);
     this._updatePointer(rays, cardPos, cardBasis, t, head);
 
+    // ---- Zeichnen auf Canvas + Texturen hochladen -------------------------
+    // Bewusst vor dem Binden des Augenpuffers: texImage2D mitten in der
+    // Zeichenphase hat sich als Quelle von Zustandsfehlern erwiesen, und für
+    // das zweite Auge braucht es ohnehin nichts Neues.
     if (this._cardDirty) {
       this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen,
                              { hover: this._hover, dwell: this._dwell });
@@ -733,19 +736,6 @@ export class XRPassthrough {
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();
     }
-
-    gl.useProgram(this.prog);
-    gl.disable(gl.DEPTH_TEST);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
-    gl.enableVertexAttribArray(this.aPos);
-    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(this.aUV);
-    gl.vertexAttribPointer(this.aUV, 2, gl.FLOAT, false, 16, 8);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.uniform1i(this.uTex, 0);
 
     const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
     const cardModel = this._model(cardPos, cardBasis, CARD_HALF_W, CARD_HALF_H);
@@ -761,23 +751,60 @@ export class XRPassthrough {
       });
     }
 
+    const beamModels = [];
+    for (const ray of rays) {
+      if (ray.gaze) continue;
+      const len = this._hitDist && this._cursorWorld ? this._hitDist : BEAM_LEN;
+      const centre = add3(ray.origin, scale3(ray.dir, len / 2));
+      const toViewer = norm3(sub(head.position, centre));
+      let side = cross3(ray.dir, toViewer);
+      if (Math.hypot(side.x, side.y, side.z) < 1e-4) side = { x: 1, y: 0, z: 0 };
+      side = norm3(side);
+      beamModels.push(this._model(centre, {
+        right: side, up: ray.dir, normal: norm3(cross3(side, ray.dir)),
+      }, BEAM_HALF_W, len / 2));
+    }
+
     let cursorModel = null;
     if (this._cursorWorld) {
       cursorModel = this._model(add3(this._cursorWorld, scale3(cardBasis.normal, 0.004)),
                                 cardBasis, CURSOR_HALF, CURSOR_HALF);
     } else if (this._diag.gaze) {
-      // Nichts getroffen, aber der Blick zeigt: Fadenkreuz mitten im Blickfeld,
-      // damit man überhaupt zielen kann.
       const look = norm3(forwardOf(head));
       const at = add3(head.position, scale3(look, 1.0));
       cursorModel = this._model(at, basisFromNormal(scale3(look, -1)),
                                 CURSOR_HALF * 0.6, CURSOR_HALF * 0.6);
     }
 
+    // ---- ab hier nur noch zeichnen ---------------------------------------
+    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+    gl.clearColor(0, 0, 0, 0);             // durchsichtig → Passthrough bleibt
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(this.prog);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+    gl.enableVertexAttribArray(this.aPos);
+    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.aUV);
+    gl.vertexAttribPointer(this.aUV, 2, gl.FLOAT, false, 16, 8);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(this.uTex, 0);
+
+    let drawn = 0;
     for (const view of pose.views) {
       const vp = layer.getViewport(view);
       if (!vp) continue;
+
+      // Für jedes Auge frisch binden: einzelne Umsetzungen hängen den
+      // Augenpuffer je Ansicht um, und ein einmaliges Binden am Frame-Anfang
+      // trifft dann nur das erste.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      drawn++;
       const viewProj = mul(view.projectionMatrix, view.transform.inverse.matrix);
 
       gl.bindTexture(gl.TEXTURE_2D, this.hudTex);
@@ -805,6 +832,20 @@ export class XRPassthrough {
         gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cursorModel));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
+    }
+
+    // Wenn nicht für jede gemeldete Ansicht gezeichnet wurde, sieht man die
+    // Anzeige nur auf einem Auge. Das darf nicht stumm passieren.
+    if (drawn !== pose.views.length || pose.views.length < 2) {
+      const note = `Stereo: ${drawn}/${pose.views.length} Ansichten gezeichnet`;
+      if (note !== this._stereoNote) {
+        this._stereoNote = note;
+        console.warn("[JAR] " + note);
+        this.onStereoIssue(note);
+      }
+    } else if (this._stereoNote) {
+      this._stereoNote = null;
+      this.onStereoIssue("");
     }
   }
 
