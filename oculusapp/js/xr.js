@@ -162,7 +162,9 @@ function basisFacing(pos, viewer) {
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onStereoIssue } = {}) {
+  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onStereoIssue,
+                eyeTest = false } = {}) {
+    this.eyeTest = eyeTest;
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
     this.onPose = onPose || (() => {});
@@ -344,6 +346,10 @@ export class XRPassthrough {
     this.beamTex = this._texture();
     this._uploadCursor();
     this._uploadBeam();
+
+    if (this.eyeTest) {
+      this.eyeTex = [this._eyeLabel("LINKS", "#46a758"), this._eyeLabel("RECHTS", "#e5484d")];
+    }
   }
 
   _canvas(w, h) {
@@ -395,6 +401,31 @@ export class XRPassthrough {
     g.fillStyle = "#ffffff";
     g.beginPath(); g.arc(r, r, 7, 0, Math.PI * 2); g.fill();
     this._upload(this.cursorTex, c);
+  }
+
+  /**
+   * Beschriftung für den Augentest: je Ansicht ein Wort, gezeichnet im
+   * Sichtraum dieser Ansicht. Wer nur „LINKS" sieht, bekommt die zweite Ansicht
+   * nicht gezeichnet — wer beides sieht (je Auge eines), hat funktionierendes
+   * Stereo und das Problem liegt woanders.
+   */
+  _eyeLabel(text, color) {
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 256;
+    const g = c.getContext("2d");
+    g.fillStyle = "rgba(0,0,0,0.75)";
+    g.fillRect(0, 0, 512, 256);
+    g.fillStyle = color;
+    g.fillRect(0, 0, 512, 14);
+    g.fillStyle = "#ffffff";
+    g.font = "700 96px 'Helvetica Neue', Arial, sans-serif";
+    g.textAlign = "center";
+    g.fillText(text, 256, 150);
+    g.font = "400 30px 'Helvetica Neue', Arial, sans-serif";
+    g.fillText("Augentest", 256, 205);
+    const tex = this._texture();
+    this._upload(tex, c);
+    return tex;
   }
 
   _uploadBeam() {
@@ -794,9 +825,20 @@ export class XRPassthrough {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(this.uTex, 0);
 
-    let drawn = 0;
-    for (const view of pose.views) {
-      const vp = layer.getViewport(view);
+    let drawn = 0, synthesised = 0;
+    const views = pose.views;
+    for (let vi = 0; vi < views.length; vi++) {
+      const view = views[vi];
+
+      // Fehlt der Viewport, wird die Ansicht nicht einfach übersprungen — genau
+      // dann sieht man die Anzeige nur auf einem Auge. Bei zwei Ansichten ist
+      // die Aufteilung des Augenpuffers bekannt: linke und rechte Hälfte.
+      let vp = layer.getViewport(view);
+      if (!vp && views.length === 2 && layer.framebufferWidth) {
+        const w = Math.floor(layer.framebufferWidth / 2);
+        vp = { x: vi * w, y: 0, width: w, height: layer.framebufferHeight };
+        synthesised++;
+      }
       if (!vp) continue;
 
       // Für jedes Auge frisch binden: einzelne Umsetzungen hängen den
@@ -832,12 +874,19 @@ export class XRPassthrough {
         gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cursorModel));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
+
+      if (this.eyeTest && this.eyeTex) {
+        gl.bindTexture(gl.TEXTURE_2D, this.eyeTex[Math.min(vi, this.eyeTex.length - 1)]);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(view.projectionMatrix, EYE_MODEL));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
     }
 
     // Wenn nicht für jede gemeldete Ansicht gezeichnet wurde, sieht man die
     // Anzeige nur auf einem Auge. Das darf nicht stumm passieren.
-    if (drawn !== pose.views.length || pose.views.length < 2) {
-      const note = `Stereo: ${drawn}/${pose.views.length} Ansichten gezeichnet`;
+    if (drawn !== views.length || views.length < 2 || synthesised) {
+      const note = `Stereo: ${drawn}/${views.length} Ansichten` +
+                   (synthesised ? `, ${synthesised} Viewport ergänzt` : "");
       if (note !== this._stereoNote) {
         this._stereoNote = note;
         console.warn("[JAR] " + note);

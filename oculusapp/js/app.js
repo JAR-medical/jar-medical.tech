@@ -243,6 +243,8 @@ async function startAR() {
   app.flow = makeFlow();
 
   app.xr = new XRPassthrough({
+    // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
+    eyeTest: new URLSearchParams(location.search).get("augentest") === "1",
     onStart: () => { toast("Passthrough aktiv"); app.flow.start(); },
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
