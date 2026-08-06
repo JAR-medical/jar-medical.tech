@@ -204,6 +204,9 @@ img { max-width: 100%; height: auto; }
   align-items: flex-start;
 }
 .two-col > div { flex: 1; }
+/* Bild links, Text rechts - im Quelltext steht der Text zuerst,
+   damit er auf dem Handy oben landet. */
+.two-col.reverse { flex-direction: row-reverse; }
 .checklist { list-style: none; margin-top: 8px; }
 .checklist li {
   padding-left: 30px;
@@ -222,26 +225,6 @@ img { max-width: 100%; height: auto; }
   font-size: 13px; color: #777;
   margin-top: 10px;
 }
-
-/* ---------- Drei Feature-Spalten ---------- */
-.features {
-  display: flex;
-  gap: 40px;
-  margin-top: 16px;
-}
-.feature {
-  flex: 1;
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-top: 4px solid #0073aa;
-  padding: 32px 28px;
-}
-.feature-icon {
-  width: 52px; height: 52px;
-  margin-bottom: 18px;
-}
-.feature h3 { font-size: 20px; margin-bottom: 12px; }
-.feature p { font-size: 15.5px; color: #555; }
 
 /* ---------- Konzept-Übersicht (Original-Grafik) ---------- */
 .concept-figure { margin-top: 8px; }
@@ -326,7 +309,7 @@ img { max-width: 100%; height: auto; }
 /* ---------- Responsiv ---------- */
 @media (max-width: 860px) {
   .hero h1 { font-size: 34px; }
-  .two-col, .features, .gallery, .footer-widgets { flex-direction: column; }
+  .two-col, .two-col.reverse, .gallery, .footer-widgets { flex-direction: column; }
   .menu-toggle { display: block; }
   .main-nav {
     display: none;
@@ -415,42 +398,41 @@ img { max-width: 100%; height: auto; }
   </div>
 </section>
 
-<!-- ================= LÖSUNG: 3 FEATURE-SPALTEN ================= -->
+<!-- ================= LÖSUNG: UNSERE IDEE ================= -->
 <section class="section section-alt" id="loesung">
-  <div class="wrap">
-    <span class="eyebrow" data-i18n="sol_eyebrow">Unsere Idee</span>
-    <h2 data-i18n="sol_h2">Digitale Sichtung direkt im Blickfeld</h2>
-    <p class="intro" data-i18n="sol_intro">J.A.R. verbindet Augmented Reality und Edge-AI zu einem durchgängigen
-       Informationsfluss vom ersten Sichtungstrupp bis zur Einsatzleitung.</p>
-    <div class="features">
-      <div class="feature">
-        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
-          <rect x="4" y="12" width="40" height="22" rx="3"/>
-          <path d="M14 34v4h20v-4"/><circle cx="24" cy="23" r="5"/>
-        </svg>
-        <h3 data-i18n="f1_h3">AR-HUD im Blickfeld</h3>
-        <p data-i18n="f1_p">Augmented Reality stellt alle relevanten Informationen direkt über ein
-           Head-up-Display dar - inklusive Benachrichtigungen der Einsatzleitung.
-           Die Hände bleiben frei für die Versorgung.</p>
-      </div>
-      <div class="feature">
-        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
-          <circle cx="24" cy="24" r="18"/><path d="M24 6v8M24 34v8M6 24h8M34 24h8"/><circle cx="24" cy="24" r="4"/>
-        </svg>
-        <h3 data-i18n="f2_h3">Live-Lagebild statt Papier</h3>
-        <p data-i18n="f2_p">Patienten erhalten einfache Identifikationsnummern statt Sichtungskarten.
-           Alle Daten werden bei der Behandlung direkt eingeblendet und stehen der
-           Einsatzleitung in Echtzeit zur Verfügung.</p>
-      </div>
-      <div class="feature">
-        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="#0073aa" stroke-width="2.5" aria-hidden="true">
-          <rect x="18" y="6" width="12" height="22" rx="6"/><path d="M10 24a14 14 0 0 0 28 0M24 38v6M16 44h16"/>
-        </svg>
-        <h3 data-i18n="f3_h3">Edge-AI-Transkription</h3>
-        <p data-i18n="f3_p">Maßnahmen werden per einfacher Sprache protokolliert. Die Transkription
-           läuft als Edge-AI direkt auf dem Gerät - schnell, robust und auch ohne
-           stabile Netzverbindung.</p>
-      </div>
+  <div class="wrap two-col reverse">
+    <div>
+      <span class="eyebrow" data-i18n="sol_eyebrow">Unsere Idee</span>
+      <h2 data-i18n="sol_h2">Digitale Sichtung direkt im Blickfeld</h2>
+      <p data-i18n="sol_intro">J.A.R. verbindet Augmented Reality und Edge-AI zu einem durchgängigen
+         Informationsfluss vom ersten Sichtungstrupp bis zur Einsatzleitung.</p>
+      <ul class="checklist">
+        <li><strong data-i18n="f1_h3">AR-HUD im Blickfeld</strong> -
+            <span data-i18n="f1_p">Augmented Reality stellt alle relevanten Informationen direkt über ein
+            Head-up-Display dar - inklusive Benachrichtigungen der Einsatzleitung.
+            Die Hände bleiben frei für die Versorgung.</span></li>
+        <li><strong data-i18n="f2_h3">Live-Lagebild statt Papier</strong> -
+            <span data-i18n="f2_p">Patienten erhalten einfache Identifikationsnummern statt Sichtungskarten.
+            Alle Daten werden bei der Behandlung direkt eingeblendet und stehen der
+            Einsatzleitung in Echtzeit zur Verfügung.</span></li>
+        <li><strong data-i18n="f3_h3">Edge-AI-Transkription</strong> -
+            <span data-i18n="f3_p">Maßnahmen werden per einfacher Sprache protokolliert. Die Transkription
+            läuft als Edge-AI direkt auf dem Gerät - schnell, robust und auch ohne
+            stabile Netzverbindung.</span></li>
+      </ul>
+    </div>
+    <div>
+      <figure>
+        <div class="img-frame tall">
+          <div class="img-placeholder tall" data-i18n="sol_ph">[ AR-Brille als Träger des Head-up-Displays ]</div>
+          <img class="img-real" loading="lazy"
+               src="https://commons.wikimedia.org/wiki/Special:FilePath/Pico%204.jpg?width=700"
+               alt="AR-/VR-Headset Pico 4 mit Controllern - Trägergerät für das J.A.R.-Head-up-Display"
+               onerror="this.remove()">
+        </div>
+        <p class="figure-caption" data-i18n="sol_cap">Abb. 2 - Statt Papierkarte: die AR-Brille mit dem Head-up-Display.</p>
+        <p class="figure-credit" data-i18n="sol_credit">Foto: Pico-4-Headset, Radom1967 · <a href="https://commons.wikimedia.org/wiki/File:Pico_4.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0)</p>
+      </figure>
     </div>
   </div>
 </section>
@@ -609,6 +591,9 @@ var I18N = {
     sol_eyebrow: "Our Idea",
     sol_h2: "Digital triage in the field of view",
     sol_intro: "J.A.R. combines augmented reality and edge AI into a seamless flow of information, from the first triage team all the way to incident command.",
+    sol_ph: "[ AR headset carrying the head-up display ]",
+    sol_cap: "Fig. 2 - Instead of a paper card: the AR headset with the head-up display.",
+    sol_credit: "Photo: Pico 4 headset, Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "AR HUD in your field of view",
     f1_p: "Augmented reality presents all relevant information directly through a head-up display - including notifications from incident command. Hands stay free for patient care.",
     f2_h3: "Live situational picture instead of paper",
@@ -670,6 +655,9 @@ var I18N = {
     sol_eyebrow: "Notre idée",
     sol_h2: "Le triage numérique, directement dans le champ de vision",
     sol_intro: "J.A.R. associe la réalité augmentée et l'IA embarquée (edge AI) en un flux d'information continu, de la première équipe de triage jusqu'au poste de commandement.",
+    sol_ph: "[ Casque AR portant l'affichage tête haute ]",
+    sol_cap: "Fig. 2 - Au lieu d'une fiche papier : le casque AR avec l'affichage tête haute.",
+    sol_credit: "Photo : casque Pico 4, Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "HUD en réalité augmentée",
     f1_p: "La réalité augmentée affiche toutes les informations pertinentes directement via un affichage tête haute - y compris les notifications du poste de commandement. Les mains restent libres pour les soins.",
     f2_h3: "Situation en direct plutôt que du papier",
@@ -731,6 +719,9 @@ var I18N = {
     sol_eyebrow: "Nuestra idea",
     sol_h2: "Triaje digital, directamente en el campo de visión",
     sol_intro: "J.A.R. combina la realidad aumentada y la IA en el borde (edge AI) en un flujo de información continuo, desde el primer equipo de triaje hasta el puesto de mando.",
+    sol_ph: "[ Gafas de RA que portan la pantalla frontal ]",
+    sol_cap: "Fig. 2 - En lugar de una tarjeta de papel: las gafas de RA con la pantalla frontal.",
+    sol_credit: "Foto: gafas Pico 4, Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "HUD de RA en el campo de visión",
     f1_p: "La realidad aumentada muestra toda la información relevante directamente mediante una pantalla frontal, incluidas las notificaciones del puesto de mando. Las manos quedan libres para la atención.",
     f2_h3: "Panorama en vivo en lugar de papel",
@@ -792,6 +783,9 @@ var I18N = {
     sol_eyebrow: "La nostra idea",
     sol_h2: "Triage digitale, direttamente nel campo visivo",
     sol_intro: "J.A.R. unisce realtà aumentata ed edge AI in un flusso di informazioni continuo, dalla prima squadra di triage fino alla centrale operativa.",
+    sol_ph: "[ Visore AR che ospita l'head-up display ]",
+    sol_cap: "Fig. 2 - Al posto della scheda cartacea: il visore AR con l'head-up display.",
+    sol_credit: "Foto: visore Pico 4, Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "HUD in realtà aumentata",
     f1_p: "La realtà aumentata mostra tutte le informazioni rilevanti direttamente tramite un display frontale, comprese le notifiche della centrale operativa. Le mani restano libere per l'assistenza.",
     f2_h3: "Quadro in tempo reale invece della carta",
@@ -853,6 +847,9 @@ var I18N = {
     sol_eyebrow: "A nossa ideia",
     sol_h2: "Triagem digital, diretamente no campo de visão",
     sol_intro: "O J.A.R. combina realidade aumentada e edge AI num fluxo de informação contínuo, da primeira equipa de triagem até ao posto de comando.",
+    sol_ph: "[ Óculos de RA que suportam o head-up display ]",
+    sol_cap: "Fig. 2 - Em vez do cartão de papel: os óculos de RA com o head-up display.",
+    sol_credit: "Foto: óculos Pico 4, Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "HUD de RA no campo de visão",
     f1_p: "A realidade aumentada apresenta toda a informação relevante diretamente através de um ecrã frontal, incluindo notificações do posto de comando. As mãos ficam livres para a assistência.",
     f2_h3: "Panorama em tempo real em vez de papel",
@@ -914,6 +911,9 @@ var I18N = {
     sol_eyebrow: "我们的构想",
     sol_h2: "数字化检伤，直接呈现在视野中",
     sol_intro: "J.A.R. 将增强现实与边缘 AI 结合为贯通的信息流，从第一支检伤小组一直到指挥部。",
+    sol_ph: "[ 承载抬头显示的 AR 头显 ]",
+    sol_cap: "图 2 - 取代纸质检伤卡：带抬头显示的 AR 头显。",
+    sol_credit: "照片：Pico 4 头显，Radom1967 · <a href=\"https://commons.wikimedia.org/wiki/File:Pico_4.jpg\" target=\"_blank\" rel=\"noopener\">Wikimedia Commons</a> (CC BY-SA 4.0)",
     f1_h3: "视野中的 AR HUD",
     f1_p: "增强现实通过平视显示器直接呈现所有相关信息--包括来自指挥部的通知。双手可腾出来进行救治。",
     f2_h3: "实时态势取代纸张",
