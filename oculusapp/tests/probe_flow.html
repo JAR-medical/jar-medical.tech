@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>probe</title>
+  <link rel="stylesheet" href="../css/hud.css">
+</head>
+<body>
+  <div id="shots"></div>
+  <script type="module">
+    import { Workflow } from "../js/workflow.js";
+    import { drawHudLayer, drawCard, drawMarker, drawReticle } from "../js/hudscreen.js";
+
+    /* Zusammenschau der drei AR-Ebenen auf einer Fläche: kopffestes HUD,
+     * raumfeste Handlungskarte, raumfeste Schilder. Die Größenverhältnisse
+     * entsprechen den Rechtecken in xr.js (HUD 2,20 m, Karte 0,86 m, Schild
+     * 0,44 m breit), damit beurteilbar ist, wie viel Blickfeld was einnimmt.
+     * Der Hintergrund tut so, als wäre er Durchblick. */
+    const W = 1536, H = 864;
+    const CARD_SCALE = 1.12 / 1.64;      // Karte 1,12 m gegen HUD-Breite 1,64 m
+    const MARK_SCALE = 0.70 / 1.64;      // Marker 70 cm
+
+    const from = Number(new URLSearchParams(location.search).get("from") || 1);
+    let shotNo = 0;
+
+    const flow = new Workflow();
+    let current = null;
+    flow.onScreen = (s) => { current = s; };
+    flow.onSpeak = () => {};
+    flow.onToast = () => {};
+
+    const off = (w, h) => {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      return c;
+    };
+
+    function passthrough(ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#6d7580"); g.addColorStop(0.52, "#8a8f96"); g.addColorStop(1, "#4a4f56");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      for (let i = 0; i < 9; i++) ctx.fillRect(i * 190 + 40, 300 + (i % 3) * 60, 120, 260);
+    }
+
+    function shot(label) {
+      if (++shotNo < from) return;
+
+      const wrap = document.createElement("figure");
+      wrap.style.cssText = "margin:0 0 18px;padding:0";
+      const cap = document.createElement("figcaption");
+      cap.textContent = label;
+      cap.style.cssText = "font:600 15px/1.6 Helvetica,Arial;color:#9fb0c0;padding:4px 2px";
+
+      const c = off(W, H);
+      c.style.cssText = "width:100%;height:auto;display:block";
+      const ctx = c.getContext("2d");
+      passthrough(ctx);
+
+      const hud = off(W, H);
+      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel(),
+                   { hover: current.hudActions.length ? 0 : -1, dwell: 0.6 });
+      ctx.drawImage(hud, 0, 0);
+
+      // Bodenmarker dort, wo Patienten lägen. Flach am Boden heißt im Bild:
+      // weiter unten und perspektivisch flacher — hier nur angedeutet.
+      const marks = flow.worldTags();
+      const mw = W * MARK_SCALE;
+      [[W * 0.30, H * 0.72], [W * 0.68, H * 0.66]].forEach(([tx, ty], i) => {
+        const m = marks[i];
+        if (!m) return;
+        const mc = off(512, 512);
+        drawMarker(mc.getContext("2d"), 512, 512, { ...m, hover: i === 0 });
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.scale(1, 0.42);                  // liegt auf dem Boden
+        ctx.drawImage(mc, -mw / 2, -mw / 2, mw, mw);
+        ctx.restore();
+      });
+
+      // Beim Anlegen liegt statt der Karte ein Ring auf dem Boden.
+      if (current.placing) {
+        const rc = off(256, 256);
+        drawReticle(rc.getContext("2d"), 256, 256, { ok: true, distance: 2.4, dwell: 0.55 });
+        const rw = W * (0.60 / 1.64);
+        ctx.save();
+        ctx.translate(W * 0.5, H * 0.80);
+        ctx.scale(1, 0.42);
+        ctx.drawImage(rc, -rw / 2, -rw / 2, rw, rw);
+        ctx.restore();
+      }
+
+      // Der Ablaufschirm nur, wenn wirklich ein Schritt ansteht.
+      if (current.showCard !== false) {
+        const cw = W * CARD_SCALE, ch = cw * (640 / 900);
+        const card = off(900, 640);
+        drawCard(card.getContext("2d"), 900, 640, current, { hover: 0, dwell: 0.45 });
+        ctx.drawImage(card, W / 2 - cw / 2, H * 0.53 - ch / 2, cw, ch);
+      }
+
+      wrap.appendChild(cap); wrap.appendChild(c);
+      document.getElementById("shots").appendChild(wrap);
+    }
+
+    const press = (re) => {
+      const list = [...current.buttons, ...current.hudActions];
+      const b = list.find((x) => re.test(x.label));
+      if (!b) throw new Error("Knopf nicht gefunden: " + re + " — vorhanden: " +
+        list.map((x) => x.label).join(", "));
+      b.action();
+    };
+
+    try {
+      flow.pointing = true;                 // wie in der Brille: Stelle zeigen
+      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+      flow.start();
+      shot("1 · Tätigkeit wählen");
+
+      press(/^Vorsichtung$/);
+      shot("2 · leere Lage — nur Randanzeige und ein kleiner Knopf");
+
+      flow.setPose({ x: 1.5, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 }, 0);
+      press(/Neuer Patient/);
+      shot("3 · Stelle am Boden zeigen");
+
+      flow.placeAt({ x: 1.5, y: 0, z: -5.4 });
+      shot("4 · mSTaRT Frage 1");
+
+      press(/^NEIN$/); press(/^NEIN$/);
+      shot("5 · Frage 3 mit Verlauf");
+
+      press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
+      shot("6 · Ergebnis");
+
+      press(/Karte zuweisen/);
+      shot("7 · Karte zuweisen");
+
+      press(/übernehmen/);
+      shot("8 · erfasst");
+
+      press(/Weiter/);
+      flow.setPose({ x: 9, y: 1.7, z: -6 }, { x: 0.4, y: 0, z: -1 }, 0);
+      shot("9 · Lage mit einem Patienten");
+
+      // Die anderen Tätigkeiten: derselbe Rahmen, ein anderer Schritt.
+      press(/Tätigkeit/);
+      press(/^Sichtung/);
+      flow.openPatient(flow.patients()[0]);
+      shot("10 · Patient geöffnet (ärztliche Sichtung)");
+      press(/Kategorie/);
+      shot("11 · Kategorie festlegen — sechs Knöpfe in zwei Reihen");
+
+      press(/^ROT$/);
+      press(/Weiter/);
+      press(/Tätigkeit/);
+      press(/^Behandlung/);
+      flow.openPatient(flow.patients()[0]);
+      press(/^Behandlung$/);
+      shot("12 · Behandlung & Transport");
+
+      document.title = "OK " + document.querySelectorAll("canvas").length;
+    } catch (e) {
+      document.title = "ERR:" + e.message;
+      document.body.insertAdjacentHTML("afterbegin",
+        '<pre style="color:#ff6b6b;font:13px monospace;white-space:pre-wrap">' + e.stack + "</pre>");
+    }
+  </script>
+</body>
+</html>

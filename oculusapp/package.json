@@ -1,0 +1,9 @@
+{
+  "name": "jar-ar-client",
+  "private": true,
+  "type": "module",
+  "description": "J.A.R. AR-Client — static WebXR app. No build step; package.json exists so `node` treats the ES modules as modules when running tests.",
+  "scripts": {
+    "test": "node tests/logic.test.mjs"
+  }
+}

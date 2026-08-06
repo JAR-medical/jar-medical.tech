@@ -177,3 +177,141 @@ body {
   .actions .act { flex: 1 1 40%; }
   .voice-status { max-width: 48%; }
 }
+
+/* ======================== ABLAUFSCHIRM (Workflow) ========================
+ * Flach dasselbe wie in der Brille: Randinformation in den Ecken, der Schritt
+ * in der Mitte. Keine Kacheln, keine Rundungen — Haarlinien, Versalien-Labels,
+ * Tabellenziffern. Farbe trägt nur Bedeutung (Sichtungskategorien). */
+
+.flow {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr minmax(320px, 620px) 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.hud-key {
+  font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.72);
+}
+.hud-key.dim { color: rgba(255,255,255,.45); }
+
+.hud-corner { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hud-corner.tl { grid-area: 1 / 1; align-items: flex-start; }
+.hud-corner.tr { grid-area: 1 / 3; align-items: flex-end; text-align: right; }
+.hud-corner.bl { grid-area: 3 / 1; align-items: flex-start; }
+.hud-corner.br { grid-area: 3 / 3; align-items: flex-end; text-align: right; }
+.hud-corner.tl, .hud-corner.tr { border-bottom: 1px solid rgba(255,255,255,.22); padding-bottom: 8px; }
+
+#flow-map { width: 100%; max-width: 340px; height: auto; display: block; }
+
+.flow-counts { display: flex; gap: 16px; font-variant-numeric: tabular-nums; }
+.flow-count { display: inline-flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 600; }
+.flow-count i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.flow-progress { display: flex; align-items: center; gap: 10px; font-size: 12px;
+  letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.flow-pips { display: flex; gap: 5px; }
+.flow-pip { width: 14px; height: 3px; background: rgba(255,255,255,.22); }
+.flow-pip.on { background: #7cc0ff; }
+
+/* Der Schritt: mittige Spalte, über die ganze Höhe. */
+.flow-card {
+  grid-area: 1 / 2 / 4 / 3;
+  display: flex; flex-direction: column; gap: 12px;
+  min-height: 0;
+}
+.flow-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.flow-band { height: 3px; background: rgba(255,255,255,.28); }
+.flow-headline { margin: 10px 0 0; font-size: clamp(26px, 4.6vw, 42px); font-weight: 600; line-height: 1.1; }
+.flow-hint { margin: 0; color: rgba(255,255,255,.78); font-size: clamp(14px, 2.1vw, 18px); line-height: 1.45; }
+
+.flow-body { display: flex; flex-direction: column; gap: 5px; font-size: 15px; line-height: 1.45; }
+.flow-body .muted { color: rgba(255,255,255,.55); }
+.flow-body .good { color: #8ee2a4; }
+.flow-body .warn { color: #f2dfae; }
+
+.flow-vitals { display: flex; flex-wrap: wrap; gap: 26px; margin-top: auto;
+  padding-top: 12px; border-top: 1px solid rgba(255,255,255,.18); }
+.flow-vital { display: flex; flex-direction: column; gap: 2px; }
+.flow-vital span { font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(255,255,255,.45); }
+.flow-vital strong { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.flow-buttons { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.flow-btn {
+  flex: 1 1 140px;
+  min-height: 62px;
+  padding: 10px 16px;
+  font: 600 clamp(15px, 2.3vw, 20px)/1.2 var(--font);
+  color: var(--text);
+  background: rgba(8,11,15,.35);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 0;
+  cursor: pointer;
+  transition: background .1s linear, border-color .1s linear;
+}
+.flow-btn:hover { background: rgba(255,255,255,.16); border-color: #fff; }
+.flow-btn.primary { border-color: #7cc0ff; }
+.flow-btn.yes { border-color: #46a758; }
+.flow-btn.no { border-color: #e5484d; }
+.flow-btn.lna { border-color: #3e7bfa; }
+.flow-btn.ghost { flex: 0 1 auto; border-color: rgba(255,255,255,.32); }
+
+.flow-status { font-size: 12px; color: rgba(255,255,255,.45); }
+
+/* Randknöpfe: was jederzeit möglich ist (Patient anlegen, Tätigkeit wechseln,
+ * abbrechen). Klein und am Rand — in der Brille sitzen sie an derselben Stelle,
+ * damit die Mitte des Blickfelds frei bleibt. */
+.flow-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.flow-actions:empty { display: none; }
+.flow-actions .flow-btn {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 16px;
+  font: 600 14px/1.2 var(--font);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .flow { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
+  .hud-corner.tl { grid-area: 1 / 1; }
+  .hud-corner.tr { grid-area: 1 / 1; align-items: flex-start; text-align: left; border: 0; }
+  .flow-card { grid-area: 2 / 1; }
+  .hud-corner.bl { grid-area: 3 / 1; }
+  .hud-corner.br { grid-area: 4 / 1; align-items: flex-start; text-align: left; }
+  .flow-actions { justify-content: flex-start; }
+}
+
+/* Patientenakte liegt über dem Ablaufschirm, statt ihn zu verdrängen. */
+#hud:not(.hidden) {
+  position: absolute; inset: 64px 16px 96px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+}
+.actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 12px; }
+
+/* Restliche Bedienelemente auf dieselbe Sprache bringen: keine Pillen,
+ * keine Rundungen, Umriss statt Fond. */
+.mode-label, .voice-status {
+  background: none; border: 0; border-radius: 0; padding: 0;
+  font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.55);
+}
+.act {
+  background: rgba(8,11,15,.35);
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 0;
+  color: var(--text);
+  padding: 10px 18px;
+  font: 600 14px/1 var(--font);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.act:hover { background: rgba(255,255,255,.14); border-color: #fff; }
+.act.exit { border-color: rgba(229,72,77,.55); }
+.topbar { padding-bottom: 4px; }

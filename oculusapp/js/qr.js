@@ -68,20 +68,51 @@ export class QRScanner {
     this._last = { id: null, at: 0 };
   }
 
+  /**
+   * Startet die Kamera.
+   *
+   * „Keine Kamera verfügbar" hat vier ganz verschiedene Ursachen, die alle
+   * unterschiedlich zu beheben sind — deshalb sagt jede Fehlermeldung hier,
+   * welche es war und was zu tun ist, statt pauschal dem Gerät die Schuld zu
+   * geben.
+   */
   async start() {
     if (this.running) return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error("Dieses Gerät stellt der Web-App keine Kamera bereit (auf der Quest 2 erwartet — nutze Sprache/Controller zur Identifikation).");
-    }
+
     if (!decodeSupported()) {
       throw new Error("Kein QR-Decoder verfügbar (weder BarcodeDetector noch jsQR geladen).");
     }
+
+    // Häufigste Ursache und die einzige, die wie ein Gerätefehler aussieht:
+    // ohne HTTPS blendet der Browser navigator.mediaDevices komplett aus.
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      throw new Error("Kamera gesperrt, weil die Seite nicht über HTTPS läuft. " +
+        "Browser geben die Kamera nur im sicheren Kontext frei — die Seite über " +
+        "https:// oder localhost öffnen (die Adresse " + location.origin + " reicht nicht).");
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Dieser Browser stellt Webseiten keine Kamera bereit. " +
+        "In Headset-Browsern (PICO, Quest) ist das normal — dort die Karte manuell " +
+        "bestätigen; zum echten Scannen Handy oder Laptop nehmen.");
+    }
+
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
     } catch (err) {
+      const name = err && err.name;
+      if (name === "NotAllowedError" || name === "SecurityError")
+        throw new Error("Kamerazugriff abgelehnt. Im Browser die Kamera-Berechtigung für " +
+          "diese Seite erlauben und neu laden.");
+      if (name === "NotFoundError" || name === "OverconstrainedError")
+        throw new Error("Keine Kamera gefunden. Ein Gerät mit Kamera nehmen — oder die " +
+          "Karte manuell bestätigen.");
+      if (name === "NotReadableError")
+        throw new Error("Die Kamera ist gerade von einer anderen Anwendung belegt. " +
+          "Andere Kamera-Apps schließen und neu laden.");
       throw new Error("Kamerazugriff nicht möglich: " + (err && err.message ? err.message : err));
     }
     this.video.srcObject = this.stream;

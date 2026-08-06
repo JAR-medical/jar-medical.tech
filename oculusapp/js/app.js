@@ -1,34 +1,35 @@
-/* J.A.R. AR-Client — orchestration.
+/* J.A.R. AR-Client — Verdrahtung.
  *
- * Wires the four subsystems together into one field workflow:
+ * Ein Ablauf, drei Betriebsarten:
  *
- *   identify patient ──▶ show HUD in passthrough ──▶ dictate / re-triage by voice
+ *   Tätigkeit wählen ─▶ Lagekarte ─▶ Patient anlegen oder anklicken
+ *                    ─▶ was die Tätigkeit vorsieht ─▶ nächster Patient
  *
- * Three run modes, chosen on the landing screen by what the device supports:
+ *   • AR-Modus     — Passthrough auf PICO/Quest (xr.js). Der Ablaufschirm liegt
+ *                    körperfest im Raum, bedient wird er mit Blick oder
+ *                    Controller. Nur hier wird die Stelle eines neuen Patienten
+ *                    am Boden gezeigt (`pointing`); Kamerazugriff haben
+ *                    Headset-Browser meist nicht, dann wird die Karte manuell
+ *                    bestätigt.
+ *   • Kamera-Modus — dieselben Schirme flach, dazu echtes QR-Scannen über die
+ *                    Gerätekamera (qr.js). Das ist die Betriebsart, in der der
+ *                    Kartenschritt wirklich scannt.
+ *   • Simulation   — dieselben Schirme ohne Kamera und ohne Headset, für
+ *                    Vorführungen am Laptop.
  *
- *   • AR-Modus     — Meta Quest passthrough (xr.js). The real world shows
- *                    through the cameras; the HUD floats on top. Because the
- *                    Quest 2 does not expose its cameras to apps, patients are
- *                    identified here by voice ("Patient sieben") or by picking
- *                    the marker with the controller — the printed QR still names
- *                    the patient, the medic just reads the number.
- *   • Kamera-Modus — real live QR scanning via the device camera (qr.js). Runs
- *                    on a phone/laptop; the passthrough-camera limit above means
- *                    this is the mode where the scanner genuinely fires.
- *   • Simulation   — no camera/headset; pick a marker to preview the HUD.
- *
- * Voice works in every mode: the glasses read the patient aloud and accept
- * spoken commands (voice.js).
+ * Der Ablauf selbst steckt in workflow.js und weiß von keiner dieser
+ * Darstellungen etwas — hier wird nur verbunden.
  */
 
 "use strict";
 
-import { MARKER_IDS, CATEGORY_META, resolvePatient, isKnownMarker,
-         setCategory, addTreatment, addInjury, pushProtocol, markSeen } from "./data.js";
+import { patientIds, resolvePatient } from "./data.js";
 import { QRScanner, decodeSupported, barcodeDetectorAvailable, jsQRAvailable } from "./qr.js";
-import { Voice, parseCommand, recognitionAvailable, synthesisAvailable } from "./voice.js";
+import { Voice, synthesisAvailable } from "./voice.js";
 import { XRPassthrough, passthroughSupported } from "./xr.js";
-import { patientHUD, unknownHUD, spokenSummary, spokenVitals } from "./hud.js";
+import { patientHUD } from "./hud.js";
+import { Workflow } from "./workflow.js";
+import { drawMapPanel } from "./hudscreen.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,30 +38,46 @@ const el = {
   stage: $("stage"),
   hudOverlay: $("hud-overlay"),
   hud: $("hud"),
-  reticle: $("reticle"),
   cameraBg: $("camera-bg"),
   scanCanvas: $("scan-canvas"),
-  picker: $("picker"),
   voiceStatus: $("voice-status"),
   toast: $("toast"),
-  micBtn: $("mic-btn"),
-  cmdForm: $("cmd-form"),
-  cmdInput: $("cmd-input"),
   modeLabel: $("mode-label"),
   btnAR: $("mode-ar"),
   btnCam: $("mode-cam"),
   btnSim: $("mode-sim"),
   caps: $("caps"),
+  flow: $("flow"),
+  flowMap: $("flow-map"),
+  flowCard: $("flow-card"),
+  flowActions: $("flow-actions"),
+  flowTask: $("flow-task"),
+  flowTitle: $("flow-title"),
+  flowCardTitle: $("flow-card-title"),
+  flowOpen: $("flow-open"),
+  flowCounts: $("flow-counts"),
+  flowVitals: $("flow-vitals"),
+  flowBadge: $("flow-badge"),
+  flowBand: $("flow-band"),
+  flowHeadline: $("flow-headline"),
+  flowHint: $("flow-hint"),
+  flowProgress: $("flow-progress"),
+  flowBody: $("flow-body"),
+  flowButtons: $("flow-buttons"),
+  flowStatus: $("flow-status"),
 };
 
 const app = {
   mode: null,        // 'ar' | 'camera' | 'sim'
-  markerId: null,    // currently shown patient
+  flow: null,
   scanner: null,
   xr: null,
   voice: null,
-  announced: new Set(), // markers already read aloud this session
+  screen: null,
+  recordOpen: false,
 };
+
+const mapCtx = el.flowMap.getContext("2d");
 
 /* ---------------------------------------------------------------- toast */
 
@@ -72,19 +89,15 @@ function toast(msg, kind = "") {
   toastTimer = setTimeout(() => (el.toast.className = "toast"), 3200);
 }
 
-function setVoiceStatus(text, on = false) {
-  el.voiceStatus.textContent = text;
-  el.voiceStatus.classList.toggle("listening", on);
-}
+function setVoiceStatus(text) { el.voiceStatus.textContent = text; }
 
 /* ------------------------------------------------ capability detection */
 
 function detectCaps() {
   const rows = [
-    ["Passthrough-AR (WebXR)", null, "passthrough"],
+    ["Passthrough-AR (WebXR)", null, "wird geprüft …"],
     ["QR-Decoder", decodeSupported(), barcodeDetectorAvailable() ? "BarcodeDetector" : jsQRAvailable() ? "jsQR" : "—"],
     ["Sprachausgabe", synthesisAvailable(), synthesisAvailable() ? "Web Speech" : "—"],
-    ["Spracherkennung", recognitionAvailable(), recognitionAvailable() ? "Web Speech" : "Text-Eingabe"],
   ];
   el.caps.innerHTML = rows
     .map(([name, ok, note]) =>
@@ -99,137 +112,142 @@ function detectCaps() {
     }
     el.btnAR.disabled = !ok;
     el.btnAR.querySelector(".mode-note").textContent = ok
-      ? "Quest-Passthrough · Sprache/Controller"
+      ? "Passthrough · Blicksteuerung"
       : "auf diesem Gerät nicht verfügbar";
   });
 
   el.btnCam.disabled = !decodeSupported();
   el.btnCam.querySelector(".mode-note").textContent = decodeSupported()
-    ? "Live-QR über die Gerätekamera"
+    ? "flach, mit echtem QR-Scan der Karte"
     : "kein QR-Decoder im Browser";
 }
 
-/* -------------------------------------------------------- marker picker */
+/* ------------------------------------------------------- Ablaufschirm */
 
-function buildPicker() {
-  el.picker.innerHTML = MARKER_IDS.map((id) => {
-    const p = resolvePatient(id);
-    const c = CATEGORY_META[p.category] || CATEGORY_META.UNSIGHTED;
-    return `<button class="pick" data-id="${id}" style="--cat:${c.color}" title="Patient ${id} — ${c.label}">
-      <span class="pick-dot"></span>${id}</button>`;
-  }).join("");
-  el.picker.querySelectorAll(".pick").forEach((b) => {
-    b.onclick = () => loadPatient(Number(b.dataset.id));
+function renderScreen(screen) {
+  app.screen = screen;
+
+  el.flowTitle.textContent = screen.title || "J.A.R.";
+  el.flowTask.textContent = screen.task || "";
+  // In der Lage steht kein Schritt an: dann bleibt die Mitte frei und es gibt
+  // nur die kleinen Knöpfe am Rand — flach genauso wie in der Brille.
+  el.flowCard.classList.toggle("hidden", screen.showCard === false);
+  el.flowCardTitle.textContent = screen.cardTitle || "";
+  el.flowBadge.textContent = screen.badge || "";
+  el.flowBand.style.background = screen.band || "rgba(255,255,255,.28)";
+
+  el.flowHeadline.textContent = screen.headline || "";
+  el.flowHeadline.style.color = screen.headlineColor || "";
+  el.flowHint.textContent = screen.hint || "";
+  el.flowStatus.textContent = screen.status || "";
+
+  if (screen.progress) {
+    const pips = Array.from({ length: screen.progress.total }, (_, i) =>
+      `<span class="flow-pip${i < screen.progress.step ? " on" : ""}"></span>`).join("");
+    el.flowProgress.innerHTML =
+      `<span>Schritt ${screen.progress.step}/${screen.progress.total}</span><span class="flow-pips">${pips}</span>`;
+  } else el.flowProgress.innerHTML = "";
+
+  renderBody(screen);
+  renderVitals(screen);
+  renderCounts();
+  renderButtons(el.flowButtons, screen.buttons || [], () => app.screen.buttons);
+  renderButtons(el.flowActions, screen.hudActions || [], () => app.screen.hudActions);
+
+  drawMap();
+  if (app.xr && app.xr.active) {
+    app.xr.setContent(screen, app.flow.mapModel(), app.flow.worldTags(), app.flow.cardAnchor());
+    if (!app.flow.cardAnchor()) app.xr.recenter();   // kein Patient → neu vor den Träger
+  }
+  if (app.recordOpen) renderRecord();
+}
+
+/* Text wird immer per textContent gesetzt — Patientendaten dürfen nie als
+ * Markup interpretiert werden. */
+function renderBody(screen) {
+  el.flowBody.innerHTML = "";
+  for (const item of screen.body || []) {
+    const div = document.createElement("div");
+    if (["muted", "good", "warn"].includes(item.color)) div.className = item.color;
+    if (item.color === "cat" && item.color2) div.style.color = item.color2;
+    div.textContent = item.text;
+    el.flowBody.appendChild(div);
+  }
+}
+
+function renderVitals(screen) {
+  el.flowVitals.innerHTML = "";
+  for (const v of screen.vitals || []) {
+    const d = document.createElement("div");
+    d.className = "flow-vital";
+    const s = document.createElement("span");
+    s.textContent = v.label;
+    const b = document.createElement("strong");
+    b.textContent = v.value;
+    d.appendChild(s); d.appendChild(b);
+    el.flowVitals.appendChild(d);
+  }
+}
+
+function renderCounts() {
+  if (!app.flow) return;
+  const c = app.flow.mapModel().counts;
+  el.flowOpen.textContent = `${c.total} erfasst`;      // dieselbe Zeile wie in der Brille
+  const items = [["#e5484d", c.SK1], ["#f5b301", c.SK2], ["#46a758", c.SK3],
+                 ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
+  el.flowCounts.innerHTML = "";
+  for (const [color, n] of items) {
+    const span = document.createElement("span");
+    span.className = "flow-count";
+    const dot = document.createElement("i");
+    dot.style.background = color;
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(String(n)));
+    el.flowCounts.appendChild(span);
+  }
+}
+
+/**
+ * Knöpfe einer Leiste zeichnen. Ausgelöst wird immer über den **aktuellen**
+ * Schirm (`live()`), nie über die Liste von eben — sonst führte ein Klick auf
+ * einen Knopf, der gerade neu gezeichnet wurde, die Handlung des alten aus.
+ */
+function renderButtons(host, list, live) {
+  host.innerHTML = "";
+  list.forEach((b, i) => {
+    const btn = document.createElement("button");
+    btn.className = "flow-btn " + (b.tint || "ghost");
+    if (b.color) btn.style.borderColor = b.color;
+    btn.textContent = b.label;
+    btn.onclick = () => {
+      const now = live();
+      if (now && now[i]) now[i].action();
+    };
+    host.appendChild(btn);
   });
 }
 
-function highlightPicker() {
-  el.picker.querySelectorAll(".pick").forEach((b) =>
-    b.classList.toggle("active", Number(b.dataset.id) === app.markerId));
+function drawMap() {
+  if (!app.flow) return;
+  drawMapPanel(mapCtx, el.flowMap.width, el.flowMap.height, app.flow.mapModel());
 }
 
-/* ----------------------------------------------------- patient display */
-
-function render() {
-  if (app.markerId == null) {
-    el.hud.innerHTML = "";
-    el.hudOverlay.classList.add("scanning");
-    if (app.xr && app.xr.active)
-      app.xr.setState({ kind: "scanning", hint: "Patient wählen — Sprache, Controller oder Antippen" });
-    return;
-  }
-  const p = resolvePatient(app.markerId);
-  el.hud.innerHTML = p ? patientHUD(p) : unknownHUD(app.markerId);
-  el.hudOverlay.classList.remove("scanning");
-  if (app.xr && app.xr.active)
-    app.xr.setState(p ? { kind: "patient", patient: p } : { kind: "unknown", markerId: app.markerId });
-  highlightPicker();
+/* `flow.target` ist die Akte selbst, keine Nummer — sie noch einmal
+ * aufzulösen lieferte nur `null`, und die Akte blieb leer. */
+function renderRecord() {
+  const p = app.flow ? app.flow.target : null;
+  el.hud.innerHTML = p ? patientHUD(p) : "";
+  el.hud.classList.toggle("hidden", !p || !app.recordOpen);
 }
 
-function loadPatient(markerId) {
-  if (!isKnownMarker(markerId)) {
-    app.markerId = markerId;
-    render();
-    toast(`Marker #${markerId} — kein Patient im Einsatz`, "warn");
-    return;
-  }
-  app.markerId = markerId;
-  markSeen(markerId, "AR-Client");
-  render();
-  const p = resolvePatient(markerId);
-  toast(`Patient #${markerId} — ${CATEGORY_META[p.category].short}`, "ok");
-  if (!app.announced.has(markerId)) {
-    app.announced.add(markerId);
-    if (app.voice) app.voice.speak(spokenSummary(p));
-  }
-}
+/* ------------------------------------------------------------- Ablauf */
 
-function rescan() {
-  app.markerId = null;
-  render();
-  if (app.mode === "camera") toast("Scanne den nächsten Marker …");
-  else toast("Patient wählen — Sprache, Controller oder Antippen");
-}
-
-/* --------------------------------------------------------- voice glue */
-
-function applyCommand(cmd) {
-  // Global commands (work without a selected patient).
-  if (cmd.type === "help") {
-    app.voice.speak("Sage: Zusammenfassung, Vitalwerte, rot, gelb, grün, blau, schwarz, Maßnahme, Befund, Notiz, nächster, oder schließen.");
-    toast("Kommandos: Zusammenfassung · Vitalwerte · rot/gelb/grün/blau/schwarz · Maßnahme · Befund · Notiz · nächster");
-    return;
-  }
-  if (cmd.type === "rescan") { rescan(); app.voice.speak("Bereit für den nächsten Patienten."); return; }
-  if (cmd.type === "close") { app.voice.speak("Schließe."); exitStage(); return; }
-
-  if (app.markerId == null || !isKnownMarker(app.markerId)) {
-    toast("Erst einen Patienten identifizieren.", "warn");
-    app.voice.speak("Bitte zuerst einen Patienten scannen.");
-    return;
-  }
-  const id = app.markerId;
-  const p = resolvePatient(id);
-
-  switch (cmd.type) {
-    case "summary": app.voice.speak(spokenSummary(p)); break;
-    case "vitals":  app.voice.speak(spokenVitals(p)); break;
-    case "category": {
-      setCategory(id, cmd.value); render();
-      const c = CATEGORY_META[cmd.value];
-      toast(`Patient #${id} → ${c.short}`, "ok");
-      app.voice.speak(`Patient ${id} auf ${c.spoken} gesetzt.`);
-      break;
-    }
-    case "treatment":
-      addTreatment(id, cmd.value); render();
-      toast(`Maßnahme: ${cmd.value}`, "ok");
-      app.voice.speak(`Maßnahme dokumentiert: ${cmd.value}.`);
-      break;
-    case "injury":
-      addInjury(id, cmd.value); render();
-      toast(`Befund: ${cmd.value}`, "ok");
-      app.voice.speak(`Befund dokumentiert: ${cmd.value}.`);
-      break;
-    case "note":
-      pushProtocol(id, { transcript: cmd.value }); render();
-      toast(`Notiz: ${cmd.value}`, "ok");
-      app.voice.speak("Notiz gespeichert.");
-      break;
-  }
-}
-
-function onVoiceState(s) {
-  if (s.error === "unsupported") {
-    setVoiceStatus("Spracherkennung nicht verfügbar — Textbefehle unten nutzen.");
-    return;
-  }
-  if (s.error) { setVoiceStatus("Sprachfehler: " + s.error); return; }
-  if (s.interim) { setVoiceStatus("… " + s.interim, true); return; }
-  if (s.unrecognized) { setVoiceStatus(`nicht erkannt: „${s.unrecognized}" — sag „Hilfe"`, true); return; }
-  setVoiceStatus(s.listening ? "höre zu … (sprich ein Kommando)" : "Mikrofon aus", s.listening);
-  el.micBtn.classList.toggle("on", !!s.listening);
-  el.micBtn.textContent = s.listening ? "● Mikro an" : "Mikro";
+function makeFlow({ pointing = false } = {}) {
+  const flow = new Workflow({ pointing });
+  flow.onScreen = renderScreen;
+  flow.onSpeak = (text) => app.voice && app.voice.speak(text);
+  flow.onToast = toast;
+  return flow;
 }
 
 /* ------------------------------------------------------- mode start/stop */
@@ -238,102 +256,126 @@ async function startAR() {
   app.mode = "ar";
   showStage("AR-Modus — Passthrough");
   el.cameraBg.classList.add("hidden");
+
+  // Nur hier gibt es einen Zeiger: die Stelle für einen neuen Patienten wird
+  // am Boden gewählt, statt am eigenen Standort angenommen zu werden.
+  app.flow = makeFlow({ pointing: true });
+
   app.xr = new XRPassthrough({
-    onStart: () => { toast("Passthrough aktiv — Patient per Sprache/Controller wählen"); rescan(); },
+    // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
+    eyeTest: new URLSearchParams(location.search).get("augentest") === "1",
+    onStart: () => { toast("Passthrough aktiv"); app.flow.start(); },
     onEnd: () => { app.xr = null; backToStart(); },
-    onSelect: () => { if (app.markerId != null) app.voice.speak(spokenSummary(resolvePatient(app.markerId))); },
+    onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
+    onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
+    onPlace: (point) => app.flow.placeAt(point),
+    onStereoIssue: (note) => app.flow.setNotice(note),
+    onFrame: () => {
+      app.flow.tick();
+      // Lagekarte und Schilder leben mit der eigenen Position; xr.js drosselt
+      // das Neuzeichnen selbst.
+      app.xr.setContent(null, app.flow.mapModel(), app.flow.worldTags(), app.flow.cardAnchor());
+    },
   });
+
   try {
     await app.xr.start();
   } catch (err) {
     app.xr = null;
     toast(err.message || "AR konnte nicht gestartet werden", "warn");
     backToStart();
+    return;
+  }
+  await tryCamera();          // vielleicht gibt das Headset doch eine Kamera her
+}
+
+/**
+ * Kamera anfordern — auch im Headset. Ob ein Headset-Browser eine hergibt, sagt
+ * einem nur das Gerät selbst; vorher stand die Antwort als Annahme im Code und
+ * es wurde gar nicht erst versucht. Klappt es, wird die Karte wirklich
+ * gescannt; klappt es nicht, steht der Grund unten rechts und die Nummer wird
+ * von Hand gewählt.
+ */
+async function tryCamera() {
+  if (!app.flow) return;
+  if (!decodeSupported()) { app.flow.cameraLive = false; return; }
+
+  app.scanner = new QRScanner({
+    video: el.cameraBg,
+    canvas: el.scanCanvas,
+    onMarker: (card) => app.flow.onMarker(card),
+    onError: (e) => toast("Scan-Fehler: " + e.message, "warn"),
+  });
+  try {
+    await app.scanner.start();
+    app.flow.cameraLive = true;
+    app.flow.setNotice("");
+    toast("Kamera aktiv — Karten können gescannt werden", "ok");
+  } catch (err) {
+    app.scanner = null;
+    app.flow.cameraLive = false;
+    app.flow.setNotice(err.message);
   }
 }
 
 async function startCamera() {
   app.mode = "camera";
-  showStage("Kamera-Modus — Live-QR");
+  showStage("Kamera-Modus — Sichtung mit QR-Karte");
   el.cameraBg.classList.remove("hidden");
-  app.scanner = new QRScanner({
-    video: el.cameraBg,
-    canvas: el.scanCanvas,
-    onMarker: (id) => loadPatient(id),
-    onError: (e) => toast("Scan-Fehler: " + e.message, "warn"),
-  });
-  try {
-    await app.scanner.start();
-    toast("Kamera aktiv — QR-Marker anvisieren");
-    rescan();
-  } catch (err) {
-    app.scanner = null;
-    toast(err.message, "warn");
-    // Camera unusable (e.g. on the Quest) — stay usable via the picker.
-    setVoiceStatus("Keine Kamera — Patient über Auswahl/Sprache identifizieren.");
-  }
+
+  app.flow = makeFlow();
+  app.flow.start();
+  await tryCamera();
 }
 
 function startSim() {
   app.mode = "sim";
-  showStage("Simulation — Marker wählen");
+  showStage("Simulation — Ablauf ohne Kamera");
   el.cameraBg.classList.add("hidden");
-  rescan();
-  toast("Simulation — tippe einen Marker an");
+  app.flow = makeFlow();
+  app.flow.start();
+  toast("Simulation — Tätigkeit wählen, dann Patienten anlegen");
 }
 
 function showStage(label) {
   el.modeLabel.textContent = label;
   el.start.classList.add("hidden");
   el.stage.classList.remove("hidden");
-  el.hudOverlay.classList.add("scanning");
+  app.recordOpen = false;
+  el.hud.classList.add("hidden");
 }
 
 function exitStage() {
-  if (app.xr) { app.xr.end(); return; } // onEnd → backToStart
+  if (app.xr) { app.xr.end(); return; }   // onEnd → backToStart
   backToStart();
 }
 
 function backToStart() {
   if (app.scanner) { app.scanner.stop(); app.scanner = null; }
-  if (app.voice && app.voice.listening) app.voice.stopListening();
   app.voice && app.voice.stopSpeaking();
   app.mode = null;
-  app.markerId = null;
-  app.announced.clear();
+  app.flow = null;
+  app.screen = null;
   el.stage.classList.add("hidden");
   el.start.classList.remove("hidden");
   el.hud.innerHTML = "";
-  setVoiceStatus(recognitionAvailable() ? "Mikrofon aus" : "Spracherkennung nicht verfügbar — Textbefehle nutzen");
+  setVoiceStatus(synthesisAvailable() ? "Sprachausgabe bereit" : "keine Sprachausgabe");
 }
 
 /* ------------------------------------------------------------ controls */
 
 function wireControls() {
-  $("ctl-rescan").onclick = rescan;
-  $("ctl-speak").onclick = () => {
-    if (app.markerId != null && isKnownMarker(app.markerId)) app.voice.speak(spokenSummary(resolvePatient(app.markerId)));
-    else toast("Kein Patient ausgewählt.", "warn");
-  };
   $("ctl-exit").onclick = exitStage;
-  el.micBtn.onclick = () => app.voice.toggleListening();
 
-  // Quick-triage buttons.
-  $("ctl-cats").querySelectorAll("[data-cat]").forEach((b) => {
-    b.onclick = () => applyCommand({ type: "category", value: b.dataset.cat, raw: b.dataset.cat });
-  });
+  $("ctl-record").onclick = () => {
+    app.recordOpen = !app.recordOpen;
+    renderRecord();
+  };
 
-  // Typed command fallback (equivalent to speaking).
-  el.cmdForm.onsubmit = (e) => {
-    e.preventDefault();
-    const text = el.cmdInput.value.trim();
-    if (!text) return;
-    el.cmdInput.value = "";
-    // Allow a bare number to load a patient by marker.
-    if (/^\d{1,4}$/.test(text)) { loadPatient(Number(text)); return; }
-    const cmd = parseCommand(text); // same parser as speech
-    if (cmd) applyCommand(cmd);
-    else toast(`nicht erkannt: „${text}" — „Hilfe" für Kommandos`, "warn");
+  $("ctl-speak").onclick = () => {
+    if (!app.screen) return;
+    const parts = [app.screen.headline, app.screen.hint].filter(Boolean);
+    app.voice.speak(parts.join(". "));
   };
 }
 
@@ -341,27 +383,23 @@ function wireControls() {
 
 function boot() {
   detectCaps();
-  buildPicker();
   wireControls();
 
-  app.voice = new Voice({ onCommand: applyCommand, onState: onVoiceState });
-  setVoiceStatus(recognitionAvailable() ? "Mikrofon aus" : "Spracherkennung nicht verfügbar — Textbefehle nutzen");
+  app.voice = new Voice({ onCommand: () => {}, onState: () => {} });
+  setVoiceStatus(synthesisAvailable() ? "Sprachausgabe bereit" : "keine Sprachausgabe");
 
   el.btnAR.onclick = () => !el.btnAR.disabled && startAR();
   el.btnCam.onclick = () => startCamera();
   el.btnSim.onclick = () => startSim();
 
-  // Deep link: ?mode=sim|camera|ar[&patient=N] — jump straight into a mode
-  // (and optionally a patient) for demos, kiosks and bookmarks.
+  // Deep link: ?mode=sim|camera|ar[&patient=N]
   const q = new URLSearchParams(location.search);
   const mode = q.get("mode");
   const boot2 = { sim: startSim, camera: startCamera, ar: () => !el.btnAR.disabled && startAR() }[mode];
-  if (boot2) {
-    Promise.resolve(boot2()).then(() => {
-      const pid = Number(q.get("patient"));
-      if (pid) loadPatient(pid);
-    });
-  }
+  if (boot2) Promise.resolve(boot2());
 }
+
+// Haken für Prüf-/Demoseiten (probe_dom.html); im Betrieb ungenutzt.
+window.__jar = app;
 
 boot();

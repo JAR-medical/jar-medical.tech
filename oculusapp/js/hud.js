@@ -42,6 +42,13 @@ function vitalsChips(p) {
     .join("")}</div>`;
 }
 
+/* Protokolleinträge tragen `at` (siehe data.js). Vor der Tätigkeitswahl gab es
+ * keine Rolle — dann steht dort der Autor. */
+function protoWhen(e) {
+  const t = e.at ? new Date(e.at) : null;
+  return t && !Number.isNaN(t.getTime()) ? t.toLocaleTimeString("de-DE") : "—";
+}
+
 function metaLine(p) {
   const bits = [];
   if (p.sex) bits.push(p.sex === "m" ? "männlich" : p.sex === "w" ? "weiblich" : esc(p.sex));
@@ -49,6 +56,7 @@ function metaLine(p) {
   if (p.ambulatory === true) bits.push("gehfähig");
   if (p.ambulatory === false) bits.push("nicht gehfähig");
   if (p.location) bits.push("Ablage " + esc(p.location));
+  if (p.transported) bits.push("abtransportiert");
   bits.push("aktualisiert " + timeAgo(p.updated_at));
   if (p.last_seen && p.last_seen.by) bits.push(`👁 ${esc(p.last_seen.by)} ${timeAgo(p.last_seen.at)}`);
   return bits.join(" · ");
@@ -84,7 +92,7 @@ export function patientHUD(p) {
       <div class="proto-title">Protokoll (${(p.protocol || []).length})</div>
       ${proto.map((e) => `
         <div class="proto-entry">
-          <span class="proto-when">${new Date(e.timestamp).toLocaleTimeString("de-DE")} · ${esc(e.author || e.source)}</span>
+          <span class="proto-when">${protoWhen(e)} · ${esc(e.task || e.author || e.source)}</span>
           <span class="proto-text">${esc(e.transcript || "")}</span>
         </div>`).join("") || '<div class="proto-entry muted">Noch keine Einträge.</div>'}
     </div>
