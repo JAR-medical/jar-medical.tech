@@ -58,9 +58,7 @@
       passthrough(ctx);
 
       const hud = off(W, H);
-      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel(),
-                   { sources: 0, kinds: "—", hands: 0, joints: 0, pinchCm: null, selects: 0,
-                     gaze: true, granted: "nein", feature: "hand-tracking (optional)" });
+      drawHudLayer(hud.getContext("2d"), W, H, current, flow.mapModel());
       ctx.drawImage(hud, 0, 0);
 
       // Schilder dort, wo Patienten im Raum stünden (zwei zur Anschauung).
@@ -91,38 +89,30 @@
     };
 
     try {
-      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+      flow.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 });
       flow.start();
-      shot("1 · Lage ausrichten");
+      shot("1 · leere Lage");
 
-      press(/ausrichten/i);
-      shot("2 · Lagekarte");
-
-      flow.setPose({ x: -2.6, y: 1.7, z: -0.4 }, { x: 0.2, y: 0, z: 1 });
-      flow.tick();
-      shot("3 · Patient erreicht");
-
-      press(/Sichtung starten/i);
-      shot("4 · mSTaRT Frage 1");
+      flow.setPose({ x: 1.5, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
+      press(/Neuer Patient/);
+      shot("2 · mSTaRT Frage 1");
 
       press(/^NEIN$/); press(/^NEIN$/);
-      shot("5 · Frage 3 mit Verlauf");
+      shot("3 · Frage 3 mit Verlauf");
 
       press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
-      shot("6 · Ergebnis");
+      shot("4 · Ergebnis");
 
-      press(/Karte scannen/i);
-      shot("7 · Karte scannen");
+      press(/Karte zuweisen/);
+      shot("5 · Karte zuweisen");
 
-      flow.onMarker(7);
-      shot("8 · falsche Karte");
+      press(/übernehmen/);
+      shot("6 · erfasst");
 
-      press(/Nochmal/i);
-      flow.onMarker(1);
-      shot("9 · gebucht");
-
-      press(/Nächster/i);
-      shot("10 · zurück zur Lage");
+      press(/Weiter/);
+      flow.setPose({ x: 9, y: 1.7, z: -6 }, { x: 0.4, y: 0, z: -1 });
+      flow.tick();
+      shot("7 · Lage mit einem Patienten");
 
       document.title = "OK " + document.querySelectorAll("canvas").length;
     } catch (e) {

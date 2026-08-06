@@ -31,13 +31,13 @@
     };
 
     try {
-      press(/#1 · C2/);                      // Patient wählen
-      press(/Sichtung starten/);
+      app.flow.setPose({ x: 1, y: 1.7, z: -2 }, { x: 0, y: 0, z: -1 });
+      press(/Neuer Patient/);
       if (stop !== "start") { press(/^NEIN$/); press(/^NEIN$/); }
       if (stop === "ergebnis" || stop === "karte" || stop === "akte") {
         press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);
       }
-      if (stop === "karte") press(/Karte scannen/);
+      if (stop === "karte") press(/Karte zuweisen/);
       if (stop === "akte") document.getElementById("ctl-record").click();
       document.title = "OK " + app.screen.state;
     } catch (e) {

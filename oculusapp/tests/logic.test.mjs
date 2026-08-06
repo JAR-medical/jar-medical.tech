@@ -3,15 +3,17 @@
  *   node tests/logic.test.mjs        (oder: npm test)
  *
  * Geprüft wird, was still falsch sein könnte: jeder Pfad durch das
- * mSTaRT-Schema, das Schritt-zurück, die Rasterarithmetik der Lagekarte und der
- * Ablauf des Workflows bis zur gebuchten Karte. Die Darstellung (Canvas, WebXR,
- * DOM) ist hier bewusst nicht dabei — die wird im Browser geprüft.
+ * mSTaRT-Schema, das Schritt-zurück, die Kartenarithmetik und der Ablauf vom
+ * Anlegen eines Patienten im Raum bis zur zugewiesenen Umhängekarte. Die
+ * Darstellung (Canvas, WebXR, DOM) ist hier bewusst nicht dabei — die wird im
+ * Browser geprüft.
  */
 
 import { MStartSession, MAX_STEPS, NODES, FIRST_STEP } from "../js/mstart.js";
-import { ScenarioLayout, parseCell, columnLabel } from "../js/layout.js";
+import { FieldMap, distance, nearest } from "../js/layout.js";
 import { Workflow } from "../js/workflow.js";
-import { MARKER_IDS, resolvePatient, setCategory } from "../js/data.js";
+import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
+         tally, resetEinsatz } from "../js/data.js";
 
 let run = 0, failed = 0;
 
@@ -34,7 +36,6 @@ function play(...answers) {
   return s;
 }
 
-/** Alle Antwortfolgen, die zu einem Ergebnis führen. */
 function allPaths() {
   const out = [];
   const stack = [[]];
@@ -42,7 +43,7 @@ function allPaths() {
     const prefix = stack.pop();
     const s = play(...prefix);
     if (s.done) { out.push(prefix); continue; }
-    if (prefix.length >= MAX_STEPS) continue;      // Schutz gegen Zyklen
+    if (prefix.length >= MAX_STEPS) continue;
     stack.push([...prefix, true], [...prefix, false]);
   }
   return out;
@@ -79,7 +80,6 @@ function mstartBranches() {
         "SK I, II, III und verstorben sind erreichbar");
   check(paths.every((p) => play(...p).done), "jeder Pfad endet in einer Kategorie");
 
-  // Jeder Knoten ist erreichbar und jeder Ausgang zeigt auf etwas Gültiges.
   const reached = new Set([FIRST_STEP]);
   for (const p of paths) {
     const s = new MStartSession();
@@ -116,187 +116,176 @@ function mstartBack() {
   check(done.result.category === "SK1", "Antworten nach dem Ergebnis ändern nichts");
 }
 
-/* -------------------------------------------------------- Rasterzellen */
+/* --------------------------------------------------------------- Akten */
 
-function cells() {
-  console.log("Rasterzellen");
+function akten() {
+  console.log("Patientenakten");
+  resetEinsatz();
 
-  const c2 = parseCell("C2");
-  check(c2 && c2.col === 2 && c2.row === 2, '"C2" → Spalte 2, Reihe 2');
-  const a10 = parseCell("a10");
-  check(a10 && a10.col === 0 && a10.row === 10, '"a10" → Spalte 0, Reihe 10');
-  const g6 = parseCell(" G6 ");
-  check(g6 && g6.col === 6 && g6.row === 6, "Leerzeichen toleriert");
-  check(parseCell("") === null, "leer → null");
-  check(parseCell(null) === null, "null → null");
-  check(parseCell("2C") === null, '"2C" → null');
-  check(parseCell("C") === null, '"C" → null');
-  check(parseCell("C0") === null, "Reihe 0 → null");
-  check(parseCell("C2x") === null, '"C2x" → null');
-  check(columnLabel(0) === "A" && columnLabel(6) === "G", "Spaltenbeschriftung");
+  check(patientCount() === 0, "Einsatz beginnt leer — keine Beispieldaten");
+
+  const a = createPatient({ x: 1, y: 1.7, z: -2 });
+  const b = createPatient({ x: 4, y: 1.7, z: -2 });
+  check(a.marker_id === 1 && b.marker_id === 2, "laufende Nummern in Anlagereihenfolge");
+  check(a.category === "UNSIGHTED", "frisch angelegt = ungesichtet");
+  check(a.card === null, "frisch angelegt = ohne Karte");
+  check(a.pos.x === 1 && a.pos.z === -2, "Position festgehalten");
+  check(a.protocol.length === 1, "Anlegen steht im Protokoll");
+
+  check(assignCard(1, 7).ok === true, "Karte 7 an Patient 1");
+  check(cardHolder(7) === a, "Karte 7 gehört Patient 1");
+
+  const clash = assignCard(2, 7);
+  check(clash.ok === false && clash.takenBy === 1, "dieselbe Karte nicht zweimal");
+  check(b.card === null, "abgelehnte Zuweisung ändert nichts");
+
+  check(assignCard(2, 8).ok === true, "andere Karte geht");
+  const t = tally();
+  check(t.total === 2 && t.ohneKarte === 0, "Zählung stimmt");
+  check(t.UNSIGHTED === 2, "beide noch ungesichtet");
 }
 
-function layoutMaths() {
-  console.log("Feld-Layout");
+/* ------------------------------------------------------------ Lagekarte */
 
-  const patients = MARKER_IDS.map(resolvePatient);
-  const layout = new ScenarioLayout({ cellSize: 3, fieldDistance: 6 });
-  layout.build(patients);
+function lagekarte() {
+  console.log("Lagekarte");
 
-  check(layout.hasCells, "Zellen aus dem Datensatz gelesen");
-  check(layout.minCol === 0 && layout.maxCol === 6, "Spalten A–G");
-  check(layout.minRow === 2 && layout.maxRow === 6, "Reihen 2–6");
-  check(layout.columns === 7 && layout.rows === 5, "7 Spalten, 5 Reihen");
-  check(layout.cellLabel(1) === "C2", "Patient 1 steht auf C2");
+  const map = new FieldMap({ minSpan: 8, padding: 2 });
+  map.fit([], null);
+  check(!map.ready, "ohne Punkte kein Ausschnitt");
 
-  check(!layout.aligned, "vor dem Ausrichten nicht ausgerichtet");
-  layout.align({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
-  check(layout.aligned, "nach align() ausgerichtet");
+  map.fit([{ x: 0, y: 0, z: 0 }], { x: 0, y: 0, z: 0 });
+  check(map.spanMeters === 8, "einzelner Punkt → Mindestausschnitt");
+  const c = map.project({ x: 0, y: 0, z: 0 });
+  near(c.x, 0.5, "Mittelpunkt x");
+  near(c.y, 0.5, "Mittelpunkt y");
 
-  // C2, Feldmitte 6 m voraus: lokal (-3, -6) → Welt (-3, 0).
-  const w1 = layout.world(1);
-  near(w1.x, -3, "Patient 1 x");
-  near(w1.z, 0, "Patient 1 z");
+  map.fit([{ x: -10, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }], { x: 0, y: 0, z: 0 });
+  check(map.spanMeters === 24, "Ausschnitt wächst mit den Punkten (20 m + 2×2 Rand)");
+  near(map.project({ x: -10, y: 0, z: 0 }).x, 0.5 - 10 / 24, "linker Punkt");
+  near(map.project({ x: 10, y: 0, z: 0 }).x, 0.5 + 10 / 24, "rechter Punkt");
 
-  const w6 = layout.world(6);
-  near(w6.x, 9, "Patient 6 (G6) x");
-  near(w6.z, 12, "Patient 6 (G6) z");
+  // Oben auf der Karte ist die anfängliche Blickrichtung (−Z).
+  check(map.project({ x: 0, y: 0, z: -5 }).y > 0.5, "−Z liegt oben");
+  near(map.heading({ x: 0, y: 0, z: -1 }), 0, "Blick nach vorn = 0°");
+  near(map.heading({ x: 1, y: 0, z: 0 }), 90, "Blick nach rechts = 90°");
 
-  near(layout.distance(1, { x: 0, y: 1.7, z: 0 }), 3, "Distanz ist waagerecht");
+  near(distance({ x: 0, y: 9, z: 0 }, { x: 3, y: 0, z: 4 }), 5, "Distanz ist waagerecht");
 
-  const near1 = layout.nearest({ x: 0, y: 1.7, z: 0 }, MARKER_IDS, 4);
-  check(near1 && near1.markerId === 1, "nächster Patient ist #1");
-  near(near1.distance, 3, "Distanz zum nächsten");
-  check(layout.nearest({ x: 0, y: 0, z: 0 }, MARKER_IDS, 1) === null, "außerhalb des Radius → null");
-
-  // Gedrehte Ausrichtung spiegelt das Feld, Abstände bleiben.
-  const rotated = new ScenarioLayout({ cellSize: 3, fieldDistance: 6 });
-  rotated.build(patients);
-  rotated.align({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 });
-  const r1 = rotated.world(1);
-  near(r1.x, 3, "gedreht: x gespiegelt");
-  near(r1.z, 0, "gedreht: z gespiegelt");
-  near(rotated.distance(1, { x: 0, y: 0, z: 0 }), 3, "Distanz bleibt gleich");
-
-  // Karte: wer auf der Zelle steht, sitzt auf dem Punkt des Patienten.
-  const uvMedic = layout.normalizedFromWorld(layout.world(1));
-  const uvPatient = layout.normalizedFor(1);
-  near(uvMedic.x, uvPatient.x, "Karte: x deckt sich");
-  near(uvMedic.y, uvPatient.y, "Karte: y deckt sich");
-
-  near(layout.headingDegrees({ x: 0, y: 0, z: 1 }), 0, "Blick nach vorn = 0°");
-  near(layout.headingDegrees({ x: 1, y: 0, z: 0 }), 90, "Blick nach rechts = 90°");
-
-  const empty = new ScenarioLayout();
-  empty.build([]);
-  check(!empty.hasCells && empty.columns === 1 && empty.rows === 1, "leerer Datensatz bleibt benutzbar");
-  check(empty.nearest({ x: 0, y: 0, z: 0 }, [], 5) === null, "leer → kein Treffer");
+  resetEinsatz();
+  const p1 = createPatient({ x: 0, y: 0, z: -1 });
+  const p2 = createPatient({ x: 0, y: 0, z: -9 });
+  const hit = nearest({ x: 0, y: 0, z: 0 }, [p1, p2], 2);
+  check(hit && hit.patient === p1, "nächster Patient gefunden");
+  check(nearest({ x: 0, y: 0, z: 0 }, [p2], 2) === null, "außerhalb des Radius → null");
 }
 
 /* ------------------------------------------------------------ Workflow */
 
 function workflow() {
   console.log("Workflow");
+  resetEinsatz();
 
   const w = new Workflow();
   const screens = [];
   w.onScreen = (s) => screens.push(s);
   w.start();
 
-  check(w.state === "align", "startet beim Ausrichten");
-  const alignScreen = screens[screens.length - 1];
-  check(alignScreen.buttons.some((b) => /ausrichten/i.test(b.label)), "Ausrichten-Knopf angeboten");
-
-  w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
-  alignScreen.buttons.find((b) => /ausrichten/i.test(b.label)).action();
-  check(w.state === "lage", "nach dem Ausrichten in der Lage");
-
-  // Zu Patient 1 laufen (C2 → 3 m vor der Ausrichtungspose).
-  w.setPose({ x: -3, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
-  w.tick();
-  check(w.state === "approach" && w.target === 1, "Anlaufen erkannt (#1)");
-
-  const approach = screens[screens.length - 1];
-  const startBtn = approach.buttons.find((b) => /Sichtung starten/i.test(b.label));
-  check(!!startBtn, "„Sichtung starten“ angeboten");
-  startBtn.action();
-  check(w.state === "sichtung", "Sichtung läuft");
-
-  // Blutung nein, gehfähig nein, Atmung ja, AF nein, Puls ja, folgt ja → SK II
-  const answer = (yes) => {
-    const s = screens[screens.length - 1];
-    s.buttons.find((b) => b.label === (yes ? "JA" : "NEIN")).action();
+  const last = () => screens[screens.length - 1];
+  const press = (re) => {
+    const b = last().buttons.find((x) => re.test(x.label));
+    if (!b) throw new Error("Knopf fehlt: " + re + " — da: " +
+      last().buttons.map((x) => x.label).join(", "));
+    b.action();
   };
+
+  check(w.state === "lage", "startet bei der Lage");
+  check(/kein Patient/i.test(last().headline), "leere Lage wird benannt");
+
+  w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
+  press(/Neuer Patient/);
+  check(w.state === "sichtung", "Anlegen führt direkt in die Sichtung");
+  check(patientCount() === 1, "genau ein Patient angelegt");
+  check(w.target.pos.x === 2 && w.target.pos.z === -3, "an der eigenen Position angelegt");
+
+  const answer = (yes) => press(yes ? /^JA$/ : /^NEIN$/);
   answer(false); answer(false); answer(true); answer(false); answer(true); answer(true);
-  check(w.state === "ergebnis", "Ergebnis erreicht");
-  check(w.result.category === "SK2", "Ergebnis SK II");
+  check(w.state === "ergebnis" && w.result.category === "SK2", "Ergebnis SK II");
 
-  screens[screens.length - 1].buttons.find((b) => /Karte scannen/i.test(b.label)).action();
-  check(w.state === "scan", "Kartenschritt");
+  press(/Karte zuweisen/);
+  check(w.state === "karte", "Kartenschritt");
   check(w.scanArmed === true, "Scanner scharf");
+  check(/#1 übernehmen/.test(last().buttons.map((b) => b.label).join(" ")), "erste freie Nummer vorgeschlagen");
 
-  // Falsche Karte darf nichts buchen.
-  w.onMarker(7);
-  check(w.state === "scan-mismatch", "falsche Karte → Rückfrage");
-  check(resolvePatient(1).category !== "SK2", "nichts gebucht bei falscher Karte");
+  press(/\+/);
+  check(/#2 übernehmen/.test(last().buttons.map((b) => b.label).join(" ")), "Nummer erhöhen");
+  press(/−/);
+  press(/übernehmen/);
 
-  screens[screens.length - 1].buttons.find((b) => /Nochmal/i.test(b.label)).action();
-  check(w.state === "scan", "zurück zum Scannen");
-
-  w.onMarker(1);
-  check(w.state === "bestaetigt", "richtige Karte → gebucht");
-  check(w.scanArmed === false, "Scanner wieder aus");
+  check(w.state === "bestaetigt", "zugewiesen");
+  check(resolvePatient(1).card === 1, "Karte in der Akte");
   check(resolvePatient(1).category === "SK2", "Kategorie in der Akte");
   check(resolvePatient(1).protocol.some((e) => /mSTaRT/.test(e.transcript)), "Antwortpfad im Protokoll");
-  check(w.done.has(1), "Patient als gesichtet vermerkt");
+  check(w.scanArmed === false, "Scanner wieder aus");
 
-  screens[screens.length - 1].buttons.find((b) => /Nächster/i.test(b.label)).action();
+  press(/Weiter/);
   check(w.state === "lage", "zurück zur Lage");
 
-  // Direkt daneben stehen bleiben darf nicht sofort zurückspringen.
+  // Direkt danebenstehen darf nicht sofort zurückspringen.
   w.tick();
   check(w.state === "lage", "gerade verlassener Patient wird nicht neu gegriffen");
 
-  // Weggehen und wiederkommen darf ihn wieder anbieten.
-  w.setPose({ x: -30, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+  // Zweiter Patient, gescannte Karte, die schon vergeben ist.
+  w.setPose({ x: 12, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
   w.tick();
-  w.setPose({ x: -3, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
+  press(/Neuer Patient/);
+  answer(true);                                    // kritische Blutung → SK I
+  check(w.result.category === "SK1", "zweiter Patient SK I");
+  press(/Karte zuweisen/);
+  w.onMarker(1);                                   // Karte 1 hat schon Patient 1
+  check(w.state === "karte-belegt", "belegte Karte → Rückfrage");
+  check(resolvePatient(2).card === null, "nichts gebucht bei belegter Karte");
+
+  press(/entziehen/);
+  check(resolvePatient(2).card === 1, "Karte umgehängt");
+  check(resolvePatient(1).card === null, "voriger Träger hat sie nicht mehr");
+  check(resolvePatient(1).protocol.some((e) => /entzogen/.test(e.transcript)), "Entzug protokolliert");
+
+  press(/Weiter/);
+
+  // Weggehen und wiederkommen darf einen bestehenden Patienten wieder anbieten.
+  w.setPose({ x: 40, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
   w.tick();
-  check(w.state === "approach" && w.target === 1, "nach dem Weggehen wieder anlaufbar");
+  w.setPose({ x: 2, y: 1.7, z: -3 }, { x: 0, y: 0, z: -1 });
+  w.tick();
+  check(w.state === "approach" && w.target.marker_id === 1, "bestehender Patient wieder anlaufbar");
+  check(last().buttons.some((b) => /Neu sichten/.test(b.label)), "Neusichtung angeboten");
 
   // SK IV nur als ausdrücklicher Override.
-  const w2 = new Workflow();
-  w2.onScreen = (s) => screens.push(s);
-  w2.start();
-  w2.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: 1 });
-  w2.alignHere();
-  w2.selectPatient(3);
-  w2.startSichtung();
-  w2.answer(true);                       // kritische Blutung → SK I
-  check(w2.result.category === "SK1", "Override-Test: erst SK I");
-  const lna = screens[screens.length - 1].buttons.find((b) => /SK IV/.test(b.label));
+  press(/Neu sichten/);
+  answer(true);
+  const lna = last().buttons.find((b) => /SK IV/.test(b.label));
   check(!!lna, "SK-IV-Knopf auf dem Ergebnisschirm");
   lna.action();
-  check(w2.result.category === "SK4", "Override setzt SK IV");
-  check(/LNA/.test(w2.result.why), "Override ist als ärztliche Entscheidung vermerkt");
+  check(w.result.category === "SK4" && /LNA/.test(w.result.why), "Override setzt SK IV und vermerkt es");
 
-  // Ohne Kamera muss der Kartenschritt manuell abschließbar bleiben.
-  w2.enterScan();
-  check(w2.state === "scan", "Kartenschritt ohne Kamera erreichbar");
-  const manual = screens[screens.length - 1].buttons.find((b) => /Manuell/i.test(b.label));
-  check(!!manual, "manuelle Bestätigung angeboten, wenn kein Scanner läuft");
-  manual.action();
-  check(resolvePatient(3).category === "SK4", "manuell gebucht");
+  // Kartenmodell auf der Lagekarte
+  const m = w.mapModel();
+  check(m.dots.length === 2, "beide Patienten auf der Karte");
+  check(m.counts.total === 2, "Zählung im Kartenmodell");
+  check(m.medic && typeof m.medic.heading === "number", "eigene Position mit Blickrichtung");
 
-  setCategory(1, "SK2");   // Datensatz ist ein Modul-Singleton — Zustand egal machen
+  const tags = w.worldTags();
+  check(tags.length >= 1, "raumfeste Schilder für Patienten in der Nähe");
+  check(w.cardAnchor() !== null, "Handlungskarte hat einen Ankerpunkt beim Patienten");
 }
 
 /* ---------------------------------------------------------------- main */
 
 mstartBranches();
 mstartBack();
-cells();
-layoutMaths();
+akten();
+lagekarte();
 workflow();
 
 console.log();

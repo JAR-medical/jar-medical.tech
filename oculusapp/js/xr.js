@@ -15,13 +15,12 @@
  *            stehen, wo der Patient liegt. Hier wird gezeigt und ausgelöst.
  *   Schilder raumfest an jedem Patienten in der Nähe.
  *
- * Bedienung — und was passiert, wenn das Gerät nicht mitspielt:
- *   Jede Eingabequelle mit `targetRaySpace` (Hand-Pinch-Strahl oder Controller)
- *   bekommt einen sichtbaren Strahl, damit man sieht, wohin man zeigt. Gibt es
- *   gar keine, übernimmt der **Blick** als Zeiger. Ausgelöst wird entweder durch
- *   `select` (Pinch/Trigger) **oder** durch Verweilen auf einem Knopf. Damit ist
- *   der Ablauf auch dann bedienbar, wenn ein Browser weder Handtracking meldet
- *   noch `select` schickt — und die Diagnosezeile oben links sagt, was er meldet.
+ * Bedienung:
+ *   Controller und Hände zeigen über ihren `targetRaySpace`, sichtbar als
+ *   Strahl. Der PICO-Browser stellt WebXR-Handtracking nicht bereit — dort
+ *   übernimmt der **Blick** als Zeiger, mit Fadenkreuz in der Blickmitte.
+ *   Ausgelöst wird durch `select` (Pinch/Trigger) oder, solange nie ein
+ *   `select` ankam, durch Verweilen auf einem Knopf.
  */
 
 "use strict";
@@ -160,9 +159,10 @@ export class XRPassthrough {
     this.refSpace = null;
 
     this._screen = { title: "J.A.R.", headline: "", hint: "", body: [], buttons: [], status: "" };
-    this._map = { columns: 1, rows: 1, minCol: 0, minRow: 1, dots: [], medic: null,
-                  counts: { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, open: 0 },
-                  footer: "", hint: "", aligned: false };
+    this._map = { dots: [], medic: null, spanMeters: 8,
+                  counts: { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, UNSIGHTED: 0,
+                            total: 0, ohneKarte: 0 },
+                  footer: "", hint: "" };
     this._tags = [];
     this._anchor = null;
 
@@ -186,9 +186,9 @@ export class XRPassthrough {
     this._recalled = false;                // Karte wurde vor den Träger geholt
     this._cardAwayFor = 0;
 
-    // Diagnose — beantwortet „warum reagiert nichts?" ohne Kabel.
-    this._diag = { sources: 0, kinds: "—", selects: 0, hands: 0, joints: 0,
-                   pinchCm: null, gaze: false, feature: "?", granted: "?" };
+    // Intern: steuert Fadenkreuz und Verweil-Auslösung. Wird nicht angezeigt —
+    // die Frage, was das Gerät liefert, ist beantwortet.
+    this._diag = { sources: 0, selects: 0, joints: 0, gaze: false };
 
     this._frameBound = (t, f) => this._onFrame(t, f);
     this._onSelectBound = () => { this._diag.selects++; this._hudDirty = true; this._activate(); };
@@ -676,7 +676,7 @@ export class XRPassthrough {
       this._cardDirty = false;
     }
     if (this._hudDirty || performance.now() - this._hudDrawnAt > HUD_REDRAW_MS) {
-      drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map, this._diag);
+      drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map);
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();

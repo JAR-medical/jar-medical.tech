@@ -142,50 +142,34 @@ function ring(ctx, x, y, r, color, width = 2) {
  * @param {object} screen von workflow.screen()
  * @param {object} map    von workflow.mapModel()
  */
-export function drawHudLayer(ctx, W, H, screen, map, diag) {
+export function drawHudLayer(ctx, W, H, screen, map) {
   ctx.clearRect(0, 0, W, H);
   ctx.textBaseline = "alphabetic";
 
   const pad = Math.round(W * 0.038);
-  topLeft(ctx, pad, pad, screen, diag);
+  topLeft(ctx, pad, pad, screen);
   topRight(ctx, W - pad, pad, map);
   bottomLeft(ctx, pad, H - pad, map);
   bottomRight(ctx, W - pad, H - pad, screen);
 }
 
-function topLeft(ctx, x, y, screen, diag) {
-  const lines = (screen.progress ? 1 : 0) + (diag ? 2 : 0) + (diag && diag.selects === 0 ? 1 : 0);
-  block(ctx, x - 14, y - 12, 520, 62 + lines * 28, C.accent);
+function topLeft(ctx, x, y, screen) {
+  const lines = screen.progress ? 1 : 0;
+  block(ctx, x - 14, y - 12, 430, 60 + lines * 30, C.accent);
 
   caps(ctx, screen.title || "J.A.R.", x, y + 20, 22, C.dim);
-  rule(ctx, x, y + 38, 430, C.rule);
+  rule(ctx, x, y + 38, 390, C.rule);
 
-  let ly = y + 74;
   if (screen.progress) {
     const { step, total } = screen.progress;
-    caps(ctx, `Schritt ${step}/${total}`, x, ly, 18, C.faint);
+    caps(ctx, `Schritt ${step}/${total}`, x, y + 74, 18, C.faint);
     for (let i = 0; i < total; i++) {
       const on = i < step;
       ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(x + 205 + i * 26, ly - 13, 19, 7);
+      ctx.fillRect(x + 205 + i * 26, y + 61, 19, 7);
       ctx.fillStyle = on ? C.accent : "rgba(255,255,255,0.28)";
-      ctx.fillRect(x + 205 + i * 26, ly - 12, 18, 4);
+      ctx.fillRect(x + 205 + i * 26, y + 62, 18, 4);
     }
-    ly += 34;
-  }
-
-  // Diagnose: was meldet der Browser als Eingabe? Beantwortet aus der Brille
-  // heraus die Frage „warum reagiert nichts?".
-  if (diag) {
-    const zeigt = diag.gaze ? "Blick" : diag.kinds;
-    const gelenke = diag.joints ? `Gelenke ${diag.joints}` : "keine Gelenke";
-    const spalt = diag.pinchCm == null ? "—" : diag.pinchCm + " cm";
-    caps(ctx, `Eingabe ${diag.sources} · ${zeigt} · ${gelenke} · Spalt ${spalt} · Pinch ${diag.selects}`,
-         x, ly, 15, diag.gaze ? "#f2dfae" : C.faint);
-    caps(ctx, `Handtracking bewilligt: ${diag.granted || "?"} · ${diag.feature || "?"}`,
-         x, ly + 24, 14, C.faint);
-    if (diag.selects === 0)
-      caps(ctx, "Zielen mit dem Blick · Auslösen durch Verweilen", x, ly + 48, 15, "#f2dfae");
   }
 }
 
@@ -195,10 +179,9 @@ function topRight(ctx, x, y, map) {
                  ["#3e7bfa", c.SK4], ["#9aa4ae", c.DECEASED]];
 
   block(ctx, x - 456, y - 12, 470, 110, C.accent, "right");
-  caps(ctx, `${c.open} offen`, x, y + 20, 22, C.dim, "right");
+  caps(ctx, `${c.total} erfasst`, x, y + 20, 22, C.dim, "right");
   rule(ctx, x - 430, y + 38, 430, C.rule);
 
-  // Zählung rechtsbündig: Zahl, davor der Farbpunkt.
   let cx = x;
   for (let i = items.length - 1; i >= 0; i--) {
     const [color, n] = items[i];
@@ -214,7 +197,7 @@ function bottomLeft(ctx, x, yBottom, map) {
 
   block(ctx, x - 14, y - 40, w + 34, h + 62, C.accent);
   caps(ctx, "Lagekarte", x, y - 14, 18, C.faint);
-  drawGrid(ctx, x, y, w, h, map, { compact: true });
+  drawField(ctx, x, y, w, h, map, { compact: true });
   T(ctx, map.footer || "", x, yBottom - 4, { size: 23, weight: 500, color: C.dim });
 }
 
@@ -229,42 +212,38 @@ function bottomRight(ctx, x, yBottom, screen) {
 
 /* ------------------------------------------------------------ Lagekarte */
 
-/** Raster ohne Rahmen: Haarlinien, Punkte, Randbeschriftung. */
-function drawGrid(ctx, x, y, w, h, map, { compact = false } = {}) {
-  const padL = compact ? 18 : 24, padB = compact ? 18 : 22;
-  const fx = x + padL, fy = y;
-  const fw = w - padL, fh = h - padB;
-
-  const cols = Math.max(1, map.columns), rows = Math.max(1, map.rows);
-
+/**
+ * Freie Lagekarte: ein Rahmen, ein Fadenkreuz zur Orientierung, die angelegten
+ * Patienten als Punkte und die eigene Position mit Blickrichtung. Oben ist die
+ * Richtung, in die zu Sitzungsbeginn geschaut wurde. Unten ein Maßstab, weil
+ * sich der Ausschnitt mit jedem neuen Patienten ändert.
+ */
+function drawField(ctx, x, y, w, h, map, { compact = false } = {}) {
   ctx.strokeStyle = "rgba(0,0,0,0.45)";
-  ctx.lineWidth = 2.5;
-  gridPath(ctx, fx, fy, fw, fh, cols, rows);
-  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, w, h);
   ctx.strokeStyle = C.ruleSoft;
   ctx.lineWidth = 1;
-  gridPath(ctx, fx, fy, fw, fh, cols, rows);
+  ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, w, h);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h);
+  ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2);
   ctx.stroke();
 
-  const ls = compact ? 16 : 14;
-  for (let c = 0; c < cols; c++)
-    caps(ctx, String.fromCharCode(65 + map.minCol + c),
-         fx + (fw * (c + 0.5)) / cols, fy + fh + 15, ls, C.faint, "center");
-  for (let r = 0; r < rows; r++)
-    T(ctx, map.minRow + r, fx - 6, fy + fh - (fh * (r + 0.5)) / rows + 5,
-      { size: ls, weight: 600, color: C.faint, align: "right" });
-
   const toXY = (uv) => ({
-    x: fx + Math.max(-0.12, Math.min(1.12, uv.x)) * fw,
-    y: fy + fh - Math.max(-0.12, Math.min(1.12, uv.y)) * fh,
+    x: x + Math.max(0.02, Math.min(0.98, uv.x)) * w,
+    y: y + (1 - Math.max(0.02, Math.min(0.98, uv.y))) * h,
   });
 
-  const r = compact ? 9 : 10;
+  const r = compact ? 9 : 11;
   for (const d of map.dots) {
     const p = toXY(d.uv);
-    if (d.target) ring(ctx, p.x, p.y, r + 6, C.accent, 2);
+    if (d.target) ring(ctx, p.x, p.y, r + 7, C.accent, 2);
     if (d.sighted) disc(ctx, p.x, p.y, r, d.color);
     else ring(ctx, p.x, p.y, r - 1, d.color, 2);
+    T(ctx, d.id, p.x, p.y + 5, { size: compact ? 13 : 15, weight: 600, align: "center" });
   }
 
   if (map.medic) {
@@ -274,24 +253,25 @@ function drawGrid(ctx, x, y, w, h, map, { compact = false } = {}) {
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x + Math.sin(rad) * 17, p.y - Math.cos(rad) * 17);
+    ctx.lineTo(p.x + Math.sin(rad) * 18, p.y - Math.cos(rad) * 18);
     ctx.stroke();
     ctx.strokeStyle = C.ink;
     ctx.lineWidth = 2.5;
     ctx.stroke();
     disc(ctx, p.x, p.y, 4.5, C.ink);
   }
-}
 
-function gridPath(ctx, fx, fy, fw, fh, cols, rows) {
-  ctx.beginPath();
-  for (let c = 0; c <= cols; c++) {
-    const gx = Math.round(fx + (fw * c) / cols) + 0.5;
-    ctx.moveTo(gx, fy); ctx.lineTo(gx, fy + fh);
-  }
-  for (let r = 0; r <= rows; r++) {
-    const gy = Math.round(fy + (fh * r) / rows) + 0.5;
-    ctx.moveTo(fx, gy); ctx.lineTo(fx + fw, gy);
+  // Maßstab: ein Viertel der Kantenlänge.
+  const meters = map.spanMeters ? map.spanMeters / 4 : null;
+  if (meters) {
+    const barW = w / 4;
+    const by = y + h - 12;
+    ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(x + 10, by); ctx.lineTo(x + 10 + barW, by); ctx.stroke();
+    ctx.strokeStyle = C.dim; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 10, by); ctx.lineTo(x + 10 + barW, by); ctx.stroke();
+    caps(ctx, `${meters < 10 ? meters.toFixed(1) : Math.round(meters)} m`,
+         x + 16 + barW, by + 5, 13, C.faint);
   }
 }
 
@@ -417,7 +397,7 @@ function buttons(ctx, x, y, w, list, hover, dwell = 0) {
 /**
  * Kleines raumfestes Schild an einem Patienten. Es muss auch aus zehn Metern
  * lesbar sein, deshalb hier — anders als auf der Karte — eine schmale Fläche.
- * @param {object} tag {id, cell, short, color, sighted}
+ * @param {object} tag {id, cell, short, color, sighted} — `cell` ist die Karte
  */
 export function drawTag(ctx, W, H, tag) {
   ctx.clearRect(0, 0, W, H);
@@ -449,7 +429,7 @@ export function drawTag(ctx, W, H, tag) {
 /** Nur die Karte, für die flache Darstellung im DOM (eigenes <canvas>). */
 export function drawMapPanel(ctx, W, H, map) {
   ctx.clearRect(0, 0, W, H);
-  drawGrid(ctx, 6, 10, W - 12, H - 56, map);
+  drawField(ctx, 6, 10, W - 12, H - 56, map);
   T(ctx, map.footer || "", 6, H - 22, { size: 15, weight: 500, color: C.dim });
   T(ctx, map.hint || "", 6, H - 4, { size: 15, color: C.faint });
 }

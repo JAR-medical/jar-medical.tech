@@ -19,9 +19,9 @@
     </header>
 
     <p class="lede">
-      Der Sanitäter-Teil von <strong>TriARge</strong>: Lagekarte im Blick → zum Patienten
-      gehen → <strong>Sichtung nach mSTaRT</strong> → Sichtungskategorie →
-      Patientenumhängekarte scannen → nächster Patient.
+      Der Sanitäter-Teil von <strong>TriARge</strong>: vor dem Verletzten stehen →
+      <strong>neuen Patienten anlegen</strong> → <strong>Sichtung nach mSTaRT</strong> →
+      Sichtungskategorie → Umhängekarte zuweisen → nächster.
     </p>
 
     <section class="modes">
@@ -35,13 +35,25 @@
       </button>
       <button id="mode-sim" class="mode">
         <span class="mode-title">Simulation</span>
-        <span class="mode-note">ohne Kamera — Marker antippen</span>
+        <span class="mode-note">ohne Kamera und Headset</span>
       </button>
     </section>
 
     <section class="caps-wrap">
       <h2>Gerät</h2>
       <ul id="caps" class="caps"></ul>
+      <p class="hint">
+        Im <strong>AR-Modus</strong> wird mit dem <strong>Blick</strong> gezielt und durch
+        Verweilen ausgelöst; ein Controller geht auch. Handtracking bietet der
+        PICO-Browser Webseiten nicht an — das kann nur der native Build.
+        Die Kamera wird überall angefordert: kommt eine, wird die Umhängekarte
+        gescannt, sonst wird ihre Nummer von Hand gewählt. Karten zum Ausdrucken:
+        <a href="assets/markers/patientenkarten.pdf">assets/markers/patientenkarten.pdf</a>.
+      </p>
+      <p class="hint">
+        <strong>Übungszweck.</strong> Die mSTaRT-Vorsichtung in dieser App ist eine
+        Übungshilfe eines Schülerprojekts, kein Medizinprodukt.
+      </p>
     </section>
   </main>
 

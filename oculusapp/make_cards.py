@@ -5,10 +5,12 @@ Eine Karte je Patient, zum Ausdrucken, Ausschneiden und Umhängen. Auf der Karte
 steht ein QR-Code mit der Nutzlast "JAR-P<id>" — genau das, was js/qr.js zurück
 in eine Patientennummer übersetzt.
 
-Bewusst NICHT auf der Karte: die Sichtungskategorie. Der Ablauf ist ja gerade,
-dass der Trupp den Patienten sichtet und das Ergebnis danach auf die Karte
-bucht; stünde es schon gedruckt darauf, wäre die Übung wertlos. Zum Eintragen
-von Hand gibt es stattdessen Ankreuzfelder — so wie auf der echten
+Die Nummer auf der Karte ist eine KARTENNUMMER, kein Patient: welcher Patient
+sie trägt, entscheidet sich erst im Einsatz, wenn der Trupp sie ihm umhängt und
+in der App zuweist. Die Karten sind also austauschbar — ein Stapel Rohlinge.
+
+Bewusst nicht darauf: die Sichtungskategorie. Sie entsteht erst bei der Sichtung.
+Zum Eintragen von Hand gibt es Ankreuzfelder — wie auf der echten
 Verletztenanhängekarte, die das Ding hier ersetzen soll.
 
 Ausgabe (eine einzige, selbsttragende Datei — die SVGs stecken inline drin):
@@ -84,7 +86,7 @@ def card(pid: int) -> str:
         <div class="oben">
           <div class="qr">{qr_svg(f"JAR-P{pid}")}</div>
           <div class="nr">
-            <span class="nr-l">Patient</span>
+            <span class="nr-l">Karte</span>
             <strong>#{pid}</strong>
             <span class="code">JAR-P{pid}</span>
           </div>
@@ -219,13 +221,14 @@ def build() -> pathlib.Path:
 </head>
 <body>
   <div class="hinweis">
-    <h1>Patientenumhängekarten — {len(PATIENTS)} Stück</h1>
+    <h1>Umhängekarten — {len(PATIENTS)} Stück</h1>
     <p><strong>Drucken</strong> (A4, ohne Skalierung — „tatsächliche Größe“), ausschneiden,
     oben rechts lochen und dem Patienten umhängen.</p>
-    <p><strong>Ablauf:</strong> Patient sichten, dann diese Karte scannen — der AR-Client
-    bucht die ermittelte Sichtungskategorie auf genau diese Nummer. Die Kategorie steht
-    absichtlich <em>nicht</em> gedruckt auf der Karte; angekreuzt wird sie von Hand als
-    Rückfallebene, falls die Brille ausfällt.</p>
+    <p><strong>Ablauf:</strong> Patient anlegen, sichten, dann eine Karte umhängen und
+    ihre Nummer in der App zuweisen — per Scan oder von Hand. Welche Karte an welchen
+    Patienten geht, entscheidet sich im Einsatz; die Nummer ist nur ein Etikett.
+    Die Kategorie steht absichtlich <em>nicht</em> gedruckt darauf; angekreuzt wird sie
+    von Hand als Rückfallebene, falls die Brille ausfällt.</p>
     <p>Nutzlast je Code: <code>JAR-P&lt;Nr&gt;</code>. Fehlerkorrektur H, damit ein
     geknickter oder verschmutzter Code noch liest.</p>
   </div>

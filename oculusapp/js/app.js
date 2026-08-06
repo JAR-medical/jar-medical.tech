@@ -107,7 +107,7 @@ function detectCaps() {
     }
     el.btnAR.disabled = !ok;
     el.btnAR.querySelector(".mode-note").textContent = ok
-      ? "Passthrough · Handtracking"
+      ? "Passthrough · Blicksteuerung"
       : "auf diesem Gerät nicht verfügbar";
   });
 
@@ -237,29 +237,13 @@ function makeFlow() {
 
 async function startAR() {
   app.mode = "ar";
-  showStage("AR-Modus — Passthrough · Handtracking");
+  showStage("AR-Modus — Passthrough");
   el.cameraBg.classList.add("hidden");
 
   app.flow = makeFlow();
-  
-  app.scanner = new QRScanner({
-    video: el.cameraBg,
-    canvas: el.scanCanvas,
-    onMarker: (id) => {
-      if (app.flow.scanArmed) app.flow.onMarker(id);
-      else app.flow.selectPatient(id);
-    },
-    onError: (e) => console.warn("Scanner-Fehler:", e.message),
-  });
-  try {
-    await app.scanner.start();
-    app.flow.cameraLive = true;
-  } catch (err) {
-    app.flow.cameraLive = false;
-  }
 
   app.xr = new XRPassthrough({
-    onStart: () => { toast("Passthrough aktiv — zeigen und pinchen"); app.flow.start(); },
+    onStart: () => { toast("Passthrough aktiv"); app.flow.start(); },
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd) => app.flow.setPose(pos, fwd),
     onFrame: () => {
@@ -276,6 +260,37 @@ async function startAR() {
     app.xr = null;
     toast(err.message || "AR konnte nicht gestartet werden", "warn");
     backToStart();
+    return;
+  }
+  await tryCamera();          // vielleicht gibt das Headset doch eine Kamera her
+}
+
+/**
+ * Kamera anfordern — auch im Headset. Ob ein Headset-Browser eine hergibt, sagt
+ * einem nur das Gerät selbst; vorher stand die Antwort als Annahme im Code und
+ * es wurde gar nicht erst versucht. Klappt es, wird die Karte wirklich
+ * gescannt; klappt es nicht, steht der Grund unten rechts und die Nummer wird
+ * von Hand gewählt.
+ */
+async function tryCamera() {
+  if (!app.flow) return;
+  if (!decodeSupported()) { app.flow.cameraLive = false; return; }
+
+  app.scanner = new QRScanner({
+    video: el.cameraBg,
+    canvas: el.scanCanvas,
+    onMarker: (card) => app.flow.onMarker(card),
+    onError: (e) => toast("Scan-Fehler: " + e.message, "warn"),
+  });
+  try {
+    await app.scanner.start();
+    app.flow.cameraLive = true;
+    app.flow.setNotice("");
+    toast("Kamera aktiv — Karten können gescannt werden", "ok");
+  } catch (err) {
+    app.scanner = null;
+    app.flow.cameraLive = false;
+    app.flow.setNotice(err.message);
   }
 }
 
@@ -285,29 +300,8 @@ async function startCamera() {
   el.cameraBg.classList.remove("hidden");
 
   app.flow = makeFlow();
-  app.flow.goToLage();              // ohne Headset gibt es nichts auszurichten
-
-  app.scanner = new QRScanner({
-    video: el.cameraBg,
-    canvas: el.scanCanvas,
-    onMarker: (id) => {
-      if (app.flow.scanArmed) app.flow.onMarker(id);
-      else app.flow.selectPatient(id);      // außerhalb des Kartenschritts: anlaufen
-    },
-    onError: (e) => toast("Scan-Fehler: " + e.message, "warn"),
-  });
-
-  try {
-    await app.scanner.start();
-    app.flow.cameraLive = true;
-    app.flow.emit();
-    toast("Kamera aktiv — Karte scannen oder Patient wählen");
-  } catch (err) {
-    app.scanner = null;
-    app.flow.cameraLive = false;
-    app.flow.setNotice(err.message);     // steht dauerhaft unten rechts
-    toast(err.message, "warn");
-  }
+  app.flow.start();
+  await tryCamera();
 }
 
 function startSim() {
@@ -315,8 +309,8 @@ function startSim() {
   showStage("Simulation — Ablauf ohne Kamera");
   el.cameraBg.classList.add("hidden");
   app.flow = makeFlow();
-  app.flow.goToLage();
-  toast("Simulation — Patient wählen und sichten");
+  app.flow.start();
+  toast("Simulation — Patienten anlegen und sichten");
 }
 
 function showStage(label) {
@@ -378,12 +372,7 @@ function boot() {
   const q = new URLSearchParams(location.search);
   const mode = q.get("mode");
   const boot2 = { sim: startSim, camera: startCamera, ar: () => !el.btnAR.disabled && startAR() }[mode];
-  if (boot2) {
-    Promise.resolve(boot2()).then(() => {
-      const pid = Number(q.get("patient"));
-      if (pid && patientIds().includes(pid) && app.flow) app.flow.selectPatient(pid);
-    });
-  }
+  if (boot2) Promise.resolve(boot2());
 }
 
 // Haken für Prüf-/Demoseiten (probe_dom.html); im Betrieb ungenutzt.

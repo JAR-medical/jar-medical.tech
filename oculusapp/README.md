@@ -1,45 +1,42 @@
 # J.A.R. AR-Client — Sichtung im Blickfeld
 
-The **paramedic ("Trupp") client** for J.A.R. Medical / **TriARge**. It runs in the
-headset browser on **PICO 4 (Enterprise)** and **Meta Quest** through WebXR, and
-flat on a phone or laptop. It is the field counterpart to the Einsatzleitung
-dashboard in `../demo`: the same living patient record, but worn on the head.
+Der **Trupp-Teil** von J.A.R. Medical / **TriARge**. Läuft im Headset-Browser auf
+**PICO 4 (Enterprise)** und **Meta Quest** über WebXR, flach auch auf Handy oder
+Laptop. Gegenstück zum Lagebild der Einsatzleitung in `../demo`.
 
-The whole field workflow, end to end:
+Der Ablauf, von vorn bis hinten:
 
 ```
-Lage ausrichten ─▶ Lagekarte ─▶ zum Patienten gehen ─▶ „Sichtung starten“
-     ─▶ mSTaRT-Schema (6 Fragen) ─▶ Sichtungskategorie
-     ─▶ Patientenumhängekarte scannen ─▶ nächster Patient
+Lagekarte ─▶ „Neuer Patient" (entsteht dort, wo du stehst)
+          ─▶ mSTaRT (6 Fragen) ─▶ Sichtungskategorie
+          ─▶ Umhängekarte zuweisen ─▶ nächster
 ```
 
-- **See-through (Passthrough)** — an `immersive-ar` WebXR session shows the real
-  world through the headset cameras.
-- **Es ist ein HUD, kein Fenster.** Randinformation sitzt an den Rändern des
-  Blickfelds und ist kopffest: Zustand oben links, Zählung oben rechts,
-  Lagekarte unten links, Hinweis unten rechts. Die Mitte bleibt frei.
-- **Patientendaten hängen im Raum.** Über jedem Patienten in der Nähe steht sein
-  Schild (Nummer, Feld, Kategorie) an seiner Position — es bleibt dort, wenn man
-  den Kopf dreht. Die Handlungskarte mit Frage und Antwortknöpfen steht ebenfalls
-  raumfest beim Patienten, den man gerade sichtet.
-- **Bedienung im Browser: Blick + Verweilen.** Ein Fadenkreuz liegt in der
-  Blickmitte; wer einen Knopf 1,1 s anschaut, löst ihn aus. Controller werden
-  ebenfalls bedient (Strahl + Trigger). **Handtracking gibt es hier nicht:** der
-  PICO-Browser stellt die WebXR-Hand-Input-Schnittstelle nicht bereit, es
-  kommen keine Fingergelenke an. Wer echtes Handtracking will, nimmt den
-  nativen Build (`Unity/README-PICO.md`) — dort ist es der Normalfall.
-- **Lagekarte** — das Ablage-Raster aus dem Datensatz (`C2`, `B3`, …) als Karte,
-  mit der eigenen Position und Blickrichtung. Hohle Punkte stehen noch aus,
-  gefüllte sind gesichtet.
+- **Kein mitgelieferter Datensatz.** Der Einsatz beginnt leer. Wer vor dir liegt,
+  wird angelegt — an der Position, an der du gerade stehst. Diese Position hält
+  die Lagekarte fest.
+- **Karte kommt zuletzt.** Erst sichten, dann eine Umhängekarte umhängen und ihre
+  Nummer zuweisen — per Scan oder von Hand. Die Karten sind austauschbare
+  Rohlinge; welche an welchen Patienten geht, entscheidet sich im Einsatz. Eine
+  Karte kann nur an einem Hals hängen, und die App bucht sie nicht still um.
+- **Es ist ein HUD, kein Fenster.** Randinformation kopffest an den Rändern des
+  Blickfelds, die Mitte bleibt frei. Es steht still, bis der Blick 40°
+  abgewandert ist, und zieht dann in einem Zug um.
+- **Patientendaten hängen im Raum.** Über jedem angelegten Patienten steht sein
+  Schild an seiner Position; die Handlungskarte steht beim Patienten, an dem du
+  arbeitest — und wird herangeholt, wenn du sie länger nicht im Blick hast.
+- **Bedienung im Browser: Blick + Verweilen.** Fadenkreuz in der Blickmitte, 1,1 s
+  auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger).
+  **Handtracking gibt es hier nicht:** der PICO-Browser stellt die
+  WebXR-Hand-Input-Schnittstelle nicht bereit. Wer es will, nimmt den nativen
+  Build (`Unity/README-PICO.md`).
 - **mSTaRT** — sechs Ja/Nein-Fragen, jede vorgelesen, Schritt-zurück inklusive.
-- **Patientenumhängekarte** — der QR-Code der Karte bucht die Kategorie auf genau
-  diese Karte; eine fremde Nummer wird nicht still übernommen, sondern erfragt.
 
 ⚠️ **Übungszweck** — Schülerprojekt, kein Medizinprodukt. Die Sichtungskategorie
 ist ein Vorschlag, die Verantwortung bleibt bei der Person mit der Brille.
 
-Everything is a **static web app** (no build step, no backend) — the scenario data
-(the A9 coach MANV, patients #1–#12) is bundled and mirrors the dashboard demo 1:1.
+Alles ist eine **statische Web-App** (kein Build, kein Backend); der Einsatz lebt
+im Speicher der Sitzung.
 
 ---
 
@@ -57,42 +54,38 @@ python3 -m http.server 8765          # http://<mac-ip>:8765
 `localhost` is a secure context; for AR on a headset over the network you still
 need HTTPS (a tunnel like `cloudflared`, or the deployed copy).
 
-**Print the Patientenumhängekarten:** `assets/markers/patientenkarten.pdf`
-(A4, 3 Seiten, 12 Karten) — oder `patientenkarten.html` im Browser drucken.
-Ausschneiden, oben rechts lochen, dem Patienten umhängen. Die
-Sichtungskategorie steht bewusst **nicht** darauf: sie entsteht erst bei der
-Sichtung und wird danach per Scan auf die Karte gebucht.
+**Umhängekarten drucken:** `assets/markers/patientenkarten.pdf` (A4, 3 Seiten,
+12 Karten) — oder `patientenkarten.html` im Browser drucken, **ohne Skalierung**.
+Ausschneiden, oben rechts lochen. Es sind nummerierte Rohlinge: welchem
+Patienten eine Karte gehört, entscheidest du im Einsatz.
 
 ---
 
 ## The three modes
 
-| Mode | What it does | Where it runs |
+| Modus | Was er tut | Wo er läuft |
 |------|--------------|---------------|
-| **AR-Modus** | Passthrough, Lagekarte und Ablauf auf einer WebGL-Ebene, bedient per Handtracking. | PICO / Quest browser |
-| **Kamera-Modus** | Derselbe Ablauf flach, dazu **echtes QR-Scannen** der Umhängekarte über die Gerätekamera. | Handy / Laptop |
+| **AR-Modus** | Passthrough, Lagekarte und Ablauf auf einer WebGL-Ebene, bedient per Blick. | PICO / Quest |
+| **Kamera-Modus** | Derselbe Ablauf flach, mit echtem QR-Scan der Karte. | Handy / Laptop |
 | **Simulation** | Derselbe Ablauf ohne Kamera und ohne Headset. | überall |
 
-The landing screen probes the device and disables what it cannot do.
+Die Startseite prüft das Gerät und sperrt, was es nicht kann.
 
-**Deep link:** `index.html?mode=sim&patient=8` jumps straight into a mode (and
-optional patient) — handy for demos and kiosks.
+**Deep link:** `index.html?mode=sim` springt direkt in eine Betriebsart.
 
 ---
 
 ## ⚠️ Kamera und Kartenschritt
 
-Kein Headset-Browser bekommt Zugriff auf die Passthrough-Kameras — auf der
-**Quest 2** gibt es ihn für gar keine App, auf **Quest 3** und **PICO 4
-Enterprise** nur für native Apps, nicht für Webseiten. Der Kartenschritt läuft
-deshalb je nach Gerät unterschiedlich, aber nie ins Leere:
+Die App **fordert die Kamera überall an**, auch im Headset — ob eine kommt,
+beantwortet nur das Gerät. Bekommt sie eine, wird die Umhängekarte wirklich
+gescannt; bekommt sie keine, steht der Grund unten rechts und die Nummer wird
+mit **−/+** gewählt. Der Ablauf läuft in beiden Fällen durch.
 
-- **AR-Modus:** die Karte wird **manuell bestätigt** — die Nummer steht gedruckt
-  auf der Umhängekarte, der Trupp bestätigt sie mit einem Pinch.
-- **Kamera-Modus (Handy/Laptop):** die Kamera ist da, der QR-Code wird wirklich
-  gelesen und die Kategorie auf die gescannte Karte gebucht.
-- **Nativ auf PICO 4 Enterprise:** dort geht es in der Brille — siehe
-  `Unity/README-PICO.md`.
+Erfahrungsgemäß geben Headset-Browser die Passthrough-Kameras nicht heraus (auf
+der Quest 2 gar keiner App, auf Quest 3 und PICO 4 Enterprise nur nativen Apps).
+Zum echten Scannen: Handy im Kamera-Modus, oder der native Build
+(`Unity/README-PICO.md`).
 
 ---
 
@@ -103,9 +96,9 @@ oculusapp/
 ├─ index.html            Landing + Bühne (Ablaufschirm, Lagekarte, Akte)
 ├─ css/hud.css           Styling (Triage-Palette wie im Lagebild)
 ├─ js/
-│  ├─ data.js            Patientendatensatz (wie im Dashboard) + Schreibfunktionen
+│  ├─ data.js            Akten dieses Einsatzes (leer beim Start) + Schreibfunktionen
 │  ├─ mstart.js          das mSTaRT-Schema als Entscheidungsbaum (reine Logik)
-│  ├─ layout.js          Rasterzellen → Meter, Raumausrichtung, Lagekarten-Koordinaten
+│  ├─ layout.js          Lagekarte: Weltpositionen → Kartenfläche, Ausschnitt, Distanzen
 │  ├─ workflow.js        der Ablauf als Zustandsmaschine — kennt keine Darstellung
 │  ├─ hudscreen.js       zeichnet die drei AR-Ebenen (Rand-HUD, Handlungskarte,
 │  │                     Patientenschilder) und liefert die Trefferflächen
@@ -117,9 +110,10 @@ oculusapp/
 │  ├─ voice.js           Sprachausgabe (und ein Kommando-Parser für den Quest-Build)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     90 Prüfungen: mSTaRT, Raster, Ablauf
+│  ├─ logic.test.mjs     86 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
-│  └─ probe_dom.html     klickt den flachen Ablauf durch
+│  ├─ probe_dom.html     klickt den flachen Ablauf durch
+│  └─ probe_qr.html      decodiert jede gedruckte Karte mit jsQR
 ├─ Unity/                nativer PICO-/Quest-Build (siehe Unity/README-PICO.md)
 ├─ vendor/jsQR.min.js    QR-Decoder-Fallback
 ├─ make_cards.py         erzeugt den Druckbogen der Umhängekarten (segno)
@@ -184,24 +178,22 @@ Zwei bewusste Entscheidungen, beide im Code kommentiert:
 
 ---
 
-## How it maps to the real product
+## Wo das an das echte Produkt anschließt
 
-In production the records stream from the FastAPI hub over REST + WebSocket, and a
-booked card on the glasses updates the shared Lagebild the Einsatzleitung sees.
-Here, with no backend on a static host, `js/data.js` stands in for that hub using
-the same record shape — including the `location` grid cells the Lagekarte is built
-from, so glasses and command board describe the same field from one data set.
+Im Produkt kommen die Akten vom FastAPI-Hub über REST + WebSocket, und eine
+zugewiesene Karte taucht sofort im Lagebild der Einsatzleitung auf. Hier, ohne
+Backend auf statischem Hosting, hält `js/data.js` den Einsatz im Speicher — mit
+derselben Satzform.
 
-Every write goes through `setCategory` / `addTreatment` / `addInjury` /
-`pushProtocol` and nowhere else: finishing a Sichtung writes the category, the
-Sofortmaßnahmen as treatments, and two protocol lines (the answer trail and the
-deciding rationale). Those four functions are the seam where the real
-`PATCH /api/patients/{id}` + WebSocket sync attaches.
+Jeder Schreibzugriff geht durch `createPatient` / `assignCard` / `setCategory` /
+`addTreatment` / `pushProtocol` und nirgends sonst. Eine abgeschlossene Sichtung
+schreibt Kategorie, Sofortmaßnahmen und zwei Protokollzeilen (Antwortpfad und
+ausschlaggebende Begründung). Genau diese Funktionen sind die Naht, an der
+`POST /api/patients` und `PATCH /api/patients/{id}` andocken.
 
 ## Next steps
-- **Backend sync:** replace the bundled roster with the hub's REST/WebSocket stream.
-- **World-locked panel:** anchor the Ablaufschirm near the patient (WebXR anchors)
-  instead of body-locking it to the medic.
-- **Native PICO build:** `Unity/README-PICO.md` — dort ist der Kartenschritt ein
-  echter Scan über die Enterprise-Kamera-API.
-- **Offline edge-STT:** dictation for free-text findings, as the product plans.
+- **Hub-Anbindung:** die Sitzung gegen REST/WebSocket tauschen.
+- **Räumliche Anker:** Positionen über WebXR-Anchors halten, damit sie ein
+  Neuladen überleben.
+- **Nativer PICO-Build:** `Unity/README-PICO.md` — dort scannt die Brille wirklich.
+- **Diktat:** Freitext-Befunde per Offline-STT, wie im Produkt vorgesehen.
