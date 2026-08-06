@@ -26,6 +26,11 @@
  * SK IV (blau) vergibt der Algorithmus bewusst NICHT: das ist eine ärztliche
  * Entscheidung (LNA) und keine Vorsichtung. Die Oberfläche bietet sie als
  * ausdrücklich beschrifteten Override an.
+ *
+ * Zu jeder Frage stand hier einmal ein erklärender Nebensatz („sehen, hören,
+ * fühlen — höchstens 10 Sekunden"). Der ist raus: wer die Brille trägt, hat
+ * mSTaRT gelernt, und im Blickfeld ist jede Zeile, die man nicht liest, eine
+ * Zeile zu viel. Die Fragen stehen für sich.
  */
 
 "use strict";
@@ -45,7 +50,6 @@ export const NODES = {
   blutung: {
     step: "blutung",
     question: "Kritische Blutung?",
-    hint: "Spritzende oder stark sickernde Blutung — Blutstillung hat Vorrang.",
     yes: end("SK1", "Kritische Blutung — sofortige Blutstillung, SK I",
              "Blutstillung: Tourniquet / Druckverband"),
     no: go("gehfaehig", "Keine kritische Blutung"),
@@ -53,14 +57,12 @@ export const NODES = {
   gehfaehig: {
     step: "gehfaehig",
     question: "Gehfähig?",
-    hint: "Kann der Patient auf Aufforderung selbstständig gehen?",
     yes: end("SK3", "Gehfähig — SK III, Verweis zur Sammelstelle"),
     no: go("atmung", "Nicht gehfähig"),
   },
   atmung: {
     step: "atmung",
     question: "Atmung vorhanden?",
-    hint: "Sehen, hören, fühlen — höchstens 10 Sekunden.",
     yes: go("atemfrequenz", "Atmung vorhanden"),
     no: goWith("atmungFrei", "Keine Atmung — Atemwege freimachen",
                "Atemwege freimachen (Esmarch-Handgriff)"),
@@ -68,7 +70,6 @@ export const NODES = {
   atmungFrei: {
     step: "atmungFrei",
     question: "Atmung nach Freimachen?",
-    hint: "Nach dem Freimachen der Atemwege erneut prüfen.",
     yes: end("SK1", "Atmung erst nach Freimachen — SK I",
              "Atemwege offen halten / stabile Seitenlage"),
     no: end("DECEASED", "Keine Atmung nach Freimachen — verstorben (SK V)"),
@@ -76,21 +77,18 @@ export const NODES = {
   atemfrequenz: {
     step: "atemfrequenz",
     question: "Atemfrequenz < 10 oder > 30 /min?",
-    hint: "Grob abschätzen — nicht auszählen.",
     yes: end("SK1", "Atemfrequenz außerhalb 10–30/min — SK I"),
     no: go("kreislauf", "Atemfrequenz 10–30/min"),
   },
   kreislauf: {
     step: "kreislauf",
     question: "Radialispuls tastbar?",
-    hint: "Ersatzweise Rekapillarisierungszeit ≤ 2 Sekunden.",
     yes: go("bewusstsein", "Radialispuls tastbar"),
     no: end("SK1", "Radialispuls nicht tastbar — SK I"),
   },
   bewusstsein: {
     step: "bewusstsein",
     question: "Befolgt einfache Aufforderungen?",
-    hint: "„Drücken Sie meine Hand“ — reagiert der Patient sinnvoll?",
     yes: end("SK2", "Aufforderungen werden befolgt — SK II"),
     no: end("SK1", "Aufforderungen werden nicht befolgt — SK I"),
   },

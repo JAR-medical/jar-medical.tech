@@ -30,11 +30,13 @@
 
 import { CATEGORY_META, patientIds, resolvePatient, createPatient, assignCard,
          cardHolder, setCategory, addTreatment, removeTreatment, markTransported,
+         addInjury, removeInjury, injuriesByRegion,
          pushProtocol, markSeen, setActiveTask, tally } from "./data.js";
 import { MStartSession, MAX_STEPS, DISCLAIMER } from "./mstart.js";
 import { FieldMap, distance, nearest } from "./layout.js";
 import { TASKS, DEFAULT_TASK, findTask, primaryLabel, MEASURES,
          SIGHTING_CATEGORIES } from "./tasks.js";
+import { findRegion, regionLabel, FINDINGS } from "./body.js";
 
 const cat = (c) => CATEGORY_META[c] || CATEGORY_META.UNSIGHTED;
 
@@ -66,6 +68,7 @@ export class Workflow {
 
     this._cardDraft = 1;          // Nummer im Zuweisen-Schritt
     this._conflict = null;
+    this._region = null;          // Körperregion, an der ein Befund hängt
     this._pose = { position: { x: 0, y: 0, z: 0 }, forward: { x: 0, y: 0, z: -1 } };
     this._floorY = null;
 
@@ -160,6 +163,9 @@ export class Workflow {
    */
   placeAt(point) {
     if (this.state !== "lage" && this.state !== "platzieren") return;
+    // Dieselbe Bedingung wie am Knopf: wer nicht anlegen darf, legt auch nicht
+    // an, wenn die Stelle von außen hereingereicht wird.
+    if (!this.task || !this.task.canCreate) return;
 
     const usable = point && Number.isFinite(point.x) && Number.isFinite(point.z);
     const at = usable
@@ -251,6 +257,42 @@ export class Workflow {
     this.state = "bestaetigt";
     this.onToast(`#${id} · ${cat(key).short}`, "ok");
     this.emit();
+  }
+
+  /* ------------------------------------------------------------- Befunde */
+
+  /**
+   * Auf eine Körperregion gezeigt. Das Modell steht beim Patienten und ist
+   * gleichzeitig die Eingabe: Region antippen, Befund wählen.
+   */
+  pickRegion(regionId) {
+    if (!this.target) return;
+    if (this.state !== "approach" && this.state !== "befund") return;
+    const r = findRegion(regionId);
+    if (!r) return;
+    this._region = r;
+    this.state = "befund";
+    this.emit();
+    this.say(r.label);
+  }
+
+  /** Befund festhalten — noch einmal derselbe streicht ihn wieder. */
+  toggleFinding(text) {
+    if (this.state !== "befund" || !this.target || !this._region) return;
+    const id = this.target.marker_id;
+    const region = this._region.id;
+    const had = this.target.injuries.some((i) => i.region === region && i.text === text);
+    if (had) removeInjury(id, region, text);
+    else addInjury(id, region, text);
+    markSeen(id);
+    this.say(`${text}, ${this._region.label}${had ? ", gestrichen" : ""}.`);
+    this.emit();
+  }
+
+  closeBefund() {
+    this._region = null;
+    if (this.target) this.enterApproach();
+    else this.goToLage();
   }
 
   /* ------------------------------------------------ Behandlung & Transport */
@@ -383,11 +425,13 @@ export class Workflow {
     this.session.reset();
     this.result = null;
     this._conflict = null;
+    this._region = null;
     this.emit();
   }
 
   enterApproach() {
     this.state = "approach";
+    this._region = null;
     this.emit();
   }
 
@@ -418,6 +462,7 @@ export class Workflow {
       showCard: true,
       hudActions: [],
       placing: false,
+      bodyModel: this.bodyModel(),
       status: this.statusLine(),
     };
 
@@ -426,6 +471,7 @@ export class Workflow {
       case "lage": return this._lage(s);
       case "platzieren": return this._platzieren(s);
       case "approach": return this._approach(s);
+      case "befund": return this._befund(s);
       case "sichtung": return this._sichtung(s);
       case "kategorie": return this._kategorie(s);
       case "behandlung": return this._behandlung(s);
@@ -437,14 +483,16 @@ export class Workflow {
     }
   }
 
+  /**
+   * Die Statuszeile trägt nur noch, was das Gerät meldet — eine fehlende
+   * Kamera, ein Stereo-Problem. Anleitungen standen hier früher permanent im
+   * Blickfeld; wer die Brille trägt, ist eingewiesen. Der Warnhinweis, dass das
+   * kein Medizinprodukt ist, steht einmal bei der Tätigkeitswahl.
+   */
   statusLine() {
     if (this.notice) return this.notice;
-    if (this.state === "auftrag") return "Tätigkeit bestimmt den Ablauf am Patienten";
-    if (this.state === "platzieren")
-      return this.pointing ? "Auf den Boden zeigen und auslösen" : "Wird am eigenen Standort angelegt";
-    if (this.state === "karte")
-      return this.cameraLive ? "Karte in den Blick halten" : "Nummer wählen und übernehmen";
-    return DISCLAIMER;
+    if (this.state === "auftrag") return DISCLAIMER;
+    return "";
   }
 
   /** Kopffeste Kleinknöpfe: was jederzeit möglich ist. */
@@ -459,13 +507,11 @@ export class Workflow {
   _auftrag(s) {
     s.title = "TÄTIGKEIT";
     s.headline = "Was machst du gerade?";
-    s.hint = "Die Tätigkeit bestimmt, was passiert, wenn du einen Patienten öffnest.";
     s.buttons = TASKS.map((t) => ({
       label: t.label,
       tint: t.id === "vorsichtung" ? "primary" : "ghost",
       action: () => this.chooseTask(t.id),
     }));
-    s.body = TASKS.map((t) => ({ text: `${t.label} — ${t.note}`, color: "muted" }));
     return s;
   }
 
@@ -474,9 +520,6 @@ export class Workflow {
     s.title = "LAGE";
     s.showCard = false;              // kein großer Schirm, nur die Randanzeige
     s.headline = t.total === 0 ? "Noch kein Patient erfasst" : `${t.total} Patienten erfasst`;
-    s.hint = this.task && this.task.canCreate
-      ? "„Neuer Patient“ legt einen an — oder einen Marker am Boden anklicken."
-      : "Einen Marker am Boden anklicken.";
     if (t.ohneKarte > 0) s.body.push({ text: `${t.ohneKarte} ohne Karte`, color: "warn" });
     s.hudActions = this._hudActions();
     return s;
@@ -486,8 +529,6 @@ export class Workflow {
     s.title = "STELLE WÄHLEN";
     s.showCard = false;              // der Ring am Boden ist die Anzeige
     s.placing = true;
-    s.headline = "Wo liegt er?";
-    s.hint = "Auf die Stelle am Boden zeigen und auslösen.";
     s.hudActions = [
       { label: "Abbrechen", tint: "ghost", action: () => this.cancelPlacement() },
     ];
@@ -498,12 +539,13 @@ export class Workflow {
     const p = this.target;
     const c = cat(p.category);
     s.headline = `Patient #${p.marker_id}`;
-    s.hint = `${distance(this.position, p.pos).toFixed(1)} m entfernt`;
+    s.hint = `${distance(this.position, p.pos).toFixed(1)} m`;
     s.band = p.category === "UNSIGHTED" ? null : c.color;
-    s.body.push({ text: p.category === "UNSIGHTED" ? "noch nicht gesichtet" : c.label,
+    s.body.push({ text: p.category === "UNSIGHTED" ? "ungesichtet" : c.label,
                   color: p.category === "UNSIGHTED" ? "muted" : "cat", color2: c.color });
-    if (p.card != null) s.body.push({ text: `Umhängekarte #${p.card}`, color: "muted" });
+    if (p.card != null) s.body.push({ text: `Karte #${p.card}`, color: "muted" });
     if (p.transported) s.body.push({ text: "abtransportiert", color: "good" });
+    for (const line of this._findingLines(p)) s.body.push({ text: line, color: "warn" });
 
     s.buttons = [
       { label: primaryLabel(this.task, p), tint: "primary", action: () => this._atPatient() },
@@ -516,11 +558,36 @@ export class Workflow {
     return s;
   }
 
+  /** Befunde als Zeilen „Region: a, b" — nach Region, nicht nach Eingabezeit. */
+  _findingLines(p) {
+    const by = injuriesByRegion(p);
+    return Object.keys(by).map((r) => `${regionLabel(r)}: ${by[r].join(", ")}`);
+  }
+
+  _befund(s) {
+    const p = this.target;
+    const r = this._region;
+    const here = p.injuries.filter((i) => i.region === r.id).map((i) => i.text);
+    s.title = "BEFUND";
+    s.band = cat(p.category).color;
+    s.headline = r.label;
+    s.body.push(here.length
+      ? { text: here.join(", "), color: "warn" }
+      : { text: "ohne Befund", color: "muted" });
+
+    s.buttons = FINDINGS.map((f) => ({
+      label: (here.includes(f) ? "✓ " : "") + f,
+      tint: here.includes(f) ? "no" : "ghost",
+      action: () => this.toggleFinding(f),
+    }));
+    s.buttons.push({ label: "Fertig", tint: "primary", action: () => this.closeBefund() });
+    return s;
+  }
+
   _sichtung(s) {
     const node = this.session.node;
     s.title = "SICHTUNG";
     s.headline = node.question;
-    s.hint = node.hint;
     s.progress = { step: this.session.stepNumber, total: MAX_STEPS };
     s.body = this.session.answers.slice(-2).map((a) => ({ text: "· " + a.line, color: "muted" }));
 
@@ -539,7 +606,6 @@ export class Workflow {
     const c = cat(p.category);
     s.title = "SICHTUNG (ÄRZTLICH)";
     s.headline = "Sichtungskategorie";
-    s.hint = "Ärztliche Entscheidung — kein Algorithmus. SK IV ist hier regulär.";
     s.band = p.category === "UNSIGHTED" ? null : c.color;
     if (p.category !== "UNSIGHTED")
       s.body.push({ text: "bisher: " + c.label, color: "cat", color2: c.color });
@@ -561,9 +627,7 @@ export class Workflow {
     s.band = p.category === "UNSIGHTED" ? null : c.color;
     s.headline = p.category === "UNSIGHTED" ? "Ungesichtet" : c.label;
     s.headlineColor = p.category === "UNSIGHTED" ? "" : c.color;
-    s.hint = p.transported
-      ? "Abtransport gebucht."
-      : "Maßnahme antippen — nochmal antippen nimmt sie zurück.";
+    if (p.transported) s.hint = "abtransportiert";
     s.body.push(p.treatments.length
       ? { text: "Maßnahmen: " + p.treatments.join(", "), color: "good" }
       : { text: "keine Maßnahmen festgehalten", color: "muted" });
@@ -604,10 +668,7 @@ export class Workflow {
     s.title = "KARTE ZUWEISEN";
     s.band = c.color;
     s.headline = this.cameraLive ? "Karte scannen" : `Karte #${this._cardDraft}`;
-    s.hint = this.cameraLive
-      ? "Den QR-Code der Umhängekarte in den Blick halten — oder die Nummer von Hand wählen."
-      : "Die Nummer steht auf der Karte, die du dem Patienten umhängst.";
-    s.body.push({ text: `Wird gebucht als ${c.label}`, color: "cat", color2: c.color });
+    s.body.push({ text: c.label, color: "cat", color2: c.color });
 
     s.buttons = [
       { label: "−", tint: "ghost", action: () => this.stepCard(-1) },
@@ -622,7 +683,6 @@ export class Workflow {
     s.title = "KARTE VERGEBEN";
     s.band = "#f5b301";
     s.headline = `Karte #${card} gehört Patient #${takenBy}`;
-    s.hint = "Eine Karte kann nur an einem Hals hängen.";
     s.buttons = [
       { label: "Andere Nummer", tint: "primary", action: () => this.enterKarte() },
       { label: `#${takenBy} entziehen`, tint: "ghost", action: () => this.reassign() },
@@ -670,7 +730,7 @@ export class Workflow {
       hint = `${t.total} erfasst`;
     } else if (patients.length === 0) {
       footer = "Lage leer";
-      hint = "„Neuer Patient“ beim ersten Verletzten";
+      hint = "";
     } else if (this.target) {
       footer = `Patient #${this.target.marker_id}` +
                (this.target.card != null ? ` · Karte #${this.target.card}` : " · ohne Karte");
@@ -689,7 +749,11 @@ export class Workflow {
     };
   }
 
-  /** Marker am Boden — anklickbar, das ist der Weg zu einem Patienten. */
+  /**
+   * Marker am Boden — anklickbar, das ist der Weg zu einem Patienten. Jeder
+   * bringt gleich mit, was in der kleinen Anzeige steht, die beim Herantreten
+   * über ihm aufgeht (xr.js entscheidet anhand von `distance`, welche das sind).
+   */
   worldTags(maxDistance = 20) {
     const out = [];
     for (const p of this.patients()) {
@@ -703,13 +767,33 @@ export class Workflow {
         card: p.card,
         cell: p.card != null ? `Karte #${p.card}` : "ohne Karte",
         short: c.short,
+        label: c.label,
         color: c.color,
         sighted: p.category !== "UNSIGHTED",
         transported: !!p.transported,
         target: p === this.target,
+        distance: d,
+        treatments: p.treatments.length,
+        findings: p.injuries.length,
       });
     }
     return out;
+  }
+
+  /**
+   * Was das Körpermodell zeigt — nur am geöffneten Patienten, wo es hingehört.
+   * Es hängt an dessen Position, nicht am Kopf des Trägers.
+   */
+  bodyModel() {
+    const p = this.target;
+    if (!p || !p.pos) return null;
+    if (this.state !== "approach" && this.state !== "befund") return null;
+    return {
+      id: p.marker_id,
+      pos: p.pos,
+      findings: injuriesByRegion(p),
+      region: this._region ? this._region.id : null,
+    };
   }
 
   /** Wo die Handlungskarte im Raum hängt: beim bearbeiteten Patienten. */

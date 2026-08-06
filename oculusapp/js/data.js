@@ -132,11 +132,33 @@ export function markTransported(id, on = true) {
   touch(p, on ? "Abtransport gebucht" : "Abtransport zurückgenommen");
 }
 
-export function addInjury(id, injury) {
+/**
+ * Ein Befund hängt an einer Körperregion (body.js), nicht frei in der Akte —
+ * „Blutung, Oberschenkel rechts" ist das, was weitergegeben wird.
+ * @param {string} region  Regions-Schlüssel aus body.js
+ */
+export function addInjury(id, region, text) {
   const p = resolvePatient(id);
-  if (!p || !injury) return;
-  if (!p.injuries.includes(injury)) p.injuries.push(injury);
-  touch(p, `Befund: ${injury}`);
+  if (!p || !region || !text) return;
+  if (p.injuries.some((i) => i.region === region && i.text === text)) return;
+  p.injuries.push({ region, text, at: new Date().toISOString() });
+  touch(p, `Befund: ${text} (${region})`);
+}
+
+export function removeInjury(id, region, text) {
+  const p = resolvePatient(id);
+  if (!p) return;
+  const i = p.injuries.findIndex((x) => x.region === region && x.text === text);
+  if (i < 0) return;
+  p.injuries.splice(i, 1);
+  touch(p, `Befund gestrichen: ${text} (${region})`);
+}
+
+/** Befunde eines Patienten nach Region — genau die Form, die das Modell malt. */
+export function injuriesByRegion(p) {
+  const out = {};
+  for (const i of (p && p.injuries) || []) (out[i.region] ||= []).push(i.text);
+  return out;
 }
 
 export function markSeen(id, by = "AR-Client") {

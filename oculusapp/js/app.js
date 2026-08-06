@@ -30,6 +30,8 @@ import { XRPassthrough, passthroughSupported } from "./xr.js";
 import { patientHUD } from "./hud.js";
 import { Workflow } from "./workflow.js";
 import { drawMapPanel } from "./hudscreen.js";
+import { BodyView } from "./bodyview.js";
+import { regionLabel } from "./body.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -65,6 +67,9 @@ const el = {
   flowBody: $("flow-body"),
   flowButtons: $("flow-buttons"),
   flowStatus: $("flow-status"),
+  bodyWrap: $("body-wrap"),
+  bodyCanvas: $("body-canvas"),
+  bodyLabel: $("body-label"),
 };
 
 const app = {
@@ -75,6 +80,7 @@ const app = {
   voice: null,
   screen: null,
   recordOpen: false,
+  bodyView: null,
 };
 
 const mapCtx = el.flowMap.getContext("2d");
@@ -155,11 +161,34 @@ function renderScreen(screen) {
   renderButtons(el.flowActions, screen.hudActions || [], () => app.screen.hudActions);
 
   drawMap();
+  renderBodyView(screen);
   if (app.xr && app.xr.active) {
     app.xr.setContent(screen, app.flow.mapModel(), app.flow.worldTags(), app.flow.cardAnchor());
     if (!app.flow.cardAnchor()) app.xr.recenter();   // kein Patient → neu vor den Träger
   }
   if (app.recordOpen) renderRecord();
+}
+
+/**
+ * Das Körpermodell flach: dieselben Regionen wie in der Brille, mit der Maus
+ * oder dem Finger drehbar. In AR zeichnet xr.js es raumfest beim Patienten —
+ * dann bleibt die flache Fläche leer, sonst stünde dasselbe zweimal da.
+ */
+function renderBodyView(screen) {
+  const bm = screen.bodyModel;
+  const show = !!bm && !(app.xr && app.xr.active);
+  el.bodyWrap.classList.toggle("hidden", !show);
+  if (!show) return;
+
+  if (!app.bodyView) {
+    app.bodyView = new BodyView(el.bodyCanvas, (id) => app.flow.pickRegion(id));
+    if (!app.bodyView.available) {
+      el.bodyWrap.classList.add("hidden");
+      return;
+    }
+  }
+  el.bodyLabel.textContent = bm.region ? regionLabel(bm.region) : "Körperregion wählen";
+  app.bodyView.setFindings(bm.findings, bm.region);
 }
 
 /* Text wird immer per textContent gesetzt — Patientendaten dürfen nie als
@@ -269,6 +298,7 @@ async function startAR() {
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
     onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
     onPlace: (point) => app.flow.placeAt(point),
+    onRegionPick: (region) => app.flow.pickRegion(region),
     onStereoIssue: (note) => app.flow.setNotice(note),
     onFrame: () => {
       app.flow.tick();
@@ -358,6 +388,7 @@ function backToStart() {
   app.screen = null;
   el.stage.classList.add("hidden");
   el.start.classList.remove("hidden");
+  el.bodyWrap.classList.add("hidden");
   el.hud.innerHTML = "";
   setVoiceStatus(synthesisAvailable() ? "Sprachausgabe bereit" : "keine Sprachausgabe");
 }

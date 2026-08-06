@@ -16,6 +16,7 @@
 
 import { CATEGORY_META } from "./data.js";
 import { timeAgo } from "./hud.js";
+import { regionLabel } from "./body.js";
 
 const COL = {
   panel: "rgba(13,18,28,0.94)",
@@ -137,7 +138,8 @@ export function drawHud(ctx, W, H, state) {
 
   // --- tags (injuries + treatments) -----------------------------------
   const tags = [];
-  for (const i of (p.injuries || [])) tags.push({ text: i, bg: COL.injuryBg, fg: COL.injuryFg });
+  for (const i of (p.injuries || []))
+    tags.push({ text: `${i.text} · ${regionLabel(i.region)}`, bg: COL.injuryBg, fg: COL.injuryFg });
   for (const t of (p.treatments || [])) tags.push({ text: "✚ " + t, bg: COL.treatBg, fg: COL.treatFg });
   if (!tags.length) tags.push({ text: "keine Einträge", bg: COL.chip, fg: COL.muted });
   cy = tagRow(ctx, ix, cy, iw, tags);

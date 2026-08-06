@@ -9,6 +9,7 @@
 "use strict";
 
 import { CATEGORY_META } from "./data.js";
+import { regionLabel } from "./body.js";
 
 export function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => (
@@ -81,7 +82,7 @@ export function patientHUD(p) {
     ${vitalsChips(p)}
 
     <div class="hud-tags">
-      ${(p.injuries || []).map((i) => `<span class="tag injury">${esc(i)}</span>`).join("")}
+      ${(p.injuries || []).map((i) => `<span class="tag injury">${esc(i.text)} · ${esc(regionLabel(i.region))}</span>`).join("")}
       ${(p.treatments || []).map((t) => `<span class="tag treatment">✚ ${esc(t)}</span>`).join("")}
       ${!(p.injuries || []).length && !(p.treatments || []).length ? '<span class="tag muted">keine Einträge</span>' : ""}
     </div>
@@ -132,7 +133,8 @@ export function spokenSummary(p) {
     if (v.gcs != null) vp.push(`G C S ${v.gcs}`);
     parts.push(vp.join(", ") + ".");
   }
-  if ((p.injuries || []).length) parts.push("Befunde: " + p.injuries.join(", ") + ".");
+  if ((p.injuries || []).length)
+    parts.push("Befunde: " + p.injuries.map((i) => `${i.text} ${regionLabel(i.region)}`).join(", ") + ".");
   if ((p.treatments || []).length) parts.push("Maßnahmen: " + p.treatments.join(", ") + ".");
   return parts.filter(Boolean).join(" ");
 }

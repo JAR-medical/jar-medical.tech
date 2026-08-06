@@ -9,7 +9,8 @@
   <div id="shots"></div>
   <script type="module">
     import { Workflow } from "../js/workflow.js";
-    import { drawHudLayer, drawCard, drawMarker, drawReticle } from "../js/hudscreen.js";
+    import { drawHudLayer, drawCard, drawMarker, drawReticle,
+             drawInfoPopup } from "../js/hudscreen.js";
 
     /* Zusammenschau der drei AR-Ebenen auf einer Fläche: kopffestes HUD,
      * raumfeste Handlungskarte, raumfeste Schilder. Die Größenverhältnisse
@@ -63,10 +64,11 @@
       ctx.drawImage(hud, 0, 0);
 
       // Bodenmarker dort, wo Patienten lägen. Flach am Boden heißt im Bild:
-      // weiter unten und perspektivisch flacher — hier nur angedeutet.
+      // weiter unten und perspektivisch flacher — hier nur angedeutet. Über
+      // jedem, der nah genug ist, steht die kleine Anzeige.
       const marks = flow.worldTags();
       const mw = W * MARK_SCALE;
-      [[W * 0.30, H * 0.72], [W * 0.68, H * 0.66]].forEach(([tx, ty], i) => {
+      [[W * 0.30, H * 0.74], [W * 0.68, H * 0.68]].forEach(([tx, ty], i) => {
         const m = marks[i];
         if (!m) return;
         const mc = off(512, 512);
@@ -76,6 +78,14 @@
         ctx.scale(1, 0.42);                  // liegt auf dem Boden
         ctx.drawImage(mc, -mw / 2, -mw / 2, mw, mw);
         ctx.restore();
+
+        if (m.distance != null && m.distance <= 3 && !(current.showCard !== false && m.target)) {
+          const pc = off(512, 300);
+          drawInfoPopup(pc.getContext("2d"), 512, 300, m);
+          const pw = W * (0.42 / 1.64);
+          ctx.drawImage(pc, tx - pw / 2, ty - pw * (300 / 512) - W * 0.10,
+                        pw, pw * (300 / 512));
+        }
       });
 
       // Beim Anlegen liegt statt der Karte ein Ring auf dem Boden.
@@ -139,16 +149,29 @@
       shot("8 · erfasst");
 
       press(/Weiter/);
+      flow.setPose({ x: 1.5, y: 1.7, z: -7.6 }, { x: 0, y: 0, z: -1 }, 0);
+      shot("9 · Lage — herangetreten, die Anzeige über dem Marker ist offen");
+
       flow.setPose({ x: 9, y: 1.7, z: -6 }, { x: 0.4, y: 0, z: -1 }, 0);
-      shot("9 · Lage mit einem Patienten");
+      shot("10 · Lage aus der Ferne — nur der Marker");
+
+      // Am Patienten: Befund an einer Körperregion. Das Modell selbst zeichnet
+      // xr.js in 3D; hier ist der Schirm dazu zu sehen.
+      flow.setPose({ x: 1.5, y: 1.7, z: -6.4 }, { x: 0, y: 0, z: -1 }, 0);
+      flow.openPatient(flow.patients()[0]);
+      shot("11 · Patient geöffnet");
+      flow.pickRegion("bein-re-unter");
+      press(/^Blutung$/);
+      shot("12 · Befund an einer Körperregion");
+      press(/Fertig/);
 
       // Die anderen Tätigkeiten: derselbe Rahmen, ein anderer Schritt.
+      press(/Zurück/);
       press(/Tätigkeit/);
       press(/^Sichtung/);
       flow.openPatient(flow.patients()[0]);
-      shot("10 · Patient geöffnet (ärztliche Sichtung)");
       press(/Kategorie/);
-      shot("11 · Kategorie festlegen — sechs Knöpfe in zwei Reihen");
+      shot("13 · Kategorie festlegen — sechs Knöpfe in zwei Reihen");
 
       press(/^ROT$/);
       press(/Weiter/);
@@ -156,7 +179,7 @@
       press(/^Behandlung/);
       flow.openPatient(flow.patients()[0]);
       press(/^Behandlung$/);
-      shot("12 · Behandlung & Transport");
+      shot("14 · Behandlung & Transport");
 
       document.title = "OK " + document.querySelectorAll("canvas").length;
     } catch (e) {

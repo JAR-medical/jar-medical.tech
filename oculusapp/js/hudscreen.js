@@ -606,10 +606,9 @@ export function drawReticle(ctx, W, H, m = {}) {
     ctx.stroke();
   }
 
-  caps(ctx, m.ok === false ? "Boden anvisieren" : "Hier anlegen",
-       cx, cy + r * 0.82, W * 0.062, C.ink, "center");
-  if (m.ok !== false && m.distance != null)
-    caps(ctx, `${m.distance.toFixed(1)} m`, cx, cy - r * 0.55, W * 0.05, C.faint, "center");
+  if (m.ok === false) caps(ctx, "Boden", cx, cy + r * 0.82, W * 0.062, C.faint, "center");
+  else if (m.distance != null)
+    caps(ctx, `${m.distance.toFixed(1)} m`, cx, cy + r * 0.82, W * 0.062, C.ink, "center");
 }
 
 function crosshair(ctx, cx, cy, len) {
@@ -617,6 +616,42 @@ function crosshair(ctx, cx, cy, len) {
   ctx.moveTo(cx - len, cy); ctx.lineTo(cx + len, cy);
   ctx.moveTo(cx, cy - len); ctx.lineTo(cx, cy + len);
   ctx.stroke();
+}
+
+/* =================================================== Anzeige am Patienten */
+
+/**
+ * Die kleine Anzeige, die beim Herantreten über dem Marker aufgeht. Sie steht
+ * beim Patienten, nicht am Kopf, und ist nicht bedienbar — sie beantwortet nur
+ * die Frage, wer da liegt, bevor man ihn öffnet: Nummer, Kategorie, Karte und
+ * ob schon etwas festgehalten wurde.
+ *
+ * Bewusst ohne Entfernungsangabe: die ändert sich mit jedem Schritt und würde
+ * die Textur bei jedem Bild neu erzwingen. Wie weit es ist, sieht man.
+ *
+ * @param {object} m aus workflow.worldTags()
+ */
+export function drawInfoPopup(ctx, W, H, m) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.textBaseline = "alphabetic";
+
+  const pad = 26;
+  block(ctx, 0, 0, W, H, m.sighted ? m.color : C.accent, "top");
+
+  T(ctx, "#" + m.id, pad, 92, { size: 62, weight: 600 });
+  caps(ctx, m.sighted ? m.short : "ungesichtet", W - pad, 88, 26,
+       m.sighted ? m.color : C.faint, "right");
+
+  rule(ctx, pad, 116, W - pad * 2, C.ruleSoft);
+
+  T(ctx, m.card != null ? `Karte #${m.card}` : "ohne Karte", pad, 156,
+    { size: 26, color: m.card != null ? C.dim : "#f2dfae" });
+
+  const notes = [];
+  if (m.findings) notes.push(`${m.findings} Befund${m.findings === 1 ? "" : "e"}`);
+  if (m.treatments) notes.push(`${m.treatments} Maßnahme${m.treatments === 1 ? "" : "n"}`);
+  if (m.transported) notes.push("abtransportiert");
+  if (notes.length) T(ctx, notes.join(" · "), pad, 196, { size: 22, color: C.faint });
 }
 
 /* ------------------------------------------------------ flache Lagekarte */

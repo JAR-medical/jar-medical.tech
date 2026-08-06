@@ -242,6 +242,17 @@ body {
   text-transform: uppercase; color: rgba(255,255,255,.45); }
 .flow-vital strong { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
+/* Körpermodell: drehen, antippen. Die Fläche ist bewusst klein — sie steht
+ * neben dem Schritt, nicht statt ihm. */
+.body-wrap { display: flex; align-items: center; gap: 14px; }
+.body-canvas {
+  width: 132px; height: 190px; flex: 0 0 auto;
+  background: rgba(8,11,15,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  cursor: grab; touch-action: none;
+}
+.body-canvas:active { cursor: grabbing; }
+
 .flow-buttons { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
 .flow-btn {
   flex: 1 1 140px;

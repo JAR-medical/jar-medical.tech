@@ -19,9 +19,10 @@
     </header>
 
     <p class="lede">
-      Der Sanitäter-Teil von <strong>TriARge</strong>: vor dem Verletzten stehen →
-      <strong>neuen Patienten anlegen</strong> → <strong>Sichtung nach mSTaRT</strong> →
-      Sichtungskategorie → Umhängekarte zuweisen → nächster.
+      Der Sanitäter-Teil von <strong>TriARge</strong>: <strong>Tätigkeit wählen</strong> →
+      auf die Stelle am Boden zeigen → <strong>neuen Patienten anlegen</strong> →
+      was die Tätigkeit vorsieht (Vorsichtung nach mSTaRT, ärztliche Sichtung,
+      Karten, Behandlung) → nächster.
     </p>
 
     <section class="modes">
@@ -108,6 +109,15 @@
 
           <h2 id="flow-headline" class="flow-headline"></h2>
           <p id="flow-hint" class="flow-hint"></p>
+
+          <!-- Körpermodell: drehen mit Maus/Finger, antippen wählt die Region.
+               In AR steht es raumfest beim Patienten (xr.js), dann bleibt das
+               hier leer. -->
+          <div id="body-wrap" class="body-wrap hidden">
+            <canvas id="body-canvas" class="body-canvas"></canvas>
+            <span id="body-label" class="hud-key dim"></span>
+          </div>
+
           <div id="flow-body" class="flow-body"></div>
           <div id="flow-vitals" class="flow-vitals"></div>
           <div id="flow-buttons" class="flow-buttons"></div>

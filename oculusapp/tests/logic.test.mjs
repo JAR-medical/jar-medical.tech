@@ -13,6 +13,9 @@ import { MStartSession, MAX_STEPS, NODES, FIRST_STEP } from "../js/mstart.js";
 import { FieldMap, distance, nearest } from "../js/layout.js";
 import { Workflow } from "../js/workflow.js";
 import { TASKS, findTask, primaryLabel, MEASURES } from "../js/tasks.js";
+import { REGIONS, pickRegion, FINDINGS } from "../js/body.js";
+import { mul, matTranslate, matBasis, matRotY, matRotX, matScale,
+         intoModel } from "../js/xr.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
          tally, resetEinsatz } from "../js/data.js";
 
@@ -399,6 +402,10 @@ function taetigkeiten() {
     check(w.task.canCreate === false, "Behandlung legt keine Patienten an");
     check(last().hudActions.every((b) => !/Neuer Patient/.test(b.label)),
           "und bietet den Knopf gar nicht erst an");
+    const vorher = patientCount();
+    w.placeAt({ x: 5, y: 0, z: 5 });
+    check(patientCount() === vorher && w.state === "lage",
+          "auch eine von außen gereichte Stelle legt dann nichts an");
 
     w.openPatient(resolvePatient(1));
     press(/^Behandlung$/);
@@ -428,6 +435,147 @@ function taetigkeiten() {
   }
 }
 
+/* ------------------------------------------------------------ Körpermodell */
+
+function koerper() {
+  console.log("Körpermodell und Befunde");
+  resetEinsatz();
+
+  const { w, last, press } = rig();
+  press(/^Vorsichtung$/);
+  w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+  press(/Neuer Patient/);
+  press(/^JA$/);                                   // Blutung → SK I
+  press(/Karte zuweisen/); press(/übernehmen/); press(/Weiter/);
+
+  check(w.bodyModel() === null, "in der Lage steht kein Körpermodell");
+
+  w.openPatient(resolvePatient(1));
+  const bm = w.bodyModel();
+  check(bm !== null, "am geöffneten Patienten steht es");
+  check(bm.pos === resolvePatient(1).pos, "und zwar an dessen Stelle, nicht am Kopf");
+
+  // Geometrie: jede Region ist auch wirklich zu treffen.
+  check(REGIONS.length === 13, "dreizehn Körperregionen");
+  const front = pickRegion({ x: 0, y: 0.757, z: 3 }, { x: 0, y: 0, z: -1 });
+  check(front && front.id === "thorax", "Strahl von vorn auf Brusthöhe trifft den Thorax");
+  const head = pickRegion({ x: 0, y: 0.945, z: 3 }, { x: 0, y: 0, z: -1 });
+  check(head && head.id === "kopf", "auf Scheitelhöhe den Kopf");
+  const left = pickRegion({ x: 0.14, y: 0.749, z: 3 }, { x: 0, y: 0, z: -1 });
+  check(left && left.id === "arm-li-ober", "+x ist die linke Seite des Patienten");
+  check(pickRegion({ x: 0, y: 3, z: 3 }, { x: 0, y: 0, z: -1 }) === null,
+        "über dem Scheitel trifft nichts");
+
+  // Befund eintragen, streichen, wieder eintragen.
+  w.pickRegion("bein-re-unter");
+  check(w.state === "befund", "Region öffnet den Befundschirm");
+  check(last().headline === "Unterschenkel rechts", "die Region steht darüber");
+
+  press(/^Fraktur$/);
+  const p = resolvePatient(1);
+  check(p.injuries.length === 1, "Befund in der Akte");
+  check(p.injuries[0].region === "bein-re-unter" && p.injuries[0].text === "Fraktur",
+        "am richtigen Körperteil");
+  check(w.bodyModel().findings["bein-re-unter"][0] === "Fraktur", "das Modell weiß davon");
+  check(p.protocol.some((e) => /Befund: Fraktur/.test(e.transcript)), "protokolliert");
+
+  press(/✓ Fraktur/);
+  check(p.injuries.length === 0, "nochmal drücken streicht ihn");
+  check(p.protocol.some((e) => /gestrichen/.test(e.transcript)), "auch das steht im Protokoll");
+
+  press(/^Blutung$/);
+  press(/Fertig/);
+  check(w.state === "approach", "Fertig führt zurück zum Patienten");
+  check(last().body.some((b) => /Unterschenkel rechts: Blutung/.test(b.text)),
+        "der Befund steht am Patienten");
+
+  // Aus der Lage heraus lässt sich keine Region wählen — es gibt keinen Patienten.
+  w.goToLage();
+  w.pickRegion("kopf");
+  check(w.state === "lage", "ohne offenen Patienten passiert nichts");
+}
+
+/* ------------------------------ Zeigen auf das Modell in der Brille */
+
+/**
+ * In AR steht das Körpermodell gedreht und verschoben im Raum; getroffen wird
+ * es, indem der Strahl in den Modellraum zurückgerechnet wird. Genau diese
+ * Rückrechnung (`intoModel` in xr.js) lässt sich ohne Headset sonst nicht
+ * prüfen — hier gegen die Vorwärtsrichtung gegengerechnet.
+ */
+function modellraum() {
+  console.log("Körpermodell im Raum");
+
+  const scale = 0.62;
+  const face = { right: { x: 0.6, y: 0, z: -0.8 },
+                 up: { x: 0, y: 1, z: 0 },
+                 normal: { x: 0.8, y: 0, z: 0.6 } };
+
+  const M = mul(mul(matTranslate(3, 1.06, -4), matBasis(face)),
+                mul(mul(matRotY(0.7), matRotX(-0.3)),
+                    mul(matScale(scale), matTranslate(0, -0.5, 0))));
+
+  // Vorwärts: Modellpunkt → Welt, wie es der Shader täte.
+  const forward = (p) => ({
+    x: M[0] * p.x + M[4] * p.y + M[8] * p.z + M[12],
+    y: M[1] * p.x + M[5] * p.y + M[9] * p.z + M[13],
+    z: M[2] * p.x + M[6] * p.y + M[10] * p.z + M[14],
+  });
+
+  for (const p of [{ x: 0, y: 0.5, z: 0 }, { x: 0.14, y: 0.945, z: 0.05 },
+                   { x: -0.05, y: 0.02, z: -0.03 }]) {
+    const back = intoModel(M, scale, forward(p), true);
+    near(back.x, p.x, "Punkt kommt zurück (x)", 1e-4);
+    near(back.y, p.y, "Punkt kommt zurück (y)", 1e-4);
+    near(back.z, p.z, "Punkt kommt zurück (z)", 1e-4);
+  }
+
+  const eye = { x: 3, y: 1.6, z: 0 };
+  const shoot = (p) => {
+    const w = forward(p);
+    const d = { x: w.x - eye.x, y: w.y - eye.y, z: w.z - eye.z };
+    const len = Math.hypot(d.x, d.y, d.z);
+    const dir = { x: d.x / len, y: d.y / len, z: d.z / len };
+    return { hit: pickRegion(intoModel(M, scale, eye, true), intoModel(M, scale, dir, false)), len };
+  };
+
+  // Auf den Kopf zielen: den verdeckt aus keiner Drehung etwas.
+  const head = shoot({ x: 0, y: 0.945, z: 0 });
+  check(head.hit !== null, "Strahl aus der Welt trifft das Modell");
+  check(head.hit && head.hit.id === "kopf", "auf den Kopf gezielt trifft den Kopf");
+  check(head.hit && Math.abs(head.hit.t - head.len) < 0.12,
+        `Strahlparameter ist die Weltentfernung (${head.hit ? head.hit.t.toFixed(2) : "—"} ≈ ${head.len.toFixed(2)})`);
+
+  // Auf die Brust gezielt trifft bei dieser Drehung den davorstehenden Arm —
+  // das Nächstliegende gewinnt, sonst würde man durch den Patienten hindurch
+  // Befunde eintragen.
+  const chest = shoot({ x: 0, y: 0.757, z: 0 });
+  check(chest.hit && chest.hit.id === "arm-re-ober",
+        "was davorsteht, gewinnt (hier der Oberarm vor dem Thorax)");
+  check(chest.hit && chest.hit.t < chest.len, "und liegt näher als das Ziel dahinter");
+}
+
+/* ------------------------------------------ Anzeige beim Herantreten */
+
+function anzeige() {
+  console.log("Anzeige über dem Marker");
+  resetEinsatz();
+
+  const { w, press } = rig();
+  press(/^Vorsichtung$/);
+  w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+  press(/Neuer Patient/);
+  press(/^JA$/); press(/Karte zuweisen/); press(/übernehmen/); press(/Weiter/);
+
+  w.setPose({ x: 0, y: 1.7, z: -2 }, { x: 0, y: 0, z: -1 }, 0);
+  const tag = w.worldTags()[0];
+  check(Math.abs(tag.distance - 2) < 0.001, "der Marker kennt seine Entfernung");
+  check(tag.label === "SK I — rot", "und die Kategorie im Klartext");
+  check(tag.card === 1, "die Kartennummer");
+  check(tag.treatments === 1, "die Zahl der Maßnahmen");
+  check(tag.findings === 0, "und die der Befunde");
+}
+
 /* ---------------------------------------------------------------- main */
 
 mstartBranches();
@@ -437,6 +585,9 @@ lagekarte();
 workflow();
 platzieren();
 taetigkeiten();
+koerper();
+modellraum();
+anzeige();
 
 console.log();
 console.log(failed === 0

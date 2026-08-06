@@ -34,7 +34,10 @@
 
 "use strict";
 
-import { drawHudLayer, drawCard, drawMarker, drawReticle, hitTest } from "./hudscreen.js";
+import { drawHudLayer, drawCard, drawMarker, drawReticle, drawInfoPopup,
+         hitTest } from "./hudscreen.js";
+import { BodyMesh } from "./bodyview.js";
+import { pickRegion } from "./body.js";
 
 export async function passthroughSupported() {
   if (typeof navigator === "undefined" || !navigator.xr) return false;
@@ -65,13 +68,33 @@ const CARD_W = 900, CARD_H = 640;
 const CARD_HALF_W = 0.56;
 const CARD_HALF_H = CARD_HALF_W * (CARD_H / CARD_W);
 const CARD_PLACE_DIST = 1.25;
-const CARD_VIEW_CONE = 45 * Math.PI / 180;   // so weit darf sie aus dem Blick sein
-const CARD_RECALL_S = 1.2;                   // danach wird sie herangeholt
+const CARD_LIFT = 1.15;                  // über dem Boden, nicht auf ihm
+
+// Die kleine Anzeige, die beim Herantreten über dem Marker aufgeht.
+const POP_W = 512, POP_H = 300;
+const POP_HALF_W = 0.21;                 // 42 cm breit
+const POP_HALF_H = POP_HALF_W * (POP_H / POP_W);
+const POP_NEAR = 3.0;                    // Meter: ab hier geht sie auf
+const POP_FAR = 3.8;                     // und erst hier wieder zu (kein Flackern)
+// Etwa auf Augenhöhe, wenn man davorsteht: tiefer geriete sie in die Reihe der
+// HUD-Knöpfe am unteren Blickfeldrand und verdeckte sie.
+const POP_TOP = 1.45;                    // Höhe über dem Boden, wenn ganz oben
+const POP_RISE = 4.5;                    // 1/s — wie schnell sie aufsteigt
+const POP_MAX = 3;                       // so viele gleichzeitig
+
+// Körpermodell, raumfest neben der Handlungskarte.
+const BODY_H = 0.62;                     // Modellhöhe in Metern
+const BODY_LIFT = 1.06;                  // Brusthöhe über dem Boden
+const BODY_GAP = 0.20;                   // Abstand zur Kante der Karte
+const BODY_HALF_W = 0.22 * BODY_H;
+const BODY_DRAG_GAIN = 2.4;
+const BODY_AUTOSPIN = 0.42;              // rad/s, wenn nur der Blick zeigt
+const BODY_DRAG_SLOP = 0.04;             // rad, ab da gilt es als Drehen
 
 // Marker liegen flach auf dem Boden beim Patienten und sind anklickbar.
 const MARK_PX = 512;                     // quadratische Textur
 const MARK_HALF = 0.35;                  // 70 cm Durchmesser
-const MARK_LIFT = 0.01;                  // 1 cm über dem Boden gegen Z-Kampf
+const MARK_LIFT = 0.004;                 // knapp über dem Boden gegen Z-Kampf
 const MARK_RANGE = 25;                   // Meter
 
 // Die Stelle, an der ein neuer Patient angelegt wird: ein Ring, der über den
@@ -118,7 +141,7 @@ const FRAG_SRC = `
 
 /* ------------------------------------------------------------- Vektoren */
 
-function mul(a, b) {                       // spaltenweise 4x4: a * b
+export function mul(a, b) {                       // spaltenweise 4x4: a * b
   const o = new Float32Array(16);
   for (let c = 0; c < 4; c++)
     for (let r = 0; r < 4; r++)
@@ -185,11 +208,71 @@ function basisFacing(pos, viewer) {
   return { right: { x: c, y: 0, z: -s }, up: { x: 0, y: 1, z: 0 }, normal: { x: s, y: 0, z: c } };
 }
 
+/* --------------------------------------------------------------- Matrizen
+ *
+ * Nur für das Körpermodell: alles andere sind Rechtecke, die mit `_model`
+ * direkt aus einer Basis entstehen. Ein Volumen braucht dagegen eine echte
+ * Kette aus Verschieben, Drehen und Skalieren. Alles spaltenweise. */
+
+export function matIdentity() {
+  return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+}
+
+export function matTranslate(x, y, z) {
+  const m = matIdentity();
+  m[12] = x; m[13] = y; m[14] = z;
+  return m;
+}
+
+export function matBasis(b) {
+  return new Float32Array([
+    b.right.x, b.right.y, b.right.z, 0,
+    b.up.x, b.up.y, b.up.z, 0,
+    b.normal.x, b.normal.y, b.normal.z, 0,
+    0, 0, 0, 1,
+  ]);
+}
+
+export function matRotY(a) {
+  const s = Math.sin(a), c = Math.cos(a);
+  return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
+}
+
+export function matRotX(a) {
+  const s = Math.sin(a), c = Math.cos(a);
+  return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]);
+}
+
+export function matScale(s) {
+  return new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1]);
+}
+
+/**
+ * Welt → Modellraum, für eine Matrix aus Drehung mal gleichmäßiger Skalierung
+ * plus Verschiebung. Die Drehung ist orthonormal, also genügt ihre
+ * Transponierte — keine allgemeine Inversion nötig.
+ *
+ * Exportiert, weil daran das Zeigen auf Körperregionen in der Brille hängt und
+ * sich das ohne Headset sonst nicht prüfen ließe (tests/logic.test.mjs).
+ */
+export function intoModel(m, scale, v, isPoint) {
+  const p = isPoint ? { x: v.x - m[12], y: v.y - m[13], z: v.z - m[14] } : v;
+  const ex = { x: m[0], y: m[1], z: m[2] };
+  const ey = { x: m[4], y: m[5], z: m[6] };
+  const ez = { x: m[8], y: m[9], z: m[10] };
+  const s2 = scale * scale;
+  return {
+    x: dot3(p, ex) / s2,
+    y: dot3(p, ey) / s2,
+    z: dot3(p, ez) / s2,
+  };
+}
+
 /* --------------------------------------------------------------- Sitzung */
 
 export class XRPassthrough {
-  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onStereoIssue,
-                eyeTest = false } = {}) {
+  constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onRegionPick,
+                onStereoIssue, eyeTest = false } = {}) {
     this.eyeTest = eyeTest;
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
@@ -197,6 +280,7 @@ export class XRPassthrough {
     this.onFrame = onFrame || (() => {});
     this.onMarkerPick = onMarkerPick || (() => {});
     this.onPlace = onPlace || (() => {});
+    this.onRegionPick = onRegionPick || (() => {});
     this.onStereoIssue = onStereoIssue || (() => {});
 
     this.session = null;
@@ -230,10 +314,19 @@ export class XRPassthrough {
     this._lastFrameAt = 0;
     this._placed = null;
     this._markTex = new Map();
+    this._popTex = new Map();              // Anzeige über dem Marker je Patient
+    this._pops = new Map();                // id → Aufgang 0…1
+    this._floorNow = 0;                    // gemeinsame Bodenebene aller Marker
+    this._floorGuess = null;
     this._hands = new Map();               // handedness → Pinch-Zustand
     this._pendingActivate = false;
-    this._recalled = false;                // Karte wurde vor den Träger geholt
-    this._cardAwayFor = 0;
+    this._bodyYaw = 0;                     // Drehung des Körpermodells
+    this._bodyPitch = 0;
+    this._bodyHover = null;                // Körperregion unter dem Zeiger
+    this._bodyHoverSince = 0;
+    this._bodyDrag = null;
+    this._bodySwallow = false;             // gerade gedreht → kein Antippen
+    this._bodyId = null;                   // zu welchem Patienten es gerade steht
     this._markHover = null;                // Bodenmarker unter dem Zeiger
     this._markHoverSince = 0;
     this._place = null;                    // Stelle am Boden beim Anlegen
@@ -260,9 +353,11 @@ export class XRPassthrough {
     if (typeof navigator === "undefined" || !navigator.xr)
       throw new Error("WebXR steht in diesem Browser nicht zur Verfügung.");
 
+    // Tiefe an: das Körpermodell ist ein Volumen und muss sich selbst
+    // verdecken. Alles andere zeichnet weiterhin ohne Tiefentest.
     const canvas = document.createElement("canvas");
     const gl = canvas.getContext("webgl", {
-      xrCompatible: true, alpha: true, antialias: true, depth: false, stencil: false,
+      xrCompatible: true, alpha: true, antialias: true, depth: true, stencil: false,
       preserveDrawingBuffer: false,
     });
     if (!gl) throw new Error("WebGL für die AR-Ebene nicht verfügbar.");
@@ -290,7 +385,9 @@ export class XRPassthrough {
     }
 
     await gl.makeXRCompatible();
-    session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl, { alpha: true }) });
+    session.updateRenderState({
+      baseLayer: new XRWebGLLayer(session, gl, { alpha: true, depth: true }),
+    });
 
     // Mit „local-floor" liegt der Boden bei y = 0 — dorthin gehören die Marker.
     this.floorY = 0;
@@ -334,8 +431,7 @@ export class XRPassthrough {
       this._hudRects = [];
       this._hover = -1;
       this._hudHover = -1;
-      this._recalled = false;              // neuer Schritt → wieder beim Patienten
-      this._cardAwayFor = 0;
+      this._bodyHover = null;
     }
     if (map) { this._map = map; this._hudDirty = true; }
     if (tags) this._tags = tags;
@@ -359,6 +455,7 @@ export class XRPassthrough {
     this.cardCanvas = this._canvas(CARD_W, CARD_H);
     this.markCanvas = this._canvas(MARK_PX, MARK_PX);
     this.placeCanvas = this._canvas(PLACE_PX, PLACE_PX);
+    this.popCanvas = this._canvas(POP_W, POP_H);
 
     const vs = this._shader(gl.VERTEX_SHADER, VERT_SRC);
     const fs = this._shader(gl.FRAGMENT_SHADER, FRAG_SRC);
@@ -390,6 +487,10 @@ export class XRPassthrough {
     this.beamTex = this._texture();
     this._uploadCursor();
     this._uploadBeam();
+
+    // Das Körpermodell bringt sein eigenes Programm mit — es braucht Normalen
+    // und Tiefe, nicht die Textur-auf-Rechteck-Maschine von oben.
+    this.body = new BodyMesh(gl);
 
     if (this.eyeTest) {
       this.eyeTex = [this._eyeLabel("LINKS", "#46a758"), this._eyeLabel("RECHTS", "#e5484d")];
@@ -565,35 +666,121 @@ export class XRPassthrough {
   }
 
   /**
-   * Die Handlungskarte steht raumfest beim Patienten — solange sie dort auch zu
-   * sehen ist. Die Patientenposition stammt aus dem ausgerichteten Raster und
-   * trifft die Wirklichkeit nur ungefähr; liegt sie daneben, hinge der einzige
-   * bedienbare Teil der Anwendung außerhalb des Blickfelds, und auf dem HUD
-   * stünde eine Aufforderung ohne sichtbaren Knopf.
+   * Die Handlungskarte steht raumfest **beim Patienten**, auf Brusthöhe über
+   * seinem Marker. Sie wurde früher vor den Träger geholt, sobald sie länger aus
+   * dem Blick war — das ist raus: was zu einem bestimmten Patienten gehört,
+   * gehört an diesen Patienten und darf nicht mitwandern. Wer sie sucht, dreht
+   * sich zu dem, an dem er arbeitet.
    *
-   * Deshalb: wer die Karte länger als CARD_RECALL_S nicht im Blick hat, bekommt
-   * sie vor sich geholt. Sie bleibt dann dort, bis der nächste Schritt beginnt.
+   * Nur wenn gar kein Patient offen ist (Tätigkeitswahl), steht sie vor dem
+   * Träger — dann gehört sie auch niemandem.
    */
-  _cardPose(head, dt) {
-    if (this._anchor && !this._recalled) {
-      const toCard = norm3(sub(this._anchor, head.position));
-      const look = norm3(forwardOf(head));
-      const off = Math.acos(Math.max(-1, Math.min(1, dot3(toCard, look))));
-
-      this._cardAwayFor = off > CARD_VIEW_CONE ? this._cardAwayFor + dt : 0;
-      if (this._cardAwayFor > CARD_RECALL_S) {
-        this._recalled = true;
-        this._placed = null;
-      } else {
-        return this._anchor;
-      }
-    }
+  _cardPose(head) {
+    if (this._anchor)
+      return { x: this._anchor.x, y: this._floorNow + CARD_LIFT, z: this._anchor.z };
 
     if (!this._placed) {
       const fwd = flatten(forwardOf(head));
       this._placed = add3(head.position, add3(scale3(fwd, CARD_PLACE_DIST), { x: 0, y: -0.08, z: 0 }));
     }
     return this._placed;
+  }
+
+  /**
+   * Die eine Bodenebene der Sitzung. Marker liegen **darauf**, nicht auf dem
+   * y-Wert, den ihre Akte zufällig trug: Patienten werden zu verschiedenen
+   * Zeitpunkten angelegt, und eine geschätzte Bodenhöhe wandert. Dann schwebt
+   * einer und der nächste steckt im Estrich.
+   *
+   * Mit „local-floor" liefert das Gerät die Ebene (y = 0). Ohne, wird sie einmal
+   * aus der Kopfhöhe geschätzt und dann festgehalten — nicht pro Bild neu, sonst
+   * sänken alle Marker mit, wenn man sich bückt.
+   */
+  _updateFloor(head) {
+    if (this.floorY != null) { this._floorNow = this.floorY; return; }
+    if (this._floorGuess == null) this._floorGuess = head.position.y - 1.6;
+    this._floorNow = this._floorGuess;
+  }
+
+  /* -------------------------------------------------------- Körpermodell */
+
+  /**
+   * Wo das Modell steht: neben der Handlungskarte, beim Patienten, auf
+   * Brusthöhe — und mit ihm zusammen raumfest. Gedreht wird um seine eigene
+   * Brust (Modellraum y = 0,5), damit es beim Drehen nicht auswandert.
+   *
+   * @returns {Float32Array|null} Modell → Welt
+   */
+  _bodyMatrix(head) {
+    const bm = this._screen.bodyModel;
+    if (!bm || !bm.pos) return null;
+
+    // Neuer Patient → wieder frontal, sonst stünde er verdreht da.
+    if (bm.id !== this._bodyId) {
+      this._bodyId = bm.id;
+      this._bodyYaw = 0;
+      this._bodyPitch = 0;
+      this._bodyDrag = null;
+    }
+
+    const face = basisFacing(bm.pos, head.position);
+    const off = CARD_HALF_W + BODY_GAP + BODY_HALF_W;
+    const at = {
+      x: bm.pos.x - face.right.x * off,
+      y: this._floorNow + BODY_LIFT,
+      z: bm.pos.z - face.right.z * off,
+    };
+
+    return mul(
+      mul(matTranslate(at.x, at.y, at.z), matBasis(face)),
+      mul(mul(matRotY(this._bodyYaw), matRotX(this._bodyPitch)),
+          mul(matScale(BODY_H), matTranslate(0, -0.5, 0))));
+  }
+
+  /** Welche Körperregion liegt unter einem der Strahlen? */
+  _pickBody(rays, model) {
+    let best = null;
+    for (const ray of rays) {
+      const o = intoModel(model, BODY_H, ray.origin, true);
+      const d = intoModel(model, BODY_H, ray.dir, false);
+      const hit = pickRegion(o, d);
+      if (hit && hit.t > 0 && (!best || hit.t < best.t)) best = hit;
+    }
+    return best;
+  }
+
+  /**
+   * Drehen. Mit Controller: Trigger halten und ziehen — der Strahl zieht das
+   * Modell mit. Nur mit Blick (kein `select` im ganzen Lauf): es dreht sich von
+   * selbst weiter, solange man keine Region ansieht, und steht still, sobald
+   * der Blick auf einem Körperteil ruht. So sieht man alle Seiten, ohne dass
+   * man etwas halten müsste, und kann trotzdem zielen.
+   */
+  _turnBody(rays, hovering, dt) {
+    const aim = rays.find((r) => !r.gaze) || rays[0];
+    const yaw = aim ? Math.atan2(aim.dir.x, -aim.dir.z) : 0;
+    const pitch = aim ? Math.asin(Math.max(-1, Math.min(1, aim.dir.y))) : 0;
+
+    if (this._pinching && (hovering || this._bodyDrag)) {
+      if (!this._bodyDrag) this._bodyDrag = { yaw, pitch, moved: 0 };
+      let dy = yaw - this._bodyDrag.yaw;
+      while (dy > Math.PI) dy -= 2 * Math.PI;
+      while (dy < -Math.PI) dy += 2 * Math.PI;
+      const dp = pitch - this._bodyDrag.pitch;
+
+      this._bodyYaw -= dy * BODY_DRAG_GAIN;
+      this._bodyPitch = Math.max(-0.7, Math.min(0.7, this._bodyPitch - dp * BODY_DRAG_GAIN));
+      this._bodyDrag = { yaw, pitch, moved: this._bodyDrag.moved + Math.abs(dy) + Math.abs(dp) };
+      return;
+    }
+
+    // Losgelassen: ein Ziehen darf nicht als Antippen durchgehen.
+    if (this._bodyDrag) {
+      this._bodySwallow = this._bodyDrag.moved > BODY_DRAG_SLOP;
+      this._bodyDrag = null;
+    }
+
+    if (this._diag.selects === 0 && !hovering) this._bodyYaw += BODY_AUTOSPIN * dt;
   }
 
   /* --------------------------------------------------------------- Zeigen */
@@ -727,7 +914,7 @@ export class XRPassthrough {
    * auch getroffen. Handlungskarte, dann die kleinen HUD-Knöpfe, dann der Boden
    * — beim Anlegen als Stelle, sonst als Patientenmarker.
    */
-  _updatePointer(rays, card, hud, now, head) {
+  _updatePointer(rays, card, hud, bodyMat, now, dt, head) {
     const placing = !!this._screen.placing;
     const showCard = this._screen.showCard !== false;
 
@@ -753,7 +940,18 @@ export class XRPassthrough {
       this._hudDirty = true;
     }
 
-    const floorFree = hover < 0 && hudHover < 0;
+    // Das Körpermodell liegt zwischen Karte und Boden: es steht vor dem Boden,
+    // aber hinter Karte und HUD-Knöpfen.
+    const bodyHit = bodyMat && hover < 0 && hudHover < 0 ? this._pickBody(rays, bodyMat) : null;
+    const bodyId = bodyHit ? bodyHit.id : null;
+    if (bodyId !== this._bodyHover) {
+      this._bodyHover = bodyId;
+      this._bodyHoverSince = now;
+    }
+    if (bodyMat) this._turnBody(rays, !!bodyHit, dt);
+    else { this._bodyDrag = null; this._bodySwallow = false; }
+
+    const floorFree = hover < 0 && hudHover < 0 && !bodyHit;
 
     // Stelle am Boden — nur beim Anlegen, und dann statt der Marker: sonst
     // klickte man beim Zeigen versehentlich vorhandene Patienten an.
@@ -779,6 +977,7 @@ export class XRPassthrough {
                       : markHit ? markHit.point : null;
     this._hitDist = cardHit ? cardHit.dist
                   : hudHit && hudHover >= 0 ? hudHit.dist
+                  : bodyHit ? bodyHit.t
                   : this._place ? this._place.dist
                   : markHit ? markHit.dist : null;
 
@@ -787,6 +986,7 @@ export class XRPassthrough {
     const dwellArmed = this._diag.selects === 0;
     const since = this._hover >= 0 ? this._hoverSince
                 : this._hudHover >= 0 ? this._hudHoverSince
+                : this._bodyHover ? this._bodyHoverSince
                 : this._place ? this._placeSteadyAt
                 : markHit ? this._markHoverSince : null;
     const dwell = dwellArmed && since !== null ? Math.min(1, (now - since) / DWELL_MS) : 0;
@@ -810,7 +1010,7 @@ export class XRPassthrough {
    * Reichweite gekürzt, statt einen Patienten in der Ferne entstehen zu lassen.
    */
   _placementPoint(rays, head) {
-    const floor = this.floorY != null ? this.floorY : head.position.y - 1.6;
+    const floor = this._floorNow;
     const eye = head.position;
 
     let hit = null, aim = null;
@@ -854,11 +1054,67 @@ export class XRPassthrough {
     };
   }
 
+  /* ------------------------------------------- Anzeige über dem Patienten */
+
+  /**
+   * Wer nah genug steht, bekommt über dem Marker eine kleine Anzeige, die
+   * aufsteigt und wieder einfährt — sie beantwortet „wer liegt da?", bevor man
+   * den Patienten öffnet. Aufgehen bei POP_NEAR, zugehen erst bei POP_FAR:
+   * ohne diesen Abstand flackert sie, wenn man an der Grenze steht.
+   *
+   * Nicht für den gerade geöffneten Patienten — der hat die Handlungskarte, und
+   * beides übereinander wäre dieselbe Auskunft zweimal.
+   */
+  _updatePopups(dt) {
+    const cardUp = this._screen.showCard !== false && !!this._anchor;
+
+    const near = this._tags
+      .filter((m) => m.distance != null && !(cardUp && m.target))
+      .filter((m) => m.distance <= (this._pops.has(m.id) ? POP_FAR : POP_NEAR))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, POP_MAX);
+    const open = new Set(near.map((m) => m.id));
+
+    for (const m of near) {
+      const cur = this._pops.get(m.id) || 0;
+      this._pops.set(m.id, Math.min(1, cur + dt * POP_RISE));
+    }
+    for (const [id, t] of [...this._pops]) {
+      if (open.has(id)) continue;
+      const next = t - dt * POP_RISE;
+      if (next <= 0) { this._pops.delete(id); this._dropPopTexture(id); }
+      else this._pops.set(id, next);
+    }
+    return near;
+  }
+
+  /** Textur der kleinen Anzeige — neu nur, wenn sich am Inhalt etwas ändert. */
+  _popTexture(m) {
+    const key = `${m.short}|${m.card}|${m.sighted}|${m.transported}|${m.findings}|${m.treatments}`;
+    let entry = this._popTex.get(m.id);
+    if (!entry) {
+      entry = { tex: this._texture(), key: null };
+      this._popTex.set(m.id, entry);
+    }
+    if (entry.key !== key) {
+      drawInfoPopup(this.popCanvas.ctx, POP_W, POP_H, m);
+      this._upload(entry.tex, this.popCanvas.el);
+      entry.key = key;
+    }
+    return entry.tex;
+  }
+
+  _dropPopTexture(id) {
+    const entry = this._popTex.get(id);
+    if (entry && this.gl) this.gl.deleteTexture(entry.tex);
+    this._popTex.delete(id);
+  }
+
   /** Welcher Bodenmarker liegt unter einem der Strahlen? */
   _pickMarker(rays) {
     let best = null;
     for (const m of this._tags) {
-      const centre = { x: m.pos.x, y: m.pos.y + MARK_LIFT, z: m.pos.z };
+      const centre = { x: m.pos.x, y: this._floorNow + MARK_LIFT, z: m.pos.z };
       for (const ray of rays) {
         if (Math.abs(ray.dir.y) < 1e-4) continue;
         const dist = (centre.y - ray.origin.y) / ray.dir.y;      // Ebene y = const
@@ -885,6 +1141,14 @@ export class XRPassthrough {
       this._hudHover = -1;
       this._hudDirty = true;
       if (b && typeof b.action === "function") b.action();
+      return;
+    }
+    if (this._bodyHover) {
+      // Wer gerade gedreht hat, wollte nicht antippen.
+      if (this._bodySwallow) { this._bodySwallow = false; return; }
+      const region = this._bodyHover;
+      this._bodyHover = null;
+      this.onRegionPick(region);
       return;
     }
     if (this._place) {
@@ -921,13 +1185,23 @@ export class XRPassthrough {
     this.onPose(head.position, flatten(forwardOf(head)), this.floorY);
     this.onFrame();
 
+    this._updateFloor(head);
+
     const hud = this._hudPose(head, dt);
-    const cardPos = this._cardPose(head, dt);
+    const cardPos = this._cardPose(head);
     const card = { pos: cardPos, basis: basisFacing(cardPos, head.position) };
-    const showCard = this._screen.showCard !== false;
+    const bodyMat = this._bodyMatrix(head);
 
     const rays = this._rays(frame, head);
-    this._updatePointer(rays, card, hud, t, head);
+    this._updatePointer(rays, card, hud, bodyMat, t, dt, head);
+    const popups = this._updatePopups(dt);
+
+    // Erst JETZT festhalten, was gezeichnet wird: ein Knopfdruck in
+    // `_updatePointer` hat den Schirm womöglich schon gewechselt, und dann gibt
+    // es die Karte oder das Körpermodell in diesem Bild nicht mehr.
+    const showCard = this._screen.showCard !== false;
+    const bodyDraw = bodyMat && this._screen.bodyModel
+      ? { mat: bodyMat, model: this._screen.bodyModel } : null;
 
     // ---- Zeichnen auf Canvas + Texturen hochladen -------------------------
     // Bewusst vor dem Binden des Augenpuffers: texImage2D mitten in der
@@ -958,14 +1232,30 @@ export class XRPassthrough {
       placeModel = this._model(at, basisFloor(at, head.position), PLACE_HALF, PLACE_HALF);
     }
 
+    // Marker liegen auf der gemeinsamen Bodenebene, nicht auf dem y-Wert ihrer
+    // Akte — sonst schwebt einer und der nächste steckt im Boden.
     const markDraws = [];
     for (const m of this._tags) {
       if (m.distance != null && m.distance > MARK_RANGE) continue;
-      const pos = { x: m.pos.x, y: m.pos.y + MARK_LIFT, z: m.pos.z };
+      const pos = { x: m.pos.x, y: this._floorNow + MARK_LIFT, z: m.pos.z };
       const hovered = !!(this._markHover && this._markHover.marker.id === m.id);
       markDraws.push({
         tex: this._markTexture({ ...m, hover: hovered }),
         model: this._model(pos, basisFloor(pos, head.position), MARK_HALF, MARK_HALF),
+      });
+    }
+
+    // Kleine Anzeigen: sie steigen auf und wachsen dabei ein Stück.
+    const popDraws = [];
+    for (const m of popups) {
+      const t01 = this._pops.get(m.id) || 0;
+      if (t01 <= 0.02) continue;
+      const e = t01 * t01 * (3 - 2 * t01);                  // weich an beiden Enden
+      const at = { x: m.pos.x, y: this._floorNow + 0.10 + (POP_TOP - 0.10) * e, z: m.pos.z };
+      const k = 0.55 + 0.45 * e;
+      popDraws.push({
+        tex: this._popTexture(m),
+        model: this._model(at, basisFacing(at, head.position), POP_HALF_W * k, POP_HALF_H * k),
       });
     }
 
@@ -1003,20 +1293,15 @@ export class XRPassthrough {
     // ---- ab hier nur noch zeichnen ---------------------------------------
     gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
     gl.clearColor(0, 0, 0, 0);             // durchsichtig → Passthrough bleibt
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.useProgram(this.prog);
     gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
-    gl.enableVertexAttribArray(this.aPos);
-    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(this.aUV);
-    gl.vertexAttribPointer(this.aUV, 2, gl.FLOAT, false, 16, 8);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.uniform1i(this.uTex, 0);
+    this._bindQuads();
 
     let drawn = 0, synthesised = 0;
     const views = pose.views;
@@ -1052,10 +1337,25 @@ export class XRPassthrough {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
+      for (const p of popDraws) {
+        gl.bindTexture(gl.TEXTURE_2D, p.tex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, p.model));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
       if (placeModel) {
         gl.bindTexture(gl.TEXTURE_2D, this.placeTex);
         gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, placeModel));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      // Das Körpermodell bringt eigenes Programm und Tiefentest mit; danach muss
+      // die Rechteck-Maschine wieder eingerichtet werden (WebGL 1 hat keine VAOs,
+      // Attributzeiger sind global).
+      if (bodyDraw) {
+        this.body.draw(mul(viewProj, bodyDraw.mat), bodyDraw.mat,
+                       bodyDraw.model.findings, this._bodyHover, bodyDraw.model.region);
+        this._bindQuads();
       }
 
       if (showCard) {
@@ -1099,6 +1399,20 @@ export class XRPassthrough {
     }
   }
 
+  /** Die Rechteck-Maschine scharf machen: Programm, Puffer, Attribute, Textur 0. */
+  _bindQuads() {
+    const gl = this.gl;
+    gl.useProgram(this.prog);
+    gl.disable(gl.DEPTH_TEST);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+    gl.enableVertexAttribArray(this.aPos);
+    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.aUV);
+    gl.vertexAttribPointer(this.aUV, 2, gl.FLOAT, false, 16, 8);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(this.uTex, 0);
+  }
+
   _cleanup() {
     if (!this.session) return;
     try {
@@ -1106,13 +1420,17 @@ export class XRPassthrough {
       this.session.removeEventListener("selectstart", this._onSelectStart);
       this.session.removeEventListener("selectend", this._onSelectEnd);
     } catch (_) {}
+    if (this.body) { this.body.dispose(); this.body = null; }
     this.session = null;
     this.gl = null;
     this.refSpace = null;
     this.hudTex = this.cardTex = this.placeTex = this.cursorTex = this.beamTex =
       this.prog = this.vbo = null;
-    this.hudCanvas = this.cardCanvas = this.markCanvas = this.placeCanvas = null;
+    this.hudCanvas = this.cardCanvas = this.markCanvas = this.placeCanvas =
+      this.popCanvas = null;
     this._markTex.clear();
+    this._popTex.clear();
+    this._pops.clear();
     this._rects = [];
     this._hudRects = [];
     this._hudHover = -1;
@@ -1120,8 +1438,10 @@ export class XRPassthrough {
     this._placeAnchor = null;
     this._reticleKey = null;
     this._cursorWorld = null;
-    this._recalled = false;
-    this._cardAwayFor = 0;
+    this._bodyHover = null;
+    this._bodyDrag = null;
+    this._bodyId = null;
+    this._floorGuess = null;
     this._hudDir = null;
     this._hudTarget = null;
     this._hudMoving = false;

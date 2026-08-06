@@ -32,16 +32,35 @@ Tätigkeit wählen ─▶ Lagekarte ─▶ „Neuer Patient" (Stelle am Boden ze
   kleine Knöpfe am unteren Rand, sonst schaust du einfach durch.
 - **Marker liegen am Boden.** Über jedem angelegten Patienten liegt ein Ring an
   seiner Stelle — gefüllt in der Sichtungsfarbe, gestrichelt solange ungesichtet.
-  Der Marker **ist** die Schaltfläche: einen Patienten öffnest du, indem du
-  seinen Marker anklickst. Von selbst geht nichts auf.
-- **Die Handlungskarte** steht beim Patienten, an dem du arbeitest, und wird
-  herangeholt, wenn du sie länger nicht im Blick hast.
+  Alle liegen auf **einer** Bodenebene, nicht auf dem y-Wert, den ihre Akte
+  gerade trug. Der Marker **ist** die Schaltfläche: einen Patienten öffnest du,
+  indem du seinen Marker anklickst. Von selbst geht nichts auf.
+- **Herantreten zeigt, wer da liegt.** Ab drei Metern steigt über dem Marker eine
+  kleine Anzeige auf: Nummer, Sichtungskategorie, Karte, ob schon etwas
+  festgehalten wurde. Sie ist nicht bedienbar und fährt wieder ein, wenn du
+  weitergehst — geöffnet wird weiterhin nur, was du anklickst.
+- **Alles zu einem Patienten bleibt bei diesem Patienten.** Handlungskarte,
+  Körpermodell und Anzeige stehen raumfest über seinem Marker und wandern nicht
+  mit. (Die Karte wurde früher vor den Träger geholt, wenn sie länger aus dem
+  Blick war. Das ist raus: was einem bestimmten Patienten gehört, darf nicht
+  woanders auftauchen — wer sie sucht, dreht sich zu dem, an dem er arbeitet.)
+- **Ein Körper zum Drehen.** Am geöffneten Patienten steht neben der
+  Handlungskarte ein Menschmodell aus dreizehn Regionen. Mit dem Controller
+  greifen und ziehen dreht es; nur mit Blick dreht es sich von selbst weiter und
+  hält an, sobald der Blick auf einem Körperteil liegt. Region antippen →
+  Befund wählen. Regionen mit Befund sind rot.
 - **Bedienung im Browser: Blick + Verweilen.** Fadenkreuz in der Blickmitte, 1,1 s
   auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger).
   **Handtracking gibt es hier nicht:** der PICO-Browser stellt die
   WebXR-Hand-Input-Schnittstelle nicht bereit. Wer es will, nimmt den nativen
   Build (`Unity/README-PICO.md`).
 - **mSTaRT** — sechs Ja/Nein-Fragen, jede vorgelesen, Schritt-zurück inklusive.
+- **Nichts wird erklärt.** Im Blickfeld steht kein Satz, den jemand mit
+  Sanitäterausbildung nicht ohnehin weiß: keine Erläuterung zu den
+  mSTaRT-Fragen, keine Bedienhinweise, keine Dauerzeile unten rechts. Dort
+  erscheint nur noch, was das Gerät meldet — eine fehlende Kamera etwa. Der
+  Warnhinweis, dass das kein Medizinprodukt ist, steht auf der Startseite und
+  einmal bei der Tätigkeitswahl.
 
 ⚠️ **Übungszweck** — Schülerprojekt, kein Medizinprodukt. Die Sichtungskategorie
 ist ein Vorschlag, die Verantwortung bleibt bei der Person mit der Brille.
@@ -100,6 +119,11 @@ nicht mehr sagen, ob eine Kategorie aus der Vorsichtung des Trupps oder aus der
 | **Registrierung** | direkt in den Kartenschritt — zuweisen oder Nummer ändern | ja |
 | **Behandlung & Transport** | Maßnahmen festhalten (nochmal antippen nimmt zurück), Abtransport buchen | nein |
 
+Befunde am Körpermodell gehen in jeder Tätigkeit: Region antippen, aus sechs
+Einträgen wählen (Blutung, Fraktur, Wunde, Verbrennung, Prellung, Amputation),
+nochmal antippen streicht. Sie hängen an der Region, nicht frei in der Akte —
+„Blutung, Oberschenkel rechts" ist das, was weitergegeben wird.
+
 Behandlung legt bewusst niemanden an: wer behandelt, arbeitet an Patienten, die
 schon auf der Lagekarte stehen. Abtransportierte bleiben dort, wo sie lagen — das
 gehört zum Lagebild —, treten aber zurück: Marker und Kartenpunkt werden matt.
@@ -132,23 +156,27 @@ oculusapp/
 ├─ js/
 │  ├─ data.js            Akten dieses Einsatzes (leer beim Start) + Schreibfunktionen
 │  ├─ tasks.js           die vier Tätigkeiten als Tabelle (Ablauf, Rechte, Beschriftung)
+│  ├─ body.js            dreizehn Körperregionen als Quader: Maße, Netz, Zeigen
+│  ├─ bodyview.js        das Modell zeichnen — in der Brille (BodyMesh) und
+│  │                     flach mit Maus/Finger drehbar (BodyView)
 │  ├─ mstart.js          das mSTaRT-Schema als Entscheidungsbaum (reine Logik)
 │  ├─ layout.js          Lagekarte: Weltpositionen → Kartenfläche, Ausschnitt, Distanzen
 │  ├─ workflow.js        der Ablauf als Zustandsmaschine — kennt keine Darstellung
-│  ├─ hudscreen.js       zeichnet die vier AR-Ebenen (Rand-HUD mit Kleinknöpfen,
-│  │                     Handlungskarte, Bodenmarker, Anlege-Ring) und liefert
-│  │                     die Trefferflächen
+│  ├─ hudscreen.js       zeichnet die flachen AR-Ebenen (Rand-HUD mit Kleinknöpfen,
+│  │                     Handlungskarte, Bodenmarker, Anlege-Ring, Anzeige über
+│  │                     dem Marker) und liefert die Trefferflächen
 │  ├─ xr.js              WebXR-Sitzung: kopffestes HUD, raumfeste Karte,
 │  │                     anklickbare Bodenmarker, Stelle am Boden zeigen,
-│  │                     Strahl und Auslösen
+│  │                     Körpermodell in 3D, Strahl und Auslösen
 │  ├─ hudcanvas.js       Patientenakte auf Canvas
 │  ├─ hud.js             Patientenakte als DOM
 │  ├─ qr.js              QR: BarcodeDetector → jsQR-Fallback; liest JAR-P<n>
 │  ├─ voice.js           Sprachausgabe (und ein Kommando-Parser für den Quest-Build)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     131 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
-│  │                     Stelle am Boden, alle vier Tätigkeiten
+│  ├─ logic.test.mjs     170 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
+│  │                     Stelle am Boden, alle vier Tätigkeiten, Körperregionen
+│  │                     samt der Rückrechnung, mit der in AR gezeigt wird
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
 │  ├─ probe_dom.html     klickt den flachen Ablauf durch
 │  └─ probe_qr.html      decodiert jede gedruckte Karte mit jsQR
@@ -224,8 +252,8 @@ Backend auf statischem Hosting, hält `js/data.js` den Einsatz im Speicher — m
 derselben Satzform.
 
 Jeder Schreibzugriff geht durch `createPatient` / `assignCard` / `setCategory` /
-`addTreatment` / `removeTreatment` / `markTransported` / `pushProtocol` und
-nirgends sonst. Eine abgeschlossene Sichtung schreibt Kategorie,
+`addTreatment` / `removeTreatment` / `markTransported` / `addInjury` /
+`removeInjury` / `pushProtocol` und nirgends sonst. Eine abgeschlossene Sichtung schreibt Kategorie,
 Sofortmaßnahmen und zwei Protokollzeilen (Antwortpfad und ausschlaggebende
 Begründung). Genau diese Funktionen sind die Naht, an der `POST /api/patients`
 und `PATCH /api/patients/{id}` andocken.
