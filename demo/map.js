@@ -269,6 +269,39 @@ const KARTE = (function () {
     klickFlaechen = klickFlaechen.filter((f) => f.typ !== typ);
   }
 
+  // Scenario geometry is stored as Leaflet rings in [lat, lon] order. Accept
+  // GeoJSON Polygon/MultiPolygon as well, so real survey data can be dropped
+  // into a scenario without converting coordinates at the call site.
+  function flaechenRinge(geometrie) {
+    if (!geometrie) return [];
+    if (geometrie.type === "Polygon") {
+      return (geometrie.coordinates || []).map((ring) => ring.map((p) => [p[1], p[0]]));
+    }
+    if (geometrie.type === "MultiPolygon") {
+      return (geometrie.coordinates || []).flatMap((polygon) =>
+        polygon.map((ring) => ring.map((p) => [p[1], p[0]])));
+    }
+    if (!Array.isArray(geometrie) || !geometrie.length) return [];
+    return typeof geometrie[0][0] === "number" ? [geometrie] : geometrie;
+  }
+
+  function ringFlaeche(ring) {
+    if (!ring || ring.length < 3) return 0;
+    const lat0 = ring.reduce((sum, p) => sum + p[0], 0) / ring.length * Math.PI / 180;
+    const sx = 111320 * Math.cos(lat0), sy = 110540;
+    let sum = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][1] * sx, yi = ring[i][0] * sy;
+      const xj = ring[j][1] * sx, yj = ring[j][0] * sy;
+      sum += xj * yi - xi * yj;
+    }
+    return Math.abs(sum) / 2;
+  }
+
+  function flaechenInhalt(ringe) {
+    return Math.max(1, flaechenRinge(ringe).reduce((sum, ring) => sum + ringFlaeche(ring), 0));
+  }
+
   function imPolygon(pt, ecken) {
     let drin = false;
     for (let i = 0, j = ecken.length - 1; i < ecken.length; j = i++) {
@@ -521,12 +554,24 @@ const KARTE = (function () {
     for (const a of S.abschnitte.values()) {
       if (a.aktiv === false) continue;   // noch nicht eingerichtet
       const farbe = ABSCHNITT_FARBE[a.art] || "#555";
-      const kreis = L.circle(a.ll, {
-        pane: "pFlaeche", radius: a.r, color: farbe, weight: 1.4,
-        dashArray: a.hq ? null : "5 4", fillColor: farbe, fillOpacity: 0.06,
-      }).addTo(G.abschnitte);
-      kreis.bindTooltip(a.name, { sticky: true });
-      flaecheMerken({ typ: "abschnitt", id: a.id, ll: a.ll, r: a.r, flaeche: Math.PI * a.r * a.r });
+      const ringe = flaechenRinge(a.flaechen || a.flaeche || a.umriss);
+      if (ringe.length) {
+        const inhalt = flaechenInhalt(ringe);
+        for (const ring of ringe) {
+          L.polygon(ring, {
+            pane: "pFlaeche", color: farbe, weight: 1.4,
+            dashArray: a.hq ? null : "5 4", fillColor: farbe, fillOpacity: 0.08,
+          }).bindTooltip(a.name, { sticky: true }).addTo(G.abschnitte);
+          flaecheMerken({ typ: "abschnitt", id: a.id, ecken: ring, flaeche: inhalt });
+        }
+      } else {
+        const kreis = L.circle(a.ll, {
+          pane: "pFlaeche", radius: a.r, color: farbe, weight: 1.4,
+          dashArray: a.hq ? null : "5 4", fillColor: farbe, fillOpacity: 0.06,
+        }).addTo(G.abschnitte);
+        kreis.bindTooltip(a.name, { sticky: true });
+        flaecheMerken({ typ: "abschnitt", id: a.id, ll: a.ll, r: a.r, flaeche: Math.PI * a.r * a.r });
+      }
 
       // Die Beschriftung sitzt am Nordrand des Abschnitts und ist dort
       // geografisch verankert. Ein Pixelversatz aus dem Meter-Radius (früher
@@ -534,7 +579,8 @@ const KARTE = (function () {
       // beim Zoomen aus ihrem Abschnitt heraus.
       // Feste Symbolgröße: sonst richtet Leaflet die Beschriftung an ihrer
       // Textbreite aus und sie sitzt nicht mittig über dem Abschnitt.
-      L.marker(TR.versetzt(a.ll, a.r, 0), {
+      const labelLl = ringe.length ? a.ll : TR.versetzt(a.ll, a.r, 0);
+      L.marker(labelLl, {
         pane: "pLabel", interactive: false,
         icon: L.divIcon({
           className: "abschnitt-label beschriftung r" + abschnittRang(a) + (a.hq ? " ist-hq" : ""),
@@ -552,21 +598,39 @@ const KARTE = (function () {
     flaechenVergessen("gefahr");
     const gasG = S.gefahren.get("G1");
 
-    const rAbsperr = S.absperrung || 250;
-    absperrKreis = L.circle(S.epi, {
-      pane: "pFlaeche", radius: rAbsperr, color: "#b0262c", weight: 1.2, dashArray: "3 5",
-      fill: false, interactive: false,
-    }).addTo(G.gefahren);
-    L.marker(TR.versetzt(S.epi, rAbsperr, 315), {
-      pane: "pLabel", interactive: false,
-      icon: L.divIcon({ className: "kreis-label beschriftung r3",
-        html: "Absperrgrenze " + rAbsperr + " m", iconSize: [130, 12], iconAnchor: [65, 6] }),
-    }).addTo(G.gefahren);
+    gasKreis = null;
+    absperrKreis = null;
+    const rAbsperr = S.absperrung;
+    if (rAbsperr > 0) {
+      absperrKreis = L.circle(S.epi, {
+        pane: "pFlaeche", radius: rAbsperr, color: "#b0262c", weight: 1.2, dashArray: "3 5",
+        fill: false, interactive: false,
+      }).addTo(G.gefahren);
+      L.marker(TR.versetzt(S.epi, rAbsperr, 315), {
+        pane: "pLabel", interactive: false,
+        icon: L.divIcon({ className: "kreis-label beschriftung r3",
+          html: "Absperrgrenze " + rAbsperr + " m", iconSize: [130, 12], iconAnchor: [65, 6] }),
+      }).addTo(G.gefahren);
+    }
 
     for (const g of S.gefahren.values()) {
       if (!g.aktiv) continue;
       const farbe = g.stufe === 3 ? "#b0262c" : g.stufe === 2 ? "#c07a10" : "#6b7178";
-      if (g.r > 0) {
+      const ringe = flaechenRinge(g.flaechen || g.flaeche);
+      if (ringe.length) {
+        const flood = !!g.flut;
+        const flaechenFarbe = flood ? "#1f6fa8" : farbe;
+        const flaechenFuellung = flood ? "#2f8ec4" : farbe;
+        const inhalt = flaechenInhalt(ringe);
+        for (const ring of ringe) {
+          L.polygon(ring, {
+            pane: "pFlaeche", color: flaechenFarbe, weight: flood ? 1.8 : 1.2,
+            fillColor: flaechenFuellung, fillOpacity: flood ? 0.24 : 0.09,
+            dashArray: flood ? null : "4 4", className: flood ? "wasser-flaeche" : "",
+          }).bindTooltip(g.name, { sticky: true }).addTo(G.gefahren);
+          flaecheMerken({ typ: "gefahr", id: g.id, ecken: ring, flaeche: inhalt });
+        }
+      } else if (g.r > 0) {
         const k = L.circle(g.ll, {
           pane: "pFlaeche", radius: g.r, color: farbe, weight: 1.2,
           fillColor: farbe, fillOpacity: g.art === "gas" ? 0.1 : 0.07, dashArray: "4 4",

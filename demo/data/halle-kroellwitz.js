@@ -12,7 +12,7 @@
 
 window.HAL_GEO = {
   quelle: "handgeprüfte Ortsanker, vereinfachtes Achsennetz (kein OSM-Auszug)",
-  bbox: [51.50080, 11.93580, 51.51580, 11.95620],
+  bbox: [51.50060, 11.93580, 51.51580, 11.95620],
   ways: [
     // Talstraße/Amselgrund - der flache, hochwassergefährdete Uferraum.
     ["Talstraße / Amselgrund", 0, [51.50404, 11.95224, 51.50334, 11.94840, 51.50280, 11.94560, 51.50177, 11.93683]],

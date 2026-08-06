@@ -25,22 +25,66 @@ window.SZENARIEN.push((function () {
   const SCHULE = [51.50654, 11.95214];
   const PEGEL = [51.51425, 11.95455];
 
+  // Hand-checked exercise overlays in [lat, lon] order. The outer edges use
+  // the OSM Saale/Wilde-Saale geometry and the mapped Talstraße/Amselgrund
+  // lowland as anchors; they are not an official flood hazard map.
+  const FLUT_AUE = [
+    [51.50435, 11.94832], [51.50415, 11.94905], [51.50395, 11.94975],
+    [51.50370, 11.95030], [51.50325, 11.95005], [51.50290, 11.94955],
+    [51.50255, 11.94910], [51.50205, 11.94855], [51.50155, 11.94785],
+    [51.50100, 11.94710], [51.50072, 11.94625], [51.50125, 11.94570],
+    [51.50200, 11.94585], [51.50270, 11.94635], [51.50325, 11.94710],
+    [51.50378, 11.94772], [51.50416, 11.94805],
+  ];
+  const FLUT_TAL = [
+    [51.50420, 11.94820], [51.50400, 11.94855], [51.50375, 11.94890],
+    [51.50345, 11.94905], [51.50315, 11.94880], [51.50295, 11.94845],
+    [51.50270, 11.94805], [51.50280, 11.94770], [51.50315, 11.94785],
+    [51.50350, 11.94805], [51.50385, 11.94802],
+  ];
+  const FLUT_KLINIK = [
+    [51.50205, 11.93655], [51.50215, 11.93705], [51.50195, 11.93765],
+    [51.50160, 11.93810], [51.50130, 11.93775], [51.50140, 11.93710],
+    [51.50165, 11.93665],
+  ];
+  const FLUT_NETZ = [
+    [51.50405, 11.94785], [51.50380, 11.94825], [51.50345, 11.94855],
+    [51.50315, 11.94835], [51.50295, 11.94795], [51.50320, 11.94750],
+    [51.50355, 11.94755], [51.50385, 11.94765],
+  ];
+  const FLUT_OEL = [
+    [51.50395, 11.94745], [51.50388, 11.94775], [51.50365, 11.94795],
+    [51.50345, 11.94782], [51.50350, 11.94750], [51.50372, 11.94735],
+  ];
+  const FLUT_PORPHYR = [
+    [51.50305, 11.94555], [51.50285, 11.94610], [51.50255, 11.94635],
+    [51.50225, 11.94615], [51.50235, 11.94575], [51.50265, 11.94545],
+  ];
+  const FLUT_BRUECKE = [
+    [51.50390, 11.95185], [51.50420, 11.95175], [51.50440, 11.95235],
+    [51.50410, 11.95265],
+  ];
+  const FLUT_BOOT = [
+    [51.50305, 11.94885], [51.50325, 11.94915], [51.50345, 11.94905],
+    [51.50330, 11.94875],
+  ];
+
   const abschnitte = [
     {
       id: "DEICH", kurz: "UFER", name: "Uferabschnitt Amselgrund / Talstraße",
-      ll: EPI, r: 150, art: "einsatz",
+      ll: EPI, flaechen: [FLUT_TAL], art: "einsatz",
       info: "Sandsacklinie an den tiefsten Stellen der Talstraße. Kontrollgänge im 20-Minuten-Takt, Uferweg bleibt gesperrt.",
       leitung: "EA 1 - Ufer- und Hochwasserschutz (THW OV Halle, ZTr)",
     },
     {
       id: "EVAK", kurz: "EVAK TAL", name: "Evakuierungsabschnitt Talstraße / Amselgrund",
-      ll: [51.50370, 11.94790], r: 170, art: "einsatz",
+      ll: [51.50370, 11.94790], flaechen: [FLUT_AUE], art: "einsatz",
       info: "58 Haushalte in der tief liegenden Uferlage. Räumung von Erdgeschoss und Keller, Tierrettung über EA 5.",
       leitung: "EA 2 - Evakuierung (BF Halle, B-Dienst)",
     },
     {
       id: "WR", kurz: "BOOTE", name: "Bootseinsatzstelle Talstraße",
-      ll: [51.50320, 11.94900], r: 70, art: "transport",
+      ll: [51.50320, 11.94900], flaeche: FLUT_BOOT, art: "transport",
       info: "Bootseinsatzstelle am Saaleufer im Bereich Amselgrund. Zwei Mehrzweckboote, ein Rettungsboot DLRG, Sprechfunk auf Kanal Wasser.",
       leitung: "EA 3 - Wasserrettung (DLRG Bezirk Halle)",
     },
@@ -103,7 +147,7 @@ window.SZENARIEN.push((function () {
     },
     {
       id: "EVAK2", kurz: "EVAK KLINIK", name: "Evakuierungsabschnitt Klinikumsumfeld",
-      ll: [51.50190, 11.93780], r: 130, art: "einsatz",
+      ll: [51.50190, 11.93780], flaechen: [FLUT_KLINIK], art: "einsatz",
       t: 1080,
       info: "Die tiefer liegende Zufahrt im Klinikumsumfeld droht über Rückstau unpassierbar zu werden. Vorsorgliche Verlegung von 14 immobilen Patienten aus zwei Pflegeeinrichtungen.",
       leitung: "EA 8 - Verlegung (OrgL Wendt)",
@@ -139,7 +183,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G2", code: "UEBER", art: "wasser", stufe: 3,
       name: "Saaleübertritt im Amselgrund / Talstraße",
-      ll: EPI, r: 90,
+      ll: EPI, flaechen: [FLUT_AUE], flut: true,
       t: 0,
       status: "laufend",
       verantwortlich: "THW OV Halle (Fachberater Hochwasser) / EA 1",
@@ -148,7 +192,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G3", code: "TREIB", art: "wasser", stufe: 2,
       name: "Treibgut / Verklausung Giebichensteinbrücke",
-      ll: BRUECKE, r: 70,
+      ll: BRUECKE, flaeche: FLUT_BRUECKE,
       t: 120,
       status: "laufend",
       verantwortlich: "Wasserstraßenamt / EA 3",
@@ -157,7 +201,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G4", code: "STROM", art: "strom", stufe: 2,
       name: "Netzausfall in der Talstraße-Uferlage",
-      ll: [51.50370, 11.94790], r: 260,
+      ll: [51.50370, 11.94790], flaeche: FLUT_NETZ,
       t: 300,
       status: "laufend",
       verantwortlich: "Netzbetreiber / EA 2",
@@ -166,7 +210,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G5", code: "ÖL", art: "gas", stufe: 2,
       name: "Heizöl aus aufgeschwommenem Tank",
-      ll: [51.50390, 11.94770], r: 110,
+      ll: [51.50390, 11.94770], flaeche: FLUT_OEL,
       t: 660,
       status: "laufend",
       verantwortlich: "Umweltamt / FW Halle Gefahrgut",
@@ -183,7 +227,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G6", code: "ABBR", art: "einsturz", stufe: 3,
       name: "Porphyrböschung am Amselgrund",
-      ll: [51.50280, 11.94580], r: 60,
+      ll: [51.50280, 11.94580], flaeche: FLUT_PORPHYR,
       t: 1020,
       status: "laufend",
       verantwortlich: "EA 1 / Fachberater THW",
@@ -192,7 +236,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G7", code: "TRINK", art: "wasser", stufe: 1,
       name: "Abwasserrückstau in der Talstraße",
-      ll: [51.50380, 11.94780], r: 200,
+      ll: [51.50380, 11.94780], flaeche: FLUT_TAL, flut: true,
       t: 1320,
       status: "beobachtet",
       verantwortlich: "Stadtwerke / Gesundheitsamt",
@@ -201,7 +245,7 @@ window.SZENARIEN.push((function () {
     {
       id: "G8", code: "MENGE", art: "menge", stufe: 1,
       name: "Schaulustige auf der Giebichensteinbrücke",
-      ll: BRUECKE, r: 60,
+      ll: BRUECKE, flaeche: FLUT_BRUECKE,
       t: 1620,
       status: "beobachtet",
       verantwortlich: "Polizeirevier Halle Nord",
@@ -400,7 +444,7 @@ window.SZENARIEN.push((function () {
     sitzung: "Halle · Kröllwitz",
     geo: window.HAL_GEO,
     raster: { spalten: 14, zeilen: 11 },   // ~158 x 162 m je Feld
-    absperrung: 400,
+    absperrung: 0,
     rollen: {
       ablagen: ["PA", "PA2"], behandlungen: ["BHP"], betreuung: "BST",
       bereitstellung: "BR", halteplatz: "RMHP", verstorbene: "VER",

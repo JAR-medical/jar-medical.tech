@@ -12,7 +12,7 @@
  *   kurz      Name in der Auswahlliste
  *   geo       Geodaten der Lage (bbox, Wegenetz; siehe data/)
  *   raster    Einsatzraster - je größer das Gebiet, desto mehr Felder
- *   absperrung  Radius der Absperrgrenze in Metern
+ *   absperrung  Radius der Absperrgrenze in Metern; 0 = keine Kreisgrenze
  *   abschnitte  Abschnitte; mit `t` entstehen sie erst im Verlauf
  *   gefahren  Gefahrenstellen; `t` = Sekunde, ab der sie erkannt sind
  *   patienten Roster; `t` = Sekunde, zu der der Marker erkannt wird

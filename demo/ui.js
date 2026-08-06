@@ -532,6 +532,7 @@
          <span class="lg"><i class="bx u-rth"></i>RTH</span>
          <span class="lg"><i class="bx u-loesch"></i>Feuerwehr</span>
          <span class="lg"><i class="bx u-polizei"></i>Polizei</span>
+         <span class="lg"><i class="flut"></i>Überflutete Fläche</span>
          <span class="lg"><i class="rt"></i>Gefahrenstelle</span>
          <span class="lg"><i class="sp"></i>Straßensperre</span>
        </div>`;

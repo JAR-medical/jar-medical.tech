@@ -326,7 +326,7 @@ const TR = (function () {
     // Jede Lage bringt ihr eigenes Raster mit: ein Stadtgebiet braucht mehr
     // Felder als eine Ortsmitte, damit ein Feld eine handliche Größe behält.
     S.raster = { spalten: 10, zeilen: 8, ...(szenario.raster || {}) };
-    S.absperrung = szenario.absperrung || 250;
+    S.absperrung = szenario.absperrung === undefined ? 250 : szenario.absperrung;
     S.epi = szenario.epi;
     S.sperren = szenario.sperren.slice();
     S.poi = szenario.poi.slice();

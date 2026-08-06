@@ -325,6 +325,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
 .lg .bx.u-trupp { border-color: var(--sk3); }
 .lg .bx.u-rth, .lg .bx.u-polizei { border-color: var(--sk4); background: #eaf0f8; }
 .lg .bx.u-loesch { border-color: var(--sk1); background: #fdeeee; }
+.lg .flut { width: 15px; height: 10px; border: 1.4px solid #1f6fa8; background: rgba(47,142,196,.24); }
 .lg .rt { width: 12px; height: 10px; background: var(--warn); }
 .lg .sp { width: 9px; height: 9px; background: var(--warn); transform: rotate(45deg); }
 
