@@ -41,9 +41,18 @@ export function parseCommand(raw) {
   const t = String(raw).toLowerCase().trim().replace(/\s+/g, " ");
   const tail = (kw) => t.slice(t.indexOf(kw) + kw.length).trim();
 
+  // Ja und Nein zuerst: das ist die Sprache der Vorsichtung, und sie muss auch
+  // dann greifen, wenn der Satz noch etwas anderes enthält („ja, atmet").
+  // „nein" wird vor „ja" geprüft, sonst schluckt das „ja" in „nein ja doch"
+  // die Verneinung. Erkennungsfehler sind einkalkuliert: „nee", „ne", „jo",
+  // und das oft als „ja" durchgereichte „yeah".
+  if (/\b(nein|nee|n[öo]|ne|negativ|nicht|kein|keine)\b/.test(t)) return { type: "no", raw };
+  if (/\b(ja|jo|jawohl|jep|yeah|korrekt|positiv|stimmt|richtig)\b/.test(t)) return { type: "yes", raw };
+  if (/\b(zur[üu]ck|schritt zur[üu]ck|korrektur|falsch)\b/.test(t)) return { type: "back", raw };
+
   if (/\b(hilfe|kommandos|befehle|hilf mir)\b/.test(t)) return { type: "help", raw };
-  if (/\b(n[äa]chster|weiter|scannen|scan|neuer marker|neu scannen)\b/.test(t)) return { type: "rescan", raw };
-  if (/\b(schlie[ßs]en|zur[üu]ck|beenden|abbrechen|fertig)\b/.test(t)) return { type: "close", raw };
+  if (/\b(n[äa]chster|weiter|scannen|scan|neuer marker|neu scannen)\b/.test(t)) return { type: "next", raw };
+  if (/\b(schlie[ßs]en|beenden|abbrechen|fertig)\b/.test(t)) return { type: "close", raw };
 
   // Argument-taking commands are matched BEFORE the generic summary trigger,
   // because a dictated value may itself contain the word "Patient"
@@ -77,6 +86,48 @@ export function synthesisAvailable() {
 export function recognitionAvailable() {
   return typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+}
+
+/* ------------------------------------------------- Erkennung auf dem Gerät
+ *
+ * Die klassische Web-Speech-Erkennung schickt Ton an einen Server des
+ * Browserherstellers. An einer Einsatzstelle ist das zweimal falsch: es geht um
+ * Patienten, und Netz gibt es womöglich keins. Neuere Chromium-Stände können
+ * lokal erkennen — `SpeechRecognition.available()` sagt, ob die Sprachpakete da
+ * sind, `install()` lädt sie nach, und `processLocally = true` verlangt, dass
+ * der Ton das Gerät nicht verlässt.
+ *
+ * Wo es das nicht gibt, bleibt die Erkennung aus. Sie wird nicht heimlich in
+ * die Cloud umgeleitet — die Knöpfe tun es auch.
+ */
+
+const ON_DEVICE_OPTS = { langs: ["de-DE"], processLocally: true, quality: "command" };
+
+function recognitionCtor() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+/** @returns {"available"|"downloadable"|"downloading"|"unavailable"|"unsupported"} */
+export async function onDeviceStatus() {
+  const Ctor = recognitionCtor();
+  if (!Ctor || typeof Ctor.available !== "function") return "unsupported";
+  try {
+    return await Ctor.available(ON_DEVICE_OPTS);
+  } catch (_) {
+    return "unsupported";
+  }
+}
+
+/** Sprachpaket nachladen. @returns {Promise<boolean>} */
+export async function installOnDevice() {
+  const Ctor = recognitionCtor();
+  if (!Ctor || typeof Ctor.install !== "function") return false;
+  try {
+    return !!(await Ctor.install({ langs: ["de-DE"], quality: "command" }));
+  } catch (_) {
+    return false;
+  }
 }
 
 export class Voice {
@@ -137,6 +188,10 @@ export class Voice {
     r.interimResults = true;
     r.maxAlternatives = 3;
 
+    // Nur lokal. Kennt der Browser die Eigenschaft nicht, bleibt sie wirkungslos
+    // — dann entscheidet `startListening`, ob überhaupt zugehört wird.
+    try { r.processLocally = true; } catch (_) {}
+
     r.onresult = (ev) => {
       let interim = "";
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -171,12 +226,30 @@ export class Voice {
     this._recog = r;
   }
 
-  startListening() {
+  /**
+   * Zuhören — aber nur, wenn die Erkennung nachweislich auf dem Gerät läuft.
+   * Kann der Browser das nicht sagen (ältere Umsetzung ohne `available()`),
+   * wird nicht zugehört: lieber keine Spracheingabe als Patiententon im Netz.
+   * @returns {Promise<boolean>}
+   */
+  async startListening() {
     if (!this._recog) { this.onState({ listening: false, error: "unsupported" }); return false; }
+
+    let status = await onDeviceStatus();
+    if (status === "downloadable" || status === "downloading") {
+      this.onState({ listening: false, installing: true });
+      await installOnDevice();
+      status = await onDeviceStatus();
+    }
+    if (status !== "available") {
+      this.onState({ listening: false, error: status === "unsupported" ? "kein lokales Erkennen" : status });
+      return false;
+    }
+
     this._wantListening = true;
     try { this._recog.start(); } catch (_) { /* already running */ }
     this.listening = true;
-    this.onState({ listening: true });
+    this.onState({ listening: true, local: true });
     return true;
   }
 
@@ -188,6 +261,7 @@ export class Voice {
   }
 
   toggleListening() {
-    return this.listening ? (this.stopListening(), false) : this.startListening();
+    if (this.listening) { this.stopListening(); return Promise.resolve(false); }
+    return this.startListening();
   }
 }

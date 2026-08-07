@@ -75,6 +75,45 @@ export class Workflow {
     this.onScreen = () => {};
     this.onSpeak = () => {};
     this.onToast = () => {};
+    this.onLagebild = () => {};
+  }
+
+  /* ------------------------------------------------------------- Sprache
+   *
+   * Die Vorsichtung ist ein Fragebogen aus Ja und Nein — genau das, was sich
+   * sagen lässt, während beide Hände am Patienten sind. Gesprochenes ersetzt
+   * hier nichts, es liegt neben den Knöpfen: im Lärm einer Einsatzstelle darf
+   * die Bedienung nicht am Mikrofon hängen.
+   */
+
+  /**
+   * Ein erkanntes Wort auf den laufenden Schritt anwenden.
+   * @param {{type: string}} cmd aus voice.js
+   * @returns {boolean} ob damit etwas passiert ist
+   */
+  handleSpeech(cmd) {
+    if (!cmd) return false;
+
+    if (this.state === "sichtung") {
+      if (cmd.type === "yes") { this.answer(true); return true; }
+      if (cmd.type === "no") { this.answer(false); return true; }
+      if (cmd.type === "back") { this.stepBack(); return true; }
+      if (cmd.type === "close") { this.goToLage(); return true; }
+      return false;
+    }
+
+    // Außerhalb des Fragebogens bringt „weiter" den nächsten Schritt: den
+    // primären Knopf des Schirms, was immer er gerade ist.
+    if (cmd.type === "yes" || cmd.type === "next") {
+      const s = this.screen();
+      const primary = (s.buttons || []).find((b) => b.tint === "primary");
+      if (primary) { primary.action(); return true; }
+    }
+    if (cmd.type === "close" || cmd.type === "back") {
+      if (this.state === "approach" || this.state === "befund") { this.goToLage(); return true; }
+      if (this.state === "platzieren") { this.cancelPlacement(); return true; }
+    }
+    return false;
   }
 
   /* ------------------------------------------------------------ Eingaben */
@@ -501,6 +540,10 @@ export class Workflow {
     if (this.task && this.task.canCreate)
       out.push({ label: "Neuer Patient", tint: "primary", action: () => this.newPatient() });
     out.push({ label: "Tätigkeit", tint: "ghost", action: () => this.goToAuftrag() });
+    // Das Lagebild der Einsatzleitung ist eine gewöhnliche Webseite und keine
+    // AR-Ebene — sie lässt sich nicht ins Blickfeld legen. Der Knopf reicht die
+    // Bitte nach oben durch; die Verdrahtung beendet dafür die Sitzung.
+    out.push({ label: "Lagebild", tint: "ghost", action: () => this.onLagebild() });
     return out;
   }
 
@@ -775,6 +818,8 @@ export class Workflow {
         distance: d,
         treatments: p.treatments.length,
         findings: p.injuries.length,
+        // Für die kleine Figur über dem Marker: welche Körperteile rot sind.
+        regions: injuriesByRegion(p),
       });
     }
     return out;

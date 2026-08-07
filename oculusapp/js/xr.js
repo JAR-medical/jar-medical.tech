@@ -36,8 +36,8 @@
 
 import { drawHudLayer, drawCard, drawMarker, drawReticle, drawInfoPopup,
          hitTest } from "./hudscreen.js";
-import { BodyMesh } from "./bodyview.js";
-import { pickRegion } from "./body.js";
+import { BodyMesh, loadBodyMesh } from "./bodyview.js";
+import { pickRegion, rgbOf } from "./body.js";
 
 export async function passthroughSupported() {
   if (typeof navigator === "undefined" || !navigator.xr) return false;
@@ -79,6 +79,10 @@ const POP_FAR = 3.8;                     // und erst hier wieder zu (kein Flacke
 // Etwa auf Augenhöhe, wenn man davorsteht: tiefer geriete sie in die Reihe der
 // HUD-Knöpfe am unteren Blickfeldrand und verdeckte sie.
 const POP_TOP = 1.45;                    // Höhe über dem Boden, wenn ganz oben
+// Die kleine Figur neben der Anzeige: sie steht für den Patienten, in seiner
+// Sichtungsfarbe, mit roten Stellen dort, wo Befunde hängen.
+const POP_BODY_H = 0.34;                 // Modellhöhe in Metern
+const POP_BODY_SIDE = 0.30;              // links neben der Anzeige
 const POP_RISE = 4.5;                    // 1/s — wie schnell sie aufsteigt
 const POP_MAX = 3;                       // so viele gleichzeitig
 
@@ -501,8 +505,10 @@ export class XRPassthrough {
     this._uploadBeam();
 
     // Das Körpermodell bringt sein eigenes Programm mit — es braucht Normalen
-    // und Tiefe, nicht die Textur-auf-Rechteck-Maschine von oben.
+    // und Tiefe, nicht die Textur-auf-Rechteck-Maschine von oben. Bis das echte
+    // Netz geladen ist, stehen die Quader aus body.js.
     this.body = new BodyMesh(gl);
+    loadBodyMesh().then((m) => { if (m && this.body) this.body.useMesh(m); });
 
     if (this.eyeTest) {
       this.eyeTex = [this._eyeLabel("LINKS", "#46a758"), this._eyeLabel("RECHTS", "#e5484d")];
@@ -1257,17 +1263,33 @@ export class XRPassthrough {
       });
     }
 
-    // Kleine Anzeigen: sie steigen auf und wachsen dabei ein Stück.
+    // Kleine Anzeigen: sie steigen auf und wachsen dabei ein Stück. Daneben
+    // steht der Patient selbst als Figur, in seiner Sichtungsfarbe.
     const popDraws = [];
+    const popBodies = [];
     for (const m of popups) {
       const t01 = this._pops.get(m.id) || 0;
       if (t01 <= 0.02) continue;
       const e = t01 * t01 * (3 - 2 * t01);                  // weich an beiden Enden
       const at = { x: m.pos.x, y: this._floorNow + 0.10 + (POP_TOP - 0.10) * e, z: m.pos.z };
       const k = 0.55 + 0.45 * e;
+      const face = basisFacing(at, head.position);
       popDraws.push({
         tex: this._popTexture(m),
-        model: this._model(at, basisFacing(at, head.position), POP_HALF_W * k, POP_HALF_H * k),
+        model: this._model(at, face, POP_HALF_W * k, POP_HALF_H * k),
+      });
+
+      const h = POP_BODY_H * k;
+      const side = POP_HALF_W * k + POP_BODY_SIDE * k;
+      const foot = {
+        x: at.x - face.right.x * side,
+        y: at.y - h / 2,
+        z: at.z - face.right.z * side,
+      };
+      popBodies.push({
+        mat: mul(mul(matTranslate(foot.x, foot.y, foot.z), matBasis(face)), matScale(h)),
+        base: rgbOf(m.sighted ? m.color : "#8792a0"),
+        findings: m.regions,
       });
     }
 
@@ -1364,9 +1386,15 @@ export class XRPassthrough {
       // Das Körpermodell bringt eigenes Programm und Tiefentest mit; danach muss
       // die Rechteck-Maschine wieder eingerichtet werden (WebGL 1 hat keine VAOs,
       // Attributzeiger sind global).
-      if (bodyDraw) {
-        this.body.draw(mul(viewProj, bodyDraw.mat), bodyDraw.mat,
-                       bodyDraw.model.findings, this._bodyHover, bodyDraw.model.region);
+      if (bodyDraw || popBodies.length) {
+        for (const p of popBodies) {
+          this.body.draw(mul(viewProj, p.mat), p.mat, p.findings, null, null,
+                         { base: p.base, alpha: 0.92 });
+        }
+        if (bodyDraw) {
+          this.body.draw(mul(viewProj, bodyDraw.mat), bodyDraw.mat,
+                         bodyDraw.model.findings, this._bodyHover, bodyDraw.model.region);
+        }
         this._bindQuads();
       }
 

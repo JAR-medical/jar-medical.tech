@@ -41,11 +41,46 @@
       }
       if (stop === "karte") press(/Karte zuweisen/);
       if (stop === "akte") document.getElementById("ctl-record").click();
+
+      // Körpermodell: am geöffneten Patienten muss die Fläche stehen und das
+      // echte Netz geladen sein (Quader wären der Notbehelf).
+      if (stop === "koerper") {
+        press(/^JA$/); press(/^NEIN$/); press(/^JA$/); press(/^JA$/);   // bis zum Ergebnis
+        press(/Karte zuweisen/); press(/übernehmen/); press(/Weiter/);
+        app.flow.openPatient(app.flow.patients()[0]);
+        await new Promise((r) => setTimeout(r, 1500));
+        const wrap = document.getElementById("body-wrap");
+        if (wrap.classList.contains("hidden")) throw new Error("Körperfläche bleibt verborgen");
+        if (!app.bodyView || !app.bodyView.available) throw new Error("kein WebGL für das Modell");
+        if (!app.bodyView.mesh.indexed) throw new Error("echtes Netz nicht geladen");
+        app.flow.pickRegion("kopf");
+        press(/^Wunde$/);
+        if (app.flow.target.injuries.length !== 1) throw new Error("Befund nicht gespeichert");
+        document.title = "OK koerper " + app.bodyView.mesh.total / 3 + " Dreiecke";
+        throw { done: true };
+      }
+
+      // Lagebild: der Knopf steht bei den Randknöpfen, also in der Lage.
+      if (stop === "lagebild") {
+        app.flow.goToLage();
+        window.open = () => null;                 // Pop-up-Blocker nachstellen
+        press(/Lagebild/);
+        const panel = document.getElementById("lagebild");
+        if (panel.classList.contains("hidden")) throw new Error("Tafel bleibt zu");
+        const href = document.getElementById("lagebild-link").getAttribute("href");
+        if (!/demo/.test(href)) throw new Error("Link zeigt nicht auf die Demo: " + href);
+        document.title = "OK lagebild " + href;
+        throw { done: true };
+      }
+
       document.title = "OK " + app.screen.state;
     } catch (e) {
-      document.title = "ERR:" + e.message;
-      document.body.insertAdjacentHTML("afterbegin",
-        '<pre style="color:#ff6b6b;font:13px monospace;white-space:pre-wrap;position:relative;z-index:99">' + e.stack + "</pre>");
+      if (e && e.done) { /* Prüfung war an dieser Stelle fertig */ }
+      else {
+        document.title = "ERR:" + e.message;
+        document.body.insertAdjacentHTML("afterbegin",
+          '<pre style="color:#ff6b6b;font:13px monospace;white-space:pre-wrap;position:relative;z-index:99">' + e.stack + "</pre>");
+      }
     }
   </script>
 </body>

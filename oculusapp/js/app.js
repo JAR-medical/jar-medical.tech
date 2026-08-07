@@ -25,7 +25,7 @@
 
 import { patientIds, resolvePatient } from "./data.js";
 import { QRScanner, decodeSupported, barcodeDetectorAvailable, jsQRAvailable } from "./qr.js";
-import { Voice, synthesisAvailable } from "./voice.js";
+import { Voice, synthesisAvailable, recognitionAvailable, onDeviceStatus } from "./voice.js";
 import { XRPassthrough, passthroughSupported } from "./xr.js";
 import { patientHUD } from "./hud.js";
 import { Workflow } from "./workflow.js";
@@ -34,6 +34,9 @@ import { BodyView } from "./bodyview.js";
 import { regionLabel } from "./body.js";
 
 const $ = (id) => document.getElementById(id);
+
+// Das Lagebild der Einsatzleitung, dieselbe Live-Demo wie auf der Website.
+const LAGEBILD_URL = "../demo/index.html";
 
 const el = {
   start: $("start"),
@@ -70,6 +73,9 @@ const el = {
   bodyWrap: $("body-wrap"),
   bodyCanvas: $("body-canvas"),
   bodyLabel: $("body-label"),
+  lagebild: $("lagebild"),
+  lagebildLink: $("lagebild-link"),
+  lagebildClose: $("lagebild-close"),
 };
 
 const app = {
@@ -97,6 +103,28 @@ function toast(msg, kind = "") {
 
 function setVoiceStatus(text) { el.voiceStatus.textContent = text; }
 
+function idleVoiceStatus() {
+  return synthesisAvailable() ? "Sprachausgabe bereit" : "keine Sprachausgabe";
+}
+
+/**
+ * Sagen, woran man ist: die Spracheingabe wird nur benutzt, wenn sie lokal
+ * läuft. Steht sie nicht bereit, gehört das in die Geräteliste und nicht in
+ * eine Fehlermeldung, die erst beim Drücken kommt.
+ */
+async function describeSpeech() {
+  const li = el.caps.querySelector('[data-key="Spracheingabe"]');
+  if (!li) return;
+  const status = recognitionAvailable() ? await onDeviceStatus() : "unsupported";
+  const ok = status === "available" || status === "downloadable" || status === "downloading";
+  const note = { available: "lokal, bereit", downloadable: "lokal, Paket lädt beim Start",
+                 downloading: "Paket lädt gerade", unavailable: "nicht für Deutsch",
+                 unsupported: "kein lokales Erkennen" }[status] || status;
+  li.querySelector(".cap-dot").className = "cap-dot " + (ok ? "yes" : "no");
+  li.querySelector("em").textContent = note;
+  $("ctl-mic").disabled = !ok;
+}
+
 /* ------------------------------------------------ capability detection */
 
 function detectCaps() {
@@ -104,6 +132,7 @@ function detectCaps() {
     ["Passthrough-AR (WebXR)", null, "wird geprüft …"],
     ["QR-Decoder", decodeSupported(), barcodeDetectorAvailable() ? "BarcodeDetector" : jsQRAvailable() ? "jsQR" : "—"],
     ["Sprachausgabe", synthesisAvailable(), synthesisAvailable() ? "Web Speech" : "—"],
+    ["Spracheingabe", null, "wird geprüft …"],
   ];
   el.caps.innerHTML = rows
     .map(([name, ok, note]) =>
@@ -276,7 +305,25 @@ function makeFlow({ pointing = false } = {}) {
   flow.onScreen = renderScreen;
   flow.onSpeak = (text) => app.voice && app.voice.speak(text);
   flow.onToast = toast;
+  flow.onLagebild = openLagebild;
   return flow;
+}
+
+/**
+ * Das Lagebild der Einsatzleitung ist eine gewöhnliche Webseite (`../demo/`)
+ * und lässt sich nicht in die AR-Ebene legen — dort gibt es nur WebGL. Also:
+ * aus der Brille heraus wird die Sitzung beendet und die Seite flach geöffnet.
+ * `window.open` gilt ohne Klick oft als Pop-up und wird geblockt; deshalb bleibt
+ * die Tafel mit dem Link immer stehen, damit es einen Weg gibt, der sicher geht.
+ */
+function openLagebild() {
+  const go = () => {
+    el.lagebild.classList.remove("hidden");
+    const win = window.open(LAGEBILD_URL, "_blank", "noopener");
+    if (win) toast("Lagebild in neuem Tab geöffnet", "ok");
+  };
+  if (app.xr && app.xr.active) { app.xr.end().then(go, go); return; }
+  go();
 }
 
 /* ------------------------------------------------------- mode start/stop */
@@ -416,6 +463,11 @@ function wireControls() {
     const parts = [app.screen.headline, app.screen.hint].filter(Boolean);
     app.voice.speak(parts.join(". "));
   };
+
+  $("ctl-mic").onclick = () => app.voice.toggleListening();
+
+  el.lagebildLink.href = LAGEBILD_URL;
+  el.lagebildClose.onclick = () => el.lagebild.classList.add("hidden");
 }
 
 /* --------------------------------------------------------------- boot */
@@ -424,8 +476,25 @@ function boot() {
   detectCaps();
   wireControls();
 
-  app.voice = new Voice({ onCommand: () => {}, onState: () => {} });
-  setVoiceStatus(synthesisAvailable() ? "Sprachausgabe bereit" : "keine Sprachausgabe");
+  // Gesprochenes geht durch denselben Ablauf wie ein Knopfdruck — die
+  // Zustandsmaschine kennt keinen Unterschied.
+  app.voice = new Voice({
+    onCommand: (cmd) => {
+      if (!app.flow) return;
+      if (app.flow.handleSpeech(cmd)) return;
+      toast(`„${cmd.raw}" passt hier nicht`, "warn");
+    },
+    onState: (st) => {
+      if (st.installing) { setVoiceStatus("Sprachpaket wird geladen …"); return; }
+      if (st.error) { setVoiceStatus("Mikrofon: " + st.error); return; }
+      if (st.interim) { setVoiceStatus("… " + st.interim); return; }
+      if (st.unrecognized) { setVoiceStatus("nicht verstanden: " + st.unrecognized); return; }
+      setVoiceStatus(st.listening ? "hört zu (lokal)" : idleVoiceStatus());
+      $("ctl-mic").classList.toggle("on", !!st.listening);
+    },
+  });
+  setVoiceStatus(idleVoiceStatus());
+  describeSpeech();
 
   el.btnAR.onclick = () => !el.btnAR.disabled && startAR();
   el.btnCam.onclick = () => startCamera();

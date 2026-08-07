@@ -13,7 +13,46 @@
 
 "use strict";
 
-import { buildMesh, pickRegion, regionColor, REGIONS } from "./body.js";
+import { buildMesh, pickRegion, regionColor, REGIONS, MESH_URL } from "./body.js";
+
+/* ------------------------------------------------------- das echte Netz
+ *
+ * `assets/body/` enthält das MakeHuman-Basisnetz, zerlegt in dieselben dreizehn
+ * Regionen (siehe make_body.py). Es wird **einmal je Sitzung** geladen und von
+ * allen Ansichten geteilt — in der Brille steht es an jedem Patienten, flach
+ * einmal im Ablaufschirm.
+ *
+ * Solange es nicht da ist (oder gar nicht kommt), zeichnen alle Ansichten die
+ * Quader aus body.js. Ein fehlendes Netz darf den Einsatz nicht aufhalten.
+ */
+
+let meshPromise = null;
+
+/**
+ * @returns {Promise<{data: Float32Array, index: Uint16Array,
+ *                    ranges: Array<{id,start,count}>}|null>}
+ */
+export function loadBodyMesh(base = "") {
+  if (meshPromise) return meshPromise;
+  meshPromise = (async () => {
+    const url = base + MESH_URL;
+    const meta = await fetch(url).then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.json();
+    });
+    const buf = await fetch(url.replace(/\.json$/, ".bin")).then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.arrayBuffer();
+    });
+    const data = new Float32Array(buf, 0, meta.vertices * 6);
+    const index = new Uint16Array(buf, meta.vertexBytes, meta.indices);
+    return { data, index, ranges: meta.ranges };
+  })().catch((err) => {
+    console.warn("[JAR] Körpernetz nicht geladen, zeichne Quader:", err.message);
+    return null;
+  });
+  return meshPromise;
+}
 
 const VERT = `
   attribute vec3 aPos;
@@ -69,11 +108,31 @@ export class BodyMesh {
     this.uModel = gl.getUniformLocation(prog, "uModel");
     this.uColor = gl.getUniformLocation(prog, "uColor");
 
-    const mesh = buildMesh();
-    this.ranges = mesh.ranges;
+    // Notbehelf sofort: die Quader aus body.js. Sie werden ersetzt, sobald das
+    // echte Netz da ist — so steht von der ersten Sekunde an ein Körper da.
+    const boxes = buildMesh();
+    this.ranges = boxes.ranges;
+    this.indexed = false;
     this.vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, boxes.data, gl.STATIC_DRAW);
+    this.ibo = null;
+    this.total = 0;
+  }
+
+  /** Das geladene Netz übernehmen. Vorher gezeichnete Quader fallen weg. */
+  useMesh(mesh) {
+    if (!mesh || !this.gl) return false;
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.bufferData(gl.ARRAY_BUFFER, mesh.data, gl.STATIC_DRAW);
+    this.ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.index, gl.STATIC_DRAW);
+    this.ranges = mesh.ranges;
+    this.total = mesh.index.length;
+    this.indexed = true;
+    return true;
   }
 
   /**
@@ -85,8 +144,10 @@ export class BodyMesh {
    * @param {Float32Array} model  Modell → Welt (nur für die Beleuchtung)
    * @param {object} findings     {regionId: [Befund, …]}
    */
-  draw(mvp, model, findings, hover = null, active = null, alpha = 0.95) {
+  draw(mvp, model, findings, hover = null, active = null, opts = {}) {
     const gl = this.gl;
+    const alpha = opts.alpha == null ? 0.95 : opts.alpha;
+    const base = opts.base || null;      // Grundfarbe statt Hautton (Sichtungsfarbe)
 
     gl.useProgram(this.prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
@@ -94,12 +155,13 @@ export class BodyMesh {
     gl.vertexAttribPointer(this.aPos, 3, gl.FLOAT, false, 24, 0);
     gl.enableVertexAttribArray(this.aNrm);
     gl.vertexAttribPointer(this.aNrm, 3, gl.FLOAT, false, 24, 12);
+    if (this.indexed) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ibo);
 
     gl.uniformMatrix4fv(this.uMVP, false, mvp);
     gl.uniformMatrix4fv(this.uModel, false, model);
 
     // Tiefe UND Rückseitenschnitt: sollte eine Umsetzung dem XR-Puffer keine
-    // Tiefe mitgeben, hält allein das Wegschneiden der Rückseiten die Quader
+    // Tiefe mitgeben, hält allein das Wegschneiden der Rückseiten den Körper
     // noch richtig zusammen.
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -107,10 +169,21 @@ export class BodyMesh {
     gl.cullFace(gl.BACK);
     gl.frontFace(gl.CCW);
 
-    for (const r of this.ranges) {
-      const c = regionColor(r.id, findings, hover, active);
+    // Ist überall dieselbe Farbe fällig — der Normalfall bei den kleinen
+    // Figuren über den Markern —, geht das ganze Netz in einem Zug raus.
+    const plain = this.indexed && !hover && !active &&
+                  !(findings && Object.keys(findings).length);
+    if (plain) {
+      const c = base || regionColor(null, null, null, null);
       gl.uniform4f(this.uColor, c[0], c[1], c[2], alpha);
-      gl.drawArrays(gl.TRIANGLES, r.start, r.count);
+      gl.drawElements(gl.TRIANGLES, this.total, gl.UNSIGNED_SHORT, 0);
+    } else {
+      for (const r of this.ranges) {
+        const c = regionColor(r.id, findings, hover, active, base);
+        gl.uniform4f(this.uColor, c[0], c[1], c[2], alpha);
+        if (this.indexed) gl.drawElements(gl.TRIANGLES, r.count, gl.UNSIGNED_SHORT, r.start * 2);
+        else gl.drawArrays(gl.TRIANGLES, r.start, r.count);
+      }
     }
 
     gl.disable(gl.CULL_FACE);          // die Bildebenen werden beidseitig gesehen
@@ -122,6 +195,7 @@ export class BodyMesh {
     const gl = this.gl;
     if (!gl) return;
     gl.deleteBuffer(this.vbo);
+    if (this.ibo) gl.deleteBuffer(this.ibo);
     gl.deleteProgram(this.prog);
     this.gl = null;
   }
@@ -191,6 +265,11 @@ export class BodyView {
     if (!gl) { this.gl = null; return; }        // ohne WebGL bleibt die Fläche leer
     this.gl = gl;
     this.mesh = new BodyMesh(gl);
+
+    // Bis das Netz da ist, stehen die Quader — danach der Mensch.
+    loadBodyMesh().then((m) => {
+      if (m && this.mesh && this.mesh.useMesh(m)) this.render();
+    });
 
     this._drag = null;
     this._moved = 0;

@@ -136,8 +136,17 @@
       <div class="actions">
         <button id="ctl-record" class="act">Akte</button>
         <button id="ctl-speak" class="act">Vorlesen</button>
+        <button id="ctl-mic" class="act" disabled>Sprechen</button>
         <button id="ctl-exit" class="act exit">Beenden</button>
       </div>
+    </div>
+
+    <!-- Das Lagebild der Einsatzleitung ist eine eigene Seite; aus der Brille
+         heraus wird die Sitzung beendet und hier der Weg dorthin gezeigt. -->
+    <div id="lagebild" class="lagebild hidden">
+      <span class="hud-key">Lagebild Einsatzleitung</span>
+      <a id="lagebild-link" class="flow-btn primary" target="_blank" rel="noopener" href="../demo/index.html">Live-Demo öffnen</a>
+      <button id="lagebild-close" class="flow-btn ghost" type="button">Schließen</button>
     </div>
 
     <div id="toast" class="toast"></div>

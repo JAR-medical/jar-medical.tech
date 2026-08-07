@@ -275,6 +275,21 @@ body {
 
 .flow-status { font-size: 12px; color: rgba(255,255,255,.45); }
 
+/* Mikrofon an: der Knopf trägt den Zustand, nicht nur die Statuszeile. */
+.act.on { border-color: #46a758; color: #8ee2a4; }
+
+/* Weg zum Lagebild — bleibt stehen, falls der neue Tab geblockt wurde. */
+.lagebild {
+  position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+  z-index: 40;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: rgba(8,11,15,.92);
+  border: 1px solid rgba(255,255,255,.28);
+}
+.lagebild .flow-btn { flex: 0 0 auto; min-height: 44px; padding: 8px 18px; font-size: 15px;
+  text-decoration: none; display: inline-flex; align-items: center; }
+
 /* Randknöpfe: was jederzeit möglich ist (Patient anlegen, Tätigkeit wechseln,
  * abbrechen). Klein und am Rand — in der Brille sitzen sie an derselben Stelle,
  * damit die Mitte des Blickfelds frei bleibt. */

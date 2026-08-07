@@ -45,10 +45,26 @@ Tätigkeit wählen ─▶ Lagekarte ─▶ „Neuer Patient" (Stelle am Boden ze
   Blick war. Das ist raus: was einem bestimmten Patienten gehört, darf nicht
   woanders auftauchen — wer sie sucht, dreht sich zu dem, an dem er arbeitet.)
 - **Ein Körper zum Drehen.** Am geöffneten Patienten steht neben der
-  Handlungskarte ein Menschmodell aus dreizehn Regionen. Mit dem Controller
-  greifen und ziehen dreht es; nur mit Blick dreht es sich von selbst weiter und
-  hält an, sobald der Blick auf einem Körperteil liegt. Region antippen →
-  Befund wählen. Regionen mit Befund sind rot.
+  Handlungskarte ein **echter Mensch** — das MakeHuman-Basisnetz, CC0 und
+  geschlechtsneutral (siehe [Das Körpermodell](#das-körpermodell)), zerlegt in
+  dreizehn Regionen. Mit dem Controller greifen und ziehen dreht ihn; nur mit
+  Blick dreht er sich von selbst weiter und hält an, sobald der Blick auf einem
+  Körperteil liegt. Region antippen → Befund wählen. Regionen mit Befund sind
+  rot. Dieselbe Figur steht klein neben jeder Anzeige über einem Marker, dort in
+  der Sichtungsfarbe — man sieht aus einigen Metern, wer da liegt und wo es ihn
+  erwischt hat.
+- **Sprechen statt tippen.** Die Vorsichtung ist ein Fragebogen aus Ja und Nein
+  — genau das, was sich sagen lässt, während beide Hände am Patienten sind. Der
+  Knopf **Sprechen** schaltet das Mikrofon zu; „ja", „nein", „zurück" und
+  „weiter" bedienen den Ablauf. Die Erkennung läuft **nur lokal auf dem Gerät**
+  (`processLocally`) — kann der Browser das nicht zusichern, bleibt das Mikrofon
+  aus. Patiententon gehört nicht auf fremde Server, und Netz gibt es an der
+  Einsatzstelle womöglich sowieso nicht. Die Knöpfe bleiben daneben bestehen: im
+  Lärm einer Einsatzstelle darf die Bedienung nicht am Mikrofon hängen.
+- **Zum Lagebild.** Der Randknopf **Lagebild** führt zur Live-Demo der
+  Einsatzleitung (`../demo/`) — dasselbe Lagebild wie auf der Website. Sie ist
+  eine gewöhnliche Webseite und lässt sich nicht in die AR-Ebene legen; aus der
+  Brille heraus wird deshalb die Sitzung beendet und die Seite flach geöffnet.
 - **Bedienung im Browser: Blick + Verweilen.** Fadenkreuz in der Blickmitte, 1,1 s
   auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger).
   **Handtracking gibt es hier nicht:** der PICO-Browser stellt die
@@ -121,6 +137,41 @@ Firmware (Quest: Physischer Raum → Grenze; PICO: Sicherheitsgrenze).
 
 ---
 
+## Das Körpermodell
+
+Der Mensch im Blickfeld ist nicht selbstgebaut, sondern das **MakeHuman-Basisnetz**
+(`basemesh hm08`). Es wurde im September 2020 ausdrücklich unter **CC0**
+gestellt — der Hinweis steht im Kopf der Quelldatei; Rechteinhaber zum Zeitpunkt
+der Freigabe waren Data Collection AB, Joel Palmius und Jonas Hauquier. CC0
+verlangt keine Namensnennung; sie steht in `assets/body/HERKUNFT.md` trotzdem.
+
+Es ist bewusst das **geschlechtsneutrale** Basisnetz: MakeHuman formt daraus erst
+über Modifikatoren einen bestimmten Körper. Hier soll es „ein Mensch" heißen und
+keine bestimmte Person.
+
+```sh
+../../.venv/bin/python make_body.py
+```
+
+Das Skript lädt die Quelle (1,7 MB), wirft Helfergeometrie, Gelenkwürfel und
+Zähne weg, normiert auf Höhe 1 (Füße bei y = 0, Gesicht nach +z) und schreibt
+`assets/body/body.bin` + `body.json` — rund 470 KB, 13 380 Punkte, 26 756
+Dreiecke. Eingecheckt wird das Ergebnis, nicht die Quelle.
+
+**Die dreizehn Regionen** entstehen dabei mit: das Netz steht in A-Haltung, feste
+Quader träfen die abgespreizten Arme nicht. Stattdessen bekommt jeder Punkt die
+Region des nächstgelegenen **Knochens** — der Strecke zwischen zwei Gelenken, die
+MakeHuman als eigene Gruppen mitliefert. Aus den zugeordneten Punkten fallen die
+Trefferquader heraus, die in `js/body.js` stehen; der Quader, auf den man zeigt,
+ist also die Hülle dessen, was man sieht. Die Rumpfsäule wird zusätzlich in y
+sauber geteilt, damit Brust und Bauch beim Zeigen nicht um denselben Strahl
+streiten.
+
+Lädt das Netz nicht, zeichnet die App die Quader — ein fehlendes Modell hält den
+Einsatz nicht auf.
+
+---
+
 ## Die vier Tätigkeiten
 
 Der erste Schirm fragt: **Was machst du gerade?** Die Antwort steht danach oben
@@ -172,9 +223,9 @@ oculusapp/
 ├─ js/
 │  ├─ data.js            Akten dieses Einsatzes (leer beim Start) + Schreibfunktionen
 │  ├─ tasks.js           die vier Tätigkeiten als Tabelle (Ablauf, Rechte, Beschriftung)
-│  ├─ body.js            dreizehn Körperregionen als Quader: Maße, Netz, Zeigen
-│  ├─ bodyview.js        das Modell zeichnen — in der Brille (BodyMesh) und
-│  │                     flach mit Maus/Finger drehbar (BodyView)
+│  ├─ body.js            dreizehn Körperregionen: Trefferquader, Notbehelfsnetz, Zeigen
+│  ├─ bodyview.js        das Modell laden und zeichnen — in der Brille (BodyMesh)
+│  │                     und flach mit Maus/Finger drehbar (BodyView)
 │  ├─ mstart.js          das mSTaRT-Schema als Entscheidungsbaum (reine Logik)
 │  ├─ layout.js          Lagekarte: Weltpositionen → Kartenfläche, Ausschnitt, Distanzen
 │  ├─ workflow.js        der Ablauf als Zustandsmaschine — kennt keine Darstellung
@@ -187,19 +238,24 @@ oculusapp/
 │  ├─ hudcanvas.js       Patientenakte auf Canvas
 │  ├─ hud.js             Patientenakte als DOM
 │  ├─ qr.js              QR: BarcodeDetector → jsQR-Fallback; liest JAR-P<n>
-│  ├─ voice.js           Sprachausgabe (und ein Kommando-Parser für den Quest-Build)
+│  ├─ voice.js           Sprachausgabe und -eingabe; Erkennung nur lokal (processLocally)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     170 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
+│  ├─ logic.test.mjs     188 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
 │  │                     Stelle am Boden, alle vier Tätigkeiten, Körperregionen
-│  │                     samt der Rückrechnung, mit der in AR gezeigt wird
+│  │                     samt der Rückrechnung für AR, Spracheingabe
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
+│  ├─ probe_body.html    lädt das Körpernetz, zeichnet es aus vier Richtungen
+│  │                     und prüft, dass jede Region zu treffen ist
 │  ├─ probe_dom.html     klickt den flachen Ablauf durch
 │  └─ probe_qr.html      decodiert jede gedruckte Karte mit jsQR
 ├─ Unity/                nativer PICO-/Quest-Build (siehe Unity/README-PICO.md)
 ├─ vendor/jsQR.min.js    QR-Decoder-Fallback
+├─ make_body.py          holt das MakeHuman-Basisnetz (CC0) und macht daraus
+│                        assets/body/ — siehe „Das Körpermodell"
 ├─ make_cards.py         erzeugt den Druckbogen der Umhängekarten (segno)
 ├─ make_markers.py       erzeugt die nackten QR-Marker (segno)
+├─ assets/body/          body.bin/.json (Menschmodell) + HERKUNFT.md
 └─ assets/markers/       patientenkarten.pdf/.html (Umhängekarten, zum Drucken)
                          JAR-P1..JAR-P12.svg + markers.html (nackte Marker)
 ```
@@ -211,8 +267,11 @@ node tests/logic.test.mjs
 ```
 
 Die Darstellung lässt sich headless ansehen: `tests/probe_flow.html` zeichnet
-jeden AR-Schirm auf eine Canvas, `tests/probe_dom.html` klickt den flachen Ablauf
-durch — beide über einen lokalen Server öffnen und mit `--screenshot` abgreifen.
+jeden AR-Schirm auf eine Canvas, `tests/probe_body.html` lädt das Körpernetz und
+zeichnet es aus vier Richtungen, `tests/probe_dom.html` klickt den flachen Ablauf
+durch (`?stop=koerper`, `?stop=lagebild`, …) — alle über einen lokalen Server
+öffnen und mit `--screenshot` abgreifen. Für WebGL im Headless-Chrome braucht es
+`--use-gl=swiftshader --enable-unsafe-swiftshader`.
 
 ### Karten neu erzeugen
 ```sh

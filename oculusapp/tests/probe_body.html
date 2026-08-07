@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>probe-body</title>
+  <style>
+    body { margin: 0; background: #0c1014; color: #cdd7df;
+           font: 13px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    figure { margin: 0; padding: 10px; display: inline-block; }
+    figcaption { color: #9fb0c0; font-weight: 600; padding: 4px 2px; }
+    canvas { background: #11161c; border: 1px solid rgba(255,255,255,.18); display: block; }
+    pre { padding: 12px; white-space: pre-wrap; }
+    .bad { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <div id="shots"></div>
+  <pre id="log"></pre>
+  <script type="module">
+    /* Prüft das Körpermodell im Browser — das, was der Knotentest nicht kann:
+     * ob das Netz wirklich lädt, ob es sich zeichnen lässt und ob das Zeigen
+     * auf die dreizehn Regionen zu dem passt, was man dabei sieht.
+     *
+     * Über einen lokalen Server öffnen. Der Titel sagt am Ende OK oder ERR. */
+
+    import { REGIONS, pickRegion, MESH_URL } from "../js/body.js";
+    import { BodyView, loadBodyMesh } from "../js/bodyview.js";
+
+    const log = document.getElementById("log");
+    let bad = 0;
+    const check = (ok, what) => {
+      log.insertAdjacentHTML("beforeend",
+        ok ? `  ok   ${what}\n` : `  <span class="bad">FAIL ${what}</span>\n`);
+      if (!ok) bad++;
+    };
+
+    try {
+      // --- Netz laden ----------------------------------------------------
+      const mesh = await loadBodyMesh("../");
+      check(!!mesh, `Netz geladen (${MESH_URL})`);
+      if (!mesh) throw new Error("ohne Netz kein weiterer Test");
+
+      check(mesh.data.length % 6 === 0, "Vertexpuffer ist ein Vielfaches von 6 Floats");
+      check(mesh.index.length % 3 === 0, "Indexpuffer ist ein Vielfaches von 3");
+      check(mesh.ranges.length === REGIONS.length,
+            `${mesh.ranges.length} Abschnitte für ${REGIONS.length} Regionen`);
+
+      const ids = mesh.ranges.map((r) => r.id).join(",");
+      check(ids === REGIONS.map((r) => r.id).join(","),
+            "Abschnitte stehen in derselben Reihenfolge wie die Regionen");
+
+      let cursor = 0, gaps = 0;
+      for (const r of mesh.ranges) { if (r.start !== cursor) gaps++; cursor += r.count; }
+      check(gaps === 0, "die Abschnitte liegen lückenlos hintereinander");
+      check(cursor === mesh.index.length, "und decken den ganzen Indexpuffer ab");
+
+      const verts = mesh.data.length / 6;
+      check(Math.max(...mesh.index) < verts, "kein Index zeigt über den Puffer hinaus");
+
+      // Maße: Füße bei 0, Scheitel bei 1, Brustmitte bei x = z = 0.
+      let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
+      for (let i = 0; i < verts; i++) {
+        const x = mesh.data[i * 6], y = mesh.data[i * 6 + 1];
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+      }
+      check(Math.abs(minY) < 0.001 && Math.abs(maxY - 1) < 0.001,
+            `auf Höhe 1 normiert (${minY.toFixed(3)} … ${maxY.toFixed(3)})`);
+      check(Math.abs(minX + maxX) < 0.02, "seitlich mittig");
+
+      // --- zeichnen ------------------------------------------------------
+      const shots = document.getElementById("shots");
+      const views = [["vorn", 0, 0], ["gedreht", 0.9, 0.12], ["Rücken", Math.PI, 0],
+                     ["Profil", Math.PI / 2, 0]];
+      let drawn = 0;
+      for (const [name, yaw, pitch] of views) {
+        const fig = document.createElement("figure");
+        const cap = document.createElement("figcaption");
+        cap.textContent = name;
+        const c = document.createElement("canvas");
+        c.style.width = "150px"; c.style.height = "215px";
+        fig.appendChild(cap); fig.appendChild(c);
+        shots.appendChild(fig);
+
+        const view = new BodyView(c, () => {});
+        if (!view.available) { check(false, "WebGL für die flache Ansicht"); break; }
+        view.mesh.useMesh(mesh);
+        view.yaw = yaw; view.pitch = pitch;
+        // Ein Befund am Kopf, damit die Einfärbung je Region sichtbar wird.
+        view.setFindings({ kopf: ["Wunde"] }, null);
+        const px = new Uint8Array(4);
+        const gl = view.gl;
+        gl.readPixels(gl.drawingBufferWidth >> 1, gl.drawingBufferHeight >> 1,
+                      1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        if (px[3] > 0) drawn++;
+      }
+      check(drawn === views.length, `alle ${views.length} Ansichten zeigen etwas (${drawn})`);
+
+      // --- zeigen --------------------------------------------------------
+      // Ein Strahl von vorn auf die Mitte jeder Region muss diese Region
+      // treffen. Das ist der Test, der zählt: die Quader sind die Trefferfläche
+      // für das, was gezeichnet wird.
+      const misses = [];
+      for (const r of REGIONS) {
+        const b = r.boxes[0];
+        const hit = pickRegion({ x: b.cx, y: b.cy, z: 3 }, { x: 0, y: 0, z: -1 });
+        if (!hit || hit.id !== r.id) misses.push(`${r.id}→${hit ? hit.id : "nichts"}`);
+      }
+      check(misses.length === 0, "jede Region ist von vorn zu treffen" +
+            (misses.length ? " — daneben: " + misses.join(", ") : ""));
+
+      check(pickRegion({ x: 0, y: 2, z: 3 }, { x: 0, y: 0, z: -1 }) === null,
+            "über dem Scheitel trifft nichts");
+      check(pickRegion({ x: 0, y: 0.5, z: 3 }, { x: 0, y: 1, z: 0 }) === null,
+            "ein Strahl, der am Körper vorbeigeht, trifft nichts");
+
+      document.title = bad === 0 ? "OK" : "ERR " + bad;
+      log.insertAdjacentHTML("beforeend",
+        `\n${bad === 0 ? "alle Prüfungen bestanden" : bad + " fehlgeschlagen"}\n`);
+    } catch (e) {
+      document.title = "ERR:" + e.message;
+      log.insertAdjacentHTML("afterbegin",
+        `<span class="bad">${e.stack}</span>\n`);
+    }
+  </script>
+</body>
+</html>

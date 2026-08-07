@@ -14,6 +14,7 @@ import { FieldMap, distance, nearest } from "../js/layout.js";
 import { Workflow } from "../js/workflow.js";
 import { TASKS, findTask, primaryLabel, MEASURES } from "../js/tasks.js";
 import { REGIONS, pickRegion, FINDINGS } from "../js/body.js";
+import { parseCommand } from "../js/voice.js";
 import { mul, matTranslate, matBasis, matRotY, matRotX, matScale,
          intoModel } from "../js/xr.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
@@ -555,6 +556,50 @@ function modellraum() {
   check(chest.hit && chest.hit.t < chest.len, "und liegt näher als das Ziel dahinter");
 }
 
+/* --------------------------------------------------------------- Sprache */
+
+function sprache() {
+  console.log("Spracheingabe");
+
+  const t = (s) => { const c = parseCommand(s); return c ? c.type : null; };
+  check(t("ja") === "yes", "„ja“");
+  check(t("nein") === "no", "„nein“");
+  check(t("Ja, er atmet") === "yes", "ganzer Satz mit ja");
+  check(t("nein, keine Atmung") === "no", "ganzer Satz mit nein");
+  check(t("nee") === "no" && t("jawohl") === "yes", "umgangssprachliche Formen");
+  check(t("negativ") === "no" && t("korrekt") === "yes", "Funksprache");
+  // „nein“ muss vor „ja“ greifen, sonst kippt ein Widerspruch ins Gegenteil.
+  check(t("nein ja doch nein") === "no", "Verneinung schlägt Bejahung");
+  check(t("zurück") === "back", "„zurück“ nimmt einen Schritt zurück");
+  check(t("abbrechen") === "close", "„abbrechen“ bricht ab");
+  check(t("wetterbericht") === null, "Unbeteiligtes wird nicht gedeutet");
+
+  // Am Ablauf: die sechs Fragen lassen sich durchsprechen.
+  resetEinsatz();
+  const { w, press } = rig();
+  press(/^Vorsichtung$/);
+  w.setPose({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, 0);
+  press(/Neuer Patient/);
+  check(w.state === "sichtung", "Sichtung läuft");
+
+  const say = (s) => w.handleSpeech(parseCommand(s));
+  check(say("nein") === true, "gesprochenes Nein wird angenommen");
+  check(w.session.answers.length === 1, "und beantwortet die Frage");
+  say("nein"); say("ja"); say("nein"); say("ja");
+  check(w.session.answers.length === 5, "fünf Fragen gesprochen beantwortet");
+
+  say("zurück");
+  check(w.session.answers.length === 4, "„zurück“ nimmt die letzte zurück");
+  say("ja"); say("ja");
+  check(w.state === "ergebnis" && w.result.category === "SK2",
+        "der ganze Fragebogen ist sprechbar — Ergebnis SK II");
+
+  check(w.handleSpeech(parseCommand("wetterbericht")) === false,
+        "Unverstandenes ändert nichts");
+  check(say("weiter") === true && w.state === "karte",
+        "„weiter“ drückt den Hauptknopf des Schirms");
+}
+
 /* ------------------------------------------ Anzeige beim Herantreten */
 
 function anzeige() {
@@ -587,6 +632,7 @@ platzieren();
 taetigkeiten();
 koerper();
 modellraum();
+sprache();
 anzeige();
 
 console.log();

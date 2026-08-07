@@ -1,16 +1,28 @@
 /* Das Körpermodell — wo am Patienten was ist.
  *
- * Ein Mensch aus dreizehn Regionen, jede aus ein oder zwei Quadern. Das ist
- * absichtlich grob: es soll aus zwei Metern Entfernung erkennbar sein, welcher
- * Körperteil rot ist, und nicht anatomisch stimmen. Die Regionen sind die
- * Einheit, an der Befunde hängen — „Blutung, Oberschenkel rechts" ist das, was
- * man weitergibt, nicht ein Punkt auf einer Haut.
+ * Gezeichnet wird ein echtes Menschnetz: das **MakeHuman-Basisnetz**, im
+ * September 2020 unter CC0 gestellt und geschlechtsneutral (MakeHuman formt
+ * daraus erst über Modifikatoren einen bestimmten Körper). `make_body.py` holt
+ * es, wirft Helfergeometrie und Gelenkwürfel weg und legt es in
+ * `assets/body/` ab — Herkunft und Lizenz stehen dort in HERKUNFT.md.
+ *
+ * Dieses Modul hält die **dreizehn Regionen**, an denen Befunde hängen:
+ * „Blutung, Oberschenkel rechts" ist das, was weitergegeben wird, nicht ein
+ * Punkt auf einer Haut. Jede Region ist ein Quader — nicht als Bild, sondern
+ * als Trefferfläche zum Zeigen und als Notbehelf, solange das Netz noch lädt.
+ *
+ * Die Quader sind **nicht ausgedacht**: `make_body.py` ordnet jeden Punkt des
+ * Netzes dem nächstgelegenen Knochen zu (MakeHuman liefert die Gelenke als
+ * eigene Gruppen mit) und gibt die Hüllen aus, die dabei entstehen. Sie stehen
+ * unten so, wie das Skript sie gemeldet hat. Ändert sich das Netz, wird das
+ * Skript neu gelaufen und die Liste ersetzt.
  *
  * Der Raum des Modells: y von 0 (Fußsohlen) bis 1 (Scheitel), x nach **links
  * des Patienten**, z nach vorn (aus der Brust heraus). Wer dem Modell
  * gegenübersteht, sieht seine linke Seite also rechts — spiegelverkehrt, wie
  * bei einem echten Gegenüber. Beschriftet wird anatomisch, aus Sicht des
- * Patienten.
+ * Patienten. Das Netz steht in A-Haltung, die Arme also schräg abgespreizt;
+ * deshalb sitzen die Unterarme weit außen.
  *
  * Dieses Modul ist reine Geometrie: keine GL, kein DOM. Das Zeichnen steht in
  * bodyview.js, damit dieselben Maße in der Brille und flach im Browser gelten.
@@ -21,26 +33,24 @@
 /** [Mittelpunkt x,y,z, halbe Kantenlängen x,y,z] im Modellraum. */
 const box = (cx, cy, cz, hx, hy, hz) => ({ cx, cy, cz, hx, hy, hz });
 
+/* Reihenfolge und Schlüssel müssen zu `REGION_ORDER` in make_body.py passen —
+ * daran hängen die Abschnitte im Netz. */
 export const REGIONS = [
-  { id: "kopf",    label: "Kopf",    boxes: [box(0, 0.945, 0.005, 0.048, 0.055, 0.055)] },
-  { id: "hals",    label: "Hals",    boxes: [box(0, 0.868, 0.000, 0.030, 0.022, 0.030)] },
-  { id: "thorax",  label: "Thorax",  boxes: [box(0, 0.757, 0.000, 0.105, 0.090, 0.060)] },
-  { id: "abdomen", label: "Abdomen", boxes: [box(0, 0.617, 0.000, 0.090, 0.050, 0.056)] },
-  { id: "becken",  label: "Becken",  boxes: [box(0, 0.516, 0.000, 0.098, 0.051, 0.058)] },
+  { id: "kopf",    label: "Kopf",    boxes: [box(+0.0000, 0.9526, -0.0318, 0.0528, 0.0474, 0.0622)] },
+  { id: "hals",    label: "Hals",    boxes: [box(+0.0000, 0.8735, -0.0312, 0.0474, 0.0317, 0.0589)] },
+  { id: "thorax",  label: "Thorax",  boxes: [box(+0.0000, 0.7958, -0.0465, 0.0709, 0.0460, 0.0604)] },
+  { id: "abdomen", label: "Abdomen", boxes: [box(+0.0000, 0.6629, -0.0372, 0.0892, 0.0869, 0.0640)] },
+  { id: "becken",  label: "Becken",  boxes: [box(+0.0000, 0.5197, -0.0574, 0.0656, 0.0562, 0.0741)] },
 
-  { id: "arm-li-ober",  label: "Oberarm links",  boxes: [box( 0.140, 0.749, 0, 0.030, 0.085, 0.030)] },
-  { id: "arm-li-unter", label: "Unterarm links", boxes: [box( 0.140, 0.566, 0, 0.026, 0.098, 0.026),
-                                                         box( 0.140, 0.440, 0, 0.028, 0.028, 0.018)] },
-  { id: "arm-re-ober",  label: "Oberarm rechts",  boxes: [box(-0.140, 0.749, 0, 0.030, 0.085, 0.030)] },
-  { id: "arm-re-unter", label: "Unterarm rechts", boxes: [box(-0.140, 0.566, 0, 0.026, 0.098, 0.026),
-                                                          box(-0.140, 0.440, 0, 0.028, 0.028, 0.018)] },
+  { id: "arm-li-ober",  label: "Oberarm links",  boxes: [box(+0.1203, 0.7604, -0.0463, 0.0833, 0.0778, 0.0606)] },
+  { id: "arm-li-unter", label: "Unterarm links", boxes: [box(+0.2332, 0.6429, +0.0233, 0.0647, 0.0796, 0.0991)] },
+  { id: "arm-re-ober",  label: "Oberarm rechts", boxes: [box(-0.1203, 0.7604, -0.0463, 0.0833, 0.0778, 0.0606)] },
+  { id: "arm-re-unter", label: "Unterarm rechts", boxes: [box(-0.2332, 0.6429, +0.0233, 0.0647, 0.0796, 0.0991)] },
 
-  { id: "bein-li-ober",  label: "Oberschenkel links",  boxes: [box( 0.050, 0.362, 0, 0.050, 0.103, 0.052)] },
-  { id: "bein-li-unter", label: "Unterschenkel links", boxes: [box( 0.050, 0.140, 0.000, 0.040, 0.119, 0.043),
-                                                               box( 0.050, 0.011, 0.045, 0.040, 0.011, 0.075)] },
-  { id: "bein-re-ober",  label: "Oberschenkel rechts",  boxes: [box(-0.050, 0.362, 0, 0.050, 0.103, 0.052)] },
-  { id: "bein-re-unter", label: "Unterschenkel rechts", boxes: [box(-0.050, 0.140, 0.000, 0.040, 0.119, 0.043),
-                                                                box(-0.050, 0.011, 0.045, 0.040, 0.011, 0.075)] },
+  { id: "bein-li-ober",  label: "Oberschenkel links",  boxes: [box(+0.0620, 0.4316, -0.0622, 0.0620, 0.1788, 0.0692)] },
+  { id: "bein-li-unter", label: "Unterschenkel links", boxes: [box(+0.1128, 0.1402, -0.0323, 0.0495, 0.1402, 0.0766)] },
+  { id: "bein-re-ober",  label: "Oberschenkel rechts", boxes: [box(-0.0620, 0.4316, -0.0622, 0.0620, 0.1788, 0.0692)] },
+  { id: "bein-re-unter", label: "Unterschenkel rechts", boxes: [box(-0.1128, 0.1402, -0.0323, 0.0495, 0.1402, 0.0766)] },
 ];
 
 export function findRegion(id) {
@@ -102,7 +112,10 @@ export function buildMesh() {
 }
 
 /** Grobe Hülle des ganzen Modells — für den schnellen Vortest beim Zeigen. */
-export const BOUNDS = { hx: 0.22, cy: 0.5, hy: 0.52, hz: 0.13 };
+export const BOUNDS = { hx: 0.30, cy: 0.5, hy: 0.52, hz: 0.14 };
+
+/** Wo das fertige Netz liegt (aus make_body.py). */
+export const MESH_URL = "assets/body/body.json";
 
 /* ----------------------------------------------------------------- Zeigen */
 
@@ -159,11 +172,21 @@ export const BODY_PICK = [0.49, 0.75, 1.0];
 
 /**
  * Farbe einer Region: rot, wo ein Befund hängt; hell, wo der Zeiger liegt oder
- * gerade eingetragen wird; sonst neutral.
+ * gerade eingetragen wird; sonst die Grundfarbe. Die ist normalerweise ein
+ * neutraler Ton — bei den kleinen Figuren über den Markern dagegen die
+ * Sichtungsfarbe, damit man von weitem sieht, wer da liegt.
+ *
  * @param {object} findings {regionId: [text, …]}
+ * @param {number[]|null} base Grundfarbe [r,g,b] 0…1
  */
-export function regionColor(id, findings, hover, active) {
-  if (id === active || id === hover) return BODY_PICK;
+export function regionColor(id, findings, hover, active, base = null) {
+  if (id != null && (id === active || id === hover)) return BODY_PICK;
   const has = findings && findings[id] && findings[id].length;
-  return has ? BODY_HURT : BODY_SKIN;
+  return has ? BODY_HURT : (base || BODY_SKIN);
+}
+
+/** "#e5484d" → [0.90, 0.28, 0.30] */
+export function rgbOf(hex) {
+  const n = parseInt(String(hex).slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
