@@ -15,6 +15,8 @@ import { Workflow } from "../js/workflow.js";
 import { TASKS, findTask, primaryLabel, MEASURES } from "../js/tasks.js";
 import { REGIONS, pickRegion, FINDINGS } from "../js/body.js";
 import { parseCommand } from "../js/voice.js";
+import { CELLS, ANCHORS, COLS, ROWS, PANEL_W, PANEL_H, cellRect, cellAt,
+         PanelPress, coveredCell } from "../js/wristband.js";
 import { mul, matTranslate, matBasis, matRotY, matRotX, matScale,
          intoModel } from "../js/xr.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
@@ -600,6 +602,81 @@ function sprache() {
         "„weiter“ drückt den Hauptknopf des Schirms");
 }
 
+/* --------------------------------------------------------------- Armband */
+
+function armband() {
+  console.log("Armband");
+
+  // --- Raster: Felder dürfen sich nicht überlappen und müssen treffbar sein.
+  check(CELLS.length === COLS * ROWS, `${CELLS.length} Felder in ${COLS}×${ROWS}`);
+  const marks = new Set([...CELLS.map((c) => c.marker), ...ANCHORS]);
+  check(marks.size === CELLS.length + ANCHORS.length,
+        "jede Markernummer kommt nur einmal vor");
+  check(CELLS.every((c) => cellAt(cellRect(c).x, cellRect(c).y) === c),
+        "jedes Feld wird in seiner Mitte getroffen");
+  check(cellAt(0, PANEL_H) === null, "über dem Band trifft nichts");
+  check(cellAt(PANEL_W, 0) === null, "neben dem Band trifft nichts");
+
+  // Nachbarfelder dürfen nicht ineinanderlaufen: knapp diesseits der Kante
+  // muss noch das eigene Feld kommen, knapp jenseits das andere.
+  const a = CELLS[0], b = CELLS[1];
+  const ra = cellRect(a);
+  check(cellAt(ra.x + ra.w / 2 - 0.001, ra.y) === a, "innen an der Kante noch das eigene Feld");
+  check(cellAt(ra.x + ra.w / 2 + 0.001, ra.y) === b, "außen an der Kante schon das nächste");
+
+  // --- Auslösen: halten, entprellen, loslassen.
+  const fired = [];
+  const p = new PanelPress((action) => fired.push(action), { hold: 200, cool: 500 });
+
+  p.update(CELLS[0], 0);
+  check(fired.length === 0, "Berühren allein löst nicht aus");
+  p.update(CELLS[0], 100);
+  check(fired.length === 0, "vor Ablauf der Haltezeit auch nicht");
+  p.update(CELLS[0], 250);
+  check(fired.length === 1 && fired[0] === "ja", "nach der Haltezeit löst es aus");
+
+  p.update(CELLS[0], 400);
+  p.update(CELLS[0], 900);
+  check(fired.length === 1, "liegenbleiben feuert nicht nach");
+
+  p.update(null, 950);                       // losgelassen
+  p.update(CELLS[0], 1000);
+  p.update(CELLS[0], 1300);
+  check(fired.length === 2, "nach dem Loslassen geht dasselbe Feld wieder");
+
+  // Über ein Nachbarfeld streifen darf nichts auslösen.
+  const q = new PanelPress((action) => fired.push(action), { hold: 200, cool: 0 });
+  q.update(CELLS[0], 0);
+  q.update(CELLS[1], 50);                    // gewandert → Haltezeit neu
+  q.update(CELLS[2], 100);
+  q.update(CELLS[2], 180);
+  check(fired.length === 2, "Streifen über Felder löst nichts aus");
+  q.update(CELLS[2], 320);
+  check(fired.length === 3 && fired[2] === "zurueck", "erst Liegenbleiben löst aus");
+
+  // --- Kameraweg: Verdeckung.
+  const all = new Set([...CELLS.map((c) => c.marker), ...ANCHORS]);
+  check(coveredCell(all, all) === null, "alles sichtbar → nichts verdeckt");
+
+  const oneGone = new Set(all); oneGone.delete(CELLS[3].marker);
+  check(coveredCell(oneGone, all) === CELLS[3], "ein fehlender Marker = Finger darauf");
+
+  const twoGone = new Set(oneGone); twoGone.delete(CELLS[4].marker);
+  check(coveredCell(twoGone, all) === null,
+        "zwei fehlende sind kein Druck, sondern ein schräg gehaltenes Band");
+
+  const noAnchor = new Set(all);
+  for (const x of ANCHORS) noAnchor.delete(x);
+  noAnchor.delete(CELLS[0].marker);
+  check(coveredCell(noAnchor, all) === null,
+        "ohne Anker ist das Band aus dem Bild — kein Druck");
+
+  // Ein Feld, das noch nie zu sehen war, gilt nicht als verdeckt.
+  const nieGesehen = new Set([...ANCHORS]);
+  check(coveredCell(nieGesehen, nieGesehen) === null,
+        "was nie sichtbar war, kann nicht verdeckt sein");
+}
+
 /* ------------------------------------------ Anzeige beim Herantreten */
 
 function anzeige() {
@@ -633,6 +710,7 @@ taetigkeiten();
 koerper();
 modellraum();
 sprache();
+armband();
 anzeige();
 
 console.log();

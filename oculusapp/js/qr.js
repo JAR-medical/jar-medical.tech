@@ -45,6 +45,14 @@ export function decodeSupported() {
   return barcodeDetectorAvailable() || jsQRAvailable();
 }
 
+/* Abstand zwischen zwei ausgewerteten Bildern. Nicht jedes Bild: ein QR-Code
+ * hält länger als 66 ms still, und im AR-Modus teilt sich der Scanner die
+ * Rechenzeit mit der Darstellung. */
+const SCAN_INTERVAL_MS = 66;
+
+/* So lange wird auf die Kamera gewartet, bevor ohne sie weitergemacht wird. */
+const GUM_TIMEOUT_MS = 6000;
+
 export class QRScanner {
   /**
    * @param {object} opts
@@ -64,7 +72,7 @@ export class QRScanner {
     this.stream = null;
     this.detector = null;
     this.running = false;
-    this._raf = null;
+    this._timer = null;
     this._last = { id: null, at: 0 };
   }
 
@@ -98,11 +106,25 @@ export class QRScanner {
     }
 
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
+      // Mit Zeitgrenze. `getUserMedia` kann hängenbleiben statt abzulehnen —
+      // etwa wenn der Browser die Berechtigungsfrage nirgends anzeigen kann.
+      // Ohne diese Grenze bliebe der Aufrufer ewig stehen; im AR-Modus hieße
+      // das: die Brille startet gar nicht erst, weil die Kamera vorher
+      // angefragt wird. Lieber ohne Kamera weitermachen als gar nicht.
+      this.stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        }),
+        new Promise((_, reject) => setTimeout(
+          () => reject(Object.assign(new Error("timeout"), { name: "TimeoutError" })),
+          GUM_TIMEOUT_MS)),
+      ]);
     } catch (err) {
+      if (err && err.name === "TimeoutError")
+        throw new Error("Die Kamera antwortet nicht (keine Rückmeldung nach " +
+          (GUM_TIMEOUT_MS / 1000) + " s). Das passiert, wenn der Browser die " +
+          "Berechtigungsfrage nicht anzeigen kann. Karte von Hand bestätigen.");
       const name = err && err.name;
       if (name === "NotAllowedError" || name === "SecurityError")
         throw new Error("Kamerazugriff abgelehnt. Im Browser die Kamera-Berechtigung für " +
@@ -129,8 +151,8 @@ export class QRScanner {
 
   stop() {
     this.running = false;
-    if (this._raf) cancelAnimationFrame(this._raf);
-    this._raf = null;
+    if (this._timer) clearTimeout(this._timer);
+    this._timer = null;
     if (this.stream) {
       this.stream.getTracks().forEach((t) => t.stop());
       this.stream = null;
@@ -179,10 +201,20 @@ export class QRScanner {
     }
   }
 
+  /* Die Schleife läuft über einen Zeitgeber, NICHT über requestAnimationFrame.
+   *
+   * Der Grund ist der AR-Modus: sobald eine immersive WebXR-Sitzung läuft,
+   * zeichnet der Browser die flache Seite nicht mehr — und ruft deren
+   * requestAnimationFrame nicht mehr auf. Die Schleife stand damit still,
+   * sobald man ins Headset ging, und es wurde nie wieder ein Bild ausgewertet.
+   * Von außen sah das aus, als gäbe das Gerät keine Kamera her.
+   *
+   * Ein Zeitgeber läuft weiter. 15 Bilder je Sekunde reichen für einen QR-Code
+   * mit Abstand und lassen der Darstellung ihre Rechenzeit. */
   _tick() {
     if (!this.running) return;
     this._decodeFrame().finally(() => {
-      if (this.running) this._raf = requestAnimationFrame(() => this._tick());
+      if (this.running) this._timer = setTimeout(() => this._tick(), SCAN_INTERVAL_MS);
     });
   }
 }

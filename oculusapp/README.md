@@ -61,6 +61,12 @@ Tätigkeit wählen ─▶ Lagekarte ─▶ „Neuer Patient" (Stelle am Boden ze
   aus. Patiententon gehört nicht auf fremde Server, und Netz gibt es an der
   Einsatzstelle womöglich sowieso nicht. Die Knöpfe bleiben daneben bestehen: im
   Lärm einer Einsatzstelle darf die Bedienung nicht am Mikrofon hängen.
+- **Ein Armband aus Papier statt Knöpfen im Blickfeld.** Sechs Felder auf einem
+  Streifen am linken Unterarm, jedes mit ArUco-Marker und Zeichen: Ja, Nein,
+  Zurück, Patient, Tätigkeit, Lagebild. Berühren löst aus. Liegt das Armband
+  griffbereit, verschwindet die Knopfreihe am Blickfeldrand — siehe
+  [Das Armband](#das-armband). Druckbogen:
+  `assets/panel/armband.pdf`.
 - **Zum Lagebild.** Der Randknopf **Lagebild** führt zur Live-Demo der
   Einsatzleitung (`../demo/`) — dasselbe Lagebild wie auf der Website. Sie ist
   eine gewöhnliche Webseite und lässt sich nicht in die AR-Ebene legen; aus der
@@ -137,6 +143,56 @@ Firmware (Quest: Physischer Raum → Grenze; PICO: Sicherheitsgrenze).
 
 ---
 
+## Das Armband
+
+Ein Stück Papier am linken Unterarm, sechs Felder, je ein ArUco-Marker und ein
+Zeichen. Der Gedanke: die Hände sind am Patienten und der Blick ist beim
+Patienten — eine Knopfreihe im Blickfeld ist beides nicht.
+
+**Drucken:** `assets/panel/armband.pdf` (A4), oder `armband.html` im Browser
+drucken. **Ohne Skalierung**, sonst stimmen die Markergrößen nicht. Ausschneiden,
+auf festes Papier kleben oder laminieren, mit Gummi- oder Klettband um den Arm.
+Matt drucken — Glanzpapier spiegelt, und ein gespiegelter Marker wird nicht
+erkannt.
+
+Alles über das Armband steht in **einer** Datei, `js/wristband.js`: welche
+Felder es gibt, welcher Marker darauf sitzt, wie groß gedruckt wird und wann
+eine Berührung als Druck zählt. Der Druckbogen erzeugt seine Marker mit
+derselben Bibliothek, die sie später liest (`vendor/aruco.js`, js-aruco2, MIT) —
+Druck und Erkennung können also nicht auseinanderlaufen.
+
+### Zwei Wege, es zu erkennen
+
+| | wie „berühren" erkannt wird | läuft auf |
+|---|---|---|
+| **Am Controller** | Das Band sitzt am Arm, der einen Controller hält — dessen Lage kennt die Brille, also auch die des Papiers. Berührt wird mit der Spitze des anderen Controllers. | PICO/Quest im Browser, **heute** |
+| **Vor einer Kamera** | Ein Feld gilt als gedrückt, wenn sein Marker verdeckt ist. Kein Handtracking, keine Tiefe — nur ein Schwarzweißbild. | Kamera-Modus (Handy/Laptop), nativer Build |
+
+**Im Headset-Browser gibt es keine Kamera** (siehe unten) — dort trägt der
+Controller-Weg. Er braucht zwei Controller: einer trägt, einer zeigt. Ist nur
+einer da, bleibt die Knopfreihe am Blickfeldrand stehen, damit man nicht ohne
+Bedienung dasteht.
+
+Beide Wege enden in derselben Handlung, und die geht denselben Weg wie
+Gesprochenes (`Workflow.handleSpeech`) — „Ja" am Band, „ja" gesagt und der
+JA-Knopf sind dieselbe Sache, an einer Stelle definiert.
+
+### Warum Verdeckung und nicht Fingerverfolgung
+
+Eine Kamera sieht keine Tiefe, und Handtracking gibt der PICO-Browser nicht her.
+Ein Finger auf einem Marker macht ihn aber unsichtbar — und *das* sieht jede
+Kamera. Deshalb trägt jedes Feld seinen eigenen Marker und das Band zusätzlich
+zwei Anker an den Schmalseiten: fehlt genau ein Feld, während ein Anker noch zu
+sehen ist, liegt dort ein Finger. Fehlen mehrere, ist das Band schräg oder halb
+aus dem Bild — daraus wird bewusst keine Handlung.
+
+Dazu drei Regeln gegen Fehlauslösung, alle in `wristband.js` und ohne Gerät
+prüfbar: eine Berührung muss gut zwei Zehntelsekunden stehen (sonst löst
+Darüberstreifen aus), danach ist kurz Ruhe (sonst feuert ein liegender Finger
+im Bildtakt), und zweimal dasselbe Feld verlangt einmal Loslassen dazwischen.
+
+---
+
 ## Das Körpermodell
 
 Der Mensch im Blickfeld ist nicht selbstgebaut, sondern das **MakeHuman-Basisnetz**
@@ -207,10 +263,33 @@ beantwortet nur das Gerät. Bekommt sie eine, wird die Umhängekarte wirklich
 gescannt; bekommt sie keine, steht der Grund unten rechts und die Nummer wird
 mit **−/+** gewählt. Der Ablauf läuft in beiden Fällen durch.
 
-Erfahrungsgemäß geben Headset-Browser die Passthrough-Kameras nicht heraus (auf
-der Quest 2 gar keiner App, auf Quest 3 und PICO 4 Enterprise nur nativen Apps).
-Zum echten Scannen: Handy im Kamera-Modus, oder der native Build
-(`Unity/README-PICO.md`).
+Hier stand lange, Headset-Browser gäben die Kameras grundsätzlich nicht heraus.
+Das war **voreilig**: im AR-Modus konnte es gar nicht klappen, und zwar aus drei
+Gründen, die alle bei uns lagen. Sie sind behoben:
+
+1. **Die Kamera wurde zu spät angefragt.** `getUserMedia` lief erst *nach*
+   `xr.start()`, also mitten in der immersiven Sitzung — und dort hat der
+   Browser keine Fläche, auf der er die Berechtigungsfrage zeigen könnte. Sie
+   wurde nie gestellt. Jetzt wird gefragt, **solange die Seite noch flach ist**.
+2. **Das Videoelement stand auf `display: none`.** Ein Video, das aus dem Layout
+   fällt, liefert in vielen Browsern keine Bilder mehr — `drawImage` bekommt
+   Schwarz, und es wird nie ein Code erkannt. Jetzt bleibt es im Layout, nur
+   winzig und durchsichtig (`.stumm`).
+3. **Die Scanschleife hing an `requestAnimationFrame`.** Läuft eine immersive
+   WebXR-Sitzung, ruft der Browser das rAF der flachen Seite nicht mehr auf. Die
+   Schleife stand ab dem Betreten der Brille still. Jetzt läuft sie über einen
+   Zeitgeber (15 Bilder/s).
+
+Dazu eine Zeitgrenze: antwortet `getUserMedia` binnen 6 s nicht — es kann
+hängenbleiben, statt abzulehnen —, geht es ohne Kamera weiter. Sonst käme man
+gar nicht mehr in den AR-Modus, seit die Anfrage davor liegt.
+
+**Ob die PICO 4 Enterprise die Kamera nun wirklich herausgibt, ist damit noch
+nicht gesagt** — nur, dass die Frage jetzt überhaupt gestellt wird und die
+Antwort im Blickfeld steht. Unten rechts erscheint entweder „Kamera aktiv" oder
+der genaue Grund, inklusive der Fälle „erlaubt, liefert aber kein Bild" und
+„Bild steht still". Bleibt es dabei, dass keine kommt: Handy im Kamera-Modus,
+oder der native Build (`Unity/README-PICO.md`).
 
 ---
 
@@ -223,6 +302,8 @@ oculusapp/
 ├─ js/
 │  ├─ data.js            Akten dieses Einsatzes (leer beim Start) + Schreibfunktionen
 │  ├─ tasks.js           die vier Tätigkeiten als Tabelle (Ablauf, Rechte, Beschriftung)
+│  ├─ wristband.js       das Armband: Felder, Marker, Maße, wann ein Druck zählt
+│  ├─ arucoscan.js       Armband vor der Kamera — Verdeckung statt Fingerverfolgung
 │  ├─ body.js            dreizehn Körperregionen: Trefferquader, Notbehelfsnetz, Zeigen
 │  ├─ bodyview.js        das Modell laden und zeichnen — in der Brille (BodyMesh)
 │  │                     und flach mit Maus/Finger drehbar (BodyView)
@@ -241,21 +322,25 @@ oculusapp/
 │  ├─ voice.js           Sprachausgabe und -eingabe; Erkennung nur lokal (processLocally)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     188 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
+│  ├─ logic.test.mjs     207 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
 │  │                     Stelle am Boden, alle vier Tätigkeiten, Körperregionen
-│  │                     samt der Rückrechnung für AR, Spracheingabe
+│  │                     samt der Rückrechnung für AR, Spracheingabe, Armband
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
 │  ├─ probe_body.html    lädt das Körpernetz, zeichnet es aus vier Richtungen
 │  │                     und prüft, dass jede Region zu treffen ist
+│  ├─ probe_band.html    druckt Marker, erkennt sie wieder, legt einen Finger auf
 │  ├─ probe_dom.html     klickt den flachen Ablauf durch
 │  └─ probe_qr.html      decodiert jede gedruckte Karte mit jsQR
 ├─ Unity/                nativer PICO-/Quest-Build (siehe Unity/README-PICO.md)
 ├─ vendor/jsQR.min.js    QR-Decoder-Fallback
+├─ vendor/aruco.js       ArUco für das Armband (js-aruco2, MIT)
+├─ vendor/cv.js          Bildverarbeitung dazu (gehört zu js-aruco2)
 ├─ make_body.py          holt das MakeHuman-Basisnetz (CC0) und macht daraus
 │                        assets/body/ — siehe „Das Körpermodell"
 ├─ make_cards.py         erzeugt den Druckbogen der Umhängekarten (segno)
 ├─ make_markers.py       erzeugt die nackten QR-Marker (segno)
 ├─ assets/body/          body.bin/.json (Menschmodell) + HERKUNFT.md
+├─ assets/panel/         armband.pdf/.html (Bedienband, zum Drucken)
 └─ assets/markers/       patientenkarten.pdf/.html (Umhängekarten, zum Drucken)
                          JAR-P1..JAR-P12.svg + markers.html (nackte Marker)
 ```

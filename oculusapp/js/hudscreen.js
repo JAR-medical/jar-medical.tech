@@ -611,6 +611,56 @@ export function drawReticle(ctx, W, H, m = {}) {
     caps(ctx, `${m.distance.toFixed(1)} m`, cx, cy + r * 0.82, W * 0.062, C.ink, "center");
 }
 
+/* ================================================================ Armband */
+
+/**
+ * Das Armband, wie es in der Brille über dem Papier liegt. Es zeichnet
+ * dieselben sechs Felder wie der Druckbogen — nur eben leuchtend, mit der
+ * Rückmeldung, die Papier nicht geben kann: welches Feld unter dem Finger
+ * liegt und wie weit die Haltezeit ist.
+ *
+ * Die Marker werden hier **nicht** gezeichnet. Auf dem Papier sind sie die
+ * Erkennung; in der Brille kennt die App die Lage des Armbands ohnehin (es
+ * hängt am Controller), da wären sie nur Muster ohne Zweck. Stattdessen steht
+ * im Feld, was es tut.
+ *
+ * @param {Array} cells   aus wristband.js, jedes mit {glyph, label, col, row}
+ * @param {object} opts   {cols, rows, active, hold}
+ */
+export function drawPanel(ctx, W, H, cells, opts = {}) {
+  const cols = opts.cols || 3;
+  const rows = opts.rows || 2;
+  ctx.clearRect(0, 0, W, H);
+  ctx.textBaseline = "alphabetic";
+
+  const cw = W / cols, ch = H / rows;
+
+  ctx.fillStyle = "rgba(8,11,15,0.72)";
+  ctx.fillRect(0, 0, W, H);
+
+  for (const c of cells) {
+    const x = c.col * cw, y = c.row * ch;
+    const on = opts.active === c.action;
+
+    ctx.fillStyle = on ? "rgba(124,192,255,0.30)" : "rgba(255,255,255,0.05)";
+    ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
+    ctx.strokeStyle = on ? "#ffffff" : "rgba(255,255,255,0.42)";
+    ctx.lineWidth = on ? 4 : 2;
+    ctx.strokeRect(Math.round(x) + 4.5, Math.round(y) + 4.5, Math.round(cw) - 9, Math.round(ch) - 9);
+
+    T(ctx, c.glyph, x + cw / 2, y + ch * 0.56, { size: ch * 0.40, weight: 600, align: "center" });
+    caps(ctx, c.label, x + cw / 2, y + ch * 0.84, ch * 0.115,
+         on ? C.ink : C.faint, "center");
+
+    // Haltebalken am unteren Rand des Feldes: er füllt sich, solange der
+    // Finger liegt, und macht damit sichtbar, wann es auslöst.
+    if (on && opts.hold > 0) {
+      ctx.fillStyle = "rgba(124,192,255,0.9)";
+      ctx.fillRect(x + 6, y + ch - 12, (cw - 12) * Math.min(1, opts.hold), 6);
+    }
+  }
+}
+
 function crosshair(ctx, cx, cy, len) {
   ctx.beginPath();
   ctx.moveTo(cx - len, cy); ctx.lineTo(cx + len, cy);

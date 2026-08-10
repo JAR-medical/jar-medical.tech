@@ -74,6 +74,18 @@ body {
 #stage { background: #05070a; }
 .camera-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
 
+/* Kamera läuft, ist aber nicht zu sehen — der Fall im AR-Modus: dort liegt kein
+ * Kamerabild als Hintergrund, gescannt werden soll trotzdem.
+ *
+ * Bewusst NICHT `display: none`. Ein Video, das aus dem Layout fällt, liefert in
+ * vielen Browsern keine Bilder mehr — `drawImage` bekommt dann eine schwarze
+ * Fläche und es wird nie ein Code erkannt. Also: winzig, durchsichtig, aus dem
+ * Bild geschoben, aber im Layout. */
+.camera-bg.stumm {
+  inset: auto; left: -9999px; top: 0;
+  width: 2px; height: 2px; opacity: 0; pointer-events: none;
+}
+
 /* over WebXR passthrough the overlay root must be transparent */
 .hud-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;

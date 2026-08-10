@@ -35,7 +35,8 @@
 "use strict";
 
 import { drawHudLayer, drawCard, drawMarker, drawReticle, drawInfoPopup,
-         hitTest } from "./hudscreen.js";
+         drawPanel, hitTest } from "./hudscreen.js";
+import { CELLS, COLS, ROWS, PANEL_W, PANEL_H, cellAt, PanelPress } from "./wristband.js";
 import { BodyMesh, loadBodyMesh } from "./bodyview.js";
 import { pickRegion, rgbOf } from "./body.js";
 
@@ -110,6 +111,20 @@ const PLACE_MIN = 0.5;                   // Meter vor den Füßen
 const PLACE_MAX = 8;
 const PLACE_AHEAD = 2.0;                 // wenn der Strahl den Boden nicht trifft
 const PLACE_STEADY = 0.30;               // so weit darf die Stelle beim Verweilen wandern
+
+// Das Armband am Controller. Das Papier sitzt am Unterarm der Hand, die den
+// einen Controller hält — dessen Lage kennt die Brille, also kennt sie auch die
+// Lage des Papiers (bis auf einen festen Versatz). Berührt wird mit der anderen
+// Hand. Damit braucht es weder Kamera noch Handtracking.
+const PANEL_PX_W = 768, PANEL_PX_H = 512;
+const PANEL_HALF_W = PANEL_W / 2;
+const PANEL_HALF_H = PANEL_H / 2;
+// Versatz vom Griff zum Papier: ein Stück zurück Richtung Unterarm und etwas
+// nach oben, so wie ein Band über dem Handgelenk säße.
+const PANEL_BACK = 0.09;                 // Meter hinter dem Griff
+const PANEL_UP = 0.02;
+const PANEL_TOUCH_Z = 0.035;             // so nah muss die Spitze an die Fläche
+const PANEL_VIEW_DOT = 0.25;             // nur zeigen, wenn es einem zugewandt ist
 
 // Augentest (?augentest=1): Schild im Sichtraum der Ansicht, 1,2 m vor dem Auge —
 // deshalb ohne view.transform, nur mit der Projektion multipliziert.
@@ -276,7 +291,7 @@ export function intoModel(m, scale, v, isPoint) {
 
 export class XRPassthrough {
   constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onRegionPick,
-                onStereoIssue, eyeTest = false } = {}) {
+                onPanelPress, onStereoIssue, eyeTest = false } = {}) {
     this.eyeTest = eyeTest;
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
@@ -286,6 +301,13 @@ export class XRPassthrough {
     this.onPlace = onPlace || (() => {});
     this.onRegionPick = onRegionPick || (() => {});
     this.onStereoIssue = onStereoIssue || (() => {});
+
+    // Armband: ein Druck geht denselben Weg wie ein Knopfdruck.
+    this._panelPress = new PanelPress((action) => (onPanelPress || (() => {}))(action));
+    this._panelHover = null;
+    this._panelSource = null;
+    this._panelDirty = true;
+    this._panelLive = false;
 
     this.session = null;
     this.gl = null;
@@ -472,6 +494,7 @@ export class XRPassthrough {
     this.markCanvas = this._canvas(MARK_PX, MARK_PX);
     this.placeCanvas = this._canvas(PLACE_PX, PLACE_PX);
     this.popCanvas = this._canvas(POP_W, POP_H);
+    this.panelCanvas = this._canvas(PANEL_PX_W, PANEL_PX_H);
 
     const vs = this._shader(gl.VERTEX_SHADER, VERT_SRC);
     const fs = this._shader(gl.FRAGMENT_SHADER, FRAG_SRC);
@@ -499,6 +522,7 @@ export class XRPassthrough {
     this.hudTex = this._texture();
     this.cardTex = this._texture();
     this.placeTex = this._texture();
+    this.panelTex = this._texture();
     this.cursorTex = this._texture();
     this.beamTex = this._texture();
     this._uploadCursor();
@@ -718,6 +742,83 @@ export class XRPassthrough {
     if (this.floorY != null) { this._floorNow = this.floorY; return; }
     if (this._floorGuess == null) this._floorGuess = head.position.y - 1.6;
     this._floorNow = this._floorGuess;
+  }
+
+  /* -------------------------------------------------------------- Armband
+   *
+   * Das Papierpanel sitzt am Unterarm der Hand, die einen Controller hält.
+   * Dessen Griffpose kennt die Sitzung — daraus folgt die Lage des Papiers, und
+   * damit lässt sich ausrechnen, wo die Spitze des **anderen** Controllers
+   * hinzeigt. Kamera und Handtracking braucht es dafür nicht, und beides gibt
+   * der PICO-Browser auch nicht her.
+   *
+   * Welcher Controller das Band trägt, entscheidet die Händigkeit: das Band
+   * liegt links, gezeigt wird rechts. Meldet das Gerät keine Händigkeit, nimmt
+   * es die Reihenfolge der Eingabequellen.
+   */
+  _panelPose(frame) {
+    const sources = [...this.session.inputSources].filter((s) => s.gripSpace || s.targetRaySpace);
+    if (sources.length < 2) return null;          // einer trägt, einer zeigt
+
+    const left = sources.find((s) => s.handedness === "left") || sources[0];
+    const right = sources.find((s) => s !== left) || sources[1];
+
+    this._panelSource = left;
+    const gripPose = frame.getPose(left.gripSpace || left.targetRaySpace, this.refSpace);
+    const tipPose = frame.getPose(right.targetRaySpace || right.gripSpace, this.refSpace);
+    if (!gripPose) return null;
+
+    const m = gripPose.transform.matrix;
+    // Achsen des Griffs: x rechts, y hoch, z zum Ellbogen (aus dem Griff heraus
+    // nach hinten). Das Band liegt auf dem Unterarm, also ein Stück in +z.
+    const ax = { x: m[0], y: m[1], z: m[2] };
+    const ay = { x: m[4], y: m[5], z: m[6] };
+    const az = { x: m[8], y: m[9], z: m[10] };
+    const g = gripPose.transform.position;
+
+    const pos = {
+      x: g.x + az.x * PANEL_BACK + ay.x * PANEL_UP,
+      y: g.y + az.y * PANEL_BACK + ay.y * PANEL_UP,
+      z: g.z + az.z * PANEL_BACK + ay.z * PANEL_UP,
+    };
+    // Die Fläche schaut nach oben aus dem Arm heraus (+y des Griffs), ihre
+    // Oberkante zeigt vom Ellbogen weg (−z).
+    const basis = { right: ax, up: scale3(az, -1), normal: ay };
+    return { pos, basis, tip: tipPose ? tipPose.transform.position : null };
+  }
+
+  /** Berührung auswerten: Spitze des Zeigecontrollers in Panelkoordinaten. */
+  _panelTouch(panel, now) {
+    if (!panel || !panel.tip) { this._panelPress.update(null, now); this._panelHover = null; return; }
+
+    const rel = sub(panel.tip, panel.pos);
+    const x = dot3(rel, panel.basis.right);
+    const y = dot3(rel, panel.basis.up);
+    const z = dot3(rel, panel.basis.normal);
+
+    // Nur was nah genug an der Fläche ist, zählt — sonst löste ein Controller
+    // aus, der zufällig irgendwo dahinter steht.
+    const cell = Math.abs(z) <= PANEL_TOUCH_Z ? cellAt(x, y) : null;
+    if (cell !== this._panelHover) { this._panelHover = cell; this._panelDirty = true; }
+
+    const fired = this._panelPress.update(cell, now);
+    if (fired) {
+      this._panelDirty = true;
+      this._pulse(this._panelSource);
+    }
+
+    // Der Haltebalken wächst — aber nicht jedes Bild neu zeichnen, sondern in
+    // Stufen. Zehn reichen fürs Auge und sparen zehn Texturuploads je Druck.
+    const step = Math.round(this._panelPress.progress(now) * 10);
+    if (step !== this._panelHoldStep) { this._panelHoldStep = step; this._panelDirty = true; }
+  }
+
+  /** Kurzer Ruck im tragenden Controller, wenn ein Feld auslöst. */
+  _pulse(source) {
+    try {
+      const act = source && source.gamepad && source.gamepad.hapticActuators;
+      if (act && act[0] && act[0].pulse) act[0].pulse(0.6, 40);
+    } catch (_) { /* Rumpeln ist Zugabe, kein Muss */ }
   }
 
   /* -------------------------------------------------------- Körpermodell */
@@ -1210,6 +1311,16 @@ export class XRPassthrough {
     const card = { pos: cardPos, basis: basisFacing(cardPos, head.position) };
     const bodyMat = this._bodyMatrix(head);
 
+    // Armband am Controller — vor der Zeigerauswertung, damit ein Druck darauf
+    // im selben Bild wirkt.
+    const panel = this._panelPose(frame);
+    this._panelTouch(panel, t);
+    // Es zählt nur als aktiv, wenn es einem auch zugewandt ist: der Arm hängt
+    // die meiste Zeit herunter, und dann soll es weder leuchten noch die
+    // Randknöpfe verdrängen.
+    this._panelLive = !!panel &&
+      dot3(panel.basis.normal, norm3(sub(head.position, panel.pos))) > PANEL_VIEW_DOT;
+
     const rays = this._rays(frame, head);
     this._updatePointer(rays, card, hud, bodyMat, t, dt, head);
     const popups = this._updatePopups(dt);
@@ -1233,11 +1344,29 @@ export class XRPassthrough {
     }
     if (!showCard) this._rects = [];
     if (this._hudDirty || performance.now() - this._hudDrawnAt > HUD_REDRAW_MS) {
-      this._hudRects = drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, this._screen, this._map,
+      // Liegt das Armband griffbereit, verschwindet die Knopfreihe am
+      // Blickfeldrand — dafür ist es ja da. Ohne Armband bleibt sie, sonst
+      // gäbe es keinen Weg mehr, einen Patienten anzulegen.
+      const forHud = this._panelLive ? { ...this._screen, hudActions: [] } : this._screen;
+      this._hudRects = drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, forHud, this._map,
                                     { hover: this._hudHover, dwell: this._dwell });
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();
+    }
+
+    let panelModel = null;
+    if (this._panelLive) {
+      if (this._panelDirty) {
+        drawPanel(this.panelCanvas.ctx, PANEL_PX_W, PANEL_PX_H, CELLS, {
+          cols: COLS, rows: ROWS,
+          active: this._panelHover ? this._panelHover.action : null,
+          hold: this._panelPress.progress(t),
+        });
+        this._upload(this.panelTex, this.panelCanvas.el);
+        this._panelDirty = false;
+      }
+      panelModel = this._model(panel.pos, panel.basis, PANEL_HALF_W, PANEL_HALF_H);
     }
 
     const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
@@ -1404,6 +1533,14 @@ export class XRPassthrough {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 
+      // Das Armband zuletzt: es liegt am eigenen Arm, also näher als alles
+      // andere, und darf von nichts verdeckt werden.
+      if (panelModel) {
+        gl.bindTexture(gl.TEXTURE_2D, this.panelTex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, panelModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
       gl.bindTexture(gl.TEXTURE_2D, this.beamTex);
       for (const m of beamModels) {
         gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, m));
@@ -1464,10 +1601,14 @@ export class XRPassthrough {
     this.session = null;
     this.gl = null;
     this.refSpace = null;
-    this.hudTex = this.cardTex = this.placeTex = this.cursorTex = this.beamTex =
-      this.prog = this.vbo = null;
+    this.hudTex = this.cardTex = this.placeTex = this.panelTex = this.cursorTex =
+      this.beamTex = this.prog = this.vbo = null;
     this.hudCanvas = this.cardCanvas = this.markCanvas = this.placeCanvas =
-      this.popCanvas = null;
+      this.popCanvas = this.panelCanvas = null;
+    this._panelPress.reset();
+    this._panelHover = null;
+    this._panelSource = null;
+    this._panelLive = false;
     this._markTex.clear();
     this._popTex.clear();
     this._pops.clear();

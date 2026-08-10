@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>probe-band</title>
+  <script src="../vendor/cv.js"></script>
+  <script src="../vendor/aruco.js"></script>
+  <style>
+    body { margin: 0; padding: 14px; background: #0c1014; color: #cdd7df;
+           font: 13px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    canvas { border: 1px solid rgba(255,255,255,.2); image-rendering: pixelated;
+             display: block; margin: 6px 0 14px; }
+    pre { white-space: pre-wrap; }
+    .bad { color: #ff6b6b; }
+    figcaption { color: #9fb0c0; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="shots"></div>
+  <pre id="log"></pre>
+
+  <script type="module">
+    /* Der Test, auf den es beim Armband ankommt: Was gedruckt wird, muss auch
+     * erkannt werden. Deshalb wird hier nicht die Erkennung allein geprüft,
+     * sondern die ganze Kette — Marker aus derselben Quelle wie der Druckbogen
+     * erzeugen, zu einem Bild zusammensetzen, das Bild durch den Detektor
+     * schicken und zusehen, ob dieselben Nummern wieder herauskommen.
+     *
+     * Dann dasselbe noch einmal mit einem „Finger" darauf: ein schwarzes
+     * Quadrat über einem Feld. Herauskommen muss genau dieses Feld.
+     *
+     * Über einen lokalen Server öffnen. Titel am Ende: OK oder ERR. */
+
+    import { CELLS, ANCHORS, COLS, ROWS, DICTIONARY, coveredCell } from "../js/wristband.js";
+
+    const log = document.getElementById("log");
+    let bad = 0;
+    const check = (ok, what) => {
+      log.insertAdjacentHTML("beforeend",
+        ok ? `  ok   ${what}\n` : `  <span class="bad">FAIL ${what}</span>\n`);
+      if (!ok) bad++;
+    };
+
+    const dict = new AR.Dictionary(DICTIONARY);
+    const detector = new AR.Detector({ dictionaryName: DICTIONARY });
+
+    /** Einen Marker als Bild bekommen — aus demselben generateSVG wie im Druck. */
+    function markerImage(id) {
+      const svg = dict.generateSVG(id);
+      const img = new Image();
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+      return img.decode().then(() => img);
+    }
+
+    /**
+     * Ein Armband zeichnen, wie eine Kamera es sähe: weißes Papier, Felder im
+     * Raster, Anker außen. `cover` verdeckt ein Feld mit einem Finger.
+     */
+    async function drawBand(cover = null, scale = 46) {
+      const pad = Math.round(scale * 0.35);
+      const w = pad * 2 + scale * (COLS + 2);
+      const h = pad * 2 + scale * ROWS;
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const g = c.getContext("2d");
+      g.fillStyle = "#ffffff";
+      g.fillRect(0, 0, w, h);
+
+      const cell = Math.round(scale * 0.78);          // Marker kleiner als das Feld
+      const off = Math.round((scale - cell) / 2);
+
+      for (const cl of CELLS) {
+        const img = await markerImage(cl.marker);
+        g.drawImage(img, pad + (cl.col + 1) * scale + off, pad + cl.row * scale + off,
+                    cell, cell);
+      }
+      for (let i = 0; i < ANCHORS.length; i++) {
+        const img = await markerImage(ANCHORS[i]);
+        const x = pad + (i === 0 ? 0 : COLS + 1) * scale + off;
+        g.drawImage(img, x, pad + off + Math.round(scale * 0.5), cell, cell);
+      }
+
+      if (cover) {
+        // Der „Finger": eine dunkle Fläche über dem Feld.
+        g.fillStyle = "#2b2b2b";
+        g.fillRect(pad + (cover.col + 1) * scale + off - 2,
+                   pad + cover.row * scale + off - 2, cell + 4, cell + 4);
+      }
+      return c;
+    }
+
+    function show(canvas, caption) {
+      const f = document.createElement("figure");
+      f.style.margin = "0";
+      const cap = document.createElement("figcaption");
+      cap.textContent = caption;
+      f.appendChild(cap); f.appendChild(canvas);
+      document.getElementById("shots").appendChild(f);
+    }
+
+    const idsIn = (canvas) => {
+      const g = canvas.getContext("2d");
+      const img = g.getImageData(0, 0, canvas.width, canvas.height);
+      return new Set((detector.detect(img) || []).map((m) => m.id));
+    };
+
+    try {
+      const all = new Set([...CELLS.map((c) => c.marker), ...ANCHORS]);
+
+      // --- 1. alles sichtbar -------------------------------------------
+      const clean = await drawBand(null);
+      show(clean, "Armband, wie die Kamera es sieht");
+      const seen = idsIn(clean);
+
+      const missing = [...all].filter((id) => !seen.has(id));
+      check(missing.length === 0,
+            `alle ${all.size} gedruckten Marker werden wiedererkannt` +
+            (missing.length ? ` — fehlen: ${missing.join(", ")}` : ""));
+
+      const fremd = [...seen].filter((id) => !all.has(id));
+      check(fremd.length === 0,
+            "keine fremden Nummern erkannt" + (fremd.length ? ` (${fremd.join(", ")})` : ""));
+
+      check(coveredCell(seen, all) === null, "nichts verdeckt → kein Druck");
+
+      // --- 2. je Feld einen Finger --------------------------------------
+      let treffer = 0;
+      for (const cl of CELLS) {
+        const c = await drawBand(cl);
+        const vis = idsIn(c);
+        const got = coveredCell(vis, all);
+        if (got === cl) treffer++;
+        else log.insertAdjacentHTML("beforeend",
+          `  <span class="bad">  ${cl.action}: erkannt als ${got ? got.action : "nichts"}</span>\n`);
+      }
+      check(treffer === CELLS.length,
+            `jedes der ${CELLS.length} Felder wird einzeln als gedrückt erkannt (${treffer})`);
+      show(await drawBand(CELLS[1]), "Finger auf „Nein“");
+
+      // --- 3. kleiner gedruckt, wie aus der Entfernung -------------------
+      const small = await drawBand(null, 26);
+      show(small, "kleiner — wie aus größerem Abstand");
+      const seenSmall = idsIn(small);
+      check(seenSmall.size >= all.size - 2,
+            `auch klein noch ${seenSmall.size} von ${all.size} Markern`);
+
+      document.title = bad === 0 ? "OK" : "ERR " + bad;
+      log.insertAdjacentHTML("beforeend",
+        `\n${bad === 0 ? "alle Prüfungen bestanden" : bad + " fehlgeschlagen"}\n`);
+    } catch (e) {
+      document.title = "ERR:" + e.message;
+      log.insertAdjacentHTML("afterbegin", `<span class="bad">${e.stack}</span>\n`);
+    }
+  </script>
+</body>
+</html>

@@ -32,6 +32,7 @@ import { Workflow } from "./workflow.js";
 import { drawMapPanel } from "./hudscreen.js";
 import { BodyView } from "./bodyview.js";
 import { regionLabel } from "./body.js";
+import { WristbandScanner, arucoAvailable } from "./arucoscan.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,6 +88,9 @@ const app = {
   screen: null,
   recordOpen: false,
   bodyView: null,
+  band: null,          // Armband-Erkennung über die Kamera
+  bandDetach: null,
+  bandState: null,
 };
 
 const mapCtx = el.flowMap.getContext("2d");
@@ -316,6 +320,27 @@ function makeFlow({ pointing = false } = {}) {
  * `window.open` gilt ohne Klick oft als Pop-up und wird geblockt; deshalb bleibt
  * die Tafel mit dem Link immer stehen, damit es einen Weg gibt, der sicher geht.
  */
+/**
+ * Ein Feld des Armbands wurde gedrückt — egal ob am Controller ertastet oder
+ * von der Kamera als verdeckter Marker erkannt. Beide Wege enden hier, und von
+ * hier aus geht es denselben Weg wie Sprache: durch `handleSpeech`, damit „Ja"
+ * am Band und „ja" gesprochen dasselbe bedeuten und es nur eine Stelle gibt,
+ * an der das definiert ist.
+ */
+function panelAction(action) {
+  if (!app.flow) return;
+  const spoken = { ja: "yes", nein: "no", zurueck: "back" }[action];
+  if (spoken) {
+    if (!app.flow.handleSpeech({ type: spoken, raw: action })) {
+      toast(`„${action}" passt hier nicht`, "warn");
+    }
+    return;
+  }
+  if (action === "neu") { app.flow.newPatient(); return; }
+  if (action === "taetigkeit") { app.flow.goToAuftrag(); return; }
+  if (action === "lagebild") { openLagebild(); return; }
+}
+
 function openLagebild() {
   const go = () => {
     el.lagebild.classList.remove("hidden");
@@ -331,11 +356,21 @@ function openLagebild() {
 async function startAR() {
   app.mode = "ar";
   showStage("AR-Modus — Passthrough");
-  el.cameraBg.classList.add("hidden");
+  // Das Kamerabild ist hier kein Hintergrund — aber das Video bleibt im Layout,
+  // sonst liefert es keine Bilder zum Scannen (siehe .stumm in hud.css).
+  el.cameraBg.classList.remove("hidden");
+  el.cameraBg.classList.add("stumm");
 
   // Nur hier gibt es einen Zeiger: die Stelle für einen neuen Patienten wird
   // am Boden gewählt, statt am eigenen Standort angenommen zu werden.
   app.flow = makeFlow({ pointing: true });
+
+  // Die Kamera VOR der immersiven Sitzung anfragen. Sobald WebXR ins Headset
+  // rendert, hat der Browser keine Fläche mehr, auf der er die
+  // Berechtigungsfrage zeigen könnte — die Anfrage blieb dann hängen oder galt
+  // als abgelehnt, und zwar bei jedem Start aufs Neue. Genau deshalb sah es so
+  // aus, als gäbe die Brille grundsätzlich keine Kamera her.
+  await tryCamera();
 
   app.xr = new XRPassthrough({
     // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
@@ -354,6 +389,7 @@ async function startAR() {
     onMarkerPick: (id) => app.flow.openPatient(resolvePatient(id)),
     onPlace: (point) => app.flow.placeAt(point),
     onRegionPick: (region) => app.flow.pickRegion(region),
+    onPanelPress: (action) => panelAction(action),
     onStereoIssue: (note) => app.flow.setNotice(note),
     onFrame: () => {
       app.flow.tick();
@@ -371,7 +407,6 @@ async function startAR() {
     backToStart();
     return;
   }
-  await tryCamera();          // vielleicht gibt das Headset doch eine Kamera her
 }
 
 /**
@@ -396,6 +431,8 @@ async function tryCamera() {
     app.flow.cameraLive = true;
     app.flow.setNotice("");
     toast("Kamera aktiv — Karten können gescannt werden", "ok");
+    startWristbandCamera();
+    checkFrames();
   } catch (err) {
     app.scanner = null;
     app.flow.cameraLive = false;
@@ -403,10 +440,58 @@ async function tryCamera() {
   }
 }
 
+/**
+ * Eine erteilte Berechtigung heißt noch nicht, dass Bilder ankommen. Ein Video
+ * kann laufen und trotzdem stehen — dann wird nie ein Code erkannt, und von
+ * außen sieht das genauso aus wie „keine Kamera". Deshalb einmal nachsehen, ob
+ * die Zeit im Video wirklich weiterläuft, und den Unterschied benennen.
+ */
+function checkFrames() {
+  const v = el.cameraBg;
+  const t0 = v.currentTime;
+  setTimeout(() => {
+    if (!app.flow || !app.scanner) return;
+    const stehend = v.currentTime === t0;
+    const leer = !v.videoWidth;
+    if (leer) {
+      app.flow.setNotice("Kamera erlaubt, liefert aber kein Bild (0×0). Seite neu laden.");
+      app.flow.cameraLive = false;
+    } else if (stehend) {
+      app.flow.setNotice(`Kamerabild steht still (${v.videoWidth}×${v.videoHeight}). ` +
+                         "Scannen geht nicht — Nummer von Hand wählen.");
+      app.flow.cameraLive = false;
+    } else {
+      app.flow.setNotice("");
+    }
+  }, 900);
+}
+
+/**
+ * Wo es eine Kamera gibt, wird auch das Armband optisch erkannt: ein Feld
+ * berühren heißt, seinen Marker mit dem Finger verdecken. Im Headset-Browser
+ * kommt das nie zum Zug — der gibt keine Kamera her —, auf dem Handy im
+ * Kamera-Modus schon.
+ */
+function startWristbandCamera() {
+  if (!arucoAvailable() || app.band) return;
+  app.band = new WristbandScanner({
+    onPress: (action) => panelAction(action),
+    onState: (st) => { app.bandState = st; },
+  });
+  if (!app.band.available) { app.band = null; return; }
+  app.bandDetach = app.band.attachToVideo(el.cameraBg);
+}
+
+function stopWristbandCamera() {
+  if (app.bandDetach) { app.bandDetach(); app.bandDetach = null; }
+  app.band = null;
+  app.bandState = null;
+}
+
 async function startCamera() {
   app.mode = "camera";
   showStage("Kamera-Modus — Sichtung mit QR-Karte");
-  el.cameraBg.classList.remove("hidden");
+  el.cameraBg.classList.remove("hidden", "stumm");   // hier ist das Bild der Hintergrund
 
   app.flow = makeFlow();
   app.flow.start();
@@ -416,7 +501,8 @@ async function startCamera() {
 function startSim() {
   app.mode = "sim";
   showStage("Simulation — Ablauf ohne Kamera");
-  el.cameraBg.classList.add("hidden");
+  el.cameraBg.classList.remove("stumm");
+  el.cameraBg.classList.add("hidden");             // ohne Kamera darf es ganz weg
   app.flow = makeFlow();
   app.flow.start();
   toast("Simulation — Tätigkeit wählen, dann Patienten anlegen");
@@ -436,6 +522,7 @@ function exitStage() {
 }
 
 function backToStart() {
+  stopWristbandCamera();
   if (app.scanner) { app.scanner.stop(); app.scanner = null; }
   app.voice && app.voice.stopSpeaking();
   app.mode = null;
