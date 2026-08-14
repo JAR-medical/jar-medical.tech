@@ -74,7 +74,14 @@
           <span class="muted">horizontal scroll</span>
         </div>
         <div class="workflow-scroll" id="workflow-scroll" tabindex="0" role="region" aria-label="Horizontaler ASR-Workflow">
-          <div class="workflow-lane">
+          <div class="workflow-grid">
+            <span class="connector connector-right connector-12" aria-hidden="true"></span>
+            <span class="connector connector-right connector-23" aria-hidden="true"></span>
+            <span class="connector connector-right connector-34" aria-hidden="true"></span>
+            <span class="connector connector-down connector-45" aria-hidden="true"></span>
+            <span class="connector connector-left connector-56" aria-hidden="true"></span>
+            <span class="connector connector-left connector-67" aria-hidden="true"></span>
+
             <article class="node node-trigger" data-stage="capture">
               <span class="node-port port-out" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">◎</span><span class="node-type">TRIGGER</span><span class="node-status">bereit</span></div>
@@ -82,7 +89,6 @@
               <p>AR-Kamera + Mikrofon</p>
               <div class="node-meta">Medic nah · Partner ohne Mic</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-filter" data-stage="trim">
               <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">≋</span><span class="node-type">FILTER</span><span class="node-status">wartet</span></div>
@@ -90,7 +96,6 @@
               <p>VAD entfernt Stille</p>
               <div class="node-meta">Schwelle &gt; 3 Sekunden</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-model" data-stage="relevance">
               <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">A</span><span class="node-type">MODEL A</span><span class="node-status">wartet</span></div>
@@ -98,33 +103,29 @@
               <p>Wichtiges Segment?</p>
               <div class="node-meta">Gespräch · Patientensprache</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-model" data-stage="voice">
-              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
+              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out-down" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">B</span><span class="node-type">MODEL B</span><span class="node-status">wartet</span></div>
               <h3>Voice-Modell</h3>
               <p>Audio → deutscher Text</p>
               <div class="node-meta">bereinigter Eingang · Benchmark</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-join" data-stage="context">
-              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
+              <span class="node-port port-in-down" aria-hidden="true"></span><span class="node-port port-out-left" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">+</span><span class="node-type">JOIN</span><span class="node-status">wartet</span></div>
               <h3>Kontext</h3>
               <p>Text + Patientenkarte</p>
               <div class="node-meta">+ vorhandener JSON-Bericht</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-llm" data-stage="extract">
-              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
+              <span class="node-port port-in-right" aria-hidden="true"></span><span class="node-port port-out-left" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">∑</span><span class="node-type">LLM</span><span class="node-status">wartet</span></div>
               <h3>GBNF-Extraktion</h3>
               <p>Mission-relevante Daten</p>
               <div class="node-meta">Schema enforced · JSON</div>
             </article>
-            <span class="wire" aria-hidden="true"></span>
             <article class="node node-output" data-stage="output">
-              <span class="node-port port-in" aria-hidden="true"></span>
+              <span class="node-port port-in-right" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">✓</span><span class="node-type">OUTPUT</span><span class="node-status">wartet</span></div>
               <h3>Lagebild</h3>
               <p>Spalten + GBNF-JSON</p>
@@ -142,6 +143,7 @@
           </div>
           <div class="output-actions"><span class="analysis-status" id="output-status">Beispielausgabe</span><button class="text-button" id="toggle-json" type="button">GBNF-JSON anzeigen</button></div>
         </div>
+        <div class="input-summary" aria-label="Inputs für den finalen Bericht"><span class="input-summary-label">Inputs</span><span>QR-JAR-1842</span><span>benchmark-voice-thorsten.mp3</span><span>AR-Kamera</span><span>Medic-Mic nah</span><span>Patient / Partner ohne Mic</span><span>Patientenkarte</span><span>JSON-Bericht vorhanden</span></div>
         <div class="table-scroll">
           <table class="output-table">
             <thead><tr><th>Feld</th><th>Wert</th></tr></thead>
