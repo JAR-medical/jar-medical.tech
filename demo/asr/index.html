@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriARge · Patienten / ASR-System (Demo)</title>
+  <meta name="description" content="Einfache Demo des ASR-Workflows für die digitale Patientensichtung im TriARge-Lagebild.">
+  <link rel="stylesheet" href="./style.css?v=1">
+</head>
+<body>
+  <div class="asr-app" id="asr-app">
+    <header class="topbar">
+      <a class="back-link" href="../" aria-label="Zurück zum Lagebild">← Lagebild</a>
+      <span class="top-sep" aria-hidden="true"></span>
+      <span class="top-brand">TriARge</span>
+      <span class="top-context">Patienten / ASR-System</span>
+      <span class="top-spacer"></span>
+      <span class="pill">lokal</span>
+      <span class="pill ok">Demo</span>
+      <a class="top-link" href="../../index.html">Website</a>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div class="eyebrow">Patienten · Spracheingabe</div>
+        <div class="intro-row">
+          <div>
+            <h1>Workflow des ASR-Systems</h1>
+            <p class="lead">Vom QR-Code am Patienten über die Sprachaufnahme bis zum strukturierten Eintrag im Lagebild.</p>
+          </div>
+          <p class="intro-note">Das Mikrofon sitzt nah am Medic und hört ihn sehr laut. Die Stimme des Patienten und eines zweiten Partners ohne eigenes Mikrofon bleibt trotzdem relevant und wird im Gespräch erkannt.</p>
+        </div>
+        <div class="notice">
+          <span class="notice-mark">i</span>
+          <span><strong>Demo-Modus.</strong> Die Analyse läuft mit einer vorbereiteten Beispielausgabe. Es wird kein LLM auf dem Server aufgerufen und die Ausgabe ist keine medizinische Dokumentation.</span>
+        </div>
+      </section>
+
+      <section class="capture-grid" aria-label="Aktivierung und Aufnahme">
+        <article class="panel activation-panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">01 · Aktivierung</div>
+              <h2>QR-Code und Mikrofon</h2>
+            </div>
+            <span class="state-chip" id="activation-chip">bereit</span>
+          </div>
+
+          <div class="activation-status">
+            <span class="status-dot" id="activation-dot" aria-hidden="true"></span>
+            <div>
+              <strong id="activation-title">Aufnahme wartet auf QR-Scan</strong>
+              <p id="activation-copy">Integrierte Kamera des AR-Systems liest die laufende Nummer vom Patienten.</p>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="action primary" id="scan-button" type="button">QR-Scan simulieren</button>
+            <button class="action" id="vorsichtung-button" type="button">„Vorsichtung“</button>
+          </div>
+
+          <div class="signal-list" aria-label="Erkannte Sprachquellen">
+            <div class="signal-row">
+              <span class="signal-icon signal-mic">M</span>
+              <div class="signal-text"><strong>Medic · Mikrofon nah</strong><span>starkes Eingangssignal</span></div>
+              <span class="signal-state">laut</span>
+            </div>
+            <div class="signal-row">
+              <span class="signal-icon signal-partner">P</span>
+              <div class="signal-text"><strong>Patient / Partner · ohne Mikrofon</strong><span>Gesprächsanteil bleibt wichtig</span></div>
+              <span class="signal-state">mit erfassen</span>
+            </div>
+          </div>
+
+          <div class="activation-footer">
+            <div>
+              <span class="meta-label">Listening</span>
+              <strong class="mono" id="listening-time">00:00</strong>
+              <span class="muted">· Ziel 3+ min</span>
+            </div>
+            <button class="text-button" id="fast-forward-button" type="button">3+ min simulieren</button>
+          </div>
+          <div class="deactivation-row">
+            <span><span class="meta-label">Deaktivierung</span> Button oder Schlüsselwort</span>
+            <button class="text-button" id="complete-button" type="button">Sichtung abgeschlossen</button>
+            <button class="text-button" id="keyword-button" type="button">Keyword erkannt</button>
+          </div>
+        </article>
+
+        <article class="panel audio-panel">
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">02 · Eingang</div>
+              <h2>MP3-Aufnahme</h2>
+            </div>
+            <span class="state-chip neutral" id="audio-chip">Beispiel</span>
+          </div>
+
+          <div class="audio-card">
+            <div class="audio-heading">
+              <div>
+                <span class="meta-label">Aktuelle Quelle</span>
+                <strong id="audio-name">demo-paramedic.mp3</strong>
+              </div>
+              <span class="mono muted" id="audio-duration">--:--</span>
+            </div>
+            <audio id="audio-player" controls preload="metadata" src="./sample-paramedic.mp3">
+              Ihr Browser unterstützt das Audioelement nicht.
+            </audio>
+            <div class="audio-caption"><span class="audio-wave" aria-hidden="true">▂▅▃▇▂▆▄▂▅</span> vorbereitete Demoaufnahme · Spracheingang für die Verarbeitung</div>
+          </div>
+
+          <div class="upload-row">
+            <label class="file-button" for="file-input">MP3 auswählen</label>
+            <input id="file-input" type="file" accept=".mp3,audio/mpeg,audio/*" hidden>
+            <span class="muted" id="file-status">Eigene MP3 kann lokal geladen werden.</span>
+          </div>
+          <div class="audio-actions">
+            <button class="action primary" id="analyze-button" type="button">Beispiel analysieren</button>
+            <span class="analysis-status" id="analysis-status" aria-live="polite">Bereit für einen Durchlauf.</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="section workflow-section" aria-labelledby="workflow-title">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">03 · Verarbeitung</div>
+            <h2 id="workflow-title">Von Sprache zu GBNF-JSON</h2>
+          </div>
+          <span class="muted">simulierter Durchlauf · Schritt für Schritt</span>
+        </div>
+
+        <div class="workflow" id="workflow" aria-label="Diagramm des ASR-Workflows">
+          <article class="flow-node" data-stage="capture">
+            <div class="flow-top"><span class="flow-number">A</span><span class="flow-status">bereit</span></div>
+            <h3>Aufnahme</h3>
+            <p>Medic laut, Patient und Partner im selben Gespräch.</p>
+            <code>mic + AR camera</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node" data-stage="trim">
+            <div class="flow-top"><span class="flow-number">B</span><span class="flow-status">wartet</span></div>
+            <h3>Silence trim</h3>
+            <p>Stille über 3 Sekunden wird aus dem Audiostrom geschnitten.</p>
+            <code>VAD / &gt; 3 s</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node" data-stage="relevance">
+            <div class="flow-top"><span class="flow-number">C</span><span class="flow-status">wartet</span></div>
+            <h3>Kleines Modell</h3>
+            <p>Markiert, ob im Segment etwas für den Einsatz wichtig ist.</p>
+            <code>relevance filter</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node" data-stage="voice">
+            <div class="flow-top"><span class="flow-number">D</span><span class="flow-status">wartet</span></div>
+            <h3>Voice-Modell</h3>
+            <p>Das verfeinerte Audio wird als deutscher Text transkribiert.</p>
+            <code>Voice LLM · benchmark</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node" data-stage="context">
+            <div class="flow-top"><span class="flow-number">E</span><span class="flow-status">wartet</span></div>
+            <h3>Kontext</h3>
+            <p>Text, Patientenkarte und vorhandener JSON-Bericht werden verbunden.</p>
+            <code>patient + report</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node" data-stage="extract">
+            <div class="flow-top"><span class="flow-number">F</span><span class="flow-status">wartet</span></div>
+            <h3>Extraktion</h3>
+            <p>Ein auf wichtige Gesprächsanteile optimiertes LLM strukturiert die Daten.</p>
+            <code>GBNF schema</code>
+          </article>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <article class="flow-node output-node" data-stage="output">
+            <div class="flow-top"><span class="flow-number">G</span><span class="flow-status">wartet</span></div>
+            <h3>Lagebild</h3>
+            <p>JSON wird in kompakte Spalten für die Einsatzleitung übersetzt.</p>
+            <code>SK · Vitalwerte · Transport</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="context-grid" aria-label="Kontext für die Extraktion">
+        <article class="panel context-panel">
+          <div class="panel-head compact">
+            <div><div class="eyebrow">Kontext A</div><h2>Patientenkarte</h2></div>
+            <span class="state-chip neutral">QR gelesen</span>
+          </div>
+          <div class="patient-card-grid">
+            <div><span class="meta-label">Laufende Nummer / ID</span><strong class="mono">QR-JAR-1842</strong></div>
+            <div><span class="meta-label">Sichtung</span><strong>noch offen</strong></div>
+            <div><span class="meta-label">Alter</span><strong>42 Jahre</strong></div>
+            <div><span class="meta-label">Größe</span><strong>178 cm</strong></div>
+            <div><span class="meta-label">Geschlecht</span><strong>männlich</strong></div>
+            <div><span class="meta-label">Gewicht</span><strong>ca. 82 kg</strong></div>
+          </div>
+        </article>
+
+        <article class="panel context-panel">
+          <div class="panel-head compact">
+            <div><div class="eyebrow">Kontext B</div><h2>Vorhandener Bericht</h2></div>
+            <span class="state-chip neutral">optional</span>
+          </div>
+          <div class="report-preview">
+            <div class="report-line"><span class="report-key">priorisiert</span><span>Patientensprache · Medic-Anweisung · Gespräch</span></div>
+            <div class="report-line"><span class="report-key">quelle</span><span>AR-Client / Sichtung 1</span></div>
+            <div class="report-line"><span class="report-key">status</span><span>1 JSON-Bericht vorhanden · wird ergänzt</span></div>
+          </div>
+          <p class="panel-footnote">Wenn kein Bericht vorliegt, bleibt dieser Kontext leer. Leere Felder werden nicht bestraft.</p>
+        </article>
+      </section>
+
+      <section class="section output-section" aria-labelledby="output-title">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">04 · Ergebnis</div>
+            <h2 id="output-title">Strukturierte Ausgabe für das Lagebild</h2>
+          </div>
+          <div class="output-actions">
+            <span class="state-chip" id="output-chip">Beispielausgabe</span>
+            <button class="text-button" id="toggle-json" type="button">GBNF-JSON anzeigen</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="output-table">
+            <thead><tr><th>Feld</th><th>Wert</th><th>Hinweis</th></tr></thead>
+            <tbody id="output-body"></tbody>
+          </table>
+        </div>
+        <div class="json-panel" id="json-panel" hidden>
+          <div class="json-head"><span>GBNF-konforme JSON-Ausgabe · Demo</span><button class="text-button" id="copy-json" type="button">JSON kopieren</button></div>
+          <pre id="json-output"></pre>
+        </div>
+        <p class="output-note"><strong>Darstellung:</strong> Ein Feld pro Zeile, kompakt. Falls eine Information fehlt, bleibt das Feld leer und löst keine Warnung aus. Standort wird zunächst als GPS erfasst und nach dem Erstellen der Einsatzleiterkarte automatisch in das Quadrantenschema überführt.</p>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <span>TriARge · simulierte Übungslage · keine echten Personendaten</span>
+      <a href="../">← Zurück zum Lagebild</a>
+    </footer>
+  </div>
+  <script src="./app.js?v=1"></script>
+</body>
+</html>
