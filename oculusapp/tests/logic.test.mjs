@@ -21,6 +21,11 @@ import { mul, matTranslate, matBasis, matRotY, matRotX, matScale,
          intoModel } from "../js/xr.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
          tally, resetEinsatz } from "../js/data.js";
+import { Spring, AngleSpring, Decay, VelocityTracker, SPRINGS, DECELERATION,
+         project, nearestSnap, rubberband, clampRubber,
+         setReducedMotion } from "../js/motion.js";
+import { fovFromProjection, fitToFov, displayProfile, paletteFor,
+         sessionLadder } from "../js/display.js";
 
 let run = 0, failed = 0;
 
@@ -710,8 +715,251 @@ taetigkeiten();
 koerper();
 modellraum();
 sprache();
+/* ============================================================== Bewegung
+ *
+ * Federn, Schwungübergabe und Anschläge. Alles Rechnung, also hier prüfbar —
+ * und genau das ist der Punkt: ob sich eine Bewegung richtig anfühlt, sieht man
+ * erst in der Brille, aber ob sie überschwingt, wo sie nicht darf, und ob sie
+ * beim Umlenken springt, lässt sich ausrechnen.
+ */
+
+/** Eine Feder n Sekunden laufen lassen und den Verlauf mitschreiben. */
+function laufen(s, seconds, dt = 1 / 90) {
+  const trace = [];
+  for (let t = 0; t < seconds; t += dt) trace.push(s.step(dt));
+  return trace;
+}
+
+function bewegung() {
+  console.log("\nFedern");
+  setReducedMotion(false);
+
+  // Der Normalfall: ankommen, ohne über das Ziel hinauszuschießen.
+  const kritisch = new Spring(0, SPRINGS.move).to(1);
+  const t1 = laufen(kritisch, 2);
+  near(kritisch.value, 1, "aperiodisch gedämpft kommt am Ziel an", 0.005);
+  check(Math.max(...t1) <= 1.0001, "und schwingt dabei nie über");
+  check(kritisch.settled(), "danach steht sie");
+
+  // Überschwingen gibt es nur da, wo es bestellt ist.
+  const weich = new Spring(0, { damping: 0.6, response: 0.4 }).to(1);
+  check(Math.max(...laufen(weich, 2)) > 1.02, "unterdämpft schwingt über");
+
+  // „response" ist keine Dauer, aber es steuert das Tempo.
+  const schnell = new Spring(0, { damping: 1, response: 0.2 }).to(1);
+  const langsam = new Spring(0, { damping: 1, response: 0.8 }).to(1);
+  laufen(schnell, 0.3); laufen(langsam, 0.3);
+  check(schnell.value > langsam.value, "kleineres response ist früher am Ziel");
+
+  // Analytisch gelöst heißt: das Ergebnis hängt nicht an der Bildrate. Genau
+  // das trägt in WebXR, wo einzelne Bilder deutlich länger dauern können.
+  const grob = new Spring(0, SPRINGS.move).to(1);
+  const fein = new Spring(0, SPRINGS.move).to(1);
+  for (let i = 0; i < 5; i++) grob.step(0.1);
+  for (let i = 0; i < 50; i++) fein.step(0.01);
+  near(grob.value, fein.value, "grobe und feine Schrittweite kommen gleich weit", 0.002);
+
+  // Der wichtigste Punkt: mitten in der Bewegung umlenken darf nicht springen.
+  const umlenken = new Spring(0, SPRINGS.move).to(1);
+  laufen(umlenken, 0.15);
+  const vorher = umlenken.value, tempo = umlenken.velocity;
+  umlenken.to(-1);
+  check(umlenken.value === vorher, "Umlenken lässt den Wert stehen");
+  check(umlenken.velocity === tempo, "und die Geschwindigkeit auch");
+  const ersterSchritt = umlenken.step(1 / 90);
+  check(Math.abs(ersterSchritt - vorher) < 0.03,
+        "der erste Schritt danach ist kein Sprung");
+
+  // Und der eigentliche Punkt: der mitgenommene Schwung trägt noch ein Stück
+  // in die alte Richtung, statt an einer Wand abzuprallen. Zum Vergleich
+  // dieselbe Feder, deren Geschwindigkeit beim Umlenken abgeschnitten wurde —
+  // genau das erzeugt den harten Knick, den es zu vermeiden gilt.
+  const abgeschnitten = new Spring(vorher, SPRINGS.move).to(-1);
+  const ohneSchwung = abgeschnitten.step(1 / 90);
+  check(tempo > 0 && ersterSchritt > vorher,
+        "der mitgenommene Schwung trägt noch über den Wendepunkt hinaus");
+  check(ersterSchritt > ohneSchwung,
+        "eine abgeschnittene Geschwindigkeit kehrte sofort um — die Feder nicht");
+
+  // Schwungübergabe: mit Geschwindigkeit losgelassen wird weitergetragen.
+  const ohne = new Spring(0, SPRINGS.move).to(0);
+  const mit = new Spring(0, SPRINGS.move).to(0).handoff(4);
+  ohne.step(0.05); mit.step(0.05);
+  check(mit.value > ohne.value + 0.05, "übergebene Geschwindigkeit trägt weiter");
+  laufen(mit, 3);
+  near(mit.value, 0, "und läuft am Ende doch ins Ziel", 0.005);
+
+  console.log("\nWinkel, Schwung und Anschläge");
+
+  // Kurzer Weg statt einmal fast herum.
+  const winkel = new AngleSpring(3.0, SPRINGS.rotate);
+  winkel.to(-3.0);
+  check(winkel.target > 3.0, "die Winkelfeder nimmt den kurzen Weg über π");
+  near(winkel.target - winkel.value, (Math.PI * 2) - 6.0,
+       "und legt dabei nur den kleinen Rest zurück", 0.001);
+
+  // Schwungprojektion: Apples Exponentialform, nicht v²/2a.
+  near(project(1000, 0.998), 499, "1000 px/s rollen rund 499 px aus", 1);
+  check(project(2000) > project(1000), "mehr Schwung heißt weiter");
+  check(project(-1000) < 0, "und die Richtung bleibt erhalten");
+  check(project(1000, 0.99) < project(1000, 0.998), "trägere Kurve rollt weiter");
+  check(project(NaN) === 0, "Unsinn rollt gar nicht");
+
+  // Was der Nachlauf zurücklegt, muss zu dem passen, was die Projektion
+  // vorhersagt — sonst zeigte die Vorschau etwas anderes als die Bewegung.
+  const nach = new Decay(1000);
+  const vorhergesagt = nach.remaining;
+  let gelaufen = 0;
+  for (let i = 0; i < 4000 && !nach.done; i++) gelaufen += nach.step(1 / 90);
+  check(Math.abs(gelaufen - vorhergesagt) / vorhergesagt < 0.01,
+        `der Nachlauf legt die vorhergesagte Strecke zurück (${gelaufen.toFixed(0)} ≈ ${vorhergesagt.toFixed(0)})`);
+  check(nach.done, "und kommt zum Stehen");
+
+  check(nearestSnap(7, [0, 5, 10]) === 5, "der nächste Rastpunkt");
+  check(nearestSnap(7, []) === 7, "ohne Rastpunkte bleibt es, wie es ist");
+
+  // Gummiband: nachgeben, nicht anschlagen.
+  check(rubberband(0, 100) === 0, "ohne Überzug gibt es nichts nachzugeben");
+  check(rubberband(50, 100) < 50, "über den Anschlag geht weniger mit als gezogen");
+  check(rubberband(200, 100) < rubberband(200, 100) + 1 &&
+        rubberband(200, 100) / 200 < rubberband(20, 100) / 20,
+        "und je weiter gezogen, desto weniger anteilig");
+  check(clampRubber(0.3, -0.7, 0.7) === 0.3, "innerhalb der Grenzen ändert sich nichts");
+  const drueber = clampRubber(1.4, -0.7, 0.7);
+  check(drueber > 0.7 && drueber < 1.4, "darüber geht es weiter, aber nicht ganz mit");
+  check(clampRubber(-1.4, -0.7, 0.7) === -drueber, "nach unten spiegelbildlich");
+
+  console.log("\nGeschwindigkeit messen");
+  const v = new VelocityTracker(100);
+  v.add(0, 0).add(10, 20).add(20, 40).add(30, 60);
+  near(v.velocity(60), 500, "gleichmäßige Bewegung ergibt ihre Geschwindigkeit", 1);
+  check(v.velocity(400) === 0, "nach einer Pause ist die Geste vorbei, nicht schnell");
+  check(new VelocityTracker().add(5, 0).velocity(0) === 0,
+        "ein einzelner Punkt ist keine Geschwindigkeit");
+
+  console.log("\nWeniger Bewegung");
+  setReducedMotion(true);
+  const sofort = new Spring(0, SPRINGS.move).to(1);
+  check(sofort.step(1 / 90) === 1, "bei „weniger Bewegung\" wird sofort gesetzt");
+  check(sofort.velocity === 0, "und es bleibt nichts in Bewegung");
+  check(new Decay(1000).step(1 / 90) === 0, "auch kein Nachlauf");
+  setReducedMotion(false);
+}
+
+/* ========================================================== Anzeigegerät
+ *
+ * Der Teil, der über die HoloLens-2-Tauglichkeit entscheidet — und der sich
+ * ohne Gerät nur hier prüfen lässt. Ein zu großes HUD merkt man sonst erst,
+ * wenn jemand die Brille aufsetzt und die Hälfte der Anzeige nie zu sehen
+ * bekommt.
+ */
+
+const grad = (r) => (r * 180) / Math.PI;
+const bogen = (d) => (d * Math.PI) / 180;
+
+/** Symmetrische Projektionsmatrix aus zwei vollen Öffnungswinkeln (Grad). */
+function projektion(hDeg, vDeg, schiefe = 0) {
+  const m = new Array(16).fill(0);
+  m[0] = 1 / Math.tan(bogen(hDeg) / 2);
+  m[5] = 1 / Math.tan(bogen(vDeg) / 2);
+  m[8] = schiefe;
+  m[10] = -1; m[11] = -1; m[14] = -0.2;
+  return m;
+}
+
+// Die beiden Geräte, um die es geht.
+const HOLOLENS2 = projektion(43, 29);
+const QUEST = projektion(105, 95);
+
+function anzeigegeraet() {
+  console.log("\nBlickfeld ausmessen");
+
+  const hl = fovFromProjection(HOLOLENS2);
+  near(grad(hl.horizontal), 43, "HoloLens 2: 43° breit", 0.1);
+  near(grad(hl.vertical), 29, "und 29° hoch", 0.1);
+  near(hl.left, hl.right, "symmetrisch gerechnet, symmetrisch heraus", 1e-6);
+
+  const schief = fovFromProjection(projektion(90, 90, 0.2));
+  check(schief.right > schief.left, "eine schiefe Projektion wird auch schief gemessen");
+  near(grad(schief.horizontal), 90 + 0, "ihre Gesamtbreite bleibt plausibel", 12);
+
+  const kaputt = fovFromProjection([0, 0, 0, 0, 0, 0, 0, 0, NaN, NaN, 0, 0, 0, 0, 0, 0]);
+  check(Number.isFinite(kaputt.horizontal), "eine unbrauchbare Matrix ergibt keine NaN");
+
+  console.log("\nHUD ins Blickfeld einpassen");
+
+  const profilHL = displayProfile("additive", hl);
+  check(profilHL.additive, "additives Glas wird erkannt");
+  check(profilHL.narrow, "und sein kleines Blickfeld auch");
+  check(profilHL.hudDistance > 1.25,
+        "auf durchsichtigem Glas steht das HUD außerhalb der Nahzone");
+
+  const passt = fitToFov(hl, profilHL.hudDistance, 16 / 9);
+  const halbH = Math.atan(passt.halfW / profilHL.hudDistance);
+  const halbV = Math.atan(passt.halfH / profilHL.hudDistance);
+  check(halbH < hl.left && halbH < hl.right, "das eingepasste HUD bleibt seitlich im Glas");
+  check(halbV < hl.up && halbV < hl.down, "und oben wie unten auch");
+  near(passt.halfW / passt.halfH, 16 / 9, "das Seitenverhältnis bleibt erhalten", 0.001);
+
+  // Der Grund für die ganze Übung: die alte feste Größe lag weit daneben.
+  const altHalbwinkel = Math.atan(0.82 / 0.95);
+  check(altHalbwinkel > hl.left * 1.5,
+        `die alte feste HUD-Breite lag weit außerhalb (${Math.round(grad(altHalbwinkel) * 2)}° gegen 43°)`);
+
+  const quest = fovFromProjection(QUEST);
+  const profilQ = displayProfile("alpha-blend", quest);
+  check(!profilQ.narrow, "eine Quest gilt nicht als kleines Blickfeld");
+  check(!profilQ.additive, "und nicht als additiv");
+  const passtQ = fitToFov(quest, profilQ.hudDistance, 16 / 9);
+  check(passtQ.halfW > 0.6 && passtQ.halfW < 0.85,
+        "dort bleibt das HUD ungefähr so groß wie bisher");
+  check(passtQ.halfW > passt.halfW, "und größer als auf der HoloLens");
+
+  console.log("\nFarben für additives Glas");
+
+  const add = paletteFor(true);
+  const alpha = paletteFor(false);
+  // Der eine Punkt, an dem eine für Quest gebaute Anzeige auf der HoloLens
+  // scheitert: alles Dunkle ist dort schlicht nicht vorhanden.
+  const durchsichtig = (c) => /rgba\([^)]*,\s*0\s*\)$/.test(c);
+  check(durchsichtig(add.blockFill), "additiv: keine dunkle Unterlage");
+  check(durchsichtig(add.btnFill), "additiv: kein dunkler Knopffond");
+  check(add.blockTint === 0, "additiv: auch keine getönte — jede Fläche wäre ein Schleier");
+  check(!durchsichtig(alpha.blockFill), "auf Passthrough bleibt sie erhalten");
+  // Ein Saum wirkt, indem er abdunkelt. Auf additivem Glas geht das nicht, und
+  // ein heller Saum um helle Type macht daraus einen Klumpen — nachgemessen an
+  // tests/probe_flow.html?additiv=1. Also gar keiner.
+  check(durchsichtig(add.halo) && durchsichtig(add.haloRule),
+        "additiv: gar kein Saum — er könnte nur abdunkeln");
+  check(alpha.halo.startsWith("rgba(0"), "auf Passthrough bleibt der Saum dunkel");
+  const deckkraft = (c) => Number(/rgba\([^)]*,\s*([\d.]+)\s*\)/.exec(c)[1]);
+  check(deckkraft(add.faint) > deckkraft(alpha.faint),
+        "additiv: auch das Zurückgenommene bleibt kräftig, sonst wäre es weg");
+  check(add.additive === true && alpha.additive === false,
+        "die Palette weiß selbst, welche sie ist");
+
+  console.log("\nSitzungsleiter");
+
+  const leiter = sessionLadder();
+  check(leiter[0].mode === "immersive-ar", "zuerst wird AR versucht");
+  check(leiter.some((s) => s.mode === "immersive-ar" &&
+                           !s.init.requiredFeatures && !s.init.optionalFeatures),
+        "es gibt eine Stufe ganz ohne Zusatzmerkmale");
+  check(leiter.every((s) => !(s.init.requiredFeatures || []).includes("local-floor")),
+        "Bodenbezug wird nie verbindlich verlangt");
+  check(leiter.every((s) => !JSON.stringify(s.init).includes("bounded-floor")),
+        "eine gezeichnete Spielfläche wird nirgends verlangt");
+  check(leiter[leiter.length - 1].mode === "immersive-vr",
+        "und zuletzt VR — der Weg für Edge ohne immersive-ar");
+  const ersterVR = leiter.findIndex((s) => s.mode === "immersive-vr");
+  check(leiter.slice(0, ersterVR).every((s) => s.mode === "immersive-ar"),
+        "VR kommt erst, wenn AR durch ist");
+}
+
 armband();
 anzeige();
+bewegung();
+anzeigegeraet();
 
 console.log();
 console.log(failed === 0

@@ -14,6 +14,7 @@
 "use strict";
 
 import { buildMesh, pickRegion, regionColor, REGIONS, MESH_URL } from "./body.js";
+import { Spring, Decay, VelocityTracker, SPRINGS, clampRubber } from "./motion.js";
 
 /* ------------------------------------------------------- das echte Netz
  *
@@ -208,6 +209,9 @@ const rad = (d) => (d * Math.PI) / 180;
 const FOV = rad(32);
 const DIST = 2.05;        // Auge vor dem Modell
 const PIVOT = 0.5;        // Drehpunkt auf Brusthöhe (Modell ist 1,0 hoch)
+const PITCH_LIMIT = 0.7;  // rad, ab da gibt die Neigung nach
+const DRAG_SLOP = 6;      // px, ab da war es ein Drehen und kein Antippen
+const FLING_MIN = 0.6;    // rad/s, darunter war es kein Anstoßen
 
 function perspective(fovY, aspect, near, far) {
   const f = 1 / Math.tan(fovY / 2);
@@ -273,11 +277,22 @@ export class BodyView {
 
     this._drag = null;
     this._moved = 0;
+    this._pitchRaw = 0;
+    this._spin = new Decay(0);                 // Nachlauf nach einem Anstoßen
+    this._pitchSpring = new Spring(0, SPRINGS.rotate);
+    this._yawVel = new VelocityTracker(120);
+    this._pitchVel = new VelocityTracker(120);
+    this._raf = 0;
+    this._pressed = false;
+
+    // `setPointerCapture` im pointerdown: ohne das endet das Ziehen, sobald der
+    // Zeiger die kleine Fläche verlässt — und sie ist 132 px breit, das
+    // passiert bei jeder zügigen Drehung.
     canvas.style.touchAction = "none";
     canvas.addEventListener("pointerdown", (e) => this._down(e));
     canvas.addEventListener("pointermove", (e) => this._move(e));
     canvas.addEventListener("pointerup", (e) => this._up(e));
-    canvas.addEventListener("pointercancel", () => { this._drag = null; });
+    canvas.addEventListener("pointercancel", () => this._release(null));
   }
 
   get available() { return !!this.gl; }
@@ -289,9 +304,22 @@ export class BodyView {
   }
 
   _down(e) {
+    // Ein laufender Nachlauf endet mit dem Zugreifen, an Ort und Stelle.
+    this._spin.velocity = 0;
+    this._pitchSpring.reset(this.pitch);
+    this._pitchRaw = this.pitch;
+
     this._drag = { x: e.clientX, y: e.clientY };
     this._moved = 0;
-    this.canvas.setPointerCapture(e.pointerId);
+    // Rückmeldung im Moment des Drückens, nicht erst beim Loslassen. Als
+    // Klasse und nicht als `:active`, weil der Zeiger eingefangen wird und die
+    // Fläche dabei verlassen darf — `:active` fiele dann weg.
+    this._pressed = true;
+    this.canvas.classList.add("greifend");
+    this._yawVel.reset().add(this.yaw, e.timeStamp);
+    this._pitchVel.reset().add(this.pitch, e.timeStamp);
+    try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    this.render();
   }
 
   _move(e) {
@@ -301,7 +329,12 @@ export class BodyView {
       this._drag = { x: e.clientX, y: e.clientY };
       this._moved += Math.abs(dx) + Math.abs(dy);
       this.yaw += dx * 0.012;
-      this.pitch = Math.max(-0.7, Math.min(0.7, this.pitch + dy * 0.008));
+      // Nachgebender Anschlag statt hartem: über die Grenze hinaus geht es
+      // noch, aber immer weniger weit.
+      this._pitchRaw += dy * 0.008;
+      this.pitch = clampRubber(this._pitchRaw, -PITCH_LIMIT, PITCH_LIMIT);
+      this._yawVel.add(this.yaw, e.timeStamp);
+      this._pitchVel.add(this.pitch, e.timeStamp);
     }
     const hit = this._pickAt(e.clientX - r.left, e.clientY - r.top);
     this.hover = hit ? hit.id : null;
@@ -309,13 +342,63 @@ export class BodyView {
   }
 
   _up(e) {
-    const wasDrag = this._moved > 6;
-    this._drag = null;
+    const wasDrag = this._moved > DRAG_SLOP;
+    this._release(e);
     try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
     if (wasDrag) return;                       // gedreht, nicht gewählt
     const r = this.canvas.getBoundingClientRect();
     const hit = this._pickAt(e.clientX - r.left, e.clientY - r.top);
     if (hit) this.onPick(hit.id);
+  }
+
+  /**
+   * Loslassen. Die Drehung läuft mit **genau der Geschwindigkeit weiter**, mit
+   * der der Finger aufgehört hat — ohne diese Übergabe stünde das Modell im
+   * Moment des Loslassens still, und die Naht zwischen Ziehen und Weiterlaufen
+   * ist genau das, was eine Anzeige billig wirken lässt.
+   */
+  _release(e) {
+    if (!this._drag) { this._pressed = false; this.canvas.classList.remove("greifend"); this.render(); return; }
+    this._drag = null;
+    this._pressed = false;
+    this.canvas.classList.remove("greifend");
+
+    const now = e ? e.timeStamp : (typeof performance !== "undefined" ? performance.now() : 0);
+    const v = this._yawVel.velocity(now);
+    this._spin.velocity = Math.abs(v) > FLING_MIN ? v : 0;
+
+    this._pitchSpring.reset(this.pitch)
+      .to(Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this._pitchRaw)))
+      .handoff(this._pitchVel.velocity(now));
+
+    this._tick();
+  }
+
+  /**
+   * Solange etwas nachläuft, wird Bild für Bild weitergerechnet — und nur
+   * solange. Eine Dauerschleife für eine Fläche, die meistens stillsteht, wäre
+   * auf einem Headset verschenkte Rechenzeit.
+   */
+  _tick() {
+    if (this._raf) return;
+    let last = 0;
+    const frame = (t) => {
+      this._raf = 0;
+      const dt = last ? Math.min(0.1, (t - last) / 1000) : 0.016;
+      last = t;
+
+      if (!this._drag) {
+        this.yaw += this._spin.step(dt);
+        if (!this._pitchSpring.settled()) {
+          this.pitch = this._pitchSpring.step(dt);
+          this._pitchRaw = this.pitch;
+        }
+      }
+      this.render();
+      if (!this._drag && (!this._spin.done || !this._pitchSpring.settled()))
+        this._raf = requestAnimationFrame(frame);
+    };
+    this._raf = requestAnimationFrame(frame);
   }
 
   /** Bildpunkt → Strahl im Modellraum → Region. */
@@ -388,6 +471,7 @@ export class BodyView {
   }
 
   dispose() {
+    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
     if (this.mesh) this.mesh.dispose();
     this.gl = null;
   }

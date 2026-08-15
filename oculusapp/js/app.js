@@ -26,7 +26,8 @@
 import { patientIds, resolvePatient } from "./data.js";
 import { QRScanner, decodeSupported, barcodeDetectorAvailable, jsQRAvailable } from "./qr.js";
 import { Voice, synthesisAvailable, recognitionAvailable, onDeviceStatus } from "./voice.js";
-import { XRPassthrough, passthroughSupported } from "./xr.js";
+import { XRPassthrough, xrSupport } from "./xr.js";
+import { watchReducedMotion } from "./motion.js";
 import { patientHUD } from "./hud.js";
 import { Workflow } from "./workflow.js";
 import { drawMapPanel } from "./hudscreen.js";
@@ -143,16 +144,24 @@ function detectCaps() {
       `<li data-key="${name}"><span class="cap-dot ${ok === false ? "no" : ok === true ? "yes" : "wait"}"></span>${name}<em>${note ?? "…"}</em></li>`)
     .join("");
 
-  passthroughSupported().then((ok) => {
+  // Was das Gerät anbietet, wird einzeln gefragt. Eine HoloLens 2 meldet je
+  // nach Edge-Fassung **kein** `immersive-ar`, zeigt eine `immersive-vr`-
+  // Sitzung aber auf demselben durchsichtigen Glas — der Knopf gehört dann
+  // nicht gesperrt, sondern beschriftet. Ob das Glas wirklich durchsichtig ist,
+  // sagt erst die laufende Sitzung (`environmentBlendMode`); eine geschlossene
+  // VR-Brille wird dort abgewiesen, statt hier geraten zu werden.
+  xrSupport().then(({ ar, vr, any }) => {
     const li = el.caps.querySelector('[data-key="Passthrough-AR (WebXR)"]');
     if (li) {
-      li.querySelector(".cap-dot").className = "cap-dot " + (ok ? "yes" : "no");
-      li.querySelector("em").textContent = ok ? "immersive-ar" : "nicht verfügbar";
+      li.querySelector(".cap-dot").className = "cap-dot " + (any ? "yes" : "no");
+      li.querySelector("em").textContent =
+        ar ? "immersive-ar" : vr ? "nur immersive-vr" : "nicht verfügbar";
     }
-    el.btnAR.disabled = !ok;
-    el.btnAR.querySelector(".mode-note").textContent = ok
-      ? "Passthrough · Blicksteuerung"
-      : "auf diesem Gerät nicht verfügbar";
+    el.btnAR.disabled = !any;
+    el.btnAR.querySelector(".mode-note").textContent =
+      ar ? "Passthrough · Blick, Hand oder Controller"
+    : vr ? "über immersive-vr — nur auf durchsichtigem Glas"
+    : "auf diesem Gerät nicht verfügbar";
   });
 
   el.btnCam.disabled = !decodeSupported();
@@ -383,6 +392,15 @@ async function startAR() {
         ? "Passthrough aktiv — Bodenhöhe geschätzt"
         : "Passthrough aktiv");
       app.flow.start();
+      // Das Blickfeld steht erst nach dem ersten Bild fest. Wo es klein ist
+      // (HoloLens 2), passt sich das HUD von selbst an — gesagt wird es
+      // trotzdem, damit niemand nach den fehlenden Ecken sucht.
+      setTimeout(() => {
+        if (!app.xr || !app.xr.active || !app.xr.fov) return;
+        const p = app.xr.profile;
+        if (p.narrow || p.additive)
+          toast(`Anzeige: ${p.label} — HUD ans Blickfeld angepasst`, "ok");
+      }, 700);
     },
     onEnd: () => { app.xr = null; backToStart(); },
     onPose: (pos, fwd, floorY) => app.flow.setPose(pos, fwd, floorY),
@@ -560,6 +578,10 @@ function wireControls() {
 /* --------------------------------------------------------------- boot */
 
 function boot() {
+  // Einmal an die Systemeinstellung hängen: sie schaltet die Federn in
+  // js/motion.js auf sofortiges Setzen um. Das CSS hat dieselbe Abfrage für
+  // sich; beides muss gesetzt sein, sonst federt die eine Hälfte weiter.
+  watchReducedMotion();
   detectCaps();
   wireControls();
 

@@ -35,29 +35,39 @@
 "use strict";
 
 import { drawHudLayer, drawCard, drawMarker, drawReticle, drawInfoPopup,
-         drawPanel, hitTest } from "./hudscreen.js";
+         drawPanel, hitTest, setPalette } from "./hudscreen.js";
 import { CELLS, COLS, ROWS, PANEL_W, PANEL_H, cellAt, PanelPress } from "./wristband.js";
 import { BodyMesh, loadBodyMesh } from "./bodyview.js";
 import { pickRegion, rgbOf } from "./body.js";
+import { fovFromProjection, fitToFov, displayProfile, requestSession, xrSupport }
+  from "./display.js";
+import { Spring, AngleSpring, Decay, VelocityTracker, SPRINGS,
+         project, clampRubber, reducedMotion, watchReducedMotion } from "./motion.js";
 
-export async function passthroughSupported() {
-  if (typeof navigator === "undefined" || !navigator.xr) return false;
-  try {
-    return await navigator.xr.isSessionSupported("immersive-ar");
-  } catch (_) {
-    return false;
-  }
-}
+/**
+ * Was das Gerät an immersiven Betriebsarten anbietet.
+ *
+ * Die frühere Fassung fragte nur nach `immersive-ar` und sperrte den Knopf
+ * sonst. Das ist auf einer HoloLens 2 falsch: Edge hat die Betriebsart je nach
+ * Fassung gar nicht, zeigt eine `immersive-vr`-Sitzung aber auf demselben
+ * durchsichtigen Glas — dort ist das kein Ersatz, sondern dasselbe Bild.
+ * Deshalb werden beide gefragt und die Antwort weitergereicht, statt sie hier
+ * zu einem Ja/Nein zu verkürzen.
+ */
+export { xrSupport };
 
-// Kopfnahes HUD: nah genug, dass die Ränder ohne Kopfdrehen lesbar sind.
+// Kopfnahes HUD. Die **Maße** stehen hier nicht mehr fest: wie groß die Fläche
+// sein darf, hängt vom Blickfeld des Geräts ab und wird beim ersten Bild aus
+// der Projektionsmatrix ausgemessen (siehe `_measureDisplay`). Was hier steht,
+// ist die Texturgröße und der Ausgangswert für Passthrough-Geräte.
 const HUD_W = 1536, HUD_H = 864;
-const HUD_DIST = 0.95;
-const HUD_HALF_W = 0.82;                 // ≈ 82° Breite
-const HUD_HALF_H = HUD_HALF_W * (HUD_H / HUD_W);
+const HUD_ASPECT = HUD_W / HUD_H;
 // Das HUD steht still, bis der Blick weit genug abgewandert ist — dann zieht es
 // einmal um und steht wieder. Kein Mitschwimmen dazwischen.
 const HUD_LEASH = 40 * Math.PI / 180;    // so weit darf der Blick wandern
-const HUD_MOVE_TAU = 0.16;               // wie schnell es dann umzieht
+// Auf einem kleinen Blickfeld ist der Blick schneller „weg": 40° sind dort zwei
+// volle Bildbreiten, das HUD wäre ständig unauffindbar.
+const HUD_LEASH_NARROW = 18 * Math.PI / 180;
 const HUD_ARRIVED = 1.5 * Math.PI / 180; // ab hier gilt der Umzug als beendet
 
 // Pinch aus den Fingergelenken: Schwellen mit Hysterese, damit es nicht flattert.
@@ -68,7 +78,6 @@ const PINCH_OFF = 0.045;
 const CARD_W = 900, CARD_H = 640;
 const CARD_HALF_W = 0.56;
 const CARD_HALF_H = CARD_HALF_W * (CARD_H / CARD_W);
-const CARD_PLACE_DIST = 1.25;
 const CARD_LIFT = 1.15;                  // über dem Boden, nicht auf ihm
 
 // Die kleine Anzeige, die beim Herantreten über dem Marker aufgeht.
@@ -84,7 +93,6 @@ const POP_TOP = 1.45;                    // Höhe über dem Boden, wenn ganz obe
 // Sichtungsfarbe, mit roten Stellen dort, wo Befunde hängen.
 const POP_BODY_H = 0.34;                 // Modellhöhe in Metern
 const POP_BODY_SIDE = 0.30;              // links neben der Anzeige
-const POP_RISE = 4.5;                    // 1/s — wie schnell sie aufsteigt
 const POP_MAX = 3;                       // so viele gleichzeitig
 
 // Körpermodell, raumfest neben der Handlungskarte.
@@ -95,6 +103,10 @@ const BODY_HALF_W = 0.22 * BODY_H;
 const BODY_DRAG_GAIN = 2.4;
 const BODY_AUTOSPIN = 0.42;              // rad/s, wenn nur der Blick zeigt
 const BODY_DRAG_SLOP = 0.04;             // rad, ab da gilt es als Drehen
+const BODY_PITCH_LIMIT = 0.7;            // rad, ab da gibt die Neigung nach
+// Unter dieser Wurfgeschwindigkeit war es ein Ziehen, kein Anstoßen — sonst
+// dreht sich das Modell nach jedem Loslassen noch ein Stück weiter.
+const BODY_FLING_MIN = 0.6;              // rad/s
 
 // Marker liegen flach auf dem Boden beim Patienten und sind anklickbar.
 const MARK_PX = 512;                     // quadratische Textur
@@ -111,6 +123,8 @@ const PLACE_MIN = 0.5;                   // Meter vor den Füßen
 const PLACE_MAX = 8;
 const PLACE_AHEAD = 2.0;                 // wenn der Strahl den Boden nicht trifft
 const PLACE_STEADY = 0.30;               // so weit darf die Stelle beim Verweilen wandern
+const PLACE_RUBBER = 0.14;               // wie hart der Anschlag nachgibt
+const PLACE_GIVE = 0.9;                  // Meter, die er höchstens nachgibt
 
 // Das Armband am Controller. Das Papier sitzt am Unterarm der Hand, die den
 // einen Controller hält — dessen Lage kennt die Brille, also kennt sie auch die
@@ -143,6 +157,10 @@ const BEAM_LEN = 1.6;                    // Länge, wenn der Strahl nichts triff
 
 const DWELL_MS = 1100;                   // Verweilen als Ersatz für den Pinch
 const HUD_REDRAW_MS = 150;
+// So lange nach einem Auslösen zählt kein zweites. Sie fängt den Fall ab, dass
+// `select` und der selbst erkannte Pinch dieselbe Geste doppelt melden — siehe
+// `_activate`. Kurz genug, dass zweimal Drücken zweimal wirkt.
+const ACTIVATE_GUARD_MS = 140;
 
 const VERT_SRC = `
   attribute vec2 aPos;
@@ -195,6 +213,16 @@ function forwardOf(transform) {
 function flatten(v) {
   const len = Math.hypot(v.x, v.z);
   return len < 1e-4 ? { x: 0, y: 0, z: -1 } : { x: v.x / len, y: 0, z: v.z / len };
+}
+
+/**
+ * Richtung aus Gier und Neigung. Gegenstück zu `atan2(x, −z)` / `asin(y)` —
+ * das HUD wird über diese beiden Winkel geführt und nicht über den Vektor, weil
+ * sich zwei Winkel je mit einer eigenen Feder bewegen lassen (siehe motion.js).
+ */
+export function dirFromAngles(yaw, pitch) {
+  const cp = Math.cos(pitch);
+  return { x: Math.sin(yaw) * cp, y: Math.sin(pitch), z: -Math.cos(yaw) * cp };
 }
 
 /** Basis für ein Rechteck, dessen Normale `n` ist (Welt-Oben als Hilfsachse). */
@@ -330,24 +358,40 @@ export class XRPassthrough {
     this._hudHoverSince = 0;
     this._dwell = 0;
     this._pinching = false;
+    this._lastActivateAt = 0;
     this._cardDirty = true;
     this._hudDirty = true;
     this._hudDrawnAt = 0;
 
+    // Das HUD zieht über zwei Federn um — eine für die Drehung um die
+    // Hochachse, eine für die Neigung. Bewusst getrennt und nicht eine Feder
+    // auf dem Richtungsvektor: haben beide Achsen verschiedene
+    // Geschwindigkeiten, läuft eine gemeinsame Feder auseinander und die Bahn
+    // verbiegt sich sichtbar.
+    this._hudYaw = new AngleSpring(0, SPRINGS.move);
+    this._hudPitch = new Spring(0, SPRINGS.move);
     this._hudDir = null;                   // gehaltene Blickrichtung des HUD
-    this._hudTarget = null;
     this._hudMoving = false;
     this._lastFrameAt = 0;
     this._placed = null;
     this._markTex = new Map();
     this._popTex = new Map();              // Anzeige über dem Marker je Patient
-    this._pops = new Map();                // id → Aufgang 0…1
+    this._pops = new Map();                // id → Feder auf dem Aufgang 0…1
     this._floorNow = 0;                    // gemeinsame Bodenebene aller Marker
     this._floorGuess = null;
     this._hands = new Map();               // handedness → Pinch-Zustand
     this._pendingActivate = false;
+
+    // Das Körpermodell: Drehung und Neigung laufen über Federn, damit ein
+    // Anstoßen weiterläuft und ein erneutes Zugreifen es sofort wieder
+    // übernimmt — ohne auf das Ende einer Bewegung zu warten.
     this._bodyYaw = 0;                     // Drehung des Körpermodells
-    this._bodyPitch = 0;
+    this._bodyPitch = 0;                   // gezeigte Neigung (mit Gummiband)
+    this._bodyPitchRaw = 0;                // gezogene Neigung (ohne Anschlag)
+    this._bodySpin = new Decay(0);         // Nachlauf nach einem Anstoßen
+    this._bodyPitchSpring = new Spring(0, SPRINGS.rotate);
+    this._bodyYawVel = new VelocityTracker(120);
+    this._bodyPitchVel = new VelocityTracker(120);
     this._bodyHover = null;                // Körperregion unter dem Zeiger
     this._bodyHoverSince = 0;
     this._bodyDrag = null;
@@ -361,15 +405,38 @@ export class XRPassthrough {
     this._reticleKey = null;
     this._stereoNote = null;
 
+    // Das Geräteprofil. Bis zum ersten Bild sind es die Werte für Passthrough;
+    // dann wird ausgemessen, was wirklich da ist (`_measureDisplay`).
+    this.profile = displayProfile("alpha-blend");
+    this.fov = null;
+    this._hudGeom = { dist: this.profile.hudDistance, halfW: 0.82, halfH: 0.82 / HUD_ASPECT };
+    this._measured = false;
 
     // Intern: steuert Fadenkreuz und Verweil-Auslösung. Wird nicht angezeigt —
     // die Frage, was das Gerät liefert, ist beantwortet.
     this._diag = { sources: 0, selects: 0, joints: 0, gaze: false };
 
     this._frameBound = (t, f) => this._onFrame(t, f);
-    this._onSelectBound = () => { this._diag.selects++; this._hudDirty = true; this._activate(); };
-    this._onSelectStart = () => { this._pinching = true; };
-    this._onSelectEnd = () => { this._pinching = false; };
+    // `select` kommt beim **Loslassen**. Ein Gerät, das es schickt, meldet
+    // vorher `selectstart` — daran hängt die Druckanzeige, damit der Knopf
+    // sofort reagiert und nicht erst beim Auslösen.
+    this._onSelectBound = () => {
+      this._diag.selects++;
+      this._diag.nativeSelect = true;
+      this._hudDirty = true;
+      this._activate();
+    };
+    this._onSelectStart = () => {
+      this._pinching = true;
+      this._diag.nativeSelect = true;
+      this._cardDirty = true;
+      this._hudDirty = true;
+    };
+    this._onSelectEnd = () => {
+      this._pinching = false;
+      this._cardDirty = true;
+      this._hudDirty = true;
+    };
   }
 
   get active() { return !!this.session; }
@@ -391,36 +458,30 @@ export class XRPassthrough {
     // `bounded-floor` wird bewusst NIE angefordert. Es ist das einzige Merkmal,
     // für das die Brille eine **gezeichnete Spielfläche** verlangt — und benutzt
     // wurde es hier nie: als Bezugsraum kommt `local-floor` zum Einsatz, die
-    // Lagekarte rechnet mit echten Koordinaten und nicht mit Raumgrenzen. Es
-    // stand nur in der Liste und hat Einrichtung erzwungen, die niemand braucht.
+    // Lagekarte rechnet mit echten Koordinaten und nicht mit Raumgrenzen.
     //
-    // Manche Browser melden Hände nur, wenn `hand-tracking` verbindlich
-    // angefordert wurde — sie scheitern dann aber, wenn sie es nicht können.
-    // Also erst verbindlich versuchen, dann ohne, dann ganz ohne Zusätze: die
-    // letzte Stufe verlangt nichts, was über eine blanke Sitzung hinausgeht.
-    const attempts = [
-      { requiredFeatures: ["hand-tracking"], optionalFeatures: ["local-floor"], tag: "hand-tracking (required)" },
-      { optionalFeatures: ["local-floor", "hand-tracking"], tag: "hand-tracking (optional)" },
-      { tag: "ohne Zusatzmerkmale" },
-    ];
+    // Welche Stufen versucht werden und warum, steht in display.js — dort ist
+    // auch begründet, warum eine `immersive-vr`-Sitzung auf einem additiven
+    // Glas kein Notbehelf ist, sondern dasselbe Bild.
+    const { session, tag, mode } = await requestSession();
+    this._diag.feature = tag;
+    this._diag.mode = mode;
 
-    let session = null, lastErr = null;
-    for (const a of attempts) {
-      try {
-        session = await navigator.xr.requestSession("immersive-ar", a);
-        this._diag.feature = a.tag;
-        break;
-      } catch (err) { lastErr = err; }
-    }
-    if (!session) {
-      const name = lastErr && lastErr.name ? lastErr.name + ": " : "";
-      const msg = lastErr && lastErr.message ? lastErr.message : "immersive-ar konnte nicht gestartet werden";
-      throw new Error("AR-Sitzung abgelehnt — " + name + msg);
-    }
+    // Jetzt sagt das Gerät selbst, worauf gezeichnet wird. Das entscheidet über
+    // die ganze Farbgebung: auf einem additiven Glas ist Schwarz die
+    // Wirklichkeit, und jede dunkle Unterlage wäre nicht vorhanden.
+    this.profile = displayProfile(session.environmentBlendMode);
+    setPalette(this.profile.additive);
+    this._hudGeom.dist = this.profile.hudDistance;
+    watchReducedMotion();
 
     await gl.makeXRCompatible();
     session.updateRenderState({
       baseLayer: new XRWebGLLayer(session, gl, { alpha: true, depth: true }),
+      // Ein durchsichtiges Glas soll nichts zeichnen, was näher steht als
+      // bequem scharfzustellen ist.
+      depthNear: this.profile.comfortNear,
+      depthFar: 100,
     });
 
     // Mit „local-floor" liegt der Boden bei y = 0 — dorthin gehören die Marker.
@@ -679,32 +740,81 @@ export class XRPassthrough {
    * nicht mit dem Kopf mit — wer weiterdreht, löst schlicht den nächsten Umzug
    * aus.
    *
-   * Die Position bleibt am Kopf hängen (HUD_DIST voraus in der gehaltenen
-   * Richtung), sonst liefe man beim Gehen davon.
+   * Die Position bleibt am Kopf hängen (`_hudGeom.dist` voraus in der
+   * gehaltenen Richtung), sonst liefe man beim Gehen davon.
    */
   _hudPose(head, dt) {
     const look = norm3(forwardOf(head));
-    if (!this._hudDir) { this._hudDir = look; this._hudTarget = look; }
+    const lookYaw = Math.atan2(look.x, -look.z);
+    const lookPitch = Math.asin(Math.max(-1, Math.min(1, look.y)));
 
-    const angleFromLook = (v) => Math.acos(Math.max(-1, Math.min(1, dot3(v, look))));
+    if (!this._hudDir) {
+      this._hudYaw.reset(lookYaw);
+      this._hudPitch.reset(lookPitch);
+      this._hudDir = look;
+    }
 
-    if (!this._hudMoving && angleFromLook(this._hudDir) > HUD_LEASH) {
+    const leash = this.profile.narrow ? HUD_LEASH_NARROW : HUD_LEASH;
+    const away = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, look))));
+
+    // Ein Umzug wird ausgelöst, wenn der Blick weit genug weg ist — und er wird
+    // **neu gezielt**, wenn er unterwegs schon wieder weit weg ist. Weil das
+    // Ziel nur umgesetzt wird und die Federn Wert und Geschwindigkeit behalten,
+    // gibt es dabei keinen Schnitt: das HUD zieht in einem Zug durch, statt bei
+    // jeder Kurskorrektur stehenzubleiben und neu anzufahren.
+    if (away > leash) {
       this._hudMoving = true;
-      this._hudTarget = look;              // Ziel einmal festhalten, nicht nachführen
+      this._hudYaw.to(lookYaw);
+      this._hudPitch.to(lookPitch);
     }
 
     if (this._hudMoving) {
-      const t = 1 - Math.exp(-dt / HUD_MOVE_TAU);
-      this._hudDir = norm3(add3(this._hudDir, scale3(sub(this._hudTarget, this._hudDir), t)));
-      const rest = Math.acos(Math.max(-1, Math.min(1, dot3(this._hudDir, this._hudTarget))));
-      if (rest < HUD_ARRIVED) {
-        this._hudDir = this._hudTarget;
+      this._hudYaw.step(dt);
+      this._hudPitch.step(dt);
+      this._hudDir = dirFromAngles(this._hudYaw.value, this._hudPitch.value);
+      const rest = Math.acos(Math.max(-1, Math.min(1,
+        dot3(this._hudDir, dirFromAngles(this._hudYaw.target, this._hudPitch.target)))));
+      if (rest < HUD_ARRIVED && this._hudYaw.settled() && this._hudPitch.settled())
         this._hudMoving = false;
-      }
     }
 
-    const pos = add3(head.position, scale3(this._hudDir, HUD_DIST));
+    const pos = add3(head.position, scale3(this._hudDir, this._hudGeom.dist));
     return { pos, basis: basisFromNormal(scale3(this._hudDir, -1)) };
+  }
+
+  /**
+   * Blickfeld und Mischart des Geräts einmal ausmessen und das HUD darauf
+   * einpassen.
+   *
+   * Vorher stand die Größe des HUD fest — 82° breit, auf eine Quest gemünzt.
+   * Auf einer HoloLens 2 (43° × 29°) lägen damit beide oberen Ecken und die
+   * halbe Lagekarte außerhalb des Glases: man sähe sie nie und wüsste nicht
+   * einmal, dass sie da sind. Statt einer zweiten festen Größe für ein zweites
+   * Gerät wird die Fläche aus dem gemessenen Blickfeld gerechnet — das trägt
+   * auch für Brillen, die es noch nicht gibt.
+   */
+  _measureDisplay(view) {
+    if (this._measured || !view || !view.projectionMatrix) return;
+    this._measured = true;
+
+    this.fov = fovFromProjection(view.projectionMatrix);
+    this.profile = displayProfile(
+      this.session ? this.session.environmentBlendMode : this.profile.blendMode, this.fov);
+    setPalette(this.profile.additive);
+
+    this._hudGeom = {
+      dist: this.profile.hudDistance,
+      ...fitToFov(this.fov, this.profile.hudDistance, HUD_ASPECT),
+    };
+    this._hudDirty = true;
+    this._cardDirty = true;
+
+    const deg = (r) => Math.round((r * 180) / Math.PI);
+    this._diag.fov = `${deg(this.fov.horizontal)}°×${deg(this.fov.vertical)}°`;
+    this._diag.display = this.profile.label;
+    console.info(`[JAR] Anzeige: ${this.profile.label}, Blickfeld ${this._diag.fov}, ` +
+                 `HUD ${this._hudGeom.halfW.toFixed(2)}×${this._hudGeom.halfH.toFixed(2)} m ` +
+                 `auf ${this._hudGeom.dist} m`);
   }
 
   /**
@@ -723,7 +833,8 @@ export class XRPassthrough {
 
     if (!this._placed) {
       const fwd = flatten(forwardOf(head));
-      this._placed = add3(head.position, add3(scale3(fwd, CARD_PLACE_DIST), { x: 0, y: -0.08, z: 0 }));
+      this._placed = add3(head.position,
+        add3(scale3(fwd, this.profile.cardDistance), { x: 0, y: -0.08, z: 0 }));
     }
     return this._placed;
   }
@@ -814,11 +925,21 @@ export class XRPassthrough {
   }
 
   /** Kurzer Ruck im tragenden Controller, wenn ein Feld auslöst. */
-  _pulse(source) {
+  _pulse(source, strength = 0.6, ms = 40) {
     try {
       const act = source && source.gamepad && source.gamepad.hapticActuators;
-      if (act && act[0] && act[0].pulse) act[0].pulse(0.6, 40);
+      if (act && act[0] && act[0].pulse) act[0].pulse(strength, ms);
     } catch (_) { /* Rumpeln ist Zugabe, kein Muss */ }
+  }
+
+  /**
+   * Ruck auf allem, was einen hat. Beim Auslösen ist nicht bekannt, welche Hand
+   * gezeigt hat — und ein Ruck auf beiden ist deutlich besser als keiner. Auf
+   * einer HoloLens 2 gibt es gar keinen: dort trägt die Anzeige allein.
+   */
+  _pulseAll() {
+    if (!this.session) return;
+    for (const src of this.session.inputSources) this._pulse(src, 0.45, 25);
   }
 
   /* -------------------------------------------------------- Körpermodell */
@@ -834,11 +955,17 @@ export class XRPassthrough {
     const bm = this._screen.bodyModel;
     if (!bm || !bm.pos) return null;
 
-    // Neuer Patient → wieder frontal, sonst stünde er verdreht da.
+    // Neuer Patient → wieder frontal, sonst stünde er verdreht da. Auch der
+    // Nachlauf endet hier: er gehörte zur Drehung des vorigen Modells.
     if (bm.id !== this._bodyId) {
       this._bodyId = bm.id;
       this._bodyYaw = 0;
       this._bodyPitch = 0;
+      this._bodyPitchRaw = 0;
+      this._bodySpin.velocity = 0;
+      this._bodyPitchSpring.reset(0);
+      this._bodyYawVel.reset();
+      this._bodyPitchVel.reset();
       this._bodyDrag = null;
     }
 
@@ -875,31 +1002,71 @@ export class XRPassthrough {
    * der Blick auf einem Körperteil ruht. So sieht man alle Seiten, ohne dass
    * man etwas halten müsste, und kann trotzdem zielen.
    */
-  _turnBody(rays, hovering, dt) {
+  _turnBody(rays, hovering, dt, now) {
     const aim = rays.find((r) => !r.gaze) || rays[0];
     const yaw = aim ? Math.atan2(aim.dir.x, -aim.dir.z) : 0;
     const pitch = aim ? Math.asin(Math.max(-1, Math.min(1, aim.dir.y))) : 0;
 
     if (this._pinching && (hovering || this._bodyDrag)) {
-      if (!this._bodyDrag) this._bodyDrag = { yaw, pitch, moved: 0 };
+      // Zugegriffen. Ein laufender Nachlauf endet **sofort** und an Ort und
+      // Stelle — nicht erst, wenn er ausgelaufen ist. Wer ein drehendes Modell
+      // greift, hat es damit in der Hand; alles andere fühlt sich an, als
+      // müsste man auf die Anzeige warten.
+      if (!this._bodyDrag) {
+        this._bodySpin.velocity = 0;
+        this._bodyPitchRaw = this._bodyPitch;
+        this._bodyYawVel.reset().add(this._bodyYaw, now);
+        this._bodyPitchVel.reset().add(this._bodyPitch, now);
+        this._bodyDrag = { yaw, pitch, moved: 0 };
+      }
       let dy = yaw - this._bodyDrag.yaw;
       while (dy > Math.PI) dy -= 2 * Math.PI;
       while (dy < -Math.PI) dy += 2 * Math.PI;
       const dp = pitch - this._bodyDrag.pitch;
 
       this._bodyYaw -= dy * BODY_DRAG_GAIN;
-      this._bodyPitch = Math.max(-0.7, Math.min(0.7, this._bodyPitch - dp * BODY_DRAG_GAIN));
+      // Die Neigung hat einen Anschlag — aber keinen harten. Je weiter darüber
+      // hinaus gezogen wird, desto weniger geht mit: das liest sich als „geht
+      // noch, aber nicht mehr weit", während ein hartes Ende sich anfühlt, als
+      // hinge die Anzeige.
+      this._bodyPitchRaw -= dp * BODY_DRAG_GAIN;
+      this._bodyPitch = clampRubber(this._bodyPitchRaw, -BODY_PITCH_LIMIT, BODY_PITCH_LIMIT);
+
+      this._bodyYawVel.add(this._bodyYaw, now);
+      this._bodyPitchVel.add(this._bodyPitch, now);
       this._bodyDrag = { yaw, pitch, moved: this._bodyDrag.moved + Math.abs(dy) + Math.abs(dp) };
       return;
     }
 
-    // Losgelassen: ein Ziehen darf nicht als Antippen durchgehen.
+    // Losgelassen.
     if (this._bodyDrag) {
       this._bodySwallow = this._bodyDrag.moved > BODY_DRAG_SLOP;
       this._bodyDrag = null;
+
+      // Die Drehung läuft mit **genau der Geschwindigkeit weiter**, mit der die
+      // Hand aufgehört hat, und rollt von dort aus aus. Ohne diese Übergabe
+      // sieht man die Naht zwischen Ziehen und Weiterlaufen sofort: das Modell
+      // stünde im Moment des Loslassens still.
+      const vYaw = this._bodyYawVel.velocity(now);
+      this._bodySpin.velocity = Math.abs(vYaw) > BODY_FLING_MIN ? vYaw : 0;
+
+      // Die Neigung federt aus dem Gummiband in ihre Grenze zurück — auch das
+      // mit der Geschwindigkeit von eben, sonst knickt die Bewegung.
+      this._bodyPitchSpring.reset(this._bodyPitch)
+        .to(Math.max(-BODY_PITCH_LIMIT, Math.min(BODY_PITCH_LIMIT, this._bodyPitchRaw)))
+        .handoff(this._bodyPitchVel.velocity(now));
     }
 
-    if (this._diag.selects === 0 && !hovering) this._bodyYaw += BODY_AUTOSPIN * dt;
+    this._bodyYaw += this._bodySpin.step(dt);
+    if (!this._bodyPitchSpring.settled()) {
+      this._bodyPitch = this._bodyPitchSpring.step(dt);
+      this._bodyPitchRaw = this._bodyPitch;
+    }
+
+    // Nur mit Blick: es dreht sich von selbst weiter — aber nicht, solange ein
+    // Anstoßen noch ausläuft, sonst addierten sich zwei Drehungen.
+    if (this._diag.selects === 0 && !hovering && this._bodySpin.done && !reducedMotion())
+      this._bodyYaw += BODY_AUTOSPIN * dt;
   }
 
   /* --------------------------------------------------------------- Zeigen */
@@ -997,8 +1164,21 @@ export class XRPassthrough {
 
     if (down) {
       this._diag.selects++;
+      this._cardDirty = true;
       this._hudDirty = true;
-      this._pendingActivate = true;      // erst auslösen, wenn der Zeiger steht
+      // Der Pinch aus den Gelenken ist der **Ersatz** für ein `select`, das
+      // manche Geräte nicht schicken — nicht eine zweite Quelle daneben. Eine
+      // HoloLens 2 meldet beides: Gelenke *und* `select`. Würde hier trotzdem
+      // ausgelöst, käme jeder Fingertipp doppelt an, und der zweite träfe den
+      // Knopf, der inzwischen an dieser Stelle steht.
+      if (!this._diag.nativeSelect) this._pendingActivate = true;
+    }
+
+    // Der Pinch trägt auch die Druckanzeige, wo es kein `selectstart` gibt.
+    if (!this._diag.nativeSelect && pinching !== this._pinching) {
+      this._pinching = pinching;
+      this._cardDirty = true;
+      this._hudDirty = true;
     }
 
     return { origin, dir: aim, gaze: false, pinching, pinchDistance: gap };
@@ -1051,7 +1231,8 @@ export class XRPassthrough {
     // wirklich ein Knopf liegt — sonst ließe sich nichts dahinter mehr zeigen.
     const hudHit = hover >= 0 || !this._hudRects.length
       ? null
-      : this._planeHit(rays, hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H, HUD_W, HUD_H);
+      : this._planeHit(rays, hud.pos, hud.basis,
+                       this._hudGeom.halfW, this._hudGeom.halfH, HUD_W, HUD_H);
     const hudHover = hudHit ? hitTest(this._hudRects, hudHit.px, hudHit.py) : -1;
     if (hudHover !== this._hudHover) {
       this._hudHover = hudHover;
@@ -1067,8 +1248,8 @@ export class XRPassthrough {
       this._bodyHover = bodyId;
       this._bodyHoverSince = now;
     }
-    if (bodyMat) this._turnBody(rays, !!bodyHit, dt);
-    else { this._bodyDrag = null; this._bodySwallow = false; }
+    if (bodyMat) this._turnBody(rays, !!bodyHit, dt, now);
+    else { this._bodyDrag = null; this._bodySwallow = false; this._bodySpin.velocity = 0; }
 
     const floorFree = hover < 0 && hudHover < 0 && !bodyHit;
 
@@ -1155,10 +1336,17 @@ export class XRPassthrough {
     }
 
     // Auf die Reichweite kürzen, ohne die Richtung zu verlieren.
+    //
+    // Nachgebend statt hart: zeigt jemand über die Reichweite hinaus, klebte
+    // der Ring vorher schlagartig auf acht Metern fest und rührte sich nicht
+    // mehr — das liest sich, als hinge die Anzeige. Mit Gummiband wandert er
+    // noch ein Stück weiter mit, nur immer weniger, und sagt damit „so weit und
+    // nicht weiter", ohne tot zu wirken.
     let dx = point.x - eye.x, dz = point.z - eye.z;
     const reach = Math.hypot(dx, dz);
     if (reach < 1e-4) { dx = 0; dz = -1; }
-    const clamped = Math.max(PLACE_MIN, Math.min(PLACE_MAX, reach));
+    const clamped = Math.min(PLACE_MAX + PLACE_GIVE,
+                             clampRubber(reach, PLACE_MIN, PLACE_MAX, PLACE_RUBBER));
     if (Math.abs(clamped - reach) > 1e-4) {
       const k = clamped / (reach < 1e-4 ? 1 : reach);
       point = { x: eye.x + dx * k, y: floor, z: eye.z + dz * k };
@@ -1194,15 +1382,20 @@ export class XRPassthrough {
       .slice(0, POP_MAX);
     const open = new Set(near.map((m) => m.id));
 
+    // Aufsteigen und Einfahren laufen über **eine** Feder je Anzeige, nicht
+    // über zwei Rampen. Der Unterschied zeigt sich beim Umkehren: wer an der
+    // Grenze steht und einen Schritt zurückgeht, während sie noch aufgeht,
+    // bekommt keine neue Bewegung von vorn, sondern dieselbe, die von dort aus
+    // umdreht, wo sie gerade ist.
     for (const m of near) {
-      const cur = this._pops.get(m.id) || 0;
-      this._pops.set(m.id, Math.min(1, cur + dt * POP_RISE));
+      let s = this._pops.get(m.id);
+      if (!s) { s = new Spring(0, SPRINGS.sheet); this._pops.set(m.id, s); }
+      s.to(1).step(dt);
     }
-    for (const [id, t] of [...this._pops]) {
+    for (const [id, s] of [...this._pops]) {
       if (open.has(id)) continue;
-      const next = t - dt * POP_RISE;
-      if (next <= 0) { this._pops.delete(id); this._dropPopTexture(id); }
-      else this._pops.set(id, next);
+      s.to(0).step(dt);
+      if (s.value <= 0.01 && s.settled()) { this._pops.delete(id); this._dropPopTexture(id); }
     }
     return near;
   }
@@ -1246,8 +1439,29 @@ export class XRPassthrough {
     return best;
   }
 
+  /**
+   * Auslösen — einmal, auch wenn zwei Wege gleichzeitig darauf zeigen.
+   *
+   * Die Sperre ist kein Geschmack, sondern Notwendigkeit: `select` kommt vom
+   * Gerät, der Pinch aus den Gelenken wird selbst erkannt, und auf einer
+   * HoloLens 2 gibt es beides. Welcher von beiden im selben Bild zuerst
+   * ankommt, ist nicht festgelegt. Ohne Sperre führte ein Fingertipp zwei
+   * Handlungen aus, und die zweite träfe den Schirm, den die erste gerade
+   * aufgemacht hat — sichtbar als „es überspringt einen Schritt".
+   *
+   * Sie kostet keine Reaktionszeit: der erste Druck wirkt sofort, gesperrt ist
+   * nur die Wiederholung innerhalb weniger Hundertstel.
+   */
   _activate() {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - this._lastActivateAt < ACTIVATE_GUARD_MS) return;
+    this._lastActivateAt = now;
     this._dwell = 0;
+
+    // Rückmeldung im selben Bild wie die Handlung. Ruck, Anzeige und Wirkung
+    // müssen zusammenfallen — kommt das Rumpeln später, zerfällt der Eindruck,
+    // dass man selbst etwas ausgelöst hat.
+    this._pulseAll();
 
     if (this._hover >= 0) {
       const b = (this._screen.buttons || [])[this._hover];
@@ -1300,6 +1514,10 @@ export class XRPassthrough {
     const pose = frame.getViewerPose(this.refSpace);
     if (!pose) return;
 
+    // Erst hier gibt es eine Projektionsmatrix — also erst hier ist bekannt,
+    // wie groß das Blickfeld dieses Geräts wirklich ist.
+    if (pose.views.length) this._measureDisplay(pose.views[0]);
+
     const head = pose.transform;
     this.onPose(head.position, flatten(forwardOf(head)), this.floorY);
     this.onFrame();
@@ -1338,7 +1556,7 @@ export class XRPassthrough {
     // das zweite Auge braucht es ohnehin nichts Neues.
     if (showCard && this._cardDirty) {
       this._rects = drawCard(this.cardCanvas.ctx, CARD_W, CARD_H, this._screen,
-                             { hover: this._hover, dwell: this._dwell });
+                             { hover: this._hover, dwell: this._dwell, press: this._pinching });
       this._upload(this.cardTex, this.cardCanvas.el);
       this._cardDirty = false;
     }
@@ -1349,7 +1567,8 @@ export class XRPassthrough {
       // gäbe es keinen Weg mehr, einen Patienten anzulegen.
       const forHud = this._panelLive ? { ...this._screen, hudActions: [] } : this._screen;
       this._hudRects = drawHudLayer(this.hudCanvas.ctx, HUD_W, HUD_H, forHud, this._map,
-                                    { hover: this._hudHover, dwell: this._dwell });
+                                    { hover: this._hudHover, dwell: this._dwell,
+                                      press: this._pinching });
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
       this._hudDrawnAt = performance.now();
@@ -1369,7 +1588,7 @@ export class XRPassthrough {
       panelModel = this._model(panel.pos, panel.basis, PANEL_HALF_W, PANEL_HALF_H);
     }
 
-    const hudModel = this._model(hud.pos, hud.basis, HUD_HALF_W, HUD_HALF_H);
+    const hudModel = this._model(hud.pos, hud.basis, this._hudGeom.halfW, this._hudGeom.halfH);
     const cardModel = this._model(card.pos, card.basis, CARD_HALF_W, CARD_HALF_H);
 
     let placeModel = null;
@@ -1397,9 +1616,12 @@ export class XRPassthrough {
     const popDraws = [];
     const popBodies = [];
     for (const m of popups) {
-      const t01 = this._pops.get(m.id) || 0;
-      if (t01 <= 0.02) continue;
-      const e = t01 * t01 * (3 - 2 * t01);                  // weich an beiden Enden
+      const s = this._pops.get(m.id);
+      const e = s ? s.value : 0;
+      if (e <= 0.02) continue;
+      // Die Feder liefert die weichen Enden selbst — und beim Zurücknehmen
+      // zusätzlich das, was eine Rampe nicht kann: sie dreht dort um, wo sie
+      // gerade steht, statt neu anzufahren.
       const at = { x: m.pos.x, y: this._floorNow + 0.10 + (POP_TOP - 0.10) * e, z: m.pos.z };
       const k = 0.55 + 0.45 * e;
       const face = basisFacing(at, head.position);
@@ -1622,10 +1844,16 @@ export class XRPassthrough {
     this._bodyHover = null;
     this._bodyDrag = null;
     this._bodyId = null;
+    this._bodySpin.velocity = 0;
+    this._bodyPitchSpring.reset(0);
+    this._bodyYawVel.reset();
+    this._bodyPitchVel.reset();
+    this._bodyPitchRaw = 0;
     this._floorGuess = null;
     this._hudDir = null;
-    this._hudTarget = null;
     this._hudMoving = false;
+    this._measured = false;
+    this._lastActivateAt = 0;
     this._placed = null;
     this.onEnd();
   }

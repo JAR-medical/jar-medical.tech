@@ -34,6 +34,7 @@
         <span class="mode-title">AR-Modus</span>
         <span class="mode-note">wird geprüft …</span>
       </button>
+      <!-- PICO 4 · Meta Quest · HoloLens 2 -->
       <button id="mode-cam" class="mode">
         <span class="mode-title">Kamera-Modus</span>
         <span class="mode-note">Live-QR über die Gerätekamera</span>
@@ -49,11 +50,22 @@
       <ul id="caps" class="caps"></ul>
       <p class="hint">
         Im <strong>AR-Modus</strong> wird mit dem <strong>Blick</strong> gezielt und durch
-        Verweilen ausgelöst; ein Controller geht auch. Handtracking bietet der
-        PICO-Browser Webseiten nicht an — das kann nur der native Build.
+        Verweilen ausgelöst; Controller und — wo es sie gibt — Hände gehen auch.
+        Handtracking bietet der PICO-Browser Webseiten nicht an, eine
+        <strong>HoloLens 2</strong> dagegen schon.
         Die Kamera wird überall angefordert: kommt eine, wird die Umhängekarte
         gescannt, sonst wird ihre Nummer von Hand gewählt. Karten zum Ausdrucken:
         <a href="assets/markers/patientenkarten.pdf">assets/markers/patientenkarten.pdf</a>.
+      </p>
+
+      <p class="hint">
+        <strong>HoloLens 2.</strong> Das Glas ist durchsichtig statt
+        durchgereicht: Schwarz ist dort keine Farbe, sondern die Wirklichkeit.
+        Die Anzeige stellt sich darauf um — keine dunklen Unterlagen, leuchtende
+        Linien — und passt sich an das kleinere Blickfeld (43° × 29°) an. Meldet
+        Edge kein <code>immersive-ar</code>, wird eine
+        <code>immersive-vr</code>-Sitzung genommen; auf diesem Glas ist das
+        dasselbe Bild. Auf einer geschlossenen VR-Brille wird sie abgelehnt.
       </p>
       <p class="hint">
         <strong>Kein Spielbereich nötig.</strong> Die App fordert keine gezeichnete

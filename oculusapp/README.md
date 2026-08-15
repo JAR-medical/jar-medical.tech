@@ -1,8 +1,9 @@
 # J.A.R. AR-Client — Sichtung im Blickfeld
 
 Der **Trupp-Teil** von J.A.R. Medical / **TriARge**. Läuft im Headset-Browser auf
-**PICO 4 (Enterprise)** und **Meta Quest** über WebXR, flach auch auf Handy oder
-Laptop. Gegenstück zum Lagebild der Einsatzleitung in `../demo`.
+**PICO 4 (Enterprise)**, **Meta Quest** und **Microsoft HoloLens 2** über WebXR,
+flach auch auf Handy oder Laptop. Gegenstück zum Lagebild der Einsatzleitung in
+`../demo`.
 
 Der Ablauf, von vorn bis hinten:
 
@@ -72,10 +73,16 @@ Tätigkeit wählen ─▶ Lagekarte ─▶ „Neuer Patient" (Stelle am Boden ze
   eine gewöhnliche Webseite und lässt sich nicht in die AR-Ebene legen; aus der
   Brille heraus wird deshalb die Sitzung beendet und die Seite flach geöffnet.
 - **Bedienung im Browser: Blick + Verweilen.** Fadenkreuz in der Blickmitte, 1,1 s
-  auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger).
-  **Handtracking gibt es hier nicht:** der PICO-Browser stellt die
-  WebXR-Hand-Input-Schnittstelle nicht bereit. Wer es will, nimmt den nativen
-  Build (`Unity/README-PICO.md`).
+  auf einem Knopf löst aus. Controller gehen auch (Strahl + Trigger), und wo es
+  Hände gibt (HoloLens 2), auch die. **Der PICO-Browser stellt die
+  WebXR-Hand-Input-Schnittstelle nicht bereit** — dort trägt der Blick. Wer
+  Handtracking auf PICO will, nimmt den nativen Build (`Unity/README-PICO.md`).
+- **Es bewegt sich nichts nach Drehbuch.** Alles, was umzieht, aufsteigt oder
+  nachläuft, läuft über Federn (`js/motion.js`): sie rechnen vom Ist-Wert und
+  der Ist-Geschwindigkeit weiter und lassen sich deshalb mitten in der Bewegung
+  greifen und umlenken, ohne zu springen. Wer das drehende Körpermodell
+  anstößt, gibt ihm seine Geschwindigkeit mit; wer es wieder greift, hat es
+  sofort. Siehe [Bewegung](#bewegung).
 - **mSTaRT** — sechs Ja/Nein-Fragen, jede vorgelesen, Schritt-zurück inklusive.
 - **Nichts wird erklärt.** Im Blickfeld steht kein Satz, den jemand mit
   Sanitäterausbildung nicht ohnehin weiß: keine Erläuterung zu den
@@ -117,7 +124,7 @@ Patienten eine Karte gehört, entscheidest du im Einsatz.
 
 | Modus | Was er tut | Wo er läuft |
 |------|--------------|---------------|
-| **AR-Modus** | Passthrough, Lagekarte und Ablauf auf einer WebGL-Ebene, bedient per Blick. | PICO / Quest |
+| **AR-Modus** | Passthrough bzw. durchsichtiges Glas, Lagekarte und Ablauf auf einer WebGL-Ebene, bedient per Blick, Hand oder Controller. | PICO / Quest / HoloLens 2 |
 | **Kamera-Modus** | Derselbe Ablauf flach, mit echtem QR-Scan der Karte. | Handy / Laptop |
 | **Simulation** | Derselbe Ablauf ohne Kamera und ohne Headset. | überall |
 
@@ -140,6 +147,101 @@ Webseite nicht herankommt. Abhilfe: in den Einstellungen der Brille von
 Raumgröße auf **stationär / Sitzmodus** umstellen; dann wird nur noch die
 Bodenhöhe bestätigt. Wie das Menü heißt, unterscheidet sich je nach Gerät und
 Firmware (Quest: Physischer Raum → Grenze; PICO: Sicherheitsgrenze).
+
+---
+
+## HoloLens 2
+
+Eine HoloLens 2 ist keine Quest mit weniger Blickfeld, sondern eine andere Art
+von Anzeige — und drei Dinge, die auf Passthrough die Lesbarkeit tragen, tragen
+dort nichts. Alles davon steckt in `js/display.js`; entschieden wird nach dem,
+was das **Gerät meldet**, nie nach der Browserkennung (die ist auf der HoloLens
+ein gewöhnliches Windows-Edge und von einem Laptop nicht zu unterscheiden).
+
+| | PICO / Quest | HoloLens 2 |
+|---|---|---|
+| `environmentBlendMode` | `alpha-blend` | `additive` |
+| Blickfeld | rund 100° × 95° | **43° × 29°** |
+| Schwarz | eine Farbe | **die Wirklichkeit** |
+| Bequeme Entfernung | ab ~0,5 m | **ab ~1,25 m** (Optik auf 2 m scharf) |
+| Hände im Browser | nein (PICO) | ja |
+
+**Schwarz ist unsichtbar.** Ein additives Glas kann Licht nur hinzufügen, nie
+wegnehmen. Jede dunkle Unterlage und jeder schwarze Saum um die Schrift — genau
+die Mittel, mit denen diese Anzeige bisher über wechselndem Untergrund lesbar
+blieb — sind dort schlicht nicht vorhanden. `setPalette(additive)` tauscht sie
+deshalb aus: keine Flächen, keine Säume, dafür ein Schriftschnitt schwerer, eine
+Spur weiter gesperrt, kräftigere Linien und sattere Farben. Rangfolge entsteht
+über Größe, Gewicht und Farbe statt über Deckkraft — eine Abstufung nach unten
+wäre hier eine Abstufung ins Nichts.
+
+**Das Blickfeld wird ausgemessen, nicht angenommen.** Das HUD war auf 82° Breite
+fest verdrahtet; davon lägen auf einer HoloLens beide oberen Ecken und die halbe
+Lagekarte außerhalb des Glases. Statt einer zweiten festen Größe für ein zweites
+Gerät rechnet `fitToFov` die Fläche aus der **Projektionsmatrix der ersten
+Ansicht** — das trägt auch für Brillen, die es noch nicht gibt. Auf einer Quest
+kommt dabei ungefähr die alte Größe heraus, auf einer HoloLens rund die Hälfte.
+
+**`immersive-ar` ist dort nicht selbstverständlich.** Edge auf der HoloLens 2 hat
+die Betriebsart je nach Fassung gar nicht und wies zeitweise sogar
+`hand-tracking` als *unbekanntes* Merkmal zurück. `sessionLadder()` geht deshalb
+vier AR-Stufen von „mit allem" bis „ganz ohne Zusatzmerkmale" durch und nimmt
+zuletzt eine `immersive-vr`-Sitzung — auf einem additiven Glas ist das kein
+Notbehelf, sondern dasselbe Bild, weil der Augenpuffer durchsichtig gelöscht
+wird und Schwarz dort ohnehin die Wirklichkeit ist. Meldet die so entstandene
+Sitzung `opaque`, ist es doch eine geschlossene VR-Brille: dann wird sie wieder
+beendet, statt jemanden in eine schwarze Kammer zu setzen.
+
+Was sich damit **nicht** ändert: der Ablauf, die Bedienung und die Lagekarte
+sind auf allen drei Geräten dieselben.
+
+---
+
+## Bewegung
+
+`js/motion.js` — der Grund, warum hier nichts mehr mit fester Dauer läuft.
+
+Eine Zeitkurve kann auf eine neue Eingabe nicht antworten. Wer eine Anzeige
+anstößt und sie sofort wieder greift, bekommt einen Sprung; wer eine Bewegung
+umlenkt, läuft gegen eine Wand, weil die alte Geschwindigkeit abgeschnitten
+wird. Eine Feder rechnet dagegen immer vom **Ist-Wert und der
+Ist-Geschwindigkeit** weiter — ein neues Ziel ist nur ein neues Ziel.
+
+Beschrieben wird sie mit zwei Begriffen statt mit Masse/Steifigkeit/Dämpfung:
+
+| | | |
+|---|---|---|
+| `damping` | 1,0 | aperiodischer Grenzfall, kein Überschwingen |
+| | 0,8 | schwingt leicht über |
+| `response` | 0,3–0,4 s | wie schnell sie am Ziel ist — **keine Dauer** |
+
+Hausregel: alles läuft mit `damping 1,0`. Überschwingen gibt es nur da, wo die
+Geste selbst Schwung hatte. Wo das im Einsatz ist:
+
+- **Das HUD zieht um** über zwei Federn (Gier und Neigung getrennt — eine
+  gemeinsame Feder auf dem Richtungsvektor liefe auseinander, sobald die Achsen
+  verschieden schnell sind). Wer beim Umzug weiterdreht, lenkt die laufende
+  Bewegung um, statt eine neue anzustoßen.
+- **Die Anzeige über dem Marker** steigt über **eine** Feder auf und fährt über
+  dieselbe wieder ein. Wer an der Grenze steht und einen Schritt zurückgeht,
+  während sie noch aufgeht, sieht sie dort umdrehen, wo sie gerade ist.
+- **Das Körpermodell** nimmt beim Loslassen die Geschwindigkeit der Hand mit und
+  rollt genau die Strecke aus, die `project()` vorhersagt (Apples
+  Exponentialform, nicht `v²/2a`). Zugreifen beendet den Nachlauf sofort und an
+  Ort und Stelle.
+- **Anschläge geben nach** statt hart zu stoppen: die Neigung des Modells und die
+  Reichweite des Anlege-Rings laufen über `clampRubber`. Ein harter Stopp liest
+  sich als „hängt", nachgebender Widerstand als „so weit und nicht weiter".
+- **Gedrückt ist ein eigener Zustand** und erscheint, sobald der Trigger unten
+  ist — nicht erst beim Auslösen. Dazwischen liegen leicht ein paar Zehntel, und
+  in denen wüsste man sonst nicht, ob man getroffen hat.
+
+**Weniger Bewegung.** Steht `prefers-reduced-motion` auf `reduce`, setzen alle
+Federn sofort auf ihren Zielwert — die Anzeige ändert sich weiter, sie fliegt
+nur nicht mehr. Dieselbe Einstellung wird an zwei Stellen beantwortet, weil es
+zwei Systeme sind: `watchReducedMotion()` für die Federn, eine `@media`-Abfrage
+für das CSS. Dazu `prefers-reduced-transparency` (Flächen frosten statt
+verschwimmen) und `prefers-contrast` (fast deckend mit klarer Kante).
 
 ---
 
@@ -300,6 +402,9 @@ oculusapp/
 ├─ index.html            Landing + Bühne (Ablaufschirm, Lagekarte, Akte)
 ├─ css/hud.css           Styling (Triage-Palette wie im Lagebild)
 ├─ js/
+│  ├─ motion.js          Federn, Schwungübergabe, Gummiband — alles, was sich bewegt
+│  ├─ display.js         welches Glas ist das? Blickfeld ausmessen, additive Palette,
+│  │                     Sitzungsleiter bis hinunter zu immersive-vr (HoloLens 2)
 │  ├─ data.js            Akten dieses Einsatzes (leer beim Start) + Schreibfunktionen
 │  ├─ tasks.js           die vier Tätigkeiten als Tabelle (Ablauf, Rechte, Beschriftung)
 │  ├─ wristband.js       das Armband: Felder, Marker, Maße, wann ein Druck zählt
@@ -322,10 +427,13 @@ oculusapp/
 │  ├─ voice.js           Sprachausgabe und -eingabe; Erkennung nur lokal (processLocally)
 │  └─ app.js             Verdrahtung: Betriebsarten, DOM-Darstellung, Deep-Links
 ├─ tests/
-│  ├─ logic.test.mjs     207 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
+│  ├─ logic.test.mjs     272 Prüfungen: mSTaRT, Akten, Lagekarte, Ablauf,
 │  │                     Stelle am Boden, alle vier Tätigkeiten, Körperregionen
-│  │                     samt der Rückrechnung für AR, Spracheingabe, Armband
+│  │                     samt der Rückrechnung für AR, Spracheingabe, Armband,
+│  │                     Federn und Schwung, Blickfeld und additive Palette
 │  ├─ probe_flow.html    rendert alle AR-Schirme nacheinander
+│  │                     (`?additiv=1` zeigt sie wie auf einer HoloLens 2:
+│  │                      heller Hintergrund, Licht wird addiert statt gedeckt)
 │  ├─ probe_body.html    lädt das Körpernetz, zeichnet es aus vier Richtungen
 │  │                     und prüft, dass jede Region zu treffen ist
 │  ├─ probe_band.html    druckt Marker, erkennt sie wieder, legt einen Finger auf

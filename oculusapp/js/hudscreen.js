@@ -20,18 +20,50 @@
 
 "use strict";
 
-const C = {
-  ink: "#ffffff",
-  dim: "rgba(255,255,255,0.80)",
-  faint: "rgba(255,255,255,0.55)",
-  rule: "rgba(255,255,255,0.55)",
-  ruleSoft: "rgba(255,255,255,0.30)",
-  scrimStrong: "rgba(8,11,15,0.78)",
-  accent: "#7cc0ff",
-  good: "#8ee2a4",
-};
+/* Die Farben liegen NICHT fest, sondern kommen aus display.js: auf einem
+ * additiven Glas (HoloLens 2) ist Schwarz unsichtbar, und genau darauf beruhte
+ * hier bisher jede Lesbarkeit — dunkle Unterlage, schwarzer Saum. `setPalette`
+ * tauscht beides gegen die additive Fassung aus, ohne dass eine einzige
+ * Zeichenroutine davon wissen muss. */
+
+import { PALETTE_ALPHA, paletteFor } from "./display.js";
+
+const C = { ...PALETTE_ALPHA };
+
+/** @param {boolean} additive aus dem Geräteprofil */
+export function setPalette(additive) {
+  Object.assign(C, paletteFor(!!additive));
+  return C;
+}
+
+/** Nur für Prüfungen: die gerade geltende Palette. */
+export function palette() { return C; }
 
 const F = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
+/* ------------------------------------------------------------- Laufweite
+ *
+ * Eine Laufweite für alle Größen ist immer irgendwo falsch. Buchstaben stehen
+ * beim Vergrößern optisch weiter auseinander — große Type muss also enger
+ * laufen, kleine Type etwas weiter, damit sie nicht verklebt. Versalien
+ * brauchen darüber hinaus generell Luft, weil ihnen die Unterlängen fehlen, an
+ * denen das Auge sonst trennt.
+ *
+ * Die Werte sind in em, also größenrelativ — genau das ist der Punkt.
+ */
+function trackFor(size, isCaps) {
+  if (isCaps) {
+    // Versalien: viel Luft im Kleinen, deutlich weniger im Großen.
+    if (size <= 14) return 0.16;
+    if (size <= 20) return 0.14;
+    if (size <= 28) return 0.11;
+    return 0.08;
+  }
+  if (size <= 14) return 0.01;      // Kleingedrucktes hält sich sonst zu eng
+  if (size <= 24) return 0;         // Lesegrößen laufen normal
+  if (size <= 40) return -0.012;
+  return -0.022;                    // Schlagzeilen deutlich enger
+}
 
 /* ------------------------------------------------------------- Werkzeug
  *
@@ -42,43 +74,53 @@ const F = "'Helvetica Neue', Helvetica, Arial, sans-serif";
  * Fläche dahinter frei. */
 
 function T(ctx, str, x, y, { size = 20, weight = 400, color = C.ink,
-                             align = "left", track = 0, caps = false } = {}) {
+                             align = "left", track = null, caps = false } = {}) {
   const text = caps ? String(str).toUpperCase() : String(str);
-  ctx.font = `${weight} ${size}px ${F}`;
+  // Auf additivem Glas trägt kein Saum (siehe Palette), also muss die Type
+  // selbst mehr Substanz haben: ein Schritt schwerer und eine Spur weiter
+  // gesperrt. Das ist derselbe Handgriff wie über durchscheinenden Flächen —
+  // Gewicht statt Deckkraft, weil Deckkraft hier nichts hergibt.
+  const w = C.additive ? Math.min(900, weight + 100) : weight;
+  const tr = (track == null ? trackFor(size, caps) : track) + (C.additive ? 0.01 : 0);
+  ctx.font = `${w} ${size}px ${F}`;
   ctx.textAlign = align;
-  if (track) ctx.letterSpacing = track + "em";
+  if (tr) ctx.letterSpacing = tr + "em";
 
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  ctx.strokeStyle = "rgba(0,0,0,0.82)";
-  ctx.lineWidth = Math.max(3, size / 6);
-  ctx.strokeText(text, x, y);
+  // Der Saum trägt die helle Type über wechselndem Untergrund — aber nur, wo
+  // er abdunkeln kann. Ist er durchsichtig (additives Glas), entfällt der
+  // ganze Zug: er brächte nichts und kostete je Textstelle einen Strich.
+  if (C.halo !== "rgba(0,0,0,0)") {
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.strokeStyle = C.halo;
+    ctx.lineWidth = Math.max(3, size / 6);
+    ctx.strokeText(text, x, y);
+  }
 
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
 
-  if (track) ctx.letterSpacing = "0px";
+  if (tr) ctx.letterSpacing = "0px";
   ctx.textAlign = "left";
   return ctx.measureText(text).width;
 }
 
-/** Kleinlabel in Versalien, gesperrt. */
+/** Kleinlabel in Versalien. Die Sperrung richtet sich nach der Größe. */
 function caps(ctx, text, x, y, size = 15, color = C.faint, align = "left") {
-  return T(ctx, text, x, y, { size, weight: 600, color, align, track: 0.14, caps: true });
+  return T(ctx, text, x, y, { size, weight: 600, color, align, caps: true });
 }
 
-/** Haarlinie mit dunklem Saum, damit sie auch auf Hellem steht. */
+/** Haarlinie mit Saum, damit sie auf jedem Untergrund steht. */
 function rule(ctx, x, y, w, color = C.ruleSoft) {
   const yy = Math.round(y) + 0.5;
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillRect(x, yy + 1, w, 1);
+  if (C.haloRule !== "rgba(0,0,0,0)") {
+    ctx.fillStyle = C.haloRule;
+    ctx.fillRect(x, yy + 1, w, 1);
+  }
   ctx.fillStyle = color;
-  ctx.fillRect(x, yy, w, 1);
-}
-
-function scrim(ctx, x, y, w, h, color = C.scrimStrong) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
+  // Eine Haarlinie ohne Saum verschwindet auf hellem Grund. Auf additivem Glas
+  // ist der Saum keine Option — dort wird die Linie selbst kräftiger.
+  ctx.fillRect(x, yy, w, C.additive ? 2 : 1);
 }
 
 /**
@@ -88,11 +130,14 @@ function scrim(ctx, x, y, w, h, color = C.scrimStrong) {
  * dekoriert nicht.
  */
 function block(ctx, x, y, w, h, accent = null, edge = "left") {
-  ctx.fillStyle = "rgba(6,9,13,0.58)";
+  // Auf einem additiven Glas ist `blockFill` durchsichtig: die Fläche entfällt
+  // ersatzlos, statt als Schleier über der Einsatzstelle zu liegen. Die Kante
+  // in der Farbe bleibt — sie ist die eigentliche Zuordnung.
+  ctx.fillStyle = C.blockFill;
   ctx.fillRect(x, y, w, h);
 
   if (accent) {
-    ctx.globalAlpha = 0.10;
+    ctx.globalAlpha = C.blockTint;
     ctx.fillStyle = accent;
     ctx.fillRect(x, y, w, h);
     ctx.globalAlpha = 1;
@@ -118,23 +163,30 @@ function wrap(ctx, text, maxW) {
 }
 
 function disc(ctx, x, y, r, color) {
-  ctx.strokeStyle = "rgba(0,0,0,0.7)";
-  ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
+  if (C.haloRule !== "rgba(0,0,0,0)") {
+    // Ein dunkler Ring um den Punkt hebt ihn vom Untergrund ab. Ohne
+    // Abdunkeln (additiv) wäre derselbe Ring ein zweiter, blasser Punkt
+    // daneben — also entfällt er.
+    ctx.strokeStyle = C.haloRule;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
   ctx.fillStyle = color;
   ctx.fill();
 }
 
 function ring(ctx, x, y, r, color, width = 2) {
-  ctx.strokeStyle = "rgba(0,0,0,0.7)";
-  ctx.lineWidth = width + 2.5;
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.stroke();
+  if (C.haloRule !== "rgba(0,0,0,0)") {
+    ctx.strokeStyle = C.haloRule;
+    ctx.lineWidth = width + 2.5;
+    ctx.stroke();
+  }
   ctx.strokeStyle = color;
-  ctx.lineWidth = width;
+  ctx.lineWidth = C.additive ? width + 1 : width;
   ctx.stroke();
 }
 
@@ -157,7 +209,7 @@ export function drawHudLayer(ctx, W, H, screen, map, opts = {}) {
   bottomLeft(ctx, pad, H - pad, map);
   bottomRight(ctx, W - pad, H - pad, screen);
   return hudButtons(ctx, pad, H - pad, W, screen.hudActions || [],
-                    opts.hover ?? -1, opts.dwell || 0);
+                    opts.hover ?? -1, opts.dwell || 0, !!opts.press);
 }
 
 function topLeft(ctx, x, y, screen) {
@@ -204,7 +256,7 @@ function topLeft(ctx, x, y, screen) {
 const ACT_W = 300, ACT_H = 76, ACT_GAP = 18;
 const ACT_LEFT = 452;          // rechts an der Lagekarte vorbei
 
-function hudButtons(ctx, pad, yBottom, W, list, hover, dwell) {
+function hudButtons(ctx, pad, yBottom, W, list, hover, dwell, press = false) {
   const rects = [];
   if (!list.length) return rects;
 
@@ -216,27 +268,52 @@ function hudButtons(ctx, pad, yBottom, W, list, hover, dwell) {
   list.forEach((b, i) => {
     const bx = x0 + i * (bw + ACT_GAP);
     const on = hover === i;
-    const tint = b.tint === "primary" ? C.accent : "rgba(255,255,255,0.55)";
-
-    ctx.fillStyle = on ? "rgba(255,255,255,0.20)" : "rgba(8,11,15,0.62)";
-    ctx.fillRect(bx, y, bw, ACT_H);
-    ctx.fillStyle = tint;
-    ctx.globalAlpha = on ? 0.22 : 0.12;
-    ctx.fillRect(bx, y, bw, ACT_H);
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = on ? "#ffffff" : tint;
-    ctx.lineWidth = on ? 3 : 1.5;
-    ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), ACT_H);
-
-    if (on && dwell > 0) {
-      ctx.fillStyle = "rgba(124,192,255,0.85)";
-      ctx.fillRect(bx + 2, y + ACT_H - 7, (bw - 4) * Math.min(1, dwell), 5);
-    }
-
+    const tint = b.tint === "primary" ? C.accent : C.rule;
+    face(ctx, bx, y, bw, ACT_H, { on, press: on && press, tint, dwell });
     caps(ctx, b.label, bx + bw / 2, y + ACT_H / 2 + 8, 21, C.ink, "center");
     rects.push({ x: bx, y, w: bw, h: ACT_H, index: i });
   });
   return rects;
+}
+
+/**
+ * Der Umriss eines Knopfes in seinen drei Zuständen.
+ *
+ * **Gedrückt ist ein eigener Zustand.** Er erscheint, sobald der Trigger unten
+ * ist — nicht erst, wenn er losgelassen wird. Ein Knopf, der erst beim
+ * Auslösen reagiert, fühlt sich tot an: dazwischen liegen leicht ein paar
+ * Zehntel, und in denen weiß man nicht, ob man getroffen hat. Sichtbar wird er
+ * als schmaler eingerückter Rahmen — dieselbe Bewegung, die ein echter Knopf
+ * macht, wenn er nachgibt.
+ */
+function face(ctx, x, y, w, h, { on, press, tint, dwell = 0 }) {
+  const inset = press ? Math.min(6, h * 0.06) : 0;
+  const bx = x + inset, by = y + inset;
+  const bw = w - inset * 2, bh = h - inset * 2;
+
+  ctx.fillStyle = on ? C.btnFillOn : C.btnFill;
+  ctx.fillRect(bx, by, bw, bh);
+  if (tint) {
+    // Auf additivem Glas bleibt die Füllung durchweg schwach: was gefüllt wird,
+    // leuchtet, und ein leuchtender Knopf überstrahlt seine eigene Beschriftung.
+    // Der Zustand sitzt dort im Umriss, nicht in der Fläche.
+    ctx.globalAlpha = C.additive ? (press ? 0.16 : on ? 0.10 : 0.05)
+                    : (press ? 0.34 : on ? 0.22 : 0.12);
+    ctx.fillStyle = tint;
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.strokeStyle = on ? C.ink : tint;
+  ctx.lineWidth = (press ? 4 : on ? 3 : 1.5) + (C.additive ? 1 : 0);
+  ctx.strokeRect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(bw), Math.round(bh));
+
+  // Verweil-Anzeige: der Ersatz für den Trigger auf Geräten, die keinen
+  // schicken. Sie sitzt an der Unterkante des Knopfes, auf den gezeigt wird.
+  if (on && dwell > 0) {
+    ctx.fillStyle = C.accent;
+    ctx.fillRect(bx + 2, by + bh - 7, (bw - 4) * Math.min(1, dwell), 5);
+  }
 }
 
 function topRight(ctx, x, y, map) {
@@ -407,7 +484,8 @@ export function drawCard(ctx, W, H, screen, opts = {}) {
   const grid = buttonGrid(screen.buttons || [], H - 48);
   if (screen.vitals && screen.vitals.length)
     vitalsRow(ctx, pad, grid.top - 84, w, screen.vitals);
-  return buttons(ctx, pad, w, screen.buttons || [], grid, opts.hover, opts.dwell || 0);
+  return buttons(ctx, pad, w, screen.buttons || [], grid, opts.hover, opts.dwell || 0,
+                 !!opts.press);
 }
 
 /** Vitalwerte als Zahlenreihe mit Kleinlabels — kein Kachelgitter. */
@@ -435,7 +513,7 @@ function buttonGrid(list, yBottom) {
 }
 
 /** Knöpfe: Umriss, kein Fond. Gefüllt wird nur, worauf gezeigt wird. */
-function buttons(ctx, x, w, list, grid, hover, dwell = 0) {
+function buttons(ctx, x, w, list, grid, hover, dwell = 0, press = false) {
   const rects = [];
   if (!list.length) return rects;
 
@@ -457,20 +535,9 @@ function buttons(ctx, x, w, list, grid, hover, dwell = 0) {
                  : b.tint === "no" ? "#e5484d"
                  : b.tint === "lna" ? "#3e7bfa"
                  : b.tint === "primary" ? C.accent
-                 : "rgba(255,255,255,0.55)";
+                 : C.rule;
 
-      ctx.fillStyle = on ? "rgba(255,255,255,0.20)" : "rgba(8,11,15,0.42)";
-      ctx.fillRect(bx, y, bw, bh);
-      ctx.strokeStyle = on ? "#ffffff" : tint;
-      ctx.lineWidth = on ? 3 : 1.5;
-      ctx.strokeRect(Math.round(bx) + 0.5, Math.round(y) + 0.5, Math.round(bw), bh);
-
-      // Verweil-Anzeige: füllt sich, wenn der Zeiger auf dem Knopf liegt. Sie ist
-      // der Ersatz für den Pinch, falls das Gerät kein `select` schickt.
-      if (on && dwell > 0) {
-        ctx.fillStyle = "rgba(124,192,255,0.85)";
-        ctx.fillRect(bx + 2, y + bh - 8, (bw - 4) * Math.min(1, dwell), 6);
-      }
+      face(ctx, bx, y, bw, bh, { on, press: on && press, tint, dwell });
 
       ctx.font = `600 ${size}px ${F}`;
       const lines = wrap(ctx, b.label, bw - 28).slice(0, 2);
@@ -508,21 +575,30 @@ export function drawMarker(ctx, W, H, m) {
   const cx = W / 2, cy = H / 2;
   const outer = W * 0.46;
 
-  // Weicher Schein nach außen, damit der Ring auch auf hellem Boden steht.
+  // Weicher Schein nach außen, damit der Ring auch auf hellem Boden steht. Auf
+  // einem additiven Glas trägt ein dunkler Schein nichts — dort leuchtet der
+  // Ring stattdessen selbst nach außen aus.
   const glow = ctx.createRadialGradient(cx, cy, outer * 0.55, cx, cy, outer);
-  glow.addColorStop(0, "rgba(0,0,0,0.45)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
+  if (C.additive) {
+    glow.addColorStop(0, hexA(m.color, 0.30));
+    glow.addColorStop(1, hexA(m.color, 0));
+  } else {
+    glow.addColorStop(0, "rgba(0,0,0,0.45)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+  }
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(cx, cy, outer, 0, Math.PI * 2); ctx.fill();
 
-  // Fläche in der Sichtungsfarbe, außen kräftiger Ring.
-  ctx.fillStyle = m.sighted ? hexA(m.color, 0.42) : "rgba(8,11,15,0.55)";
+  // Fläche in der Sichtungsfarbe, außen kräftiger Ring. Ungesichtet bleibt die
+  // Fläche auf additivem Glas leer statt dunkel — sie wäre dort ein Fleck.
+  ctx.fillStyle = m.sighted ? hexA(m.color, C.additive ? 0.26 : 0.42)
+                : C.additive ? "rgba(0,0,0,0)" : "rgba(8,11,15,0.55)";
   ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.fill();
 
-  ctx.strokeStyle = "rgba(0,0,0,0.65)";
+  ctx.strokeStyle = C.haloRule;
   ctx.lineWidth = W * 0.055;
   ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = m.hover ? "#ffffff" : m.color;
+  ctx.strokeStyle = m.hover ? C.ink : m.color;
   ctx.lineWidth = W * (m.hover ? 0.045 : 0.032);
   ctx.beginPath(); ctx.arc(cx, cy, outer * 0.78, 0, Math.PI * 2); ctx.stroke();
 
@@ -570,13 +646,18 @@ export function drawReticle(ctx, W, H, m = {}) {
   const tone = m.ok === false ? "#f5b301" : C.accent;
 
   const glow = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.35);
-  glow.addColorStop(0, "rgba(0,0,0,0.34)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
+  if (C.additive) {
+    glow.addColorStop(0, "rgba(255,255,255,0.10)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+  } else {
+    glow.addColorStop(0, "rgba(0,0,0,0.34)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+  }
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(cx, cy, r * 1.35, 0, Math.PI * 2); ctx.fill();
 
   ctx.setLineDash([W * 0.055, W * 0.042]);
-  ctx.strokeStyle = "rgba(0,0,0,0.65)";
+  ctx.strokeStyle = C.haloRule;
   ctx.lineWidth = W * 0.038;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
   ctx.strokeStyle = tone;
@@ -585,7 +666,7 @@ export function drawReticle(ctx, W, H, m = {}) {
   ctx.setLineDash([]);
 
   // Fadenkreuz: der Mittelpunkt ist die Stelle, nicht der Ring.
-  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  ctx.strokeStyle = C.haloRule;
   ctx.lineWidth = W * 0.026;
   crosshair(ctx, cx, cy, r * 0.42);
   ctx.strokeStyle = tone;
@@ -594,12 +675,12 @@ export function drawReticle(ctx, W, H, m = {}) {
 
   const dwell = Math.min(1, Math.max(0, m.dwell || 0));
   if (dwell > 0) {
-    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.strokeStyle = C.haloRule;
     ctx.lineWidth = W * 0.046;
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.2, -Math.PI / 2, -Math.PI / 2 + dwell * Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = C.ink;
     ctx.lineWidth = W * 0.03;
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.2, -Math.PI / 2, -Math.PI / 2 + dwell * Math.PI * 2);
@@ -635,16 +716,22 @@ export function drawPanel(ctx, W, H, cells, opts = {}) {
 
   const cw = W / cols, ch = H / rows;
 
-  ctx.fillStyle = "rgba(8,11,15,0.72)";
-  ctx.fillRect(0, 0, W, H);
+  // Das Band liegt auf Papier: auf Passthrough braucht es eine dunkle Unterlage,
+  // damit die Felder gegen das Weiß des Ausdrucks stehen. Auf additivem Glas
+  // sieht man das Papier ohnehin — dort genügen die leuchtenden Felder.
+  if (!C.additive) {
+    ctx.fillStyle = "rgba(8,11,15,0.72)";
+    ctx.fillRect(0, 0, W, H);
+  }
 
   for (const c of cells) {
     const x = c.col * cw, y = c.row * ch;
     const on = opts.active === c.action;
 
-    ctx.fillStyle = on ? "rgba(124,192,255,0.30)" : "rgba(255,255,255,0.05)";
+    ctx.fillStyle = on ? "rgba(124,192,255,0.30)"
+                  : C.additive ? "rgba(0,0,0,0)" : "rgba(255,255,255,0.05)";
     ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
-    ctx.strokeStyle = on ? "#ffffff" : "rgba(255,255,255,0.42)";
+    ctx.strokeStyle = on ? C.ink : "rgba(255,255,255,0.42)";
     ctx.lineWidth = on ? 4 : 2;
     ctx.strokeRect(Math.round(x) + 4.5, Math.round(y) + 4.5, Math.round(cw) - 9, Math.round(ch) - 9);
 
