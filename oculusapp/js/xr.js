@@ -156,7 +156,12 @@ const BEAM_HALF_W = 0.004;               // Meter, halbe Strahlbreite
 const BEAM_LEN = 1.6;                    // Länge, wenn der Strahl nichts trifft
 
 const DWELL_MS = 1100;                   // Verweilen als Ersatz für den Pinch
-const HUD_REDRAW_MS = 150;
+// So oft darf die **träge** Hälfte des HUD höchstens neu gezeichnet werden
+// (Lagekarte, Zählung, Statuszeile). Alles, was auf eine Eingabe antwortet,
+// geht daran vorbei und wird sofort gezeichnet — siehe `_hudSignature`.
+// Zwölf Bilder je Sekunde reichen für Randinformation und sparen auf einer
+// HoloLens 2 den Großteil der Texturuploads.
+const HUD_SLOW_MS = 80;
 // So lange nach einem Auslösen zählt kein zweites. Sie fängt den Fall ab, dass
 // `select` und der selbst erkannte Pinch dieselbe Geste doppelt melden — siehe
 // `_activate`. Kurz genug, dass zweimal Drücken zweimal wirkt.
@@ -319,8 +324,9 @@ export function intoModel(m, scale, v, isPoint) {
 
 export class XRPassthrough {
   constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onRegionPick,
-                onPanelPress, onStereoIssue, eyeTest = false } = {}) {
+                onPanelPress, onStereoIssue, onPerf, eyeTest = false } = {}) {
     this.eyeTest = eyeTest;
+    this.onPerf = onPerf || (() => {});
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
     this.onPose = onPose || (() => {});
@@ -362,6 +368,12 @@ export class XRPassthrough {
     this._cardDirty = true;
     this._hudDirty = true;
     this._hudDrawnAt = 0;
+    this._hudSig = { live: "", slow: "" };
+
+    // Bildrate und Zeichenaufwand mitschreiben. Ohne Gerät lässt sich nicht
+    // messen, was eine HoloLens 2 wirklich schafft — also muss sie es selbst
+    // sagen können (`?perf=1`).
+    this._perf = { fps: 0, frames: 0, hudDraws: 0, cardDraws: 0, uploads: 0, since: 0 };
 
     // Das HUD zieht über zwei Federn um — eine für die Drehung um die
     // Hochachse, eine für die Neigung. Bewusst getrennt und nicht eine Feder
@@ -476,8 +488,14 @@ export class XRPassthrough {
     watchReducedMotion();
 
     await gl.makeXRCompatible();
+    // Ein additives Glas sitzt auf deutlich schwächerer Hardware als ein
+    // Passthrough-Headset — und rendert trotzdem zwei Augen. Kantenglättung
+    // und volle Auflösung sind dort das erste, was fehlt: die Anzeige besteht
+    // fast nur aus Texturrechtecken, denen MSAA ohnehin wenig gibt.
+    const layerOpts = { alpha: true, depth: true, antialias: !this.profile.additive };
+    if (this.profile.additive) layerOpts.framebufferScaleFactor = 0.7;
     session.updateRenderState({
-      baseLayer: new XRWebGLLayer(session, gl, { alpha: true, depth: true }),
+      baseLayer: new XRWebGLLayer(session, gl, layerOpts),
       // Ein durchsichtiges Glas soll nichts zeichnen, was näher steht als
       // bequem scharfzustellen ist.
       depthNear: this.profile.comfortNear,
@@ -532,9 +550,54 @@ export class XRPassthrough {
       this._hudHover = -1;
       this._bodyHover = null;
     }
-    if (map) { this._map = map; this._hudDirty = true; }
+    // Bewusst **kein** `_hudDirty` für die Karte. Sie kommt aus jedem Bild neu
+    // herein (app.js reicht `mapModel()` im Frame-Takt durch) — daran hing
+    // vorher ein vollständiges Neuzeichnen der 1536×864-Ebene samt
+    // Texturupload, also gut 5 MB je Bild. Auf einer Quest ging das gerade so
+    // durch, eine HoloLens 2 steht damit. Ob sich wirklich etwas geändert hat,
+    // entscheidet jetzt `_hudSignature`.
+    if (map) this._map = map;
     if (tags) this._tags = tags;
     if (anchor !== undefined) this._anchor = anchor;
+  }
+
+  /**
+   * Was auf der HUD-Ebene tatsächlich zu sehen ist, als kurze Zeichenkette.
+   *
+   * Zweigeteilt, weil die beiden Hälften verschieden dringend sind:
+   *
+   *   `live`  alles, was auf eine Eingabe antwortet — welcher Knopf unter dem
+   *           Zeiger liegt, ob gedrückt wird, wie weit das Verweilen ist.
+   *           Ändert sich das, wird **sofort** neu gezeichnet: eine
+   *           Rückmeldung, die auf den nächsten Takt wartet, fühlt sich tot an.
+   *   `slow`  Lagekarte, Zählung, Statuszeile. Das darf gedrosselt laufen —
+   *           es ist Randinformation, und niemand liest sie sechzigmal je
+   *           Sekunde.
+   *
+   * Die Kartenwerte werden gerundet, damit das Zittern der Kopfverfolgung
+   * allein kein Neuzeichnen auslöst. 0,001 in uv sind auf der gezeichneten
+   * Karte weniger als ein halber Bildpunkt — echtes Gehen überschreitet das
+   * sofort, Stillstehen nie.
+   */
+  _hudSignature() {
+    const s = this._screen, m = this._map;
+    const live = `${this._hudHover}|${this._pinching ? 1 : 0}|` +
+                 `${Math.round(this._dwell * 20)}|` +
+                 (s.hudActions || []).map((b) => b.label + (b.tint || "")).join(",");
+
+    const c = m.counts || {};
+    let slow = `${s.title}|${s.task}|${s.status}|` +
+               (s.progress ? `${s.progress.step}/${s.progress.total}` : "") + "|" +
+               `${c.total},${c.SK1},${c.SK2},${c.SK3},${c.SK4},${c.DECEASED}|` +
+               `${m.footer}|${m.spanMeters}`;
+    for (const d of m.dots || [])
+      slow += `;${d.id},${d.uv.x.toFixed(3)},${d.uv.y.toFixed(3)},${d.color},` +
+              `${d.sighted ? 1 : 0}${d.transported ? "t" : ""}${d.target ? "*" : ""}`;
+    if (m.medic)
+      slow += `;m${m.medic.uv.x.toFixed(3)},${m.medic.uv.y.toFixed(3)},` +
+              `${Math.round(m.medic.heading)}`;
+
+    return { live, slow };
   }
 
   recenter() { this._placed = null; }
@@ -868,7 +931,15 @@ export class XRPassthrough {
    * es die Reihenfolge der Eingabequellen.
    */
   _panelPose(frame) {
-    const sources = [...this.session.inputSources].filter((s) => s.gripSpace || s.targetRaySpace);
+    // **Nur echte Controller.** Das Band ist ein Stück Papier, das am Arm
+    // klebt, der einen Controller hält — ohne Controller gibt es kein Papier.
+    // Eine HoloLens 2 meldet zwei Hände als zwei Eingabequellen mit Griffpose;
+    // ungefiltert hielt die App das für ein angelegtes Armband, zeichnete ein
+    // Panel ans Handgelenk und nahm dafür die Knopfreihe am Blickfeldrand weg.
+    // Damit war dort kein Patient mehr anzulegen.
+    const sources = [...this.session.inputSources]
+      .filter((s) => !s.hand && s.targetRayMode === "tracked-pointer" &&
+                     (s.gripSpace || s.targetRaySpace));
     if (sources.length < 2) return null;          // einer trägt, einer zeigt
 
     const left = sources.find((s) => s.handedness === "left") || sources[0];
@@ -1375,11 +1446,15 @@ export class XRPassthrough {
   _updatePopups(dt) {
     const cardUp = this._screen.showCard !== false && !!this._anchor;
 
+    // Neben jeder Anzeige steht das volle Körpernetz — 26 756 Dreiecke, je
+    // Auge. Auf einer HoloLens 2 sind drei davon plus das große Modell mehr,
+    // als die Bildrate hergibt; dort bleibt es bei einer.
+    const most = this.profile.additive ? 1 : POP_MAX;
     const near = this._tags
       .filter((m) => m.distance != null && !(cardUp && m.target))
       .filter((m) => m.distance <= (this._pops.has(m.id) ? POP_FAR : POP_NEAR))
       .sort((a, b) => a.distance - b.distance)
-      .slice(0, POP_MAX);
+      .slice(0, most);
     const open = new Set(near.map((m) => m.id));
 
     // Aufsteigen und Einfahren laufen über **eine** Feder je Anzeige, nicht
@@ -1508,6 +1583,18 @@ export class XRPassthrough {
     const dt = this._lastFrameAt ? Math.min(0.1, (t - this._lastFrameAt) / 1000) : 0.016;
     this._lastFrameAt = t;
 
+    // Bildrate über eine Sekunde mitteln und melden. Was ein Gerät wirklich
+    // schafft, sagt nur das Gerät.
+    const p = this._perf;
+    p.frames++;
+    if (!p.since) p.since = t;
+    else if (t - p.since >= 1000) {
+      p.fps = Math.round((p.frames * 1000) / (t - p.since));
+      this.onPerf({ fps: p.fps, hudDraws: p.hudDraws, cardDraws: p.cardDraws,
+                    display: this.profile.label, fov: this._diag.fov || "?" });
+      p.frames = 0; p.hudDraws = 0; p.cardDraws = 0; p.since = t;
+    }
+
     const gl = this.gl;
     const layer = session.renderState.baseLayer;
 
@@ -1559,9 +1646,19 @@ export class XRPassthrough {
                              { hover: this._hover, dwell: this._dwell, press: this._pinching });
       this._upload(this.cardTex, this.cardCanvas.el);
       this._cardDirty = false;
+      this._perf.cardDraws++;
     }
     if (!showCard) this._rects = [];
-    if (this._hudDirty || performance.now() - this._hudDrawnAt > HUD_REDRAW_MS) {
+
+    // Neu gezeichnet wird nur, was sich geändert hat — und die träge Hälfte
+    // höchstens im Takt von HUD_SLOW_MS. Das ist der Unterschied zwischen
+    // einem Texturupload je Bild und einem alle paar Bilder; auf einer
+    // HoloLens 2 ist das der Unterschied zwischen 0 und flüssig.
+    const sig = this._hudSignature();
+    const liveChanged = sig.live !== this._hudSig.live;
+    const slowChanged = sig.slow !== this._hudSig.slow &&
+                        t - this._hudDrawnAt >= HUD_SLOW_MS;
+    if (this._hudDirty || liveChanged || slowChanged) {
       // Liegt das Armband griffbereit, verschwindet die Knopfreihe am
       // Blickfeldrand — dafür ist es ja da. Ohne Armband bleibt sie, sonst
       // gäbe es keinen Weg mehr, einen Patienten anzulegen.
@@ -1571,7 +1668,9 @@ export class XRPassthrough {
                                       press: this._pinching });
       this._upload(this.hudTex, this.hudCanvas.el);
       this._hudDirty = false;
-      this._hudDrawnAt = performance.now();
+      this._hudSig = sig;
+      this._hudDrawnAt = t;
+      this._perf.hudDraws++;
     }
 
     let panelModel = null;
@@ -1854,6 +1953,8 @@ export class XRPassthrough {
     this._hudMoving = false;
     this._measured = false;
     this._lastActivateAt = 0;
+    this._hudSig = { live: "", slow: "" };
+    this._hudDrawnAt = 0;
     this._placed = null;
     this.onEnd();
   }

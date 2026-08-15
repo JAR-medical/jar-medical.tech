@@ -195,6 +195,34 @@ beendet, statt jemanden in eine schwarze Kammer zu setzen.
 Was sich damit **nicht** ändert: der Ablauf, die Bedienung und die Lagekarte
 sind auf allen drei Geräten dieselben.
 
+### Bildrate
+
+Die HUD-Ebene ist 1536 × 864 groß und wurde in **jedem Bild** neu gezeichnet und
+als Textur hochgeladen — gut 5 MB je Bild, rund 300 MB/s. Der Grund war eine
+einzige Zeile: die Lagekarte kommt im Frame-Takt herein (`setContent`), und das
+galt pauschal als „hat sich geändert". Eine Quest trug das gerade so, eine
+HoloLens 2 steht damit.
+
+Gezeichnet wird jetzt nach `_hudSignature()`, und die ist zweigeteilt:
+
+- **schnell** — was auf eine Eingabe antwortet (Knopf unter dem Zeiger,
+  gedrückt, Verweilen). Ändert sich das, wird sofort gezeichnet; eine
+  Rückmeldung, die auf den nächsten Takt wartet, fühlt sich tot an.
+- **träge** — Lagekarte, Zählung, Statuszeile. Höchstens alle 80 ms, und die
+  Kartenwerte sind gerundet, damit das Zittern der Kopfverfolgung allein nichts
+  auslöst.
+
+Dazu drei Dinge, die nur additive Geräte betreffen: keine Kantenglättung und
+`framebufferScaleFactor 0.7` (die Anzeige besteht fast nur aus Texturrechtecken,
+denen MSAA wenig gibt), und neben den Anzeigen über den Markern steht nur noch
+**eine** Figur statt dreier — das Körpernetz hat 26 756 Dreiecke, und die fallen
+je Auge an.
+
+**Nachmessen:** `index.html?perf=1` stellt Bildrate und Zahl der Neuzeichnungen
+unten rechts ins Blickfeld (`120 B/s · HUD 12× · Karte 0× · additiv …`). Ohne
+Gerät lässt sich nicht sagen, was eine HoloLens 2 schafft — mit dem Schalter
+sagt sie es selbst.
+
 ---
 
 ## Bewegung

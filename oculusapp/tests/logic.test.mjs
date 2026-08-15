@@ -18,7 +18,7 @@ import { parseCommand } from "../js/voice.js";
 import { CELLS, ANCHORS, COLS, ROWS, PANEL_W, PANEL_H, cellRect, cellAt,
          PanelPress, coveredCell } from "../js/wristband.js";
 import { mul, matTranslate, matBasis, matRotY, matRotX, matScale,
-         intoModel } from "../js/xr.js";
+         intoModel, XRPassthrough } from "../js/xr.js";
 import { resolvePatient, patientCount, createPatient, assignCard, cardHolder,
          tally, resetEinsatz } from "../js/data.js";
 import { Spring, AngleSpring, Decay, VelocityTracker, SPRINGS, DECELERATION,
@@ -956,10 +956,102 @@ function anzeigegeraet() {
         "VR kommt erst, wenn AR durch ist");
 }
 
+/* ====================================================== Zeichenaufwand
+ *
+ * Der Grund für diese Prüfungen steht in einer Zahl: die HUD-Ebene ist
+ * 1536 × 864 groß, und sie wurde in **jedem Bild** neu gezeichnet und
+ * hochgeladen — gut 5 MB je Bild, weil die Lagekarte im Frame-Takt
+ * hereinkommt und das früher pauschal als „hat sich geändert" galt. Eine
+ * HoloLens 2 steht damit.
+ *
+ * Was hier geprüft wird, ist deshalb kein Detail, sondern die Bedingung
+ * dafür, dass die App auf schwacher Hardware überhaupt läuft: dass
+ * gleicher Inhalt dieselbe Signatur ergibt — und geänderter eben nicht.
+ */
+
+function karte(medic, dots = []) {
+  return {
+    dots, medic, spanMeters: 8, footer: "Lage leer", hint: "",
+    counts: { SK1: 0, SK2: 0, SK3: 0, SK4: 0, DECEASED: 0, UNSIGHTED: 0,
+              total: dots.length, ohneKarte: 0 },
+  };
+}
+
+function zeichenaufwand() {
+  console.log("\nWann das HUD neu gezeichnet wird");
+
+  const xr = new XRPassthrough({});
+  const stand = { x: 0.5, y: 0.5 };
+  xr.setContent({ title: "LAGE", task: "Vorsichtung", status: "", hudActions: [] },
+                karte({ uv: { ...stand }, heading: 90 }));
+
+  const a = xr._hudSignature();
+  check(a.slow === xr._hudSignature().slow, "gleicher Inhalt, gleiche Signatur");
+
+  // Die Karte kommt in jedem Bild neu herein. Genau das darf nicht mehr
+  // allein ein Neuzeichnen auslösen.
+  xr.setContent(null, karte({ uv: { ...stand }, heading: 90 }));
+  check(xr._hudSignature().slow === a.slow,
+        "eine frische, aber gleiche Lagekarte zeichnet NICHT neu");
+
+  // Zittern der Kopfverfolgung liegt unter dem Raster.
+  xr.setContent(null, karte({ uv: { x: 0.5 + 0.00004, y: 0.5 - 0.00003 }, heading: 90.2 }));
+  check(xr._hudSignature().slow === a.slow, "Zittern der Verfolgung ebenso wenig");
+
+  // Ein Schritt dagegen schon.
+  xr.setContent(null, karte({ uv: { x: 0.56, y: 0.5 }, heading: 90 }));
+  check(xr._hudSignature().slow !== a.slow, "ein Schritt zeichnet neu");
+
+  // Und die Zählung, wenn ein Patient dazukommt.
+  xr.setContent(null, karte({ uv: { ...stand }, heading: 90 },
+                            [{ id: 1, uv: { x: 0.2, y: 0.3 }, color: "#e5484d",
+                               sighted: true, transported: false, target: false }]));
+  check(xr._hudSignature().slow !== a.slow, "ein neuer Patient zeichnet neu");
+
+  console.log("\nRückmeldung geht am Takt vorbei");
+
+  // Alles, was auf eine Eingabe antwortet, gehört in die schnelle Hälfte —
+  // sonst wartet die Rückmeldung auf den nächsten Takt und fühlt sich tot an.
+  const b = xr._hudSignature();
+  xr._hudHover = 0;
+  check(xr._hudSignature().live !== b.live, "ein Knopf unter dem Zeiger zählt sofort");
+  check(xr._hudSignature().slow === b.slow, "und rührt die träge Hälfte nicht an");
+
+  const c = xr._hudSignature();
+  xr._pinching = true;
+  check(xr._hudSignature().live !== c.live, "gedrückt zählt sofort");
+
+  const d = xr._hudSignature();
+  xr._dwell = 0.5;
+  check(xr._hudSignature().live !== d.live, "und das Verweilen auch");
+
+  console.log("\nWas ein additives Glas nicht zeichnet");
+
+  // Auf einer HoloLens 2 wäre das volle Körpernetz je Anzeige (26 756
+  // Dreiecke, mal zwei Augen) mehr, als die Bildrate hergibt.
+  const holo = new XRPassthrough({});
+  holo.profile = displayProfile("additive", fovFromProjection(HOLOLENS2));
+  holo._screen = { showCard: false, hudActions: [] };
+  holo._tags = [1, 2, 3, 4].map((id) => ({
+    id, pos: { x: id, y: 0, z: 0 }, distance: 1 + id * 0.1, sighted: true,
+    color: "#46a758", short: "SK III", card: null, transported: false,
+    findings: 0, treatments: 0, regions: {},
+  }));
+  check(holo._updatePopups(0.016).length === 1,
+        "additiv: höchstens eine Figur neben einer Anzeige");
+
+  const quest = new XRPassthrough({});
+  quest._screen = { showCard: false, hudActions: [] };
+  quest._tags = holo._tags;
+  check(quest._updatePopups(0.016).length === 3,
+        "auf Passthrough bleiben es drei");
+}
+
 armband();
 anzeige();
 bewegung();
 anzeigegeraet();
+zeichenaufwand();
 
 console.log();
 console.log(failed === 0

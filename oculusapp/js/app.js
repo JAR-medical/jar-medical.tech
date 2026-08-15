@@ -40,6 +40,11 @@ const $ = (id) => document.getElementById(id);
 // Das Lagebild der Einsatzleitung, dieselbe Live-Demo wie auf der Website.
 const LAGEBILD_URL = "../demo/index.html";
 
+// ?perf=1 — Bildrate und Zeichenaufwand im Blickfeld, zum Nachmessen auf dem
+// Gerät. Standardmäßig aus: im Einsatz gehört dort nichts hin, was nicht das
+// Gerät meldet.
+const showPerf = new URLSearchParams(location.search).get("perf") === "1";
+
 const el = {
   start: $("start"),
   stage: $("stage"),
@@ -409,6 +414,15 @@ async function startAR() {
     onRegionPick: (region) => app.flow.pickRegion(region),
     onPanelPress: (action) => panelAction(action),
     onStereoIssue: (note) => app.flow.setNotice(note),
+    // ?perf=1 stellt die gemessene Bildrate unten rechts ins Blickfeld. Ohne
+    // Gerät lässt sich nicht sagen, was eine HoloLens 2 schafft — mit diesem
+    // Schalter sagt sie es selbst. Sonst bleibt die Zeile dem vorbehalten,
+    // was das Gerät meldet.
+    onPerf: (p) => {
+      if (!showPerf || !app.flow) return;
+      app.flow.setNotice(`${p.fps} B/s · HUD ${p.hudDraws}× · Karte ${p.cardDraws}× · ` +
+                         `${p.display} ${p.fov}`);
+    },
     onFrame: () => {
       app.flow.tick();
       // Lagekarte und Schilder leben mit der eigenen Position; xr.js drosselt
