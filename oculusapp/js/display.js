@@ -125,6 +125,17 @@ export function displayProfile(blendMode, fov = null) {
     hudDistance: additive ? 1.7 : 0.95,
     cardDistance: additive ? 1.6 : 1.25,
     comfortNear: additive ? 0.3 : 0.1,
+    // Wie viel vom Blickfeld eine Fläche einnehmen darf.
+    //
+    // Auf einem großen Blickfeld ist das fast beliebig — da begrenzt ohnehin
+    // die Bequemlichkeitsgrenze. Auf einem kleinen ist es die entscheidende
+    // Zahl: das HUD trägt seine Inhalte in den **Ecken**, und eine Fläche, die
+    // das Glas ausreizt, schiebt genau diese Ecken an den Rand des Sichtbaren.
+    // Man sieht dann eine leere Mitte und hält die Anzeige für kaputt.
+    hudSafety: narrow ? 0.75 : 0.92,
+    // Die Handlungskarte muss ganz zu lesen sein, Überschrift wie Knöpfe.
+    // Sie darf deshalb noch deutlich weniger ausreizen.
+    cardSafety: narrow ? 0.70 : 0.95,
     label: additive ? (narrow ? "additiv, kleines Blickfeld" : "additiv")
          : blendMode === "alpha-blend" ? "Passthrough"
          : blendMode === "opaque" ? "geschlossen" : "unbekannt",

@@ -76,8 +76,10 @@ const PINCH_OFF = 0.045;
 
 // Raumfeste Handlungskarte beim Patienten.
 const CARD_W = 900, CARD_H = 640;
-const CARD_HALF_W = 0.56;
-const CARD_HALF_H = CARD_HALF_W * (CARD_H / CARD_W);
+// Größer als das wird sie nirgends — auf einem großen Blickfeld begrenzt diese
+// Zahl, auf einem kleinen das Glas (siehe `_measureDisplay`). Es ist die Breite,
+// die die Karte vorher überall fest hatte.
+const CARD_HALF_W_MAX = 0.56;
 const CARD_LIFT = 1.15;                  // über dem Boden, nicht auf ihm
 
 // Die kleine Anzeige, die beim Herantreten über dem Marker aufgeht.
@@ -147,6 +149,19 @@ const EYE_MODEL = new Float32Array([
   0, 0.15, 0, 0,
   0, 0, 1, 0,
   0, 0, -1.2, 1,
+]);
+
+// Prüfbild (?beacon=1): ein Rechteck geradeaus, 1,5 m vor dem Auge, rund 23°
+// breit — also auf jedem Glas bequem innerhalb des Blickfelds. Es hängt an
+// nichts: nicht am HUD, nicht an der Kopfpose, nicht an der Lagekarte, nur an
+// der Projektionsmatrix. Wer es sieht, weiß, dass Sitzung, Puffer, Mischung
+// und Textur stimmen und das Problem in der Anordnung liegt. Wer es nicht
+// sieht, hat ein Problem weiter unten.
+const BEACON_MODEL = new Float32Array([
+  0.15, 0, 0, 0,
+  0, 0.09, 0, 0,
+  0, 0, 1, 0,
+  0, 0, -1.5, 1,
 ]);
 
 const CURSOR_PX = 64;
@@ -324,8 +339,10 @@ export function intoModel(m, scale, v, isPoint) {
 
 export class XRPassthrough {
   constructor({ onStart, onEnd, onPose, onFrame, onMarkerPick, onPlace, onRegionPick,
-                onPanelPress, onStereoIssue, onPerf, eyeTest = false } = {}) {
+                onPanelPress, onStereoIssue, onPerf, eyeTest = false,
+                beacon = false } = {}) {
     this.eyeTest = eyeTest;
+    this.beacon = beacon;
     this.onPerf = onPerf || (() => {});
     this.onStart = onStart || (() => {});
     this.onEnd = onEnd || (() => {});
@@ -422,7 +439,9 @@ export class XRPassthrough {
     this.profile = displayProfile("alpha-blend");
     this.fov = null;
     this._hudGeom = { dist: this.profile.hudDistance, halfW: 0.82, halfH: 0.82 / HUD_ASPECT };
+    this._cardGeom = { halfW: CARD_HALF_W_MAX, halfH: CARD_HALF_W_MAX * (CARD_H / CARD_W) };
     this._measured = false;
+    this._frameError = null;               // was das Bild zuletzt zerlegt hat
 
     // Intern: steuert Fadenkreuz und Verweil-Auslösung. Wird nicht angezeigt —
     // die Frage, was das Gerät liefert, ist beantwortet.
@@ -661,6 +680,36 @@ export class XRPassthrough {
     if (this.eyeTest) {
       this.eyeTex = [this._eyeLabel("LINKS", "#46a758"), this._eyeLabel("RECHTS", "#e5484d")];
     }
+    if (this.beacon) this.beaconTex = this._beaconLabel();
+  }
+
+  /**
+   * Das Prüfbild: kräftiger Rahmen, Fadenkreuz, ein Wort. Bewusst nur helle
+   * Striche auf durchsichtigem Grund — so ist es auf jedem Glas dasselbe Bild,
+   * ob es nun mischt oder addiert.
+   */
+  _beaconLabel() {
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 307;
+    const g = c.getContext("2d");
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 10;
+    g.strokeRect(5, 5, 502, 297);
+    g.strokeStyle = "#7cc0ff";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(256, 96); g.lineTo(256, 211);
+    g.moveTo(198, 153); g.lineTo(314, 153);
+    g.stroke();
+    g.fillStyle = "#ffffff";
+    g.font = "700 44px 'Helvetica Neue', Arial, sans-serif";
+    g.textAlign = "center";
+    g.fillText("PRÜFBILD", 256, 62);
+    g.font = "500 26px 'Helvetica Neue', Arial, sans-serif";
+    g.fillText("Anzeige funktioniert", 256, 268);
+    const tex = this._texture();
+    this._upload(tex, c);
+    return tex;
   }
 
   _canvas(w, h) {
@@ -867,17 +916,31 @@ export class XRPassthrough {
 
     this._hudGeom = {
       dist: this.profile.hudDistance,
-      ...fitToFov(this.fov, this.profile.hudDistance, HUD_ASPECT),
+      ...fitToFov(this.fov, this.profile.hudDistance, HUD_ASPECT,
+                  { safety: this.profile.hudSafety }),
     };
+
+    // Die Handlungskarte wird **genauso eingepasst**. Sie hatte eine feste
+    // Breite von 0,56 m — auf 1,6 m sind das 38,6°, also praktisch das ganze
+    // Blickfeld einer HoloLens 2. Man sah dann ihre leere Mitte, während
+    // Überschrift und Knopfreihe am Rand oder außerhalb lagen: die Anzeige war
+    // da und trotzdem nicht zu sehen.
+    this._cardGeom = fitToFov(this.fov, this.profile.cardDistance, CARD_W / CARD_H,
+                              { safety: this.profile.cardSafety,
+                                maxHalfH: Math.atan(CARD_HALF_W_MAX / this.profile.cardDistance) });
+
     this._hudDirty = true;
     this._cardDirty = true;
 
     const deg = (r) => Math.round((r * 180) / Math.PI);
+    const span = (half, dist) => Math.round(deg(Math.atan(half / dist)) * 2);
     this._diag.fov = `${deg(this.fov.horizontal)}°×${deg(this.fov.vertical)}°`;
     this._diag.display = this.profile.label;
-    console.info(`[JAR] Anzeige: ${this.profile.label}, Blickfeld ${this._diag.fov}, ` +
-                 `HUD ${this._hudGeom.halfW.toFixed(2)}×${this._hudGeom.halfH.toFixed(2)} m ` +
-                 `auf ${this._hudGeom.dist} m`);
+    console.info(`[JAR] Anzeige: ${this.profile.label}, Blickfeld ${this._diag.fov}` +
+      ` · HUD ${span(this._hudGeom.halfW, this._hudGeom.dist)}°` +
+      `×${span(this._hudGeom.halfH, this._hudGeom.dist)}°` +
+      ` · Karte ${span(this._cardGeom.halfW, this.profile.cardDistance)}°` +
+      `×${span(this._cardGeom.halfH, this.profile.cardDistance)}°`);
   }
 
   /**
@@ -1041,7 +1104,7 @@ export class XRPassthrough {
     }
 
     const face = basisFacing(bm.pos, head.position);
-    const off = CARD_HALF_W + BODY_GAP + BODY_HALF_W;
+    const off = this._cardGeom.halfW + BODY_GAP + BODY_HALF_W;
     const at = {
       x: bm.pos.x - face.right.x * off,
       y: this._floorNow + BODY_LIFT,
@@ -1289,7 +1352,8 @@ export class XRPassthrough {
     const showCard = this._screen.showCard !== false;
 
     const cardHit = showCard
-      ? this._planeHit(rays, card.pos, card.basis, CARD_HALF_W, CARD_HALF_H, CARD_W, CARD_H)
+      ? this._planeHit(rays, card.pos, card.basis,
+                       this._cardGeom.halfW, this._cardGeom.halfH, CARD_W, CARD_H)
       : null;
     const hover = cardHit ? hitTest(this._rects, cardHit.px, cardHit.py) : -1;
     if (hover !== this._hover) {
@@ -1575,10 +1639,36 @@ export class XRPassthrough {
 
   /* ----------------------------------------------------------- Frame-Lauf */
 
+  /**
+   * Ein Bild — und zwar so, dass ein Fehler darin nicht die ganze Anzeige
+   * abschaltet.
+   *
+   * Der Grund für die Klammer: das nächste Bild wird als Erstes angefordert,
+   * alles Zeichnen kommt danach. Wirft irgendetwas dazwischen, läuft die
+   * Schleife weiter, aber der Augenpuffer wird nie beschrieben — die Brille
+   * zeigt dann **nichts**, Bild für Bild, ohne dass irgendwo etwas davon
+   * stünde. Genau das ist auf einer HoloLens 2 nicht zu diagnostizieren, wenn
+   * man das Gerät nicht in der Hand hat. Also wird der Fehler festgehalten und
+   * gemeldet, einmal, statt still zu bleiben.
+   */
   _onFrame(t, frame) {
     const session = this.session;
     if (!session) return;
     session.requestAnimationFrame(this._frameBound);
+    try {
+      this._drawFrame(t, frame);
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      if (msg !== this._frameError) {
+        this._frameError = msg;
+        console.error("[JAR] Bildfehler:", err);
+        this.onStereoIssue("Bildfehler: " + msg);
+      }
+    }
+  }
+
+  _drawFrame(t, frame) {
+    const session = this.session;
 
     const dt = this._lastFrameAt ? Math.min(0.1, (t - this._lastFrameAt) / 1000) : 0.016;
     this._lastFrameAt = t;
@@ -1688,7 +1778,8 @@ export class XRPassthrough {
     }
 
     const hudModel = this._model(hud.pos, hud.basis, this._hudGeom.halfW, this._hudGeom.halfH);
-    const cardModel = this._model(card.pos, card.basis, CARD_HALF_W, CARD_HALF_H);
+    const cardModel = this._model(card.pos, card.basis,
+                                 this._cardGeom.halfW, this._cardGeom.halfH);
 
     let placeModel = null;
     if (this._place) {
@@ -1871,6 +1962,14 @@ export class XRPassthrough {
       if (cursorModel) {
         gl.bindTexture(gl.TEXTURE_2D, this.cursorTex);
         gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, cursorModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      // Zuletzt und über allem: das Prüfbild hängt an nichts als der
+      // Projektion — wenn überhaupt etwas ankommt, dann das hier.
+      if (this.beacon && this.beaconTex) {
+        gl.bindTexture(gl.TEXTURE_2D, this.beaconTex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(view.projectionMatrix, BEACON_MODEL));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
 

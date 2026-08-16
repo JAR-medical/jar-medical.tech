@@ -894,7 +894,7 @@ function anzeigegeraet() {
   check(profilHL.hudDistance > 1.25,
         "auf durchsichtigem Glas steht das HUD außerhalb der Nahzone");
 
-  const passt = fitToFov(hl, profilHL.hudDistance, 16 / 9);
+  const passt = fitToFov(hl, profilHL.hudDistance, 16 / 9, { safety: profilHL.hudSafety });
   const halbH = Math.atan(passt.halfW / profilHL.hudDistance);
   const halbV = Math.atan(passt.halfH / profilHL.hudDistance);
   check(halbH < hl.left && halbH < hl.right, "das eingepasste HUD bleibt seitlich im Glas");
@@ -906,6 +906,31 @@ function anzeigegeraet() {
   check(altHalbwinkel > hl.left * 1.5,
         `die alte feste HUD-Breite lag weit außerhalb (${Math.round(grad(altHalbwinkel) * 2)}° gegen 43°)`);
 
+  // Die Handlungskarte war der eigentliche Grund, warum auf der HoloLens 2
+  // „nichts zu sehen" war: 0,56 m fest auf 1,6 m sind 38,6° — praktisch das
+  // ganze Blickfeld. Sichtbar blieb ihre leere Mitte, während Überschrift und
+  // Knopfreihe am Rand lagen; und auf additivem Glas gibt es keinen Fond, an
+  // dem man wenigstens gemerkt hätte, dass da etwas ist.
+  const altKarte = Math.atan(0.56 / 1.6) * 2;
+  check(altKarte > hl.horizontal * 0.85,
+        `die alte feste Kartenbreite füllte fast das ganze Glas (${Math.round(grad(altKarte))}° von 43°)`);
+
+  const karte = fitToFov(hl, profilHL.cardDistance, 900 / 640,
+                         { safety: profilHL.cardSafety });
+  const karteH = Math.atan(karte.halfW / profilHL.cardDistance) * 2;
+  const karteV = Math.atan(karte.halfH / profilHL.cardDistance) * 2;
+  check(karteH < hl.horizontal * 0.8,
+        `eingepasst bleibt sie deutlich darunter (${Math.round(grad(karteH))}°)`);
+  check(karteV < hl.vertical * 0.8,
+        `und auch in der Höhe (${Math.round(grad(karteV))}°)`);
+
+  // Auf einem kleinen Glas müssen die Ecken des HUD wirklich zu sehen sein —
+  // dort steht der ganze Inhalt.
+  check(profilHL.hudSafety < 0.85,
+        "kleines Blickfeld: das HUD reizt es bewusst nicht aus");
+  const ecke = Math.atan(passt.halfW / profilHL.hudDistance);
+  check(ecke < hl.left * 0.85, "die HUD-Ecken liegen mit Abstand im Sichtbaren");
+
   const quest = fovFromProjection(QUEST);
   const profilQ = displayProfile("alpha-blend", quest);
   check(!profilQ.narrow, "eine Quest gilt nicht als kleines Blickfeld");
@@ -914,6 +939,15 @@ function anzeigegeraet() {
   check(passtQ.halfW > 0.6 && passtQ.halfW < 0.85,
         "dort bleibt das HUD ungefähr so groß wie bisher");
   check(passtQ.halfW > passt.halfW, "und größer als auf der HoloLens");
+
+  // Die HoloLens darf die Quest nicht mitreißen: dort war die Anzeige in
+  // Ordnung, und eine Korrektur für ein Gerät, die ein anderes verschlechtert,
+  // ist keine Korrektur.
+  const karteQ = fitToFov(quest, profilQ.cardDistance, 900 / 640,
+                          { safety: profilQ.cardSafety,
+                            maxHalfH: Math.atan(0.56 / profilQ.cardDistance) });
+  check(Math.abs(karteQ.halfW - 0.56) / 0.56 < 0.1,
+        `auf einer Quest bleibt die Karte praktisch unverändert (${karteQ.halfW.toFixed(2)} m gegen 0,56 m)`);
 
   console.log("\nFarben für additives Glas");
 

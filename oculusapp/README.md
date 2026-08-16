@@ -182,6 +182,28 @@ Gerät rechnet `fitToFov` die Fläche aus der **Projektionsmatrix der ersten
 Ansicht** — das trägt auch für Brillen, die es noch nicht gibt. Auf einer Quest
 kommt dabei ungefähr die alte Größe heraus, auf einer HoloLens rund die Hälfte.
 
+Dasselbe gilt für die **Handlungskarte**, und dort war es der Unterschied
+zwischen „schwer zu lesen" und „gar nichts zu sehen": 0,56 m fest auf 1,6 m sind
+38,6° — praktisch das ganze Blickfeld einer HoloLens 2. Sichtbar blieb ihre
+leere Mitte, während Überschrift und Knopfreihe am Rand oder außerhalb lagen,
+und auf additivem Glas gibt es keinen Fond, an dem man wenigstens gemerkt hätte,
+dass da etwas ist. Eingepasst sind es 28° × 20°.
+
+Auf kleinem Blickfeld wird bewusst **nicht ausgereizt** (`hudSafety`,
+`cardSafety`): das HUD trägt seinen Inhalt in den Ecken, und eine Fläche, die
+das Glas gerade eben ausfüllt, schiebt genau diese Ecken an den Rand des
+Sichtbaren.
+
+**Wenn doch nichts zu sehen ist.** `index.html?beacon=1` zeichnet ein Prüfbild
+geradeaus, 1,5 m vor dem Auge, rund 23° breit. Es hängt an nichts — nicht am
+HUD, nicht an der Kopfpose, nur an der Projektionsmatrix. Ist es da, stimmen
+Sitzung, Puffer und Mischung, und das Problem liegt in der Anordnung. Ist es
+nicht da, liegt es tiefer. Dazu fängt die Bildschleife Fehler ab und meldet sie
+(`Bildfehler: …` in der Statuszeile und auf der Konsole), statt still ein leeres
+Bild zu zeigen: das nächste Bild wird als Erstes angefordert, alles Zeichnen
+kommt danach — wirft etwas dazwischen, liefe die Schleife sonst ewig weiter,
+ohne je den Augenpuffer zu beschreiben.
+
 **`immersive-ar` ist dort nicht selbstverständlich.** Edge auf der HoloLens 2 hat
 die Betriebsart je nach Fassung gar nicht und wies zeitweise sogar
 `hand-tracking` als *unbekanntes* Merkmal zurück. `sessionLadder()` geht deshalb

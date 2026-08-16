@@ -389,6 +389,9 @@ async function startAR() {
   app.xr = new XRPassthrough({
     // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
     eyeTest: new URLSearchParams(location.search).get("augentest") === "1",
+    // ?beacon=1 — Prüfbild geradeaus, hängt an nichts als der Projektion.
+    // Sichtbar heißt: Sitzung, Puffer und Mischung stimmen.
+    beacon: new URLSearchParams(location.search).get("beacon") === "1",
     onStart: () => {
       // Ohne „local-floor" (Sitz-/Stationärmodus, keine eingerichtete Fläche)
       // wird die Bodenhöhe geschätzt. Der Ablauf funktioniert, die Marker
