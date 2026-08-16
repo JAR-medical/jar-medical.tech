@@ -217,6 +217,34 @@ beendet, statt jemanden in eine schwarze Kammer zu setzen.
 Was sich damit **nicht** ändert: der Ablauf, die Bedienung und die Lagekarte
 sind auf allen drei Geräten dieselben.
 
+### Als App aufs Gerät
+
+Ins Startmenü kommt sie **über Edge, nicht über einen Sideload**:
+
+> Seite in Edge öffnen → `…` → **Apps** → **Diese Website als App installieren**
+
+Danach steht sie mit Symbol im Startmenü wie jede andere App, öffnet in einem
+eigenen Fenster ohne Browserleiste und läuft ohne Netz. Am Gerät ändert sich
+dabei nichts: kein Entwicklermodus, kein Zertifikat, kein Device Portal, keine
+Auswirkung auf andere Apps.
+
+Möglich ist das durch `manifest.webmanifest` (Name, Symbole, eigenes Fenster)
+und `sw.js` — ohne einen Service Worker mit `fetch`-Behandlung bietet Edge die
+Installation gar nicht erst an. Symbole erzeugt `make_icons.py`.
+
+**Warum kein `.appx` wie bei den anderen Apps.** Das wäre der übliche Weg für
+eine native HoloLens-App, hier aber aus drei Gründen der falsche:
+
+1. Ein `.appx` wird mit Windows-Werkzeugen gebaut und signiert (MakeAppx,
+   SignTool). Auf macOS gibt es die nicht.
+2. Sideloading verlangt, dass die Brille dem Signaturzertifikat traut — es müsste
+   also eines installiert werden. Das ist genau die Änderung am Gerät, die hier
+   nicht stattfinden soll.
+3. Vor allem: eine als UWP verpackte Webseite läuft in einer **WebView**, und
+   `immersive-ar` steht dort nicht zur Verfügung. Die App käme gar nicht mehr in
+   den AR-Modus — ein Rückschritt, kein Fortschritt. Als installierte
+   Edge-App läuft sie dagegen in derselben Engine wie im Browser.
+
 ### Bildrate
 
 Die HUD-Ebene ist 1536 × 864 groß und wurde in **jedem Bild** neu gezeichnet und
@@ -495,6 +523,9 @@ oculusapp/
 ├─ vendor/cv.js          Bildverarbeitung dazu (gehört zu js-aruco2)
 ├─ make_body.py          holt das MakeHuman-Basisnetz (CC0) und macht daraus
 │                        assets/body/ — siehe „Das Körpermodell"
+├─ manifest.webmanifest  macht die Seite als App installierbar (Startmenü)
+├─ sw.js                 hält sie vor: Code aus dem Netz, Großes aus der Ablage
+├─ make_icons.py         erzeugt assets/icon/ — das Symbol im Startmenü
 ├─ make_cards.py         erzeugt den Druckbogen der Umhängekarten (segno)
 ├─ make_markers.py       erzeugt die nackten QR-Marker (segno)
 ├─ assets/body/          body.bin/.json (Menschmodell) + HERKUNFT.md
@@ -507,6 +538,7 @@ oculusapp/
 
 ```sh
 node tests/logic.test.mjs
+node tests/sw.test.mjs
 ```
 
 Die Darstellung lässt sich headless ansehen: `tests/probe_flow.html` zeichnet

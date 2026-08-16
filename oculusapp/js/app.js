@@ -594,11 +594,31 @@ function wireControls() {
 
 /* --------------------------------------------------------------- boot */
 
+/**
+ * Den Service Worker anmelden.
+ *
+ * Er ist die Bedingung dafür, dass Edge „Diese Website als App installieren"
+ * überhaupt anbietet — und damit dafür, dass die App auf einer HoloLens 2 im
+ * Startmenü steht wie jede andere. Nebenbei läuft sie damit ohne Netz, was an
+ * einer Einsatzstelle keine Kleinigkeit ist.
+ *
+ * Scheitert er, ist das kein Grund, irgendetwas zu unterlassen: die App
+ * funktioniert ohne ihn vollständig, sie ist dann nur nicht installierbar.
+ * Über `file://` gibt es ihn ohnehin nicht.
+ */
+function registerWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  if (location.protocol !== "https:" && location.hostname !== "localhost") return;
+  navigator.serviceWorker.register("sw.js")
+    .catch((err) => console.warn("[JAR] Service Worker nicht angemeldet:", err.message));
+}
+
 function boot() {
   // Einmal an die Systemeinstellung hängen: sie schaltet die Federn in
   // js/motion.js auf sofortiges Setzen um. Das CSS hat dieselbe Abfrage für
   // sich; beides muss gesetzt sein, sonst federt die eine Hälfte weiter.
   watchReducedMotion();
+  registerWorker();
   detectCaps();
   wireControls();
 

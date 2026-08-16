@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#101418">
   <title>J.A.R. AR-Client — Sichtung im Blickfeld</title>
+  <!-- Macht die Seite installierbar: auf der HoloLens 2 landet sie damit über
+       „Diese Website als App installieren" im Startmenü, ohne Sideload, ohne
+       Zertifikat und ohne dass am Gerät etwas geändert wird. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="assets/icon/icon-192.png">
   <link rel="stylesheet" href="css/hud.css">
   <!-- QR decode fallback (UMD, exposes window.jsQR); native BarcodeDetector used when present -->
   <script src="vendor/jsQR.min.js" defer></script>
