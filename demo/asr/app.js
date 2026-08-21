@@ -185,7 +185,7 @@
 
   function renderDemo() {
     $("output-title").textContent = "Transkript";
-    $("top-note").textContent = "lokaler CrisperWhisper-Server · Anmeldung erforderlich";
+    $("top-note").textContent = "proprietäres, selbst trainiertes Modell · Anmeldung erforderlich";
     $("output-footnote").textContent = "Forschungs-/Demo-Betrieb. Audiodateien werden lokal auf dem Modell-PC verarbeitet.";
     renderOutput(DEMO_RECORD, { _demo: true, _hinweis: "Keine Modellabfrage" });
   }
@@ -209,7 +209,7 @@
         <button class="action" type="button" id="auth-logout" hidden>Abmelden</button>
       </form>
       <span id="auth-status" class="analysis-status" aria-live="polite"></span>
-      <small style="width:100%;opacity:.72">CrisperWhisper2.0 Large · Non-Commercial Research/Demo License</small>`;
+      <small style="width:100%;opacity:.72">Proprietäres, selbst trainiertes Modell</small>`;
     const page = document.querySelector(".page");
     if (page) page.prepend(panel);
     state.authPanel = panel;
@@ -458,9 +458,9 @@
         "Transkript": job.transcript || "Kein Text erkannt.",
         "Dauer": job.duration_seconds == null ? "unbekannt" : Number(job.duration_seconds).toFixed(1) + " s",
         "Fenster": job.chunks,
-        "Modell": "CrisperWhisper2.0 Large + EMS LoRA"
+        "Modell": "Proprietäres, selbst trainiertes Modell"
       }, {
-        model: job.model,
+        model: "Proprietäres, selbst trainiertes Modell",
         duration_seconds: job.duration_seconds,
         chunks: job.chunks,
         processing_seconds: job.processing_seconds
