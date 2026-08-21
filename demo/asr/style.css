@@ -112,8 +112,8 @@ audio { display: block; width: calc(100% - 20px); height: 31px; margin: 0 10px 7
 .node { position: absolute; z-index: 1; display: flex; width: 152px; min-height: 112px; flex-direction: column; padding: 7px 8px 8px; border: 1px solid #cbd1d7; border-top: 3px solid #aeb7c0; border-radius: 4px; background: var(--surface); box-shadow: 0 2px 5px rgba(22,25,29,.09); }
 .node[data-stage="capture"] { left: 0; top: 30px; }
 .node[data-stage="trim"] { left: 210px; top: 30px; }
-.node[data-stage="relevance"] { left: 420px; top: 30px; }
-.node[data-stage="voice"] { left: 630px; top: 30px; }
+.node[data-stage="relevance"] { left: 630px; top: 30px; }
+.node[data-stage="voice"] { left: 420px; top: 30px; }
 .node[data-stage="context"] { left: 630px; top: 198px; }
 .node[data-stage="extract"] { left: 420px; top: 198px; }
 .node[data-stage="output"] { left: 210px; top: 198px; }

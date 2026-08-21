@@ -7,7 +7,7 @@
   const fileInput = $("file-input");
   const fileList = $("file-list");
   const recordButton = $("record-button");
-  const stageOrder = ["capture", "trim", "relevance", "voice", "context", "extract", "output"];
+  const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
   let resolvedApiBase = null;
   let apiBasePromise = null;
@@ -23,7 +23,7 @@
     if (force) resetApiBase();
     if (resolvedApiBase) return resolvedApiBase;
     if (!apiBasePromise) {
-      apiBasePromise = fetch(`${API_BASE}/__target`, { credentials: "omit" })
+      apiBasePromise = fetch(`${API_BASE}/__target?refresh=${Date.now()}`, { credentials: "omit", cache: "no-store" })
         .then(async (response) => {
           if (!response.ok) {
             const error = new Error(`HTTP ${response.status}`);
@@ -202,6 +202,25 @@
     $("analyze-button").textContent = nextFiles.length > 1 ? "Transkriptionen starten" : "Transkription starten";
     setAnalysisStatus("bereit");
   }
+  const CONFIDENCE_METHOD = "Mittlere Token-Wahrscheinlichkeit je Wort";
+  function normalizeWordConfidences(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter((item) => item && typeof item.word === "string" && Number.isFinite(Number(item.confidence)))
+      .map((item) => ({
+        word: item.word.trim(),
+        confidence: Math.max(0, Math.min(1, Number(item.confidence)))
+      }))
+      .filter((item) => item.word);
+  }
+  function formatWordConfidenceText(value) {
+    const words = normalizeWordConfidences(value);
+    if (!words.length) return "Nicht verfuegbar";
+    return words
+      .map((item) => item.word + " (" + Math.round(item.confidence * 100) + "%)")
+      .join(" ");
+  }
+
   function renderOutput(record, metadata = {}) {
     const entries = Object.entries(record || {});
     $("output-body").innerHTML = entries.length
@@ -278,7 +297,7 @@
     const headers = new Headers(options.headers || {});
     const init = { ...options, headers, credentials: "include" };
     let lastError = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
       try {
         const base = await getApiBase(attempt > 0);
         const response = await fetch(`${base}${path}`, init);
@@ -344,7 +363,10 @@
       setAuthenticated(true, result.csrf_token);
       showAuthStatus("verbunden", false, true);
     } catch (error) {
-      showAuthStatus(error.message || "Anmeldung fehlgeschlagen");
+      const message = isTransientApiError(error)
+        ? "Verbindung zum Modell-PC unterbrochen. Bitte erneut versuchen."
+        : error.message || "Anmeldung fehlgeschlagen";
+      showAuthStatus(message);
     }
   }
 
@@ -554,10 +576,12 @@
   function renderTranscriptionResults(jobs) {
     if (jobs.length === 1) {
       const job = jobs[0];
+      const wordConfidences = normalizeWordConfidences(job.word_confidences);
       $("output-title").textContent = "Transkript";
       renderOutput({
         "Datei": job.filename,
         "Transkript": job.transcript || "Kein Text erkannt.",
+        "Wort-Konfidenzen": formatWordConfidenceText(wordConfidences),
         "Dauer": job.duration_seconds == null ? "unbekannt" : Number(job.duration_seconds).toFixed(1) + " s",
         "Fenster": job.chunks,
         "Modell": "Proprietäres, selbst trainiertes Modell"
@@ -565,7 +589,9 @@
         model: "Proprietäres, selbst trainiertes Modell",
         duration_seconds: job.duration_seconds,
         chunks: job.chunks,
-        processing_seconds: job.processing_seconds
+        processing_seconds: job.processing_seconds,
+        word_confidences: normalizeWordConfidences(job.word_confidences),
+        confidence_method: CONFIDENCE_METHOD
       });
       return;
     }
@@ -582,7 +608,9 @@
         transcript: job.transcript || "",
         duration_seconds: job.duration_seconds,
         chunks: job.chunks,
-        processing_seconds: job.processing_seconds
+        processing_seconds: job.processing_seconds,
+        word_confidences: normalizeWordConfidences(job.word_confidences),
+        confidence_method: CONFIDENCE_METHOD
       }))
     });
   }
@@ -693,6 +721,19 @@
     } catch (_) {
       $("copy-json").textContent = "Kopieren nicht möglich";
     }
+  });
+
+  $("download-json").addEventListener("click", () => {
+    const content = $("json-output").textContent || "{}";
+    const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "jar-transkription.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
   });
 
   makeAuthPanel();

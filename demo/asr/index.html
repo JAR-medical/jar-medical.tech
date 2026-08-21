@@ -103,19 +103,19 @@
               <p>VAD entfernt Stille</p>
               <div class="node-meta">Schwelle &gt; 3 Sekunden</div>
             </article>
-            <article class="node node-model" data-stage="relevance">
-              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
-              <div class="node-head"><span class="node-icon">A</span><span class="node-type">MODEL A</span><span class="node-status">wartet</span></div>
-              <h3>Relevanzfilter</h3>
-              <p>Wichtiges Segment?</p>
-              <div class="node-meta">Gespräch · Patientensprache</div>
-            </article>
             <article class="node node-model" data-stage="voice">
-              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out-down" aria-hidden="true"></span>
+              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out" aria-hidden="true"></span>
               <div class="node-head"><span class="node-icon">B</span><span class="node-type">MODEL B</span><span class="node-status">wartet</span></div>
               <h3>Proprietäres, selbst trainiertes Modell</h3>
               <p>Audio → deutscher Text</p>
               <div class="node-meta">bereinigter Eingang · Benchmark</div>
+            </article>
+            <article class="node node-model" data-stage="relevance">
+              <span class="node-port port-in" aria-hidden="true"></span><span class="node-port port-out-down" aria-hidden="true"></span>
+              <div class="node-head"><span class="node-icon">A</span><span class="node-type">MODEL A</span><span class="node-status">wartet</span></div>
+              <h3>Relevanzfilter</h3>
+              <p>Wichtiges Segment?</p>
+              <div class="node-meta">Gespräch · Patientensprache</div>
             </article>
             <article class="node node-join" data-stage="context">
               <span class="node-port port-in-down" aria-hidden="true"></span><span class="node-port port-out-left" aria-hidden="true"></span>
@@ -158,7 +158,7 @@
           </table>
         </div>
         <div class="json-panel" id="json-panel" hidden>
-          <div class="json-head"><span>GBNF-konforme JSON-Ausgabe</span><button class="text-button" id="copy-json" type="button">JSON kopieren</button></div>
+          <div class="json-head"><span>GBNF-konforme JSON-Ausgabe</span><button class="text-button" id="copy-json" type="button">JSON kopieren</button><button class="text-button" id="download-json" type="button">JSON herunterladen</button></div>
           <pre id="json-output"></pre>
         </div>
         <p class="output-footnote" id="output-footnote">Forschungs-/Demo-Betrieb. Audiodateien werden lokal auf dem Modell-PC verarbeitet.</p>
