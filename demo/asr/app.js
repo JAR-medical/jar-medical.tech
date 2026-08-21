@@ -12,14 +12,31 @@
   let resolvedApiBase = null;
   let apiBasePromise = null;
 
-  async function getApiBase() {
-    if (window.JAR_API_BASE || resolvedApiBase) return resolvedApiBase || API_BASE;
+  function resetApiBase() {
+    if (window.JAR_API_BASE) return;
+    resolvedApiBase = null;
+    apiBasePromise = null;
+  }
+
+  async function getApiBase(force = false) {
+    if (window.JAR_API_BASE) return API_BASE;
+    if (force) resetApiBase();
+    if (resolvedApiBase) return resolvedApiBase;
     if (!apiBasePromise) {
       apiBasePromise = fetch(`${API_BASE}/__target`, { credentials: "omit" })
         .then(async (response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          if (!response.ok) {
+            const error = new Error(`HTTP ${response.status}`);
+            error.status = response.status;
+            error.transient = true;
+            throw error;
+          }
           const body = await response.json();
-          if (!body?.base_url) throw new Error("Tunnel target unavailable");
+          if (!body?.base_url) {
+            const error = new Error("Tunnel target unavailable");
+            error.transient = true;
+            throw error;
+          }
           const candidate = new URL(body.base_url);
           if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
             throw new Error("Invalid tunnel target");
@@ -33,6 +50,14 @@
         });
     }
     return apiBasePromise;
+  }
+
+  function isTransientApiError(error) {
+    return Boolean(
+      error?.transient ||
+      [502, 503, 504].includes(error?.status) ||
+      (!error?.status && (error?.name === "TypeError" || error?.message === "Failed to fetch"))
+    );
   }
   const DEMO_RECORD = {
     "Hinweis": "Demoausgabe. Für echte Transkription anmelden und Analyse starten.",
@@ -246,23 +271,35 @@
   async function apiRequest(path, options = {}) {
     const headers = new Headers(options.headers || {});
     const init = { ...options, headers, credentials: "include" };
-    const base = await getApiBase();
-    const response = await fetch(`${base}${path}`, init);
-    let body = null;
-    try { body = await response.json(); } catch (_) { body = null; }
-    if (!response.ok) {
-      if (response.status === 401) {
-        setAuthenticated(false);
-        showAuthStatus("Anmeldung erforderlich");
+    let lastError = null;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        const base = await getApiBase(attempt > 0);
+        const response = await fetch(`${base}${path}`, init);
+        let body = null;
+        try { body = await response.json(); } catch (_) { body = null; }
+        if (!response.ok) {
+          if (response.status === 401) {
+            setAuthenticated(false);
+            showAuthStatus("Anmeldung erforderlich");
+          }
+          const detail = body?.detail;
+          const message = typeof detail === "string" ? detail : detail?.message || `HTTP ${response.status}`;
+          const error = new Error(message);
+          error.status = response.status;
+          error.body = body;
+          error.transient = [502, 503, 504].includes(response.status);
+          throw error;
+        }
+        return body;
+      } catch (error) {
+        lastError = error;
+        if (!isTransientApiError(error) || attempt === 3) throw error;
+        resetApiBase();
+        await wait(500 * (2 ** attempt));
       }
-      const detail = body?.detail;
-      const message = typeof detail === "string" ? detail : detail?.message || `HTTP ${response.status}`;
-      const error = new Error(message);
-      error.status = response.status;
-      error.body = body;
-      throw error;
     }
-    return body;
+    throw lastError || new Error("Verbindung zum Modell-PC fehlgeschlagen.");
   }
 
   function jsonOptions(method, body) {
@@ -427,6 +464,9 @@
             uploaded = true;
             break;
           }
+          if (isTransientApiError(error)) {
+            setAnalysisStatus("Verbindung wird erneut aufgebaut ...", true);
+          }
           await wait(700 * (attempt + 1));
         }
       }
@@ -439,16 +479,25 @@
   }
 
   async function pollJob(jobId) {
+    let reconnects = 0;
     for (;;) {
-      const job = await apiRequest(`/v1/jobs/${encodeURIComponent(jobId)}`);
-      if (job.status === "completed") return job;
-      if (job.status === "error") throw new Error(job.error || "Transkription fehlgeschlagen.");
-      const percent = Math.round((Number(job.progress) || 0) * 100);
-      setAnalysisStatus(`Modell verarbeitet · ${percent}% · ${job.chunks || 0} Fenster`, true);
+      try {
+        const job = await apiRequest(`/v1/jobs/${encodeURIComponent(jobId)}`);
+        reconnects = 0;
+        if (job.status === "completed") return job;
+        if (job.status === "error") throw new Error(job.error || "Transkription fehlgeschlagen.");
+        const percent = Math.round((Number(job.progress) || 0) * 100);
+        setAnalysisStatus(`Modell verarbeitet ... ${percent}% ... ${job.chunks || 0} Fenster`, true);
+      } catch (error) {
+        if (!isTransientApiError(error)) throw error;
+        reconnects += 1;
+        setAnalysisStatus(`Verbindung wird erneut aufgebaut (Versuch ${reconnects}) ...`, true);
+        await wait(Math.min(15000, 1000 * (2 ** Math.min(reconnects, 3))));
+        continue;
+      }
       await wait(1500);
     }
   }
-
   function renderTranscriptionResults(jobs) {
     if (jobs.length === 1) {
       const job = jobs[0];
