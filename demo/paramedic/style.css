@@ -698,6 +698,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 
 .scene-viewport { background: #1c3438; }
+.hotspot { color: #e9f2f1; }
 .scene-caption {
   padding: 5px 8px;
   border: 1px solid rgba(255,255,255,.2);
