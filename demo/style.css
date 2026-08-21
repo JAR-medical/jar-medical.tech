@@ -224,6 +224,7 @@ input[type="range"] { flex: 1; min-width: 90px; }
 }
 .btn-klein:hover { background: var(--flaeche-3); }
 .btn-klein.gefahr { color: var(--warn); border-color: #e0b2b4; }
+.rail-asr-link { display: block; margin: 8px 9px 2px; text-align: center; text-decoration: none; }
 .datei { display: inline-block; }
 
 .lage { display: grid; grid-template-columns: 84px 1fr; gap: 2px 8px; }
