@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1820">
+  <meta name="description" content="TriARge first-person paramedic training scenario with local voice model.">
+  <title>TriARge &middot; Paramedic First Response</title>
+  <link rel="stylesheet" href="./style.css?v=1">
+</head>
+<body>
+  <div class="game-shell" id="game-shell">
+    <header class="game-topbar">
+      <a class="back-link" href="../asr/">&larr; ASR</a>
+      <div class="brand-block">
+        <span class="eyebrow">TRIARGE / TRAINING</span>
+        <h1>Paramedic: First Response</h1>
+      </div>
+      <div class="top-actions">
+        <span class="connection-state" id="connection-state">Modell wird geprueft</span>
+        <button class="small-button" id="xr-button" type="button">VR / Cardboard</button>
+      </div>
+    </header>
+
+    <main class="game-layout">
+      <section class="scene-panel" aria-label="First-person Einsatzszene">
+        <div class="scene-toolbar">
+          <div>
+            <span class="eyebrow">CUSTOM SCENARIO</span>
+            <strong>Bahnhofsvorplatz &middot; Patientin mit Atemnot</strong>
+          </div>
+          <span class="mode-pill" id="mode-pill">FIRST PERSON</span>
+        </div>
+
+        <div class="scene-viewport" id="scene-viewport" tabindex="0" aria-label="First-person Sicht. Ziehen, WASD oder Pfeiltasten zum Umschauen.">
+          <div class="scene-sky"></div>
+          <div class="scene-world" id="scene-world">
+            <div class="scene-wall scene-wall-back"></div>
+            <div class="scene-wall scene-wall-side"></div>
+            <div class="scene-floor"></div>
+            <div class="scene-light"></div>
+            <div class="station-sign"><span>BAHNHOF</span><small>GLEIS 2</small></div>
+            <div class="bench bench-left"></div>
+            <div class="bench bench-right"></div>
+            <div class="patient-shadow"></div>
+            <div class="patient-figure" id="patient-figure" aria-label="Patientin">
+              <div class="patient-head"></div>
+              <div class="patient-hair"></div>
+              <div class="patient-body"></div>
+              <div class="patient-arm patient-arm-left"></div>
+              <div class="patient-arm patient-arm-right"></div>
+              <div class="patient-leg patient-leg-left"></div>
+              <div class="patient-leg patient-leg-right"></div>
+            </div>
+            <button class="hotspot patient-hotspot" id="patient-hotspot" type="button">
+              <span class="hotspot-dot"></span>Patientin untersuchen
+            </button>
+            <button class="hotspot kit-hotspot" id="kit-hotspot" type="button">
+              <span class="hotspot-dot"></span>Notfallkoffer
+            </button>
+          </div>
+          <div class="scene-vignette"></div>
+          <div class="crosshair" aria-hidden="true"><span></span></div>
+          <div class="scene-label scene-label-left">LOOK / MOVE</div>
+          <div class="scene-label scene-label-right">CASE 07</div>
+          <div class="scene-caption" id="scene-caption">Ziehe im Bild, nutze WASD oder waehle einen Hotspot.</div>
+        </div>
+
+        <div class="look-controls" aria-label="Sicht steuern">
+          <button class="look-button" type="button" data-look="left" aria-label="Nach links schauen">&larr;</button>
+          <button class="look-button" type="button" data-look="forward" aria-label="Nach vorne schauen">&uarr;</button>
+          <button class="look-button" type="button" data-look="right" aria-label="Nach rechts schauen">&rarr;</button>
+          <button class="look-button" type="button" data-look="back" aria-label="Nach hinten schauen">&darr;</button>
+          <span class="look-help">PC: WASD / Pfeile &middot; iPhone: ziehen &middot; VR: Button oben</span>
+        </div>
+      </section>
+
+      <aside class="mission-panel" aria-label="Einsatzauftrag">
+        <section class="mission-card">
+          <div class="section-kicker">EINSATZAUFTRAG</div>
+          <h2>Erst beurteilen. Dann handeln.</h2>
+          <p>Du bist der erste Paramedic am Bahnhof. Eine Patientin sitzt blass auf der Bank, ist ansprechbar und ringt nach Luft.</p>
+          <div class="objective-list">
+            <div class="objective" data-objective="breathing"><span>01</span><strong>Atmung pruefen</strong><i></i></div>
+            <div class="objective" data-objective="pulse"><span>02</span><strong>Puls / Haut beurteilen</strong><i></i></div>
+            <div class="objective" data-objective="voice"><span>03</span><strong>Dem Modell sagen, was los ist</strong><i></i></div>
+            <div class="objective" data-objective="card"><span>04</span><strong>Eine Karte geben</strong><i></i></div>
+          </div>
+        </section>
+
+        <section class="auth-card">
+          <div class="auth-heading">
+            <div><span class="section-kicker">LOKALES MODELL</span><strong>CrisperWhisper</strong></div>
+            <span class="auth-dot" id="auth-dot"></span>
+          </div>
+          <form id="login-form" class="login-form">
+            <input id="auth-password" type="password" autocomplete="current-password" placeholder="Passwort" aria-label="Modell-Passwort">
+            <button class="small-button primary" type="submit" id="login-button">Verbinden</button>
+          </form>
+          <div class="auth-status" id="auth-status">Die ASR-Sitzung wird uebernommen, wenn du bereits angemeldet bist.</div>
+        </section>
+
+        <section class="patient-card" id="patient-card">
+          <div class="card-topline"><span class="section-kicker">PATIENTENKARTE</span><span class="card-code">P-07</span></div>
+          <div class="patient-name"><strong>Lea M.</strong><span>29 Jahre &middot; ansprechbar</span></div>
+          <div class="vital-grid">
+            <div><span>Puls</span><strong id="vital-pulse">--</strong></div>
+            <div><span>Atmung</span><strong id="vital-breathing">--</strong></div>
+            <div><span>Haut</span><strong id="vital-skin">--</strong></div>
+            <div><span>SpO2</span><strong>89%</strong></div>
+          </div>
+          <div class="patient-note" id="patient-note">Noch keine Untersuchung dokumentiert.</div>
+        </section>
+
+        <section class="action-card">
+          <div class="card-topline"><span class="section-kicker">INTERAKTION</span><span class="action-state" id="action-state">bereit</span></div>
+          <div class="action-grid">
+            <button class="action-button" id="observe-breathing" type="button"><span>01</span><strong>Atmung</strong><small>beobachten</small></button>
+            <button class="action-button" id="observe-pulse" type="button"><span>02</span><strong>Puls</strong><small>Haut / Kreislauf</small></button>
+            <button class="action-button" id="show-card" type="button"><span>03</span><strong>Karte</strong><small>Patienten-ID zeigen</small></button>
+          </div>
+        </section>
+
+        <section class="voice-card">
+          <div class="card-topline"><span class="section-kicker">VOICE / LOCAL ASR</span><span class="record-state" id="record-state">bereit</span></div>
+          <p>Druecke Aufnahme, sage zum Beispiel: &bdquo;Atemnot, blass, schneller Puls, rote Karte.&ldquo;</p>
+          <div class="voice-row">
+            <button class="voice-button" id="voice-button" type="button" disabled><span class="mic-mark"></span><strong>Aufnahme starten</strong></button>
+            <label class="file-button" for="voice-file">Audio laden</label>
+            <input id="voice-file" type="file" accept="audio/*" hidden>
+          </div>
+          <div class="transcript-box" id="transcript-box">Noch keine Modellantwort.</div>
+        </section>
+
+        <section class="card-tray">
+          <div class="card-topline"><span class="section-kicker">KARTEN AUS DEM KOFFER</span><span class="card-count" id="card-count">0 / 4 gegeben</span></div>
+          <div class="cards">
+            <button class="triage-card red" type="button" data-card="red"><span class="triage-color"></span><strong>ROT</strong><small>Sofort priorisieren</small></button>
+            <button class="triage-card blue" type="button" data-card="oxygen"><span class="triage-color"></span><strong>O2</strong><small>Atemhilfe anfordern</small></button>
+            <button class="triage-card yellow" type="button" data-card="transport"><span class="triage-color"></span><strong>GELB</strong><small>Transport vorbereiten</small></button>
+            <button class="triage-card green" type="button" data-card="observe"><span class="triage-color"></span><strong>GRUEN</strong><small>Beobachten</small></button>
+          </div>
+        </section>
+
+        <section class="event-log-card">
+          <div class="card-topline"><span class="section-kicker">EINSATZLOG</span><button class="text-button" id="reset-button" type="button">Neu starten</button></div>
+          <ol class="event-log" id="event-log"></ol>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="game-footer">
+      <span>TRAINING ONLY &middot; Kein klinischer Rat &middot; Fiktives Szenario</span>
+      <span id="score-line">0 / 4 Ziele</span>
+    </footer>
+  </div>
+
+  <div class="scenario-modal" id="result-modal" hidden>
+    <div class="modal-card">
+      <span class="section-kicker">SCENARIO COMPLETE</span>
+      <h2>Gute erste Lageeinschaetzung.</h2>
+      <p id="result-copy">Das Modell hat deine Einsatzmeldung verstanden und die richtige Karte wurde gegeben.</p>
+      <button class="small-button primary" id="modal-reset" type="button">Noch einmal</button>
+    </div>
+  </div>
+
+  <script src="./app.js?v=1"></script>
+</body>
+</html>
+
