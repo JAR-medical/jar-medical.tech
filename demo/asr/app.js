@@ -7,6 +7,31 @@
   const fileInput = $("file-input");
   const stageOrder = ["capture", "trim", "relevance", "voice", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
+  let resolvedApiBase = null;
+  let apiBasePromise = null;
+
+  async function getApiBase() {
+    if (window.JAR_API_BASE || resolvedApiBase) return resolvedApiBase || API_BASE;
+    if (!apiBasePromise) {
+      apiBasePromise = fetch(`${API_BASE}/__target`, { credentials: "omit" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const body = await response.json();
+          if (!body?.base_url) throw new Error("Tunnel target unavailable");
+          const candidate = new URL(body.base_url);
+          if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
+            throw new Error("Invalid tunnel target");
+          }
+          resolvedApiBase = candidate.origin;
+          return resolvedApiBase;
+        })
+        .catch((error) => {
+          apiBasePromise = null;
+          throw error;
+        });
+    }
+    return apiBasePromise;
+  }
   const DEMO_RECORD = {
     "Hinweis": "Demoausgabe. Für echte Transkription anmelden und Analyse starten.",
     "Transkript": "Noch keine Server-Transkription abgerufen."
@@ -157,7 +182,8 @@
   async function apiRequest(path, options = {}) {
     const headers = new Headers(options.headers || {});
     const init = { ...options, headers, credentials: "include" };
-    const response = await fetch(`${API_BASE}${path}`, init);
+    const base = await getApiBase();
+    const response = await fetch(`${base}${path}`, init);
     let body = null;
     try { body = await response.json(); } catch (_) { body = null; }
     if (!response.ok) {
