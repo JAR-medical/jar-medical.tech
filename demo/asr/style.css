@@ -202,3 +202,12 @@ audio { display: block; width: calc(100% - 20px); height: 31px; margin: 0 10px 7
   .deactivation-line { justify-content: flex-start; }
   .audio-actions { flex-wrap: wrap; }
 }
+
+.patient-card { margin: 0 10px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.patient-card summary { padding: 8px 10px; cursor: pointer; font-weight: 600; list-style-position: inside; }
+.patient-card summary .muted { font-weight: 400; }
+.patient-card textarea {
+  display: block; width: calc(100% - 20px); margin: 0 10px 10px; padding: 8px 9px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+  color: var(--ink); font: 11px/1.5 var(--mono); resize: vertical; min-height: 72px;
+}

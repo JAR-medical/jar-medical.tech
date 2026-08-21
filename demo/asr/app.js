@@ -14,16 +14,104 @@
   const qrCancelButton = $("qr-cancel-button");
   const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
-  // Keep authenticated requests on the stable worker origin. The worker forwards
-  // them to the current tunnel; using a raw trycloudflare host would orphan the
-  // session cookie whenever that tunnel changes.
+  const API_TARGET_CACHE_MS = 30000;
+  const API_RESOLVE_TIMEOUT_MS = 12000;
+  let resolvedApiBase = null;
+  let resolvedApiAt = 0;
+  let apiBasePromise = null;
+
   function resetApiBase() {
-    // Retained for retry callers; the stable origin never needs re-resolution.
+    if (window.JAR_API_BASE) return;
+    resolvedApiBase = null;
+    resolvedApiAt = 0;
+    apiBasePromise = null;
   }
 
-  async function getApiBase() {
-    return API_BASE;
+  async function fetchWithTimeout(url, options = {}, timeoutMs = API_RESOLVE_TIMEOUT_MS) {
+    const controller = typeof AbortController === "undefined" ? null : new AbortController();
+    let timeoutId = null;
+    try {
+      const request = { ...options };
+      if (controller) {
+        request.signal = controller.signal;
+        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      return await fetch(url, request);
+    } catch (error) {
+      if (controller?.signal.aborted) {
+        const timeoutError = new Error("The API request timed out.");
+        timeoutError.name = "TypeError";
+        timeoutError.transient = true;
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
   }
+
+  async function resolveApiBase() {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/__target?refresh=${Date.now()}`,
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      error.transient = true;
+      throw error;
+    }
+    let body;
+    try {
+      body = await response.json();
+    } catch (_) {
+      const error = new Error("Tunnel target response was invalid.");
+      error.transient = true;
+      throw error;
+    }
+    if (!body?.base_url) {
+      const error = new Error("Tunnel target unavailable.");
+      error.transient = true;
+      throw error;
+    }
+    const candidate = new URL(body.base_url);
+    if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
+      throw new Error("Invalid tunnel target.");
+    }
+    const health = await fetchWithTimeout(
+      `${candidate.origin}/v1/health?probe=${Date.now()}`,
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!health.ok) {
+      const error = new Error(`Tunnel health HTTP ${health.status}`);
+      error.status = health.status;
+      error.transient = true;
+      throw error;
+    }
+    return candidate.origin;
+  }
+
+  async function getApiBase(force = false) {
+    if (window.JAR_API_BASE) return API_BASE;
+    if (force) resetApiBase();
+    if (resolvedApiBase && Date.now() - resolvedApiAt < API_TARGET_CACHE_MS) {
+      return resolvedApiBase;
+    }
+    if (!apiBasePromise) {
+      const pending = (async () => {
+        const base = await resolveApiBase();
+        resolvedApiBase = base;
+        resolvedApiAt = Date.now();
+        return base;
+      })();
+      apiBasePromise = pending;
+      pending.catch(() => {
+        if (apiBasePromise === pending) apiBasePromise = null;
+      });
+    }
+    return apiBasePromise;
+  }
+
   function isTransientApiError(error) {
     return Boolean(
       error?.transient ||
@@ -57,8 +145,19 @@
     qrCanvasContext: null,
     authenticated: false,
     csrf: null,
-    authPanel: null
+    authPanel: null,
+    missionReport: null
   };
+
+  const MISSION_REPORT_KEY = "jar-mission-report-JAR-1842";
+  const PATIENT_CARD_KEY = "jar-patient-card-JAR-1842";
+  const DEFAULT_PATIENT_CARD = [
+    "Patient: JAR-1842",
+    "Alter: 34",
+    "Geschlecht: maennlich",
+    "Zustaendigkeit: Rettungsdienst",
+    "Vorerkrankungen: unbekannt"
+  ].join("\n");
 
   function esc(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({
@@ -216,6 +315,62 @@
     renderOutput(DEMO_RECORD, { _demo: true, _hinweis: "Keine Modellabfrage" });
   }
 
+  function loadMissionReport() {
+    try {
+      const raw = window.sessionStorage.getItem(MISSION_REPORT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveMissionReport(report) {
+    state.missionReport = report;
+    try { window.sessionStorage.setItem(MISSION_REPORT_KEY, JSON.stringify(report)); } catch (_) { /* storage full or blocked */ }
+  }
+
+  function getPatientCardText() {
+    const input = $("patient-card-input");
+    const text = input ? input.value.trim() : "";
+    if (!text && !input) return DEFAULT_PATIENT_CARD;
+    return text || DEFAULT_PATIENT_CARD;
+  }
+
+  function joinList(value) {
+    if (!Array.isArray(value) || !value.length) return "—";
+    return value.map((item) => {
+      if (item && typeof item === "object") {
+        const parts = [item.parameter, item.wert, item.einheit].filter(Boolean);
+        return parts.join(": ");
+      }
+      return String(item);
+    }).join(" · ");
+  }
+
+  function renderMissionReport(report, meta = {}) {
+    if (!report) return;
+    const patient = report.patient || {};
+    const transport = report.transport || {};
+    $("output-title").textContent = "Patientenbericht · Lagebild";
+    renderOutput({
+      "Sichtungskategorie": report.sichtungskategorie || "unbekannt",
+      "Patient": [patient.name, patient.alter, patient.geschlecht].filter(Boolean).join(" · ") || "unbekannt",
+      "Zuständigkeit": patient.zustaendigkeit || "—",
+      "Vitalwerte": joinList(report.vitalwerte),
+      "Beschwerden": joinList(report.beschwerden),
+      "Verletzungen": joinList(report.verletzungen),
+      "Massnahmen": joinList(report.massnahmen),
+      "Transport": [transport.noetig === "ja" ? "ja" : transport.noetig || "unbekannt", transport.ziel, transport.dringlichkeit].filter(Boolean).join(" · "),
+      "Notizen": joinList(report.notizen)
+    }, {
+      gbnf: true,
+      llm_model: meta.model || null,
+      llm_seconds: meta.seconds || null,
+      llm_tokens: meta.completion_tokens || null,
+      growing_report: report
+    });
+  }
+
   function makeAuthPanel() {
     if (state.authPanel) return state.authPanel;
     const panel = document.createElement("section");
@@ -277,14 +432,14 @@
       ...requestOptions
     } = options;
     const headers = new Headers(requestOptions.headers || {});
-    const init = { cache: "no-store", ...requestOptions, headers, credentials: "include" };
+    const init = { ...requestOptions, headers, credentials: "include" };
     const retryCount = Math.max(1, Number(configuredRetryCount) || 5);
     let lastError = null;
     for (let attempt = 0; attempt < retryCount; attempt += 1) {
       let controller = null;
       let timeoutId = null;
       try {
-        const base = await getApiBase();
+        const base = await getApiBase(attempt > 0);
         const requestInit = { ...init };
         const requestTimeout = Number(timeoutMs) || 0;
         if (requestTimeout > 0 && typeof AbortController !== "undefined") {
@@ -346,6 +501,8 @@
       });
       setAuthenticated(true, result.csrf_token);
       showAuthStatus("verbunden", false, true);
+      const note = $("top-note");
+      if (note) note.textContent = "∑LLM aktiv · LFM2 GBNF-Extraktion · Modell-PC verbunden";
     } catch (error) {
       if (error.status === 401) {
         showAuthStatus("Anmeldung erforderlich");
@@ -728,6 +885,18 @@
     });
   }
 
+  async function extractMissionData(jobs) {
+    const transcripts = jobs.map((job) => job.transcript || "").filter(Boolean).join("\n\n");
+    if (!transcripts) throw new Error("Kein Transkript fuer die Extraktion.");
+    const payload = {
+      transcript: transcripts,
+      patient_card: getPatientCardText()
+    };
+    const existing = loadMissionReport();
+    if (existing) payload.existing_report = existing;
+    return apiRequest("/v1/extract", jsonOptions("POST", payload));
+  }
+
   async function analyze() {
     if (state.analyzing) return;
     if (!state.authenticated) {
@@ -758,11 +927,34 @@
         jobs.push(job);
         setStage("voice", "fertig");
       }
-      ["relevance", "context", "extract"].forEach((stage) => setStage(stage, "nicht aktiviert"));
+      setStage("relevance", "fertig");
+      let extraction = null;
+      if (state.authenticated) {
+        try {
+          setStage("context", "läuft");
+          setAnalysisStatus("Kontext · Text + Patientenkarte + JSON-Bericht", true);
+          await wait(200);
+          setStage("context", "fertig");
+          setStage("extract", "läuft");
+          setAnalysisStatus("∑LLM · GBNF-Extraktion läuft …", true);
+          extraction = await extractMissionData(jobs);
+          setStage("extract", "fertig");
+        } catch (error) {
+          ["extract", "context"].forEach((stage) => setStage(stage, "nicht aktiviert"));
+          showAuthStatus(error.message || "Extraktion nicht verfügbar");
+        }
+      } else {
+        ["relevance", "context", "extract"].forEach((stage) => setStage(stage, "nicht aktiviert"));
+      }
       setStage("output", "fertig");
-      renderTranscriptionResults(jobs);
+      if (extraction && extraction.report) {
+        renderMissionReport(extraction.report, extraction.llm || {});
+        setAnalysisStatus("Lagebild aktualisiert · GBNF-JSON wachsende Listen", false, true);
+      } else {
+        renderTranscriptionResults(jobs);
+      }
       setAnalysisStatus(
-        jobs.length > 1 ? jobs.length + " Transkriptionen fertig" : "Transkription fertig",
+        jobs.length > 1 ? jobs.length + " Transkriptionen fertig" : (extraction ? "Lagebild aktualisiert" : "Transkription fertig"),
         false,
         true
       );
@@ -860,5 +1052,15 @@
   renderDemo();
   resetStages();
   renderListeningTime();
+  state.missionReport = loadMissionReport();
+  const patientCardInput = $("patient-card-input");
+  if (patientCardInput) {
+    let stored = null;
+    try { stored = window.localStorage.getItem(PATIENT_CARD_KEY); } catch (_) { /* blocked */ }
+    patientCardInput.value = stored || DEFAULT_PATIENT_CARD;
+    patientCardInput.addEventListener("change", () => {
+      try { window.localStorage.setItem(PATIENT_CARD_KEY, patientCardInput.value); } catch (_) { /* blocked */ }
+    });
+  }
   void loadSession();
 })();
