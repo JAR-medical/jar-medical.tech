@@ -77,6 +77,8 @@
     mediaStream: null,
     recordedChunks: [],
     recordingStarting: false,
+    scanning: false,
+    scanToken: 0,
     authenticated: false,
     csrf: null,
     authPanel: null
@@ -118,7 +120,7 @@
     const node = document.querySelector(`[data-stage="${stage}"]`);
     if (!node) return;
     node.classList.remove("active", "done");
-    if (["läuft", "running"].includes(status)) node.classList.add("active");
+    if (["läuft", "running", "scannt"].includes(status)) node.classList.add("active");
     if (["fertig", "done"].includes(status)) node.classList.add("done");
     const statusNode = node.querySelector(".node-status");
     if (statusNode) statusNode.textContent = status;
@@ -173,7 +175,11 @@
       recordButton.textContent = active ? "Aufnahme beenden" : "Aufnahme starten";
       recordButton.setAttribute("aria-pressed", String(active));
     }
-    if ($("scan-button")) $("scan-button").textContent = active ? "Aufnahme beenden" : "QR-Scan simulieren";
+    const scanButton = $("scan-button");
+    if (scanButton) {
+      scanButton.textContent = active ? "Aufnahme beenden" : state.scanning ? "Scan abbrechen" : "QR-Scan simulieren";
+      scanButton.setAttribute("aria-busy", String(Boolean(state.scanning)));
+    }
   }
 
   function setSelectedFiles(files) {
@@ -358,8 +364,51 @@
     const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
     return types.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
   }
+  function cancelQrScan() {
+    if (!state.scanning) return false;
+    state.scanning = false;
+    state.scanToken += 1;
+    if (fileInput) fileInput.disabled = false;
+    if (recordButton) recordButton.disabled = false;
+    setRecordingButtons(false);
+    setStage("capture", "bereit");
+    setActivationMessage("QR-Scan abgebrochen", "Bereit für einen neuen simulierten Scan.", "bereit", "");
+    return true;
+  }
+
+  async function simulateQrScan() {
+    if (state.recording) {
+      deactivate("Aufnahme beendet.");
+      return;
+    }
+    if (state.recordingStarting) return;
+    if (state.scanning) {
+      cancelQrScan();
+      return;
+    }
+    const scanToken = state.scanToken + 1;
+    state.scanToken = scanToken;
+    state.scanning = true;
+    if (fileInput) fileInput.disabled = true;
+    if (recordButton) recordButton.disabled = true;
+    setRecordingButtons(false);
+    setStage("capture", "scannt");
+    setActivationMessage("QR-Code wird gesucht", "Simulierter AR-Kamera-Scan läuft …", "scannt", "scanning");
+    await wait(900);
+    if (!state.scanning || state.scanToken !== scanToken) return;
+    setActivationMessage("QR-Code erkannt", "QR-JAR-1842 wird übernommen.", "erkannt", "done");
+    await wait(550);
+    if (!state.scanning || state.scanToken !== scanToken) return;
+    state.scanning = false;
+    if (fileInput) fileInput.disabled = false;
+    if (recordButton) recordButton.disabled = false;
+    setRecordingButtons(false);
+    setStage("capture", "fertig");
+    await activate("qr");
+  }
+
   async function activate(source) {
-    if (state.recording || state.recordingStarting) return;
+    if (state.recording || state.recordingStarting || state.scanning) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setActivationMessage("Mikrofon nicht verfuegbar", "Bitte eine Audiodatei laden.", "nicht verfuegbar", "");
       return;
@@ -410,6 +459,10 @@
     }
   }
   function deactivate(reason) {
+    if (state.scanning) {
+      cancelQrScan();
+      return;
+    }
     if (!state.recording) {
       setActivationMessage("Aufnahme beendet", reason || "Audiodatei kann verarbeitet werden.", "beendet", "done");
       return;
@@ -586,7 +639,8 @@
   }
   $("scan-button").addEventListener("click", () => {
     if (state.recording) deactivate("Aufnahme beendet.");
-    else void activate("qr");
+    else if (state.scanning) cancelQrScan();
+    else void simulateQrScan();
   });
   $("vorsichtung-button").addEventListener("click", () => {
     if (state.recording) deactivate("Vorsichtung abgeschlossen.");

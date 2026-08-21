@@ -52,6 +52,11 @@ h3 { font-size: 12px; line-height: 1.25; }
 .control-state { display: flex; align-items: center; gap: 5px; color: var(--ink-3); font: 10px var(--mono); text-transform: uppercase; }
 .control-dot, .source-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #9aa1a9; }
 .control-dot.live { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+.control-dot.scanning { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft); animation: qr-scan-pulse .8s ease-in-out infinite; }
+@keyframes qr-scan-pulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
 .control-dot.done { background: var(--accent); }
 .control-main { display: flex; align-items: baseline; gap: 9px; padding: 9px 10px 7px; }
 .control-main strong { font-size: 13px; white-space: nowrap; }
