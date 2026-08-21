@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TriARge · Patienten / ASR-System</title>
   <meta name="description" content="Kompakte Demo des ASR-Workflows für die digitale Patientensichtung im TriARge-Lagebild.">
-  <link rel="stylesheet" href="./style.css?v=3">
+  <link rel="stylesheet" href="./style.css?v=4">
 </head>
 <body>
   <div class="asr-app" id="asr-app">
@@ -53,6 +53,11 @@
             <span class="mono muted" id="audio-duration">--:--</span>
           </div>
           <div class="audio-file"><strong id="audio-name">sample-voice-thorsten.mp3</strong><span class="muted" id="file-status">Demo-Aufnahme · kann ersetzt werden</span></div>
+          <div class="recording-indicator" role="status" aria-live="assertive">
+            <span class="recording-pulse" aria-hidden="true"></span>
+            <strong>AUFNAHME L&Auml;UFT</strong>
+            <span class="recording-indicator-copy">Mikrofon aktiv - zum Beenden erneut klicken</span>
+          </div>
           <audio id="audio-player" controls preload="metadata" src="./sample-voice-thorsten.mp3">
             Ihr Browser unterstützt das Audioelement nicht.
           </audio>

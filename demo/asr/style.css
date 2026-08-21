@@ -89,6 +89,14 @@ audio { display: block; width: calc(100% - 20px); height: 31px; margin: 0 10px 7
 .file-list li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
 .file-list li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-list .file-size { flex: 0 0 auto; color: var(--ink-3); }
+.recording-indicator { display: none; align-items: center; gap: 8px; margin: 0 10px 7px; padding: 7px 9px; border: 1px solid #e3aaa5; background: #fff1f0; color: #9d2018; font-size: 11px; }
+.asr-app.recording .recording-indicator { display: flex; }
+.recording-indicator-copy { min-width: 0; overflow: hidden; color: #b34d46; text-overflow: ellipsis; white-space: nowrap; }
+.recording-pulse { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: #c92a2a; box-shadow: 0 0 0 3px rgba(201,42,42,.16); animation: recording-pulse 1s ease-in-out infinite; }
+.asr-app.recording #record-button { border-color: #b42318; background: #c92a2a; color: #fff; box-shadow: 0 0 0 3px rgba(201,42,42,.16); }
+.asr-app.recording #record-button:hover { background: #a61f1f; }
+.asr-app.recording #record-button::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #fff; animation: recording-pulse 1s ease-in-out infinite; }
+@keyframes recording-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .workflow-panel { margin-top: 10px; }
 .workflow-head { align-items: end; }
