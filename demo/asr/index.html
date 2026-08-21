@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TriARge · Patienten / ASR-System</title>
   <meta name="description" content="Kompakte Demo des ASR-Workflows für die digitale Patientensichtung im TriARge-Lagebild.">
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
 </head>
 <body>
   <div class="asr-app" id="asr-app">
@@ -57,11 +57,13 @@
             Ihr Browser unterstützt das Audioelement nicht.
           </audio>
           <div class="audio-actions">
-            <label class="file-button" for="file-input">MP3 laden</label>
-            <input id="file-input" type="file" accept=".mp3,audio/mpeg,audio/*" hidden>
+            <label class="file-button" for="file-input">Audiodateien waehlen</label>
+            <input id="file-input" type="file" accept=".mp3,audio/mpeg,audio/*" multiple hidden>
+            <button class="action" id="record-button" type="button" aria-pressed="false">Aufnahme starten</button>
             <button class="action primary" id="analyze-button" type="button">Analyse starten</button>
             <span class="analysis-status" id="analysis-status" aria-live="polite">bereit</span>
           </div>
+          <div class="file-list" id="file-list" aria-live="polite" aria-label="Ausgewaehlte Audiodateien"></div>
         </article>
       </section>
 
@@ -143,7 +145,7 @@
           </div>
           <div class="output-actions"><span class="analysis-status" id="output-status">Beispielausgabe</span><button class="text-button" id="toggle-json" type="button">GBNF-JSON anzeigen</button></div>
         </div>
-        <div class="input-summary" aria-label="Inputs für den finalen Bericht"><span class="input-summary-label">Inputs</span><span>QR-JAR-1842</span><span>benchmark-voice-thorsten.mp3</span><span>AR-Kamera</span><span>Medic-Mic nah</span><span>Patient / Partner ohne Mic</span><span>Patientenkarte</span><span>JSON-Bericht vorhanden</span></div>
+        <div class="input-summary" aria-label="Inputs für den finalen Bericht"><span class="input-summary-label">Inputs</span><span>QR-JAR-1842</span><span id="input-files-summary">benchmark-voice-thorsten.mp3</span><span>AR-Kamera</span><span>Medic-Mic nah</span><span>Patient / Partner ohne Mic</span><span>Patientenkarte</span><span>JSON-Bericht vorhanden</span></div>
         <div class="table-scroll">
           <table class="output-table">
             <thead><tr><th>Feld</th><th>Wert</th></tr></thead>
@@ -158,6 +160,6 @@
       </section>
     </main>
   </div>
-  <script src="./app.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
 </body>
 </html>

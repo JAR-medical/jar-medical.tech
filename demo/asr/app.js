@@ -5,6 +5,8 @@
   const app = $("asr-app");
   const audio = $("audio-player");
   const fileInput = $("file-input");
+  const fileList = $("file-list");
+  const recordButton = $("record-button");
   const stageOrder = ["capture", "trim", "relevance", "voice", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
   let resolvedApiBase = null;
@@ -45,9 +47,11 @@
     objectUrl: null,
     sourceName: "sample-voice-thorsten.mp3",
     file: null,
+    files: [],
     mediaRecorder: null,
     mediaStream: null,
     recordedChunks: [],
+    recordingStarting: false,
     authenticated: false,
     csrf: null,
     authPanel: null
@@ -107,6 +111,66 @@
     });
   }
 
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+  }
+
+  function renderFileList(files) {
+    if (!fileList) return;
+    fileList.replaceChildren();
+    if (!files.length) return;
+    const totalBytes = files.reduce((total, file) => total + file.size, 0);
+    const header = document.createElement("div");
+    header.className = "file-list-header";
+    header.textContent = files.length === 1
+      ? "1 Audiodatei ausgewaehlt"
+      : files.length + " Audiodateien ausgewaehlt - werden nacheinander verarbeitet (" + formatFileSize(totalBytes) + " gesamt)";
+    fileList.appendChild(header);
+    const list = document.createElement("ul");
+    files.forEach((file, index) => {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = (index + 1) + ". " + (file.name || "Unbenannte Audiodatei");
+      const size = document.createElement("span");
+      size.className = "file-size";
+      size.textContent = formatFileSize(file.size);
+      item.append(name, size);
+      list.appendChild(item);
+    });
+    fileList.appendChild(list);
+  }
+
+  function setRecordingButtons(active) {
+    if (recordButton) {
+      recordButton.textContent = active ? "Aufnahme beenden" : "Aufnahme starten";
+      recordButton.setAttribute("aria-pressed", String(active));
+    }
+    if ($("scan-button")) $("scan-button").textContent = active ? "Aufnahme beenden" : "QR-Scan simulieren";
+  }
+
+  function setSelectedFiles(files) {
+    const nextFiles = Array.from(files || []).filter(Boolean);
+    if (!nextFiles.length) return;
+    if (state.objectUrl) window.URL.revokeObjectURL(state.objectUrl);
+    state.files = nextFiles;
+    state.file = nextFiles[0];
+    state.objectUrl = window.URL.createObjectURL(state.file);
+    audio.src = state.objectUrl;
+    const displayName = nextFiles.length === 1 ? state.file.name : nextFiles.length + " Audiodateien";
+    const totalBytes = nextFiles.reduce((total, file) => total + file.size, 0);
+    $("audio-name").textContent = displayName;
+    $("file-status").textContent = nextFiles.length === 1
+      ? formatFileSize(state.file.size) + " - bereit"
+      : nextFiles.length + " Dateien - " + formatFileSize(totalBytes) + " gesamt - bereit";
+    const summary = $("input-files-summary");
+    if (summary) summary.textContent = displayName;
+    renderFileList(nextFiles);
+    $("analyze-button").textContent = nextFiles.length > 1 ? "Transkriptionen starten" : "Transkription starten";
+    setAnalysisStatus("bereit");
+  }
   function renderOutput(record, metadata = {}) {
     const entries = Object.entries(record || {});
     $("output-body").innerHTML = entries.length
@@ -250,41 +314,34 @@
   }
 
   function setAudioSource(file) {
-    if (state.objectUrl) window.URL.revokeObjectURL(state.objectUrl);
-    state.file = file;
-    state.objectUrl = window.URL.createObjectURL(file);
-    state.sourceName = file.name;
-    audio.src = state.objectUrl;
-    $("audio-name").textContent = file.name;
-    $("file-status").textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB · bereit`;
-    $("analyze-button").textContent = "Transkription starten";
-    setAnalysisStatus("bereit");
+    setSelectedFiles([file]);
   }
 
   function recorderMimeType() {
     const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
     return types.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
   }
-
   async function activate(source) {
-    if (state.recording) return;
+    if (state.recording || state.recordingStarting) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      setActivationMessage("Mikrofon nicht verfügbar", "Bitte eine Audiodatei laden.", "nicht verfügbar", "");
+      setActivationMessage("Mikrofon nicht verfuegbar", "Bitte eine Audiodatei laden.", "nicht verfuegbar", "");
       return;
     }
+    state.recordingStarting = true;
     try {
       state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = recorderMimeType();
       state.recordedChunks = [];
-      state.mediaRecorder = new MediaRecorder(state.mediaStream, mimeType ? { mimeType } : undefined);
+      state.mediaRecorder = new MediaRecorder(state.mediaStream, mimeType ? { mimeType: mimeType } : undefined);
       state.mediaRecorder.ondataavailable = (event) => {
         if (event.data?.size) state.recordedChunks.push(event.data);
       };
       state.mediaRecorder.onstop = () => {
-        const type = state.mediaRecorder?.mimeType || mimeType || "audio/webm";
+        const recorder = state.mediaRecorder;
+        const type = recorder?.mimeType || mimeType || "audio/webm";
         const extension = type.includes("ogg") ? "ogg" : type.includes("mp4") ? "m4a" : "webm";
-        const blob = new Blob(state.recordedChunks, { type });
-        setAudioSource(new File([blob], `aufnahme-${Date.now()}.${extension}`, { type }));
+        const blob = new Blob(state.recordedChunks, { type: type });
+        setAudioSource(new File([blob], "browser-aufnahme-" + Date.now() + "." + extension, { type: type }));
         state.mediaStream?.getTracks().forEach((track) => track.stop());
         state.mediaStream = null;
         state.mediaRecorder = null;
@@ -296,9 +353,11 @@
       renderListeningTime();
       startTimer();
       app.classList.add("recording");
-      $("scan-button").textContent = "Aufnahme beenden";
+      setRecordingButtons(true);
       setActivationMessage(
-        source === "keyword" ? "Vorsichtung erkannt · Mikrofon aktiv" : "QR-JAR-1842 erkannt · Mikrofon aktiv",
+        source === "keyword" ? "Vorsichtung erkannt - Mikrofon aktiv"
+          : source === "direct" ? "Browseraufnahme aktiv"
+            : "QR-JAR-1842 erkannt - Mikrofon aktiv",
         "Der Audiostrom wird lokal im Browser aufgenommen.",
         "aktiv",
         "live"
@@ -307,10 +366,12 @@
     } catch (error) {
       state.mediaStream?.getTracks().forEach((track) => track.stop());
       state.mediaStream = null;
+      setRecordingButtons(false);
       setActivationMessage("Mikrofonzugriff verweigert", error.message || "Bitte Mikrofonzugriff erlauben.", "bereit", "");
+    } finally {
+      state.recordingStarting = false;
     }
   }
-
   function deactivate(reason) {
     if (!state.recording) {
       setActivationMessage("Aufnahme beendet", reason || "Audiodatei kann verarbeitet werden.", "beendet", "done");
@@ -319,20 +380,19 @@
     state.recording = false;
     stopTimer();
     app.classList.remove("recording");
-    $("scan-button").textContent = "QR-Scan simulieren";
+    setRecordingButtons(false);
     setActivationMessage("Aufnahme beendet", reason || "Audiodatei wird vorbereitet.", "beendet", "done");
     $("analysis-status").textContent = "Aufnahme bereit";
     if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") state.mediaRecorder.stop();
   }
 
   async function defaultSampleFile() {
-    if (state.file) return state.file;
+    if (state.files.length) return state.files[0];
     const response = await fetch("./sample-voice-thorsten.mp3");
     if (!response.ok) throw new Error("Beispieldatei konnte nicht geladen werden.");
     const blob = await response.blob();
     return new File([blob], "sample-voice-thorsten.mp3", { type: blob.type || "audio/mpeg" });
   }
-
   async function uploadAndTranscribe(file) {
     const created = await apiRequest("/v1/uploads", jsonOptions("POST", {
       filename: file.name,
@@ -389,6 +449,42 @@
     }
   }
 
+  function renderTranscriptionResults(jobs) {
+    if (jobs.length === 1) {
+      const job = jobs[0];
+      $("output-title").textContent = "Transkript";
+      renderOutput({
+        "Datei": job.filename,
+        "Transkript": job.transcript || "Kein Text erkannt.",
+        "Dauer": job.duration_seconds == null ? "unbekannt" : Number(job.duration_seconds).toFixed(1) + " s",
+        "Fenster": job.chunks,
+        "Modell": "CrisperWhisper2.0 Large + EMS LoRA"
+      }, {
+        model: job.model,
+        duration_seconds: job.duration_seconds,
+        chunks: job.chunks,
+        processing_seconds: job.processing_seconds
+      });
+      return;
+    }
+    const records = {};
+    jobs.forEach((job, index) => {
+      records["Datei " + (index + 1) + ": " + (job.filename || "Unbenannte Audiodatei")] =
+        job.transcript || "Kein Text erkannt.";
+    });
+    $("output-title").textContent = "Transkripte (" + jobs.length + ")";
+    renderOutput(records, {
+      file_count: jobs.length,
+      results: jobs.map((job) => ({
+        filename: job.filename,
+        transcript: job.transcript || "",
+        duration_seconds: job.duration_seconds,
+        chunks: job.chunks,
+        processing_seconds: job.processing_seconds
+      }))
+    });
+  }
+
   async function analyze() {
     if (state.analyzing) return;
     if (!state.authenticated) {
@@ -398,43 +494,47 @@
     }
     state.analyzing = true;
     $("analyze-button").disabled = true;
-    $("analyze-button").textContent = "Transkription läuft …";
+    if (fileInput) fileInput.disabled = true;
+    if (recordButton) recordButton.disabled = true;
+    $("analyze-button").textContent = "Transkription laeuft ...";
     resetStages();
     setAnalysisStatus("Datei wird vorbereitet", true);
+    const jobs = [];
     try {
-      const file = await defaultSampleFile();
+      const files = state.files.length ? state.files.slice() : [await defaultSampleFile()];
       setStage("capture", "fertig");
-      setStage("trim", "läuft");
+      setStage("trim", "running");
       await wait(180);
       setStage("trim", "fertig");
-      setStage("voice", "läuft");
-      const job = await uploadAndTranscribe(file);
-      setStage("voice", "fertig");
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        const prefix = files.length > 1 ? "Datei " + (index + 1) + " / " + files.length + ": " : "";
+        setStage("voice", "running");
+        setAnalysisStatus(prefix + "Upload wird vorbereitet - " + (file.name || "Audiodatei"), true);
+        const job = await uploadAndTranscribe(file);
+        jobs.push(job);
+        setStage("voice", "fertig");
+      }
       ["relevance", "context", "extract"].forEach((stage) => setStage(stage, "nicht aktiviert"));
       setStage("output", "fertig");
-      renderOutput({
-        "Datei": job.filename,
-        "Transkript": job.transcript || "Kein Text erkannt.",
-        "Dauer": job.duration_seconds == null ? "unbekannt" : `${Number(job.duration_seconds).toFixed(1)} s`,
-        "Fenster": job.chunks,
-        "Modell": "CrisperWhisper2.0 Large + EMS LoRA"
-      }, {
-        model: job.model,
-        duration_seconds: job.duration_seconds,
-        chunks: job.chunks,
-        processing_seconds: job.processing_seconds
-      });
-      setAnalysisStatus("Transkription fertig", false, true);
+      renderTranscriptionResults(jobs);
+      setAnalysisStatus(
+        jobs.length > 1 ? jobs.length + " Transkriptionen fertig" : "Transkription fertig",
+        false,
+        true
+      );
     } catch (error) {
+      if (jobs.length) renderTranscriptionResults(jobs);
       setStage("voice", "fehler");
       setAnalysisStatus(error.message || "Transkription fehlgeschlagen");
     } finally {
       state.analyzing = false;
       $("analyze-button").disabled = false;
+      if (fileInput) fileInput.disabled = false;
+      if (recordButton) recordButton.disabled = false;
       $("analyze-button").textContent = "Erneut transkribieren";
     }
   }
-
   $("scan-button").addEventListener("click", () => {
     if (state.recording) deactivate("Aufnahme beendet.");
     else void activate("qr");
@@ -443,13 +543,19 @@
     if (state.recording) deactivate("Vorsichtung abgeschlossen.");
     else void activate("keyword");
   });
+  if (recordButton) {
+    recordButton.addEventListener("click", () => {
+      if (state.recording) deactivate("Aufnahme beendet.");
+      else void activate("direct");
+    });
+  }
   $("complete-button").addEventListener("click", () => {
     if (state.recording) deactivate("Aufnahme abgeschlossen.");
-    else setActivationMessage("Aufnahme ist beendet", "Nächster Schritt: Transkription starten.", "beendet", "done");
+    else setActivationMessage("Aufnahme ist beendet", "Naechster Schritt: Transkription starten.", "beendet", "done");
   });
   $("keyword-button").addEventListener("click", () => {
     if (state.recording) deactivate("Sichtung abgeschlossen.");
-    else setActivationMessage("Kein aktiver Audiostrom", "Das Schlüsselwort wird nur während einer Aufnahme ausgewertet.", "bereit", "");
+    else setActivationMessage("Kein aktiver Audiostrom", "Das Schluesselwort wird nur waehrend einer Aufnahme ausgewertet.", "bereit", "");
   });
   $("fast-forward-button").addEventListener("click", () => {
     state.elapsed = Math.max(state.elapsed, 183);
@@ -458,8 +564,14 @@
   });
   $("analyze-button").addEventListener("click", () => { void analyze(); });
   fileInput.addEventListener("change", () => {
-    const file = fileInput.files && fileInput.files[0];
-    if (file) setAudioSource(file);
+    const files = Array.from(fileInput.files || []);
+    fileInput.value = "";
+    if (!files.length) return;
+    if (state.recording) {
+      setAnalysisStatus("Aufnahme erst beenden, dann Dateien auswaehlen.");
+      return;
+    }
+    setSelectedFiles(files);
   });
   audio.addEventListener("loadedmetadata", () => {
     if (Number.isFinite(audio.duration)) $("audio-duration").textContent = timeText(Math.round(audio.duration));
