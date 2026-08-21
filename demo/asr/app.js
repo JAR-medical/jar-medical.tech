@@ -7,6 +7,11 @@
   const fileInput = $("file-input");
   const fileList = $("file-list");
   const recordButton = $("record-button");
+  const qrScanner = $("qr-scanner");
+  const qrVideo = $("qr-video");
+  const qrCanvas = $("qr-canvas");
+  const qrScannerStatus = $("qr-scanner-status");
+  const qrCancelButton = $("qr-cancel-button");
   const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
   let resolvedApiBase = null;
@@ -79,6 +84,10 @@
     recordingStarting: false,
     scanning: false,
     scanToken: 0,
+    qrStream: null,
+    qrAnimationFrame: null,
+    qrDetector: null,
+    qrCanvasContext: null,
     authenticated: false,
     csrf: null,
     authPanel: null
@@ -177,7 +186,7 @@
     }
     const scanButton = $("scan-button");
     if (scanButton) {
-      scanButton.textContent = active ? "Aufnahme beenden" : state.scanning ? "Scan abbrechen" : "QR-Scan simulieren";
+      scanButton.textContent = active ? "Aufnahme beenden" : state.scanning ? "QR-Scan beenden" : "QR-Code scannen";
       scanButton.setAttribute("aria-busy", String(Boolean(state.scanning)));
     }
   }
@@ -386,19 +395,92 @@
     const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
     return types.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
   }
+  function setQrScannerVisible(visible) {
+    if (qrScanner) qrScanner.hidden = !visible;
+  }
+
+  function setQrScannerStatus(text) {
+    if (qrScannerStatus) qrScannerStatus.textContent = text;
+  }
+
+  function stopQrCamera() {
+    if (state.qrAnimationFrame !== null) {
+      window.cancelAnimationFrame(state.qrAnimationFrame);
+      state.qrAnimationFrame = null;
+    }
+    state.qrStream?.getTracks().forEach((track) => track.stop());
+    state.qrStream = null;
+    state.qrDetector = null;
+    state.qrCanvasContext = null;
+    if (qrVideo) {
+      qrVideo.pause();
+      qrVideo.srcObject = null;
+    }
+    setQrScannerVisible(false);
+  }
+
+  function getQrDetector() {
+    if (!("BarcodeDetector" in window)) return null;
+    try {
+      return new window.BarcodeDetector({ formats: ["qr_code"] });
+    } catch (_) {
+      return null;
+    }
+  }
+
   function cancelQrScan() {
     if (!state.scanning) return false;
     state.scanning = false;
     state.scanToken += 1;
-    if (fileInput) fileInput.disabled = false;
-    if (recordButton) recordButton.disabled = false;
+    stopQrCamera();
     setRecordingButtons(false);
     setStage("capture", "bereit");
-    setActivationMessage("QR-Scan abgebrochen", "Bereit für einen neuen simulierten Scan.", "bereit", "");
+    setActivationMessage("QR-Scan abgebrochen", "Kamera geschlossen. Bereit für einen neuen Scan.", "bereit", "");
     return true;
   }
+  async function scanQrFrame(token) {
+    if (!state.scanning || state.scanToken !== token || !qrVideo) return;
+    let found = false;
+    if (qrVideo.readyState >= 2) {
+      try {
+        if (state.qrDetector) {
+          const codes = await state.qrDetector.detect(qrVideo);
+          found = codes.length > 0;
+        } else if (window.jsQR && qrCanvas && state.qrCanvasContext) {
+          const width = qrVideo.videoWidth;
+          const height = qrVideo.videoHeight;
+          if (width && height) {
+            state.qrCanvasContext.drawImage(qrVideo, 0, 0, width, height);
+            const image = state.qrCanvasContext.getImageData(0, 0, width, height);
+            const code = window.jsQR(image.data, width, height, { inversionAttempts: "attemptBoth" });
+            found = Boolean(code);
+          }
+        }
+      } catch (_) {
+        state.qrDetector = null;
+      }
+    }
+    if (found) {
+      await completeQrScan(token);
+      return;
+    }
+    if (!state.scanning || state.scanToken !== token) return;
+    state.qrAnimationFrame = window.requestAnimationFrame(() => { void scanQrFrame(token); });
+  }
 
-  async function simulateQrScan() {
+  async function completeQrScan(token) {
+    if (!state.scanning || state.scanToken !== token) return;
+    state.scanning = false;
+    state.scanToken += 1;
+    stopQrCamera();
+    setRecordingButtons(false);
+    setStage("capture", "fertig");
+    setActivationMessage("QR-Code erkannt", "Beliebiger QR-Code erkannt. Aufnahme startet ...", "erkannt", "done");
+    await wait(250);
+    await activate("qr");
+  }
+
+  async function startQrScan() {
     if (state.recording) {
       deactivate("Aufnahme beendet.");
       return;
@@ -408,25 +490,49 @@
       cancelQrScan();
       return;
     }
-    const scanToken = state.scanToken + 1;
-    state.scanToken = scanToken;
+    if (!navigator.mediaDevices?.getUserMedia || !qrVideo) {
+      setActivationMessage("Kamera nicht verfügbar", "Dieser Browser stellt keine Kamera bereit.", "bereit", "");
+      return;
+    }
+    const token = state.scanToken + 1;
+    state.scanToken = token;
     state.scanning = true;
-    if (fileInput) fileInput.disabled = true;
-    if (recordButton) recordButton.disabled = true;
     setRecordingButtons(false);
     setStage("capture", "scannt");
-    setActivationMessage("QR-Code wird gesucht", "Simulierter AR-Kamera-Scan läuft …", "scannt", "scanning");
-    await wait(900);
-    if (!state.scanning || state.scanToken !== scanToken) return;
-    setActivationMessage("QR-Code erkannt", "QR-JAR-1842 wird übernommen.", "erkannt", "done");
-    await wait(550);
-    if (!state.scanning || state.scanToken !== scanToken) return;
-    state.scanning = false;
-    if (fileInput) fileInput.disabled = false;
-    if (recordButton) recordButton.disabled = false;
-    setRecordingButtons(false);
-    setStage("capture", "fertig");
-    await activate("qr");
+    setActivationMessage("Kamera wird geöffnet", "Kamerazugriff erlauben und einen beliebigen QR-Code in den Rahmen halten.", "kamera", "scanning");
+    setQrScannerVisible(true);
+    setQrScannerStatus("Kamera wird geöffnet ...");
+    try {
+      state.qrStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      if (!state.scanning || state.scanToken !== token) {
+        stopQrCamera();
+        return;
+      }
+      qrVideo.srcObject = state.qrStream;
+      await qrVideo.play();
+      if (!state.scanning || state.scanToken !== token) {
+        stopQrCamera();
+        return;
+      }
+      state.qrDetector = getQrDetector();
+      state.qrCanvasContext = qrCanvas?.getContext("2d", { willReadFrequently: true }) || null;
+      if (!state.qrDetector && !window.jsQR) throw new Error("QR-Decoder nicht geladen");
+      setActivationMessage("QR-Code wird gesucht", "Beliebigen QR-Code in den Kamerarahmen halten.", "scannt", "scanning");
+      setQrScannerStatus("QR-Code wird gesucht");
+      void scanQrFrame(token);
+    } catch (error) {
+      if (token !== state.scanToken) return;
+      state.scanning = false;
+      state.scanToken += 1;
+      stopQrCamera();
+      setRecordingButtons(false);
+      setStage("capture", "fehler");
+      const denied = error?.name === "NotAllowedError" || error?.name === "SecurityError";
+      setActivationMessage("Kamera nicht verfügbar", denied ? "Kamerazugriff wurde verweigert." : "Kamera konnte nicht geöffnet werden.", "bereit", "");
+    }
   }
 
   async function activate(source) {
@@ -667,19 +773,26 @@
   }
   $("scan-button").addEventListener("click", () => {
     if (state.recording) deactivate("Aufnahme beendet.");
-    else if (state.scanning) cancelQrScan();
-    else void simulateQrScan();
+    else void startQrScan();
   });
   $("vorsichtung-button").addEventListener("click", () => {
     if (state.recording) deactivate("Vorsichtung abgeschlossen.");
-    else void activate("keyword");
+    else {
+      if (state.scanning) cancelQrScan();
+      void activate("keyword");
+    }
   });
   if (recordButton) {
     recordButton.addEventListener("click", () => {
       if (state.recording) deactivate("Aufnahme beendet.");
-      else void activate("direct");
+      else {
+        if (state.scanning) cancelQrScan();
+        void activate("direct");
+      }
     });
   }
+  if (qrCancelButton) qrCancelButton.addEventListener("click", cancelQrScan);
+
   $("complete-button").addEventListener("click", () => {
     if (state.recording) deactivate("Aufnahme abgeschlossen.");
     else setActivationMessage("Aufnahme ist beendet", "Naechster Schritt: Transkription starten.", "beendet", "done");

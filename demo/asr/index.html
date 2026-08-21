@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TriARge · Patienten / ASR-System</title>
   <meta name="description" content="Kompakte Demo des ASR-Workflows für die digitale Patientensichtung im TriARge-Lagebild.">
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=5">
 </head>
 <body>
   <div class="asr-app" id="asr-app">
@@ -37,8 +37,17 @@
             <span id="activation-copy">Integrierte AR-Kamera liest die laufende Nummer.</span>
           </div>
           <div class="button-row">
-            <button class="action primary" id="scan-button" type="button">QR-Scan simulieren</button>
+            <button class="action primary" id="scan-button" type="button">QR-Code scannen</button>
             <button class="action" id="vorsichtung-button" type="button">„Vorsichtung“</button>
+          </div>
+          <div class="qr-scanner" id="qr-scanner" hidden aria-live="polite">
+            <div class="qr-scanner-head"><strong>QR-Kamera aktiv</strong><span class="muted" id="qr-scanner-status">Kamera wird vorbereitet</span></div>
+            <div class="qr-video-wrap">
+              <video id="qr-video" playsinline muted></video>
+              <span class="qr-frame" aria-hidden="true"></span>
+              <canvas id="qr-canvas" hidden></canvas>
+            </div>
+            <div class="qr-scanner-foot"><span class="muted">Beliebigen QR-Code in den Rahmen halten.</span><button class="text-button" id="qr-cancel-button" type="button">Kamera schließen</button></div>
           </div>
           <div class="control-foot">
             <div class="source-line"><span class="source-dot" aria-hidden="true"></span><strong>Medic · Mikrofon nah</strong><span class="muted">+ Patient / Partner ohne Mikrofon</span></div>
@@ -165,6 +174,7 @@
       </section>
     </main>
   </div>
-  <script src="./app.js?v=8"></script>
+  <script src="./jsQR.js?v=1"></script>
+  <script src="./app.js?v=9"></script>
 </body>
 </html>

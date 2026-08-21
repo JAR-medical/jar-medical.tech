@@ -62,6 +62,14 @@ h3 { font-size: 12px; line-height: 1.25; }
 .control-main strong { font-size: 13px; white-space: nowrap; }
 .control-main span { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .button-row { display: flex; gap: 6px; padding: 0 10px 8px; }
+.qr-scanner { margin: 0 10px 8px; padding: 8px; border: 1px solid var(--line-2); background: var(--surface-2); }
+.qr-scanner[hidden] { display: none; }
+.qr-scanner-head, .qr-scanner-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qr-scanner-head { font-size: 11px; }
+.qr-scanner-foot { margin-top: 6px; font-size: 10px; }
+.qr-video-wrap { position: relative; aspect-ratio: 4 / 3; margin-top: 7px; overflow: hidden; background: #111; }
+.qr-video-wrap video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.qr-frame { position: absolute; inset: 15% 18%; border: 2px solid rgba(255,255,255,.9); border-radius: 10px; box-shadow: 0 0 0 999px rgba(0,0,0,.18); pointer-events: none; }
 .action { min-height: 26px; padding: 3px 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
 .action:hover, .file-button:hover { background: var(--surface-2); color: var(--ink); }
 .action.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
