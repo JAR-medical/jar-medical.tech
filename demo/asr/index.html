@@ -14,7 +14,7 @@
       <span class="top-brand">TriARge</span>
       <span class="top-context">Patienten / ASR-System</span>
       <span class="top-spacer"></span>
-      <span class="top-note">vorbereitete Demoausgabe · kein Server-LLM</span>
+      <span class="top-note" id="top-note">lokaler CrisperWhisper-Server · Anmeldung erforderlich</span>
     </header>
 
     <main class="page">
@@ -52,7 +52,7 @@
             <div class="eyebrow">Input / Audio</div>
             <span class="mono muted" id="audio-duration">--:--</span>
           </div>
-          <div class="audio-file"><strong id="audio-name">benchmark-voice-thorsten.mp3</strong><span class="muted" id="file-status">Benchmark-Aufnahme</span></div>
+          <div class="audio-file"><strong id="audio-name">sample-voice-thorsten.mp3</strong><span class="muted" id="file-status">Demo-Aufnahme · kann ersetzt werden</span></div>
           <audio id="audio-player" controls preload="metadata" src="./sample-voice-thorsten.mp3">
             Ihr Browser unterstützt das Audioelement nicht.
           </audio>
@@ -154,10 +154,10 @@
           <div class="json-head"><span>GBNF-konforme JSON-Ausgabe</span><button class="text-button" id="copy-json" type="button">JSON kopieren</button></div>
           <pre id="json-output"></pre>
         </div>
-        <p class="output-footnote">Leere Felder bleiben leer. Standort: GPS → Quadrantenschema · OSM-Objektfinder.</p>
+        <p class="output-footnote" id="output-footnote">Forschungs-/Demo-Betrieb. Audiodateien werden lokal auf dem Modell-PC verarbeitet.</p>
       </section>
     </main>
   </div>
-  <script src="./app.js?v=2"></script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>
