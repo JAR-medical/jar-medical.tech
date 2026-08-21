@@ -6,9 +6,6 @@
   const viewport = $("scene-viewport");
   const world = $("scene-world");
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
-  let resolvedApiBase = null;
-  let apiBasePromise = null;
-
   const state = {
     authenticated: false, csrf: null, recording: false, processing: false,
     recorder: null, stream: null, chunks: [], transcript: "", voiceGood: false,
@@ -18,38 +15,14 @@
   };
   const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-
+  // Keep authenticated requests on the stable worker origin. The worker forwards
+  // them to the current tunnel; using a raw trycloudflare host would orphan the
+  // session cookie whenever that tunnel changes.
   function resetApiBase() {
-    if (window.JAR_API_BASE) return;
-    resolvedApiBase = null;
-    apiBasePromise = null;
+    // Retained for retry callers; the stable origin never needs re-resolution.
   }
-  async function getApiBase(force = false) {
-    if (window.JAR_API_BASE) return API_BASE;
-    if (force) resetApiBase();
-    if (resolvedApiBase) return resolvedApiBase;
-    if (!apiBasePromise) {
-      apiBasePromise = fetch(`${API_BASE}/__target`, { credentials: "omit" })
-        .then(async (response) => {
-          if (!response.ok) {
-            const error = new Error(`HTTP ${response.status}`);
-            error.status = response.status; error.transient = true; throw error;
-          }
-          const body = await response.json();
-          if (!body?.base_url) {
-            const error = new Error("Tunnel target unavailable");
-            error.transient = true; throw error;
-          }
-          const candidate = new URL(body.base_url);
-          if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
-            throw new Error("Invalid tunnel target");
-          }
-          resolvedApiBase = candidate.origin;
-          return resolvedApiBase;
-        })
-        .catch((error) => { apiBasePromise = null; throw error; });
-    }
-    return apiBasePromise;
+  async function getApiBase() {
+    return API_BASE;
   }
   function isTransientApiError(error) {
     return Boolean(error?.transient || [502, 503, 504].includes(error?.status) ||
@@ -57,11 +30,11 @@
   }
   async function apiRequest(path, options = {}) {
     const headers = new Headers(options.headers || {});
-    const init = { ...options, headers, credentials: "include" };
+    const init = { cache: "no-store", ...options, headers, credentials: "include" };
     let lastError = null;
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
-        const base = await getApiBase(attempt > 0);
+        const base = await getApiBase();
         const response = await fetch(`${base}${path}`, init);
         let body = null;
         try { body = await response.json(); } catch (_) {}
