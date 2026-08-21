@@ -13,16 +13,103 @@
   const qrScannerStatus = $("qr-scanner-status");
   const qrCancelButton = $("qr-cancel-button");
   const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
-  // Use the stable Worker hostname for every request. It proxies to the
-  // current local tunnel and keeps the browser cookie origin stable.
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
+  const API_TARGET_CACHE_MS = 30000;
+  const API_RESOLVE_TIMEOUT_MS = 12000;
+  let resolvedApiBase = null;
+  let resolvedApiAt = 0;
+  let apiBasePromise = null;
 
   function resetApiBase() {
-    // Kept for callers that want to force a retry after a transient failure.
+    if (window.JAR_API_BASE) return;
+    resolvedApiBase = null;
+    resolvedApiAt = 0;
+    apiBasePromise = null;
   }
 
-  async function getApiBase() {
-    return API_BASE;
+  async function fetchWithTimeout(url, options = {}, timeoutMs = API_RESOLVE_TIMEOUT_MS) {
+    const controller = typeof AbortController === "undefined" ? null : new AbortController();
+    let timeoutId = null;
+    try {
+      const request = { ...options };
+      if (controller) {
+        request.signal = controller.signal;
+        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      return await fetch(url, request);
+    } catch (error) {
+      if (controller?.signal.aborted) {
+        const timeoutError = new Error("The API request timed out.");
+        timeoutError.name = "TypeError";
+        timeoutError.transient = true;
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  }
+
+  async function resolveApiBase() {
+    const response = await fetchWithTimeout(
+      `${API_BASE}/__target?refresh=${Date.now()}`,
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      error.transient = true;
+      throw error;
+    }
+    let body;
+    try {
+      body = await response.json();
+    } catch (_) {
+      const error = new Error("Tunnel target response was invalid.");
+      error.transient = true;
+      throw error;
+    }
+    if (!body?.base_url) {
+      const error = new Error("Tunnel target unavailable.");
+      error.transient = true;
+      throw error;
+    }
+    const candidate = new URL(body.base_url);
+    if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
+      throw new Error("Invalid tunnel target.");
+    }
+    const health = await fetchWithTimeout(
+      `${candidate.origin}/v1/health?probe=${Date.now()}`,
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!health.ok) {
+      const error = new Error(`Tunnel health HTTP ${health.status}`);
+      error.status = health.status;
+      error.transient = true;
+      throw error;
+    }
+    return candidate.origin;
+  }
+
+  async function getApiBase(force = false) {
+    if (window.JAR_API_BASE) return API_BASE;
+    if (force) resetApiBase();
+    if (resolvedApiBase && Date.now() - resolvedApiAt < API_TARGET_CACHE_MS) {
+      return resolvedApiBase;
+    }
+    if (!apiBasePromise) {
+      const pending = (async () => {
+        const base = await resolveApiBase();
+        resolvedApiBase = base;
+        resolvedApiAt = Date.now();
+        return base;
+      })();
+      apiBasePromise = pending;
+      pending.catch(() => {
+        if (apiBasePromise === pending) apiBasePromise = null;
+      });
+    }
+    return apiBasePromise;
   }
 
   function isTransientApiError(error) {
@@ -285,7 +372,7 @@
       let controller = null;
       let timeoutId = null;
       try {
-        const base = await getApiBase();
+        const base = await getApiBase(attempt > 0);
         const requestInit = { ...init };
         const requestTimeout = Number(timeoutMs) || 0;
         if (requestTimeout > 0 && typeof AbortController !== "undefined") {
