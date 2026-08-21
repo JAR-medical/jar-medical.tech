@@ -13,48 +13,16 @@
   const qrScannerStatus = $("qr-scanner-status");
   const qrCancelButton = $("qr-cancel-button");
   const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
+  // Use the stable Worker hostname for every request. It proxies to the
+  // current local tunnel and keeps the browser cookie origin stable.
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
-  let resolvedApiBase = null;
-  let apiBasePromise = null;
 
   function resetApiBase() {
-    if (window.JAR_API_BASE) return;
-    resolvedApiBase = null;
-    apiBasePromise = null;
+    // Kept for callers that want to force a retry after a transient failure.
   }
 
-  async function getApiBase(force = false) {
-    if (window.JAR_API_BASE) return API_BASE;
-    if (force) resetApiBase();
-    if (resolvedApiBase) return resolvedApiBase;
-    if (!apiBasePromise) {
-      apiBasePromise = fetch(`${API_BASE}/__target?refresh=${Date.now()}`, { credentials: "omit", cache: "no-store" })
-        .then(async (response) => {
-          if (!response.ok) {
-            const error = new Error(`HTTP ${response.status}`);
-            error.status = response.status;
-            error.transient = true;
-            throw error;
-          }
-          const body = await response.json();
-          if (!body?.base_url) {
-            const error = new Error("Tunnel target unavailable");
-            error.transient = true;
-            throw error;
-          }
-          const candidate = new URL(body.base_url);
-          if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
-            throw new Error("Invalid tunnel target");
-          }
-          resolvedApiBase = candidate.origin;
-          return resolvedApiBase;
-        })
-        .catch((error) => {
-          apiBasePromise = null;
-          throw error;
-        });
-    }
-    return apiBasePromise;
+  async function getApiBase() {
+    return API_BASE;
   }
 
   function isTransientApiError(error) {
@@ -303,13 +271,29 @@
   }
 
   async function apiRequest(path, options = {}) {
-    const headers = new Headers(options.headers || {});
-    const init = { ...options, headers, credentials: "include" };
+    const {
+      timeoutMs = 0,
+      retryCount: configuredRetryCount = 5,
+      retryDelaysMs = [500, 1000, 2000, 4000, 8000],
+      ...requestOptions
+    } = options;
+    const headers = new Headers(requestOptions.headers || {});
+    const init = { ...requestOptions, headers, credentials: "include" };
+    const retryCount = Math.max(1, Number(configuredRetryCount) || 5);
     let lastError = null;
-    for (let attempt = 0; attempt < 6; attempt += 1) {
+    for (let attempt = 0; attempt < retryCount; attempt += 1) {
+      let controller = null;
+      let timeoutId = null;
       try {
-        const base = await getApiBase(attempt > 0);
-        const response = await fetch(`${base}${path}`, init);
+        const base = await getApiBase();
+        const requestInit = { ...init };
+        const requestTimeout = Number(timeoutMs) || 0;
+        if (requestTimeout > 0 && typeof AbortController !== "undefined") {
+          controller = new AbortController();
+          requestInit.signal = controller.signal;
+          timeoutId = window.setTimeout(() => controller.abort(), requestTimeout);
+        }
+        const response = await fetch(`${base}${path}`, requestInit);
         let body = null;
         try { body = await response.json(); } catch (_) { body = null; }
         if (!response.ok) {
@@ -327,10 +311,19 @@
         }
         return body;
       } catch (error) {
+        if (controller?.signal.aborted) {
+          error = new Error("The API request timed out.");
+          error.name = "TypeError";
+          error.transient = true;
+        }
         lastError = error;
-        if (!isTransientApiError(error) || attempt === 3) throw error;
+      } finally {
+        if (timeoutId) window.clearTimeout(timeoutId);
+      }
+      if (!isTransientApiError(lastError) || attempt === retryCount - 1) throw lastError;
+      if (retryDelaysMs[attempt]) {
         resetApiBase();
-        await wait(500 * (2 ** attempt));
+        await wait(Number(retryDelaysMs[attempt]) || 500);
       }
     }
     throw lastError || new Error("Verbindung zum Modell-PC fehlgeschlagen.");
@@ -345,12 +338,25 @@
   }
 
   async function loadSession() {
+    showAuthStatus("Verbindung zum Modell-PC wird hergestellt ...", true);
     try {
-      const result = await apiRequest("/v1/auth/session");
+      const result = await apiRequest("/v1/auth/session", {
+        retryCount: 8,
+        timeoutMs: 15000,
+        retryDelaysMs: [500, 1000, 2000, 4000, 8000, 12000, 15000]
+      });
       setAuthenticated(true, result.csrf_token);
       showAuthStatus("verbunden", false, true);
     } catch (error) {
-      if (error.status !== 401) showAuthStatus("Server nicht erreichbar");
+      if (error.status === 401) {
+        showAuthStatus("Anmeldung erforderlich");
+      } else {
+        showAuthStatus(
+          isTransientApiError(error)
+            ? "Verbindung wird automatisch erneut aufgebaut. Bitte kurz warten."
+            : "Server nicht erreichbar"
+        );
+      }
     }
   }
 
@@ -365,6 +371,8 @@
     try {
       const result = await apiRequest("/v1/auth/login", {
         method: "POST",
+        retryCount: 6,
+        timeoutMs: 15000,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
       });
