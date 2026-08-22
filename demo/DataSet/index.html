@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#f7f7f7" />
+<title>MEDICRAFT — Voxel-Rettung</title>
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="loading-overlay" class="fullscreen">
+    <div class="loading-text">WELT WIRD GENERIERT …</div>
+  </div>
+
+  <div id="start-screen" class="fullscreen hidden">
+    <div class="start-box">
+      <h1 class="game-title">MEDICRAFT</h1>
+      <p class="subtitle">Voxel-Rettung · Spracherkennung · Proprietäres Modell</p>
+      <span id="stt-badge" class="badge unknown">STT: wird geprüft …</span>
+      <div class="start-help">
+        <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Shift</b> sprinten<br />
+        <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
+        <b>Linksklick halten</b> Block abbauen<br />
+        <b>E</b> Patientenkarte in der Nähe öffnen · <b>V (halten)</b> Bericht aufnehmen · <b>T</b> stattdessen tippen</span>
+        <span class="touch-only"><b>Linker Stick</b> bewegen · <b>Rechte Seite wischen</b> umsehen · <b>🩺</b> Patientenkarte öffnen<br />
+        <b>⛏ gedrückt halten</b> Block abbauen · <b>V gedrückt halten</b> in der Karte zum Sprechen · Tastatur nur bei Bedarf verwenden</span><br /><br />
+        <span class="start-focus"><b>WICHTIG:</b> Öffne bei jedem Patienten die Karte und sprich den vollständigen Text, der dort angezeigt wird, genau so. Halte dafür <b>[V]</b> gedrückt. Die Verwendung von Rettungsmitteln ist für die Aufgabe nicht erforderlich.</span>
+        Finde alle sechs Patienten in deinem eigenen Tempo. Das proprietäre, LoRA-trainierte Sprachmodell wandelt deine Stimme in Text um.
+      </div>
+      <button id="btn-start" class="btn big">▶ Einsatz starten</button>
+    </div>
+  </div>
+
+  <div id="briefing-screen" class="fullscreen hidden" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
+    <div class="briefing-box">
+      <div class="briefing-kicker">EINSATZBRIEFING · VOR DEM START</div>
+      <h1 id="briefing-title" class="briefing-title">Rette alle Patienten</h1>
+      <p class="briefing-intro">Der Sprachbericht ist der Kern des Einsatzes: Sprich bei jedem Patienten den vollständigen Text aus der Karte.</p>
+
+      <div class="briefing-steps">
+        <article class="briefing-step">
+          <div class="step-number">01</div>
+          <h2>Patienten Finden</h2>
+        </article>
+        <article class="briefing-step focus-step">
+          <div class="step-number">02</div>
+          <h2>Text aus der Karte sprechen</h2>
+          <p>Öffne die Patientenkarte und sprich den <b>vollständigen angezeigten Text</b> genau vor. Halte dafür <b>[V]</b> gedrückt. Rettungsmittel musst du nicht benutzen.</p>
+        </article>
+        <article class="briefing-step">
+          <div class="step-number">03</div>
+          <h2>Alle 6 Patienten finden</h2>
+        </article>
+      </div>
+
+      <div class="training-consent">
+        <div class="consent-copy">
+          <span class="consent-label">DATENZUSTIMMUNG</span>
+          <span>Ich stimme zu, dass meine Daten für das Training von KI verwendet werden dürfen.</span>
+        </div>
+        <button id="btn-consent" class="btn small consent-btn" type="button">Ich stimme zu &amp; weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="end-screen" class="fullscreen hidden">
+    <div class="start-box">
+      <h1 id="end-title" class="game-title" style="font-size:2.4rem;">EINSATZ ABGESCHLOSSEN</h1>
+      <p id="end-rank" class="subtitle">—</p>
+      <div id="end-stats"></div>
+      <button id="btn-restart" class="btn big">↻ Neue Welt &amp; Patienten</button>
+    </div>
+  </div>
+
+    <div id="hud" class="hidden">
+      <div id="crosshair"></div>
+
+    <div id="touch-controls" aria-label="Touch-Steuerung">
+      <div id="touch-look" aria-hidden="true"><span>WISCHEN ZUM UMSEHEN</span></div>
+      <div id="touch-joystick" aria-label="Bewegen">
+        <div class="joystick-ring"></div>
+        <div id="touch-joystick-knob"></div>
+        <span class="touch-control-label">BEWEGEN</span>
+      </div>
+      <div id="touch-actions">
+        <button id="touch-interact" class="touch-action primary" type="button" aria-label="Patientenkarte in der Nähe öffnen">🩺<span>KARTE</span></button>
+        <button id="touch-jump" class="touch-action" type="button" aria-label="Springen">↟<span>SPRINGEN</span></button>
+        <button id="touch-sprint" class="touch-action" type="button" aria-label="Sprinten">➜<span>LAUFEN</span></button>
+        <div class="touch-block-actions">
+          <button id="touch-break" class="touch-action compact" type="button" aria-label="Block abbauen">⛏</button>
+          <button id="touch-use" class="touch-action compact" type="button" aria-label="Med-Kit bei Patienten in der Nähe einsetzen">🩺<span>MED-KIT</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mission-panel" class="panel">
+      <div id="mission-line">Patienten 0/6</div>
+      <div id="mission-timer">00:00</div>
+      <div>Punkte <span id="score-value">0</span></div>
+    </div>
+
+    <div id="prompt" class="hidden"><b>[E]</b> <span id="prompt-text"></span></div>
+
+    <div id="hotbar-help" aria-hidden="true">PC · 1–2 / Mausrad: Med-Kit oder Wolle wählen</div>
+    <div id="hotbar" aria-label="Med-Kit und Wolle"></div>
+
+    <div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="chart-panel" class="modal hidden">
+      <div class="modal-box chart-box">
+        <div class="chart-header">
+          <div>
+            <h2 id="chart-title">Patient</h2>
+            <span id="chart-severity" class="chip gelb">GELB</span>
+          </div>
+          <div class="chart-header-right">
+            <span id="chart-timer">00:00</span>
+            <button id="chart-close" class="btn small" type="button">✕ <span class="desktop-only">ESC</span><span class="touch-only">Schließen</span></button>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-col chart-info hidden" aria-hidden="true">
+            <div id="chart-profile" class="chart-profile"></div>
+            <h3>Befunde</h3>
+            <ul id="chart-symptoms"></ul>
+            <h3 class="secondary-heading">Vitalwerte</h3>
+            <table class="vitals"><tbody id="chart-vitals-body"></tbody></table>
+            <div id="chart-actions" class="chart-actions"></div>
+          </div>
+          <div class="chart-col chart-report">
+            <div id="chart-hint" class="report-script" aria-live="polite"></div>
+            <button id="chart-record" class="btn big voice-record" type="button" aria-pressed="false">🎤 Aufnahme starten</button>
+            <div id="transcript-area" class="transcript hidden" aria-live="polite"></div>
+            <section id="voice-output" class="voice-output hidden" aria-live="polite">
+              <div class="voice-output-header">
+                <b>Aufnahme</b>
+                <span id="voice-raw-meta"></span>
+              </div>
+              <audio id="voice-audio" controls preload="metadata"></audio>
+            </section>
+            <div id="verdict-box"></div>
+            <div class="fallback-row hidden">
+              <input id="fallback-input" type="text" placeholder="…oder Bericht hier eingeben (T)" autocomplete="off" />
+              <button id="fallback-send" class="btn">Senden</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Classic script: runs before the deferred module, so the base is set in time. -->
+  <script src="./config.js"></script>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
