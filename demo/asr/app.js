@@ -14,103 +14,11 @@
   const qrCancelButton = $("qr-cancel-button");
   const stageOrder = ["capture", "trim", "voice", "relevance", "context", "extract", "output"];
   const API_BASE = (window.JAR_API_BASE || "https://jar-voice-api.alexanderh2seo4.workers.dev").replace(/\/$/, "");
-  const API_TARGET_CACHE_MS = 30000;
-  const API_RESOLVE_TIMEOUT_MS = 12000;
-  let resolvedApiBase = null;
-  let resolvedApiAt = 0;
-  let apiBasePromise = null;
-
-  function resetApiBase() {
-    if (window.JAR_API_BASE) return;
-    resolvedApiBase = null;
-    resolvedApiAt = 0;
-    apiBasePromise = null;
-  }
-
-  async function fetchWithTimeout(url, options = {}, timeoutMs = API_RESOLVE_TIMEOUT_MS) {
-    const controller = typeof AbortController === "undefined" ? null : new AbortController();
-    let timeoutId = null;
-    try {
-      const request = { ...options };
-      if (controller) {
-        request.signal = controller.signal;
-        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-      }
-      return await fetch(url, request);
-    } catch (error) {
-      if (controller?.signal.aborted) {
-        const timeoutError = new Error("The API request timed out.");
-        timeoutError.name = "TypeError";
-        timeoutError.transient = true;
-        throw timeoutError;
-      }
-      throw error;
-    } finally {
-      if (timeoutId) window.clearTimeout(timeoutId);
-    }
-  }
-
-  async function resolveApiBase() {
-    const response = await fetchWithTimeout(
-      `${API_BASE}/__target?refresh=${Date.now()}`,
-      { credentials: "omit", cache: "no-store" }
-    );
-    if (!response.ok) {
-      const error = new Error(`HTTP ${response.status}`);
-      error.status = response.status;
-      error.transient = true;
-      throw error;
-    }
-    let body;
-    try {
-      body = await response.json();
-    } catch (_) {
-      const error = new Error("Tunnel target response was invalid.");
-      error.transient = true;
-      throw error;
-    }
-    if (!body?.base_url) {
-      const error = new Error("Tunnel target unavailable.");
-      error.transient = true;
-      throw error;
-    }
-    const candidate = new URL(body.base_url);
-    if (candidate.protocol !== "https:" || !candidate.hostname.endsWith(".trycloudflare.com")) {
-      throw new Error("Invalid tunnel target.");
-    }
-    const health = await fetchWithTimeout(
-      `${candidate.origin}/v1/health?probe=${Date.now()}`,
-      { credentials: "omit", cache: "no-store" }
-    );
-    if (!health.ok) {
-      const error = new Error(`Tunnel health HTTP ${health.status}`);
-      error.status = health.status;
-      error.transient = true;
-      throw error;
-    }
-    return candidate.origin;
-  }
-
-  async function getApiBase(force = false) {
-    if (window.JAR_API_BASE) return API_BASE;
-    if (force) resetApiBase();
-    if (resolvedApiBase && Date.now() - resolvedApiAt < API_TARGET_CACHE_MS) {
-      return resolvedApiBase;
-    }
-    if (!apiBasePromise) {
-      const pending = (async () => {
-        const base = await resolveApiBase();
-        resolvedApiBase = base;
-        resolvedApiAt = Date.now();
-        return base;
-      })();
-      apiBasePromise = pending;
-      pending.catch(() => {
-        if (apiBasePromise === pending) apiBasePromise = null;
-      });
-    }
-    return apiBasePromise;
-  }
+  // Keep authenticated requests on the stable worker origin. The worker owns
+  // the tunnel target, so the browser never needs to discover or cache a
+  // short-lived tunnel hostname (which would also lose the auth cookie).
+  function resetApiBase() {}
+  async function getApiBase() { return API_BASE; }
 
   function isTransientApiError(error) {
     return Boolean(
@@ -290,7 +198,7 @@
   }
   function formatWordConfidenceText(value) {
     const words = normalizeWordConfidences(value);
-    if (!words.length) return "Nicht verfuegbar";
+    if (!words.length) return "";
     return words
       .map((item) => item.word + " (" + Math.round(item.confidence * 100) + "%)")
       .join(" ");
@@ -302,7 +210,7 @@
       ? entries.map(([key, value]) => `<tr><td>${esc(key)}</td><td>${esc(value)}</td></tr>`).join("")
       : `<tr><td>Transkript</td><td>Kein Text erkannt.</td></tr>`;
     $("json-output").textContent = JSON.stringify({
-      transcript: record?.Transkript || "",
+      transcript: record?.Transkript ?? record?.["Raw-Transkript"] ?? "",
       ...metadata,
       _demo: Boolean(metadata._demo)
     }, null, 2);
@@ -336,38 +244,98 @@
     return text || DEFAULT_PATIENT_CARD;
   }
 
+  function valueOrBlank(value) {
+    return value === null || value === undefined ? "" : String(value);
+  }
+  function formatBooleanValue(value) {
+    if (value === true) return "ja";
+    if (value === false) return "nein";
+    return "";
+  }
   function joinList(value) {
-    if (!Array.isArray(value) || !value.length) return "—";
+    if (!Array.isArray(value) || !value.length) return "";
     return value.map((item) => {
       if (item && typeof item === "object") {
-        const parts = [item.parameter, item.wert, item.einheit].filter(Boolean);
-        return parts.join(": ");
+        return Object.values(item).map(valueOrBlank).filter((part) => part.trim()).join(" | ");
       }
-      return String(item);
-    }).join(" · ");
+      return valueOrBlank(item);
+    }).filter((item) => item.trim()).join(" | ");
   }
-
-  function renderMissionReport(report, meta = {}) {
+  function addIndividualRows(rows, prefix, items, fields) {
+    if (!Array.isArray(items) || !items.length) {
+      rows[prefix] = "";
+      return;
+    }
+    items.slice(0, 24).forEach((item, index) => {
+      fields.forEach(([label, key, formatter]) => {
+        const raw = item && typeof item === "object" ? item[key] : null;
+        rows[prefix + " " + (index + 1) + " - " + label] =
+          formatter ? formatter(raw) : valueOrBlank(raw);
+      });
+    });
+  }
+  function rawAsrRows(jobs) {
+    const rows = {};
+    (Array.isArray(jobs) ? jobs : []).forEach((job, index) => {
+      const suffix = jobs.length === 1 ? "" : " " + (index + 1);
+      rows["Raw-Transkript" + suffix] = valueOrBlank(job.transcript);
+      rows["Wort-Konfidenzen" + suffix] = formatWordConfidenceText(job.word_confidences);
+    });
+    return rows;
+  }
+  function renderMissionReport(report, meta = {}, jobs = []) {
     if (!report) return;
-    const patient = report.patient || {};
-    const transport = report.transport || {};
-    $("output-title").textContent = "Patientenbericht · Lagebild";
-    renderOutput({
-      "Sichtungskategorie": report.sichtungskategorie || "unbekannt",
-      "Patient": [patient.name, patient.alter, patient.geschlecht].filter(Boolean).join(" · ") || "unbekannt",
-      "Zuständigkeit": patient.zustaendigkeit || "—",
-      "Vitalwerte": joinList(report.vitalwerte),
-      "Beschwerden": joinList(report.beschwerden),
-      "Verletzungen": joinList(report.verletzungen),
-      "Massnahmen": joinList(report.massnahmen),
-      "Transport": [transport.noetig === "ja" ? "ja" : transport.noetig || "unbekannt", transport.ziel, transport.dringlichkeit].filter(Boolean).join(" · "),
-      "Notizen": joinList(report.notizen)
-    }, {
+    const status = report.status && typeof report.status === "object" ? report.status : {};
+    const rows = {
+      "Zeitstempel": valueOrBlank(report.timestamp),
+      "Herzfrequenz": valueOrBlank(status.heart_rate),
+      "Blutdruck": valueOrBlank(status.blood_pressure),
+      "SpO2": valueOrBlank(status.spo2),
+      "Atemfrequenz": valueOrBlank(status.respiratory_rate),
+      "Blutzucker": valueOrBlank(status.blood_glucose),
+      "Temperatur": valueOrBlank(status.temperature),
+      "GCS": valueOrBlank(status.gcs),
+      "Schmerz NRS": valueOrBlank(status.pain_nrs),
+      "etCO2": valueOrBlank(status.etco2),
+      "NACA": valueOrBlank(status.naca),
+      "Gewicht": valueOrBlank(status.weight),
+      "Bewusstsein": valueOrBlank(status.consciousness),
+      "Atemweg": valueOrBlank(status.airway),
+      "Atmung": valueOrBlank(status.breathing),
+      "Kreislauf": valueOrBlank(status.circulation),
+      "Haut": valueOrBlank(status.skin)
+    };
+    addIndividualRows(rows, "Verletzungen", report.injuries, [
+      ["Art", "type"],
+      ["Ort", "location"],
+      ["Seite", "side"]
+    ]);
+    addIndividualRows(rows, "Medikamente", report.medications, [
+      ["Name", "name"],
+      ["Dosis", "dose"],
+      ["Einheit", "unit"],
+      ["Applikation", "route"],
+      ["Gegeben", "given", formatBooleanValue]
+    ]);
+    Object.assign(rows, rawAsrRows(jobs));
+    const rawAsr = (Array.isArray(jobs) ? jobs : []).map((job) => ({
+      filename: valueOrBlank(job.filename),
+      transcript: valueOrBlank(job.transcript),
+      word_confidences: normalizeWordConfidences(job.word_confidences),
+      confidence_method: CONFIDENCE_METHOD,
+      duration_seconds: job.duration_seconds,
+      chunks: job.chunks,
+      processing_seconds: job.processing_seconds
+    }));
+    renderOutput(rows, {
+      transcript: rawAsr.map((item) => item.transcript).filter(Boolean).join("\n\n"),
       gbnf: true,
       llm_model: meta.model || null,
       llm_seconds: meta.seconds || null,
       llm_tokens: meta.completion_tokens || null,
-      growing_report: report
+      growing_report: report,
+      extraction: report,
+      raw_asr: rawAsr
     });
   }
 
@@ -850,7 +818,7 @@
       $("output-title").textContent = "Transkript";
       renderOutput({
         "Datei": job.filename,
-        "Transkript": job.transcript || "Kein Text erkannt.",
+        "Transkript": job.transcript || "",
         "Wort-Konfidenzen": formatWordConfidenceText(wordConfidences),
         "Dauer": job.duration_seconds == null ? "unbekannt" : Number(job.duration_seconds).toFixed(1) + " s",
         "Fenster": job.chunks,
@@ -868,7 +836,7 @@
     const records = {};
     jobs.forEach((job, index) => {
       records["Datei " + (index + 1) + ": " + (job.filename || "Unbenannte Audiodatei")] =
-        job.transcript || "Kein Text erkannt.";
+        job.transcript || "";
     });
     $("output-title").textContent = "Transkripte (" + jobs.length + ")";
     renderOutput(records, {
@@ -948,8 +916,8 @@
       }
       setStage("output", "fertig");
       if (extraction && extraction.report) {
-        renderMissionReport(extraction.report, extraction.llm || {});
-        setAnalysisStatus("Lagebild aktualisiert · GBNF-JSON wachsende Listen", false, true);
+        renderMissionReport(extraction.report, extraction.llm || {}, jobs);
+        setAnalysisStatus("Lagebild + Raw-ASR aktualisiert", false, true);
       } else {
         renderTranscriptionResults(jobs);
       }
