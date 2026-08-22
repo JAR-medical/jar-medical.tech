@@ -381,7 +381,7 @@
       "background:rgba(255,255,255,.04)"
     ].join(";");
     panel.innerHTML = `
-      <strong>Lokale Transkription</strong>\r\n      <a href="../paramedic/" title="Paramedic-Einsatzsimulation" aria-label="Paramedic-Einsatzsimulation oeffnen" style="display:inline-flex;align-items:center;padding:4px 7px;border:1px solid rgba(67,212,191,.45);border-radius:999px;text-decoration:none;color:inherit;font-size:11px;white-space:nowrap">Spiel</a>
+      <strong>Lokale Transkription</strong>\r\n
       <span id="auth-copy" class="muted">Passwort eingeben, um den PC-Dienst zu verwenden.</span>
       <form id="auth-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
         <input id="auth-password" type="password" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort"
