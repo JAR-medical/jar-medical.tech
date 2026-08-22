@@ -15,10 +15,9 @@
   };
   const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  // Resolve the current tunnel target before API calls. The worker currently
-  // redirects API traffic, and browsers reject that redirect for credentialed
-  // cross-origin requests. The target is cached briefly and re-resolved after
-  // a transient failure so a restarted tunnel recovers automatically.
+  // The stable Worker URL now routes directly through the named Cloudflare
+  // Tunnel to the local model PC. Probe that URL before showing the demo as
+  // available; no temporary quick-tunnel hostname is used in the browser.
   const API_TARGET_CACHE_MS = 30000;
   const API_RESOLVE_TIMEOUT_MS = 12000;
   let resolvedApiBase = null;
@@ -56,47 +55,17 @@
   }
 
   async function resolveApiBase() {
-    const response = await fetchWithTimeout(
-      API_BASE + "/__target?refresh=" + Date.now(),
-      { credentials: "omit", cache: "no-store" }
-    );
-    if (!response.ok) {
-      const error = new Error("Tunnel target HTTP " + response.status);
-      error.status = response.status;
-      error.transient = true;
-      throw error;
-    }
-    let body;
-    try {
-      body = await response.json();
-    } catch (_) {
-      const error = new Error("Tunnel target response was invalid.");
-      error.transient = true;
-      throw error;
-    }
-    if (!body?.base_url) {
-      const error = new Error("Tunnel target unavailable.");
-      error.transient = true;
-      throw error;
-    }
-    const candidate = new URL(body.base_url);
-    const workerHost = new URL(API_BASE).hostname;
-    const allowedTarget = candidate.protocol === "https:" &&
-      (candidate.hostname.endsWith(".trycloudflare.com") ||
-       candidate.hostname === "api.jar-medical.tech" ||
-       candidate.hostname === workerHost);
-    if (!allowedTarget) throw new Error("Invalid tunnel target.");
     const health = await fetchWithTimeout(
-      candidate.origin + "/v1/health?probe=" + Date.now(),
+      API_BASE + "/v1/health?probe=" + Date.now(),
       { credentials: "omit", cache: "no-store" }
     );
     if (!health.ok) {
-      const error = new Error("Tunnel health HTTP " + health.status);
+      const error = new Error("Modell-PC health HTTP " + health.status);
       error.status = health.status;
       error.transient = true;
       throw error;
     }
-    return candidate.origin;
+    return API_BASE;
   }
 
   async function getApiBase(force = false) {
