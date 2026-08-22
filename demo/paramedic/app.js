@@ -15,14 +15,109 @@
   };
   const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  // Keep authenticated requests on the stable worker origin. The worker forwards
-  // them to the current tunnel; using a raw trycloudflare host would orphan the
-  // session cookie whenever that tunnel changes.
+  // Resolve the current tunnel target before API calls. The worker currently
+  // redirects API traffic, and browsers reject that redirect for credentialed
+  // cross-origin requests. The target is cached briefly and re-resolved after
+  // a transient failure so a restarted tunnel recovers automatically.
+  const API_TARGET_CACHE_MS = 30000;
+  const API_RESOLVE_TIMEOUT_MS = 12000;
+  let resolvedApiBase = null;
+  let resolvedApiAt = 0;
+  let apiBasePromise = null;
+
   function resetApiBase() {
-    // Retained for retry callers; the stable origin never needs re-resolution.
+    if (window.JAR_API_BASE) return;
+    resolvedApiBase = null;
+    resolvedApiAt = 0;
+    apiBasePromise = null;
   }
-  async function getApiBase() {
-    return API_BASE;
+
+  async function fetchWithTimeout(url, options = {}, timeoutMs = API_RESOLVE_TIMEOUT_MS) {
+    const controller = typeof AbortController === "undefined" ? null : new AbortController();
+    let timeoutId = null;
+    try {
+      const request = { ...options };
+      if (controller) {
+        request.signal = controller.signal;
+        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      return await fetch(url, request);
+    } catch (error) {
+      if (controller?.signal.aborted) {
+        const timeoutError = new Error("The Modell-PC request timed out.");
+        timeoutError.name = "TypeError";
+        timeoutError.transient = true;
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  }
+
+  async function resolveApiBase() {
+    const response = await fetchWithTimeout(
+      API_BASE + "/__target?refresh=" + Date.now(),
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!response.ok) {
+      const error = new Error("Tunnel target HTTP " + response.status);
+      error.status = response.status;
+      error.transient = true;
+      throw error;
+    }
+    let body;
+    try {
+      body = await response.json();
+    } catch (_) {
+      const error = new Error("Tunnel target response was invalid.");
+      error.transient = true;
+      throw error;
+    }
+    if (!body?.base_url) {
+      const error = new Error("Tunnel target unavailable.");
+      error.transient = true;
+      throw error;
+    }
+    const candidate = new URL(body.base_url);
+    const workerHost = new URL(API_BASE).hostname;
+    const allowedTarget = candidate.protocol === "https:" &&
+      (candidate.hostname.endsWith(".trycloudflare.com") ||
+       candidate.hostname === "api.jar-medical.tech" ||
+       candidate.hostname === workerHost);
+    if (!allowedTarget) throw new Error("Invalid tunnel target.");
+    const health = await fetchWithTimeout(
+      candidate.origin + "/v1/health?probe=" + Date.now(),
+      { credentials: "omit", cache: "no-store" }
+    );
+    if (!health.ok) {
+      const error = new Error("Tunnel health HTTP " + health.status);
+      error.status = health.status;
+      error.transient = true;
+      throw error;
+    }
+    return candidate.origin;
+  }
+
+  async function getApiBase(force = false) {
+    if (window.JAR_API_BASE) return API_BASE;
+    if (force) resetApiBase();
+    if (resolvedApiBase && Date.now() - resolvedApiAt < API_TARGET_CACHE_MS) {
+      return resolvedApiBase;
+    }
+    if (!apiBasePromise) {
+      const pending = (async () => {
+        const base = await resolveApiBase();
+        resolvedApiBase = base;
+        resolvedApiAt = Date.now();
+        return base;
+      })();
+      apiBasePromise = pending;
+      pending.catch(() => {
+        if (apiBasePromise === pending) apiBasePromise = null;
+      });
+    }
+    return apiBasePromise;
   }
   function isTransientApiError(error) {
     return Boolean(error?.transient || [502, 503, 504].includes(error?.status) ||
