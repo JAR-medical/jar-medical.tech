@@ -330,10 +330,10 @@ export class UI {
     const badge = this.el.sttBadge;
     if (sttReady) {
       badge.className = "badge ready";
-      badge.textContent = "STT: bereit · proprietäres Modell";
+      badge.textContent = "STT: bereit";
     } else {
       badge.className = "badge unavailable";
-      badge.textContent = "STT: nicht verfügbar — Tippmodus verfügbar";
+      badge.textContent = "STT: nicht verfügbar";
     }
   }
 

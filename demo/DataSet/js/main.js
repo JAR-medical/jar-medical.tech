@@ -16,6 +16,7 @@ class App {
   constructor() {
     this.mode = "loading";
     this.currentPatientId = null;
+    this.currentReportScript = "";
     this.hudAccumulator = 0;
     this.submitTimer = null;
 
@@ -111,7 +112,11 @@ class App {
 
     on("ui:record-start", () => {
       if (this.mode !== "chart") return;
-      this.speech.startRecording().catch((err) => {
+      this.speech.startRecording({
+        expectedText: this.currentReportScript,
+        scenarioId: this.game.scenarioId,
+        patientId: this.currentPatientId,
+      }).catch((err) => {
         this.ui.toast(String(err?.message || "Aufnahme konnte nicht gestartet werden."), "bad");
       });
     });
@@ -185,6 +190,7 @@ class App {
     const scenarioSeed = randomSeed();
     const spots = this.world.findPatientSpots(PATIENT_COUNT, { seed: scenarioSeed });
     this.game.start(spots, PATIENT_COUNT, { scenarioSeed });
+    this.currentReportScript = "";
     const c = this.world.clinic;
     this.player.teleport(c.x + 3.5, this.world.getHeight(c.x + 3.5, c.z + 3.5) + 0.2, c.z + 3.5);
     const disaster = this.world.disasterScene;
@@ -212,6 +218,7 @@ class App {
     const view = this.game.getView(patientId);
     if (!view) return;
     this.currentPatientId = patientId;
+    this.currentReportScript = view.hint || "";
     this.ui.clearVerdict();
     this.ui.appendTranscript("");
     this.ui.openChart(view);
@@ -224,6 +231,7 @@ class App {
     if (!this.currentPatientId && this.mode !== "chart") return;
     this.currentPatientId = null;
     if (this.speech.recording) this.speech.abort();
+    this.currentReportScript = "";
     this.ui.closeChart();
     clearTimeout(this.submitTimer);
     if (!silent && this.mode === "chart") {

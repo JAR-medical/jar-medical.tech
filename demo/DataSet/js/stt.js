@@ -21,6 +21,7 @@ export class SpeechClient {
     this._recordingToken = 0;
     this._ctxSampleRate = TARGET_RATE;
     this._rate = TARGET_RATE;
+    this._recordingContext = {};
     this.lastAudioBlob = null;
     this.lastAudioInfo = null;
   }
@@ -40,8 +41,13 @@ export class SpeechClient {
     }
   }
 
-  async startRecording() {
+  async startRecording(context = {}) {
     if (this.recording) return;
+    this._recordingContext = {
+      expectedText: String(context.expectedText || "").trim(),
+      scenarioId: String(context.scenarioId || "").trim(),
+      patientId: String(context.patientId || "").trim(),
+    };
     const token = ++this._recordingToken;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       // Browsers hide mediaDevices entirely outside a secure context, so the
@@ -143,6 +149,7 @@ export class SpeechClient {
   async stopRecording() {
     if (!this.recording) {
       this._recordingToken++;
+      this._recordingContext = {};
       emit("stt:status", { state: "idle" });
       return;
     }
@@ -155,7 +162,8 @@ export class SpeechClient {
     const kept = this._trimSilence(merged);
     const duration = kept.length / rate;
     if (!merged.length || !kept.length || duration < MIN_SPEECH_SECONDS) {
-      emit("stt:error", { message: "Zu kurz oder keine Sprache erkannt — halte [V] gedrückt." });
+      this._recordingContext = {};
+      emit("stt:error", { message: "Zu kurz oder keine Sprache erkannt — versuche es erneut." });
       emit("stt:status", { state: "idle" });
       return;
     }
@@ -170,11 +178,20 @@ export class SpeechClient {
       bytes: blob.size,
       durationSeconds: Number((samples.length / TARGET_RATE).toFixed(3)),
     };
+    const recordingContext = this._recordingContext;
+    const headers = { "Content-Type": "audio/wav" };
+    const addEncodedHeader = (name, value) => {
+      const clean = String(value || "").replace(/[\r\n]+/g, " ").trim();
+      if (clean) headers[name] = encodeURIComponent(clean);
+    };
+    addEncodedHeader("X-Medicraft-Expected-Text", recordingContext.expectedText);
+    addEncodedHeader("X-Medicraft-Scenario-ID", recordingContext.scenarioId);
+    addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
     emit("stt:status", { state: "transcribing" });
     try {
       const res = await fetch(`${this.baseUrl ?? apiBase()}/api/transcribe`, {
         method: "POST",
-        headers: { "Content-Type": "audio/wav" },
+        headers,
         body: blob,
       });
       const data = await res.json().catch(() => null);
@@ -184,6 +201,11 @@ export class SpeechClient {
           seconds: data.processing_seconds ?? null,
           audioBlob: blob,
           audioInfo: this.lastAudioInfo,
+          audioFile: data.audio_file || null,
+          verbatim: data.verbatim || data.text || "",
+          model: data.model || null,
+          modelConfidence: data.model_confidence ?? data.confidence ?? null,
+          wordConfidences: Array.isArray(data.word_confidences) ? data.word_confidences : [],
         });
       } else {
         emit("stt:error", { message: (data && data.detail) || `Serverfehler ${res.status}` });
@@ -191,12 +213,14 @@ export class SpeechClient {
     } catch (err) {
       emit("stt:error", { message: "STT-Dienst nicht erreichbar — prüfe die Serververbindung." });
     } finally {
+      this._recordingContext = {};
       emit("stt:status", { state: "idle" });
     }
   }
 
   abort() {
     this._recordingToken++;
+    this._recordingContext = {};
     if (!this.recording) return;
     this.recording = false;
     clearTimeout(this._autoTimer);

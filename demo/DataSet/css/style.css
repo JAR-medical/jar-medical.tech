@@ -21,6 +21,8 @@ html, body {
   width: 100%;
   height: 100%;
   min-height: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   background: #0a0d08;
   color: var(--text);
@@ -1058,14 +1060,386 @@ body.touch-device .desktop-only { display: none; }
   #briefing-screen .briefing-box {
     width: min(100%, 540px);
     max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+    overflow-x: hidden;
+    overscroll-behavior: contain;
   }
 
   #start-screen .game-title,
   #end-screen .game-title {
-    font-size: clamp(2.25rem, 15vw, 3.6rem);
+    font-size: clamp(2rem, 12vw, 3.6rem);
   }
 
   #start-screen .start-help {
+    font-size: clamp(0.68rem, 2.5vw, 0.78rem);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  #briefing-screen .briefing-box {
+    padding: 1rem;
+  }
+
+  #briefing-screen .briefing-intro {
+    margin: 0.45rem 0 0.9rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  #briefing-screen .briefing-steps {
+    gap: 0.55rem;
+  }
+
+  #briefing-screen .briefing-step {
+    min-height: 0;
+    padding: 0.75rem;
+  }
+
+  #briefing-screen .step-number {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 0.72rem;
+  }
+
+  #briefing-screen .briefing-step h2 {
+    margin: 0.55rem 0 0.25rem;
+    font-size: 0.95rem;
+  }
+
+  #briefing-screen .briefing-step p {
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  #briefing-screen .training-consent {
+    gap: 0.65rem;
+    margin-top: 0.85rem;
+    padding: 0.7rem;
+  }
+
+  #briefing-screen .consent-copy {
     font-size: 0.78rem;
+  }
+
+  #briefing-screen .consent-btn {
+    align-self: stretch;
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 760px) {
+  #prompt {
+    bottom: calc(180px + var(--safe-bottom));
+    max-width: min(72vw, 520px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.82rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  #toasts {
+    top: calc(78px + var(--safe-top));
+    max-width: calc(100vw - 24px);
+  }
+
+  .toast {
+    max-width: calc(100vw - 24px);
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #start-screen .start-box,
+  #end-screen .start-box {
+    max-height: calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));
+    padding: 0.75rem 1rem;
+    overflow: hidden;
+  }
+
+  #start-screen .game-title,
+  #end-screen .game-title {
+    font-size: clamp(1.8rem, 8vw, 2.8rem);
+  }
+
+  #start-screen .subtitle,
+  #end-screen .subtitle {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  #start-screen .badge {
+    margin-bottom: 0.45rem;
+    padding: 0.25rem 0.6rem;
+  }
+
+  #start-screen .start-help {
+    max-height: 7.5rem;
+    overflow-y: auto;
+    margin: 0.35rem 0;
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
+
+  #start-screen .start-focus {
+    margin: 0.35rem 0;
+    padding: 0.4rem 0.5rem;
+    line-height: 1.3;
+  }
+
+  #start-screen .btn.big,
+  #end-screen .btn.big {
+    min-height: 44px;
+    padding: 0.55rem 1rem;
+  }
+
+  #briefing-screen .briefing-box {
+    max-height: calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));
+    padding: 0.8rem 1rem;
+  }
+
+  #briefing-screen .briefing-intro {
+    margin-bottom: 0.65rem;
+  }
+
+  #briefing-screen .briefing-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  #briefing-screen .briefing-step {
+    padding: 0.55rem;
+  }
+
+  #briefing-screen .briefing-step h2 {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+  }
+
+  #briefing-screen .briefing-step p {
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
+
+  #briefing-screen .training-consent {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 0.55rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  #briefing-screen .consent-btn {
+    width: auto;
+    min-height: 40px;
+  }
+}
+
+#start-screen .start-box {
+  display: flex;
+  flex-direction: column;
+}
+
+#start-screen .start-message {
+  text-align: left;
+}
+
+#start-screen .start-focus {
+  font-size: 1.03rem;
+  line-height: 1.6;
+}
+
+#start-screen .start-description {
+  margin: 1rem 0 0;
+  color: #555;
+  font-size: 1.03rem;
+  line-height: 1.65;
+}
+
+#start-screen #btn-start {
+  align-self: center;
+  margin-top: 1.35rem;
+}
+
+#start-screen .start-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 1.7rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e5e5e5;
+  text-align: left;
+}
+
+#start-screen .start-footer .start-help {
+  flex: 1 1 auto;
+  margin: 0;
+  color: #666;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+#start-screen .start-footer .start-help b {
+  color: #0073aa;
+}
+
+#start-screen .start-footer #stt-badge {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 0;
+  padding: 0.22rem 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+#briefing-screen .briefing-intro {
+  font-size: 1.08rem;
+}
+
+#briefing-screen .legal-link {
+  color: #0073aa;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+#briefing-screen .legal-link:hover {
+  color: #005177;
+}
+
+@media (max-width: 760px) {
+  #start-screen .start-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  #start-screen .start-footer #stt-badge {
+    align-self: flex-start;
+  }
+
+  #start-screen .start-focus,
+  #start-screen .start-description {
+    font-size: clamp(0.82rem, 3.6vw, 0.94rem);
+    line-height: 1.45;
+  }
+
+  #start-screen #btn-start {
+    margin-top: 0.85rem;
+  }
+
+  #start-screen .start-footer {
+    margin-top: 1rem;
+    padding-top: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  #start-screen .start-footer .start-help {
+    font-size: clamp(0.6rem, 2.2vw, 0.68rem);
+    line-height: 1.35;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #start-screen .start-message {
+    max-width: 100%;
+  }
+
+  #start-screen .start-focus,
+  #start-screen .start-description {
+    font-size: 0.72rem;
+    line-height: 1.3;
+  }
+
+  #start-screen .start-focus {
+    margin: 0.35rem 0;
+    padding: 0.4rem 0.5rem;
+  }
+
+  #start-screen .start-description {
+    margin-top: 0.45rem;
+  }
+
+  #start-screen #btn-start {
+    margin-top: 0.55rem;
+    min-height: 40px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.95rem;
+  }
+
+  #start-screen .start-footer {
+    margin-top: 0.65rem;
+    padding-top: 0.45rem;
+    gap: 0.35rem;
+  }
+
+  #start-screen .start-footer .start-help {
+    font-size: 0.6rem;
+    line-height: 1.25;
+  }
+
+  #start-screen .start-footer #stt-badge {
+    padding: 0.18rem 0.4rem;
+    font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 340px) and (orientation: portrait) {
+  #briefing-screen .briefing-box {
+    padding: 0.75rem;
+  }
+
+  #briefing-screen .briefing-title {
+    margin-top: 0.3rem;
+    font-size: 1.7rem;
+    line-height: 1.08;
+  }
+
+  #briefing-screen .briefing-intro {
+    margin: 0.35rem 0 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+
+  #briefing-screen .briefing-steps {
+    gap: 0.4rem;
+  }
+
+  #briefing-screen .briefing-step {
+    padding: 0.55rem;
+  }
+
+  #briefing-screen .step-number {
+    width: 1.65rem;
+    height: 1.65rem;
+    font-size: 0.65rem;
+  }
+
+  #briefing-screen .briefing-step h2 {
+    margin: 0.35rem 0 0.2rem;
+    font-size: 0.82rem;
+  }
+
+  #briefing-screen .briefing-step p {
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  #briefing-screen .training-consent {
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+    padding: 0.55rem;
+  }
+
+  #briefing-screen .consent-copy {
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+
+  #briefing-screen .legal-link {
+    font-size: 0.65rem;
   }
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#f7f7f7" />
-<title>MEDICRAFT — Voxel-Rettung</title>
+<title>MEDICRAFT</title>
 <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
@@ -15,29 +15,30 @@
   </div>
 
   <div id="start-screen" class="fullscreen hidden">
-    <div class="start-box">
+      <div class="start-box">
       <h1 class="game-title">MEDICRAFT</h1>
-      <p class="subtitle">Voxel-Rettung · Spracherkennung · Proprietäres Modell</p>
-      <span id="stt-badge" class="badge unknown">STT: wird geprüft …</span>
-      <div class="start-help">
-        <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Shift</b> sprinten<br />
-        <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
-        <b>Linksklick halten</b> Block abbauen<br />
-        <b>E</b> Patientenkarte in der Nähe öffnen · <b>V (halten)</b> Bericht aufnehmen · <b>T</b> stattdessen tippen</span>
-        <span class="touch-only"><b>Linker Stick</b> bewegen · <b>Rechte Seite wischen</b> umsehen · <b>🩺</b> Patientenkarte öffnen<br />
-        <b>⛏ gedrückt halten</b> Block abbauen · <b>V gedrückt halten</b> in der Karte zum Sprechen · Tastatur nur bei Bedarf verwenden</span><br /><br />
-        <span class="start-focus"><b>WICHTIG:</b> Öffne bei jedem Patienten die Karte und sprich den vollständigen Text, der dort angezeigt wird, genau so. Halte dafür <b>[V]</b> gedrückt. Die Verwendung von Rettungsmitteln ist für die Aufgabe nicht erforderlich.</span>
-        Finde alle sechs Patienten in deinem eigenen Tempo. Das proprietäre, LoRA-trainierte Sprachmodell wandelt deine Stimme in Text um.
+      <div class="start-message">
+        <span class="start-focus"><b>WICHTIG:</b> Öffne bei jedem Patienten die Karte und sprich den vollständigen Text, der dort angezeigt wird, genau so.</span>
+        <p class="start-description">Finde alle sechs Patienten in deinem eigenen Tempo. Die aufgenommenen Sprachdaten werden für ein Sprachmodell verwendet, das Rettungskräfte in Krisensituationen unterstützt.</p>
       </div>
       <button id="btn-start" class="btn big">▶ Einsatz starten</button>
+      <div class="start-footer">
+        <div class="start-help">
+          <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Shift</b> sprinten<br />
+          <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
+          <b>Linksklick halten</b> Block abbauen · <b>E</b> Patientenkarte öffnen · Bericht aufnehmen · <b>T</b> tippen</span>
+          <span class="touch-only"><b>Linker Stick</b> bewegen · <b>Rechte Seite wischen</b> umsehen · <b>🩺</b> Patientenkarte öffnen<br />
+          <b>⛏ gedrückt halten</b> Block abbauen · in der Karte sprechen</span>
+        </div>
+        <span id="stt-badge" class="badge unknown">STT: wird geprüft …</span>
+      </div>
     </div>
   </div>
 
   <div id="briefing-screen" class="fullscreen hidden" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
     <div class="briefing-box">
-      <div class="briefing-kicker">EINSATZBRIEFING · VOR DEM START</div>
       <h1 id="briefing-title" class="briefing-title">Rette alle Patienten</h1>
-      <p class="briefing-intro">Der Sprachbericht ist der Kern des Einsatzes: Sprich bei jedem Patienten den vollständigen Text aus der Karte.</p>
+      <p class="briefing-intro">Sprich bei jedem Patienten den vollständigen Text aus der Karte.</p>
 
       <div class="briefing-steps">
         <article class="briefing-step">
@@ -47,7 +48,7 @@
         <article class="briefing-step focus-step">
           <div class="step-number">02</div>
           <h2>Text aus der Karte sprechen</h2>
-          <p>Öffne die Patientenkarte und sprich den <b>vollständigen angezeigten Text</b> genau vor. Halte dafür <b>[V]</b> gedrückt. Rettungsmittel musst du nicht benutzen.</p>
+          <p>Öffne die Patientenkarte und sprich den <b>vollständigen angezeigten Text</b> genau vor.</p>
         </article>
         <article class="briefing-step">
           <div class="step-number">03</div>
@@ -59,6 +60,9 @@
         <div class="consent-copy">
           <span class="consent-label">DATENZUSTIMMUNG</span>
           <span>Ich stimme zu, dass meine Daten für das Training von KI verwendet werden dürfen.</span>
+          <span>Die aufgenommenen Sprachdaten werden für ein Sprachmodell verwendet, das Rettungskräfte in Krisensituationen unterstützt.</span>
+          <span>Gespeichert werden Audioaufnahme, erwarteter Text, Verbatim-Transkript, Wort-Konfidenzen, Modellinformationen und die IP-Adresse; die IP-Adresse liegt in einem getrennten Ordner.</span>
+          <a class="legal-link" href="https://jar-medical.tech/imprint.html" target="_blank" rel="noopener noreferrer">Rechtlicher Bereich von J.A.R. Medical</a>
         </div>
         <button id="btn-consent" class="btn small consent-btn" type="button">Ich stimme zu &amp; weiter</button>
       </div>
@@ -152,8 +156,6 @@
 
   </div>
 
-  <!-- Classic script: runs before the deferred module, so the base is set in time. -->
-  <script src="./config.js"></script>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>
