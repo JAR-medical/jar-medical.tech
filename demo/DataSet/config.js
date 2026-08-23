@@ -13,5 +13,5 @@
 // so if voice stops working this is the line to update. For a permanent address,
 // deploy the backend (see medicraft/DEPLOY.md — render.yaml is ready to go) and
 // put that hostname here instead.
-window.MEDICRAFT_API_BASES = ["https://taxation-flex-specialist-tired.trycloudflare.com"];
+window.MEDICRAFT_API_BASES = ["https://desktop-tt1pi2m.tailb58b58.ts.net"];
 window.MEDICRAFT_API_BASE = window.MEDICRAFT_API_BASES[0];
