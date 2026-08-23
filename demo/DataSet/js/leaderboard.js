@@ -13,19 +13,22 @@
 
 import { apiUrl, hasBackend } from "./api.js";
 
+// The fictional crews are deliberately mid-range opponents. A good player run
+// should be able to climb the demo board, while real global/local runs remain
+// untouched and still show their actual accuracy.
 const ROSTER = Object.freeze([
-  { name: "Team Nordwand", crew: "Bergwacht Oberstdorf", score: 6120, saved: 19, total: 19, accuracy: 97, elapsed: 1188 },
-  { name: "Crew Alpenrose", crew: "BRK Garmisch", score: 5740, saved: 19, total: 19, accuracy: 94, elapsed: 1302 },
-  { name: "Schicht Hochtal", crew: "ASB Sonthofen", score: 5395, saved: 18, total: 19, accuracy: 95, elapsed: 1247 },
-  { name: "Team Firnkante", crew: "Bergrettung Tirol", score: 5010, saved: 18, total: 19, accuracy: 91, elapsed: 1415 },
-  { name: "Crew Talstation", crew: "DRK Kempten", score: 4680, saved: 17, total: 19, accuracy: 92, elapsed: 1361 },
-  { name: "Schicht Windkolk", crew: "Bergwacht Ramsau", score: 4295, saved: 17, total: 19, accuracy: 88, elapsed: 1490 },
-  { name: "Team Gratweg", crew: "Malteser Füssen", score: 3960, saved: 16, total: 19, accuracy: 90, elapsed: 1436 },
-  { name: "Crew Lawinenhund", crew: "Bergwacht Berchtesgaden", score: 3610, saved: 15, total: 19, accuracy: 86, elapsed: 1523 },
-  { name: "Schicht Schneefeld", crew: "JUH Immenstadt", score: 3240, saved: 14, total: 19, accuracy: 84, elapsed: 1602 },
-  { name: "Team Steilhang", crew: "Bergwacht Lenggries", score: 2870, saved: 13, total: 19, accuracy: 81, elapsed: 1688 },
-  { name: "Crew Gondelbahn", crew: "ASB Mittenwald", score: 2480, saved: 11, total: 19, accuracy: 79, elapsed: 1744 },
-  { name: "Schicht Bergstation", crew: "DRK Oberammergau", score: 2105, saved: 10, total: 19, accuracy: 76, elapsed: 1810 },
+  { name: "Team Nordwand", crew: "Bergwacht Oberstdorf", score: 3200, saved: 19, total: 19, accuracy: 70, elapsed: 1188 },
+  { name: "Crew Alpenrose", crew: "BRK Garmisch", score: 3025, saved: 18, total: 19, accuracy: 68, elapsed: 1302 },
+  { name: "Schicht Hochtal", crew: "ASB Sonthofen", score: 2850, saved: 18, total: 19, accuracy: 66, elapsed: 1247 },
+  { name: "Team Firnkante", crew: "Bergrettung Tirol", score: 2675, saved: 17, total: 19, accuracy: 64, elapsed: 1415 },
+  { name: "Crew Talstation", crew: "DRK Kempten", score: 2500, saved: 17, total: 19, accuracy: 62, elapsed: 1361 },
+  { name: "Schicht Windkolk", crew: "Bergwacht Ramsau", score: 2325, saved: 16, total: 19, accuracy: 60, elapsed: 1490 },
+  { name: "Team Gratweg", crew: "Malteser Füssen", score: 2150, saved: 16, total: 19, accuracy: 58, elapsed: 1436 },
+  { name: "Crew Lawinenhund", crew: "Bergwacht Berchtesgaden", score: 1975, saved: 15, total: 19, accuracy: 56, elapsed: 1523 },
+  { name: "Schicht Schneefeld", crew: "JUH Immenstadt", score: 1800, saved: 14, total: 19, accuracy: 54, elapsed: 1602 },
+  { name: "Team Steilhang", crew: "Bergwacht Lenggries", score: 1625, saved: 13, total: 19, accuracy: 52, elapsed: 1688 },
+  { name: "Crew Gondelbahn", crew: "ASB Mittenwald", score: 1450, saved: 12, total: 19, accuracy: 50, elapsed: 1744 },
+  { name: "Schicht Bergstation", crew: "DRK Oberammergau", score: 1275, saved: 11, total: 19, accuracy: 48, elapsed: 1810 },
 ]);
 
 export const LEADERBOARD_NOTE = "Demo-Bestenliste — die Crews sind erfunden, dein Lauf ist echt.";
@@ -34,6 +37,14 @@ export const LEADERBOARD_NOTES = Object.freeze({
   local: "Deine eigenen Läufe auf diesem Gerät — nur lokal gespeichert.",
   global: "Alle Läufe auf diesem Medicraft-Server, beste zuerst.",
 });
+
+// The board the workstation publishes to the static site. The backend runs on
+// one PC, so it is unreachable whenever that machine sleeps — and a board that
+// vanishes overnight is worse than a slightly old one. This file is pushed
+// alongside the game, so it is served by the same host as index.html and needs
+// no backend at all. Relative on purpose: it resolves under /demo/DataSet/ on
+// the published site and next to the game locally.
+const PUBLISHED_BOARD_URL = "./leaderboard.json";
 
 const IDENTITY_KEY = "medicraft.identity";
 const RUNS_KEY = "medicraft.runs";
@@ -174,7 +185,7 @@ async function withTimeout(promise, ms) {
   }
 }
 
-export async function fetchRemoteRuns(limit = 25) {
+async function fetchLiveRuns(limit) {
   if (!hasBackend()) return null;
   try {
     const res = await withTimeout(fetch(apiUrl(`/api/leaderboard?limit=${limit}`), { cache: "no-store" }), REMOTE_TIMEOUT_MS);
@@ -184,6 +195,35 @@ export async function fetchRemoteRuns(limit = 25) {
   } catch (err) {
     return null;
   }
+}
+
+async function fetchPublishedRuns(limit) {
+  try {
+    const res = await withTimeout(fetch(PUBLISHED_BOARD_URL, { cache: "no-store" }), REMOTE_TIMEOUT_MS);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data : data?.entries;
+    return Array.isArray(entries) ? entries.slice(0, limit) : null;
+  } catch (err) {
+    // No published board is the normal case for a local checkout.
+    return null;
+  }
+}
+
+/** The global board, with where it came from — or null if neither answered.
+ *
+ * The live server wins whenever it is up: it has runs the published snapshot
+ * has not caught up with yet. `source` lets the caller say which one the
+ * player is looking at rather than passing off a snapshot as live.
+ */
+export async function fetchRemoteRuns(limit = 25) {
+  const live = await fetchLiveRuns(limit);
+  if (live && live.length) return { entries: live, source: "server" };
+  const published = await fetchPublishedRuns(limit);
+  if (published && published.length) return { entries: published, source: "published" };
+  // An empty board from a reachable server is still an answer, not a failure.
+  if (live) return { entries: live, source: "server" };
+  return null;
 }
 
 export async function submitRun(run) {

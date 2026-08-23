@@ -11,6 +11,7 @@ export class SpeechClient {
     // null => resolve from window.MEDICRAFT_API_BASE (static hosting) at call time.
     this.baseUrl = baseUrl;
     this.recording = false;
+    this.transcribing = false;
     this._chunks = [];
     this._ctx = null;
     this._stream = null;
@@ -71,11 +72,26 @@ export class SpeechClient {
   }
 
   async startRecording(context = {}) {
-    if (this.recording) return;
+    if (this.recording || this.transcribing) {
+      // A finished take owns the client until its upload returns. Re-emitting
+      // the state repairs any newly opened chart that optimistically changed
+      // its record button before it learned that the client was still busy.
+      emit("stt:status", { state: this.transcribing ? "transcribing" : "recording" });
+      return;
+    }
     this._recordingContext = {
       expectedText: String(context.expectedText || "").trim(),
       scenarioId: String(context.scenarioId || "").trim(),
       patientId: String(context.patientId || "").trim(),
+      contributionMode: Boolean(context.contributionMode),
+      contributionSessionId: String(context.contributionSessionId || "").trim(),
+      contributorId: String(context.contributorId || "").trim(),
+      consentVersion: String(context.consentVersion || "").trim(),
+      promptId: String(context.promptId || "").trim(),
+      taskType: String(context.taskType || "").trim(),
+      requiredConcepts: Array.isArray(context.requiredConcepts) ? context.requiredConcepts : [],
+      idempotencyKey: String(context.idempotencyKey || "").trim(),
+      calibration: Boolean(context.calibration),
     };
     const token = ++this._recordingToken;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -87,7 +103,7 @@ export class SpeechClient {
         ? `Mikrofon braucht HTTPS. Diese Seite läuft über ${location.protocol}//${location.host} — `
           + "öffne sie über https:// oder http://localhost. Der getippte Bericht funktioniert weiterhin."
         : "Kein Mikrofon-Zugriff möglich (Browser-API fehlt).";
-      emit("stt:error", { message });
+      emit("stt:error", { message, context: { ...this._recordingContext } });
       emit("stt:status", { state: "error", detail: message });
       return;
     }
@@ -107,7 +123,7 @@ export class SpeechClient {
         : name === "NotFoundError"
           ? "Kein Mikrofon gefunden."
           : "Mikrofon konnte nicht geöffnet werden.";
-      emit("stt:error", { message });
+      emit("stt:error", { message, context: { ...this._recordingContext } });
       emit("stt:status", { state: "error", detail: message });
       return;
     }
@@ -123,7 +139,7 @@ export class SpeechClient {
         }
         if (token !== this._recordingToken) return;
         const message = "Audioaufnahme wird von diesem Browser nicht unterstützt.";
-        emit("stt:error", { message });
+        emit("stt:error", { message, context: { ...this._recordingContext } });
         emit("stt:status", { state: "error", detail: message });
         return;
       }
@@ -170,12 +186,13 @@ export class SpeechClient {
       ctx.close?.().catch?.(() => {});
       if (token !== this._recordingToken) return;
       const message = "Audioaufnahme konnte nicht gestartet werden.";
-      emit("stt:error", { message });
+      emit("stt:error", { message, context: { ...this._recordingContext } });
       emit("stt:status", { state: "error", detail: message });
     }
   }
 
   async stopRecording() {
+    if (this.transcribing) return;
     if (!this.recording) {
       this._recordingToken++;
       this._recordingContext = {};
@@ -191,8 +208,9 @@ export class SpeechClient {
     const kept = this._trimSilence(merged);
     const duration = kept.length / rate;
     if (!merged.length || !kept.length || duration < MIN_SPEECH_SECONDS) {
+      const context = { ...this._recordingContext };
       this._recordingContext = {};
-      emit("stt:error", { message: "Zu kurz oder keine Sprache erkannt — versuche es erneut." });
+      emit("stt:error", { message: "Zu kurz oder keine Sprache erkannt — versuche es erneut.", context });
       emit("stt:status", { state: "idle" });
       return;
     }
@@ -207,7 +225,9 @@ export class SpeechClient {
       bytes: blob.size,
       durationSeconds: Number((samples.length / TARGET_RATE).toFixed(3)),
     };
-    const recordingContext = this._recordingContext;
+    // Keep the routing data beside this particular WAV. The chart can close —
+    // and its mutable currentPatientId can change — while fetch is in flight.
+    const recordingContext = { ...this._recordingContext };
     const headers = { "Content-Type": "audio/wav" };
     const addEncodedHeader = (name, value) => {
       const clean = String(value || "").replace(/[\r\n]+/g, " ").trim();
@@ -216,12 +236,24 @@ export class SpeechClient {
     addEncodedHeader("X-Medicraft-Expected-Text", recordingContext.expectedText);
     addEncodedHeader("X-Medicraft-Scenario-ID", recordingContext.scenarioId);
     addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
-    emit("stt:status", { state: "transcribing" });
+    addEncodedHeader("X-Medicraft-Session-ID", recordingContext.contributionSessionId);
+    addEncodedHeader("X-Medicraft-Prompt-ID", recordingContext.promptId);
+    addEncodedHeader("X-Medicraft-Task-Type", recordingContext.taskType);
+    addEncodedHeader("X-Medicraft-Required-Concepts", JSON.stringify(recordingContext.requiredConcepts));
+    addEncodedHeader("Idempotency-Key", recordingContext.idempotencyKey);
+    this.transcribing = true;
+    emit("stt:status", { state: "transcribing", context: recordingContext });
     try {
       // A take is expensive to redo, so if the selected backend has gone away
       // between the health probe and now, fail over and send it once more
       // rather than losing the recording.
-      const send = () => fetch(`${this._base()}/api/transcribe`, { method: "POST", headers, body: blob });
+      const endpoint = recordingContext.contributionMode ? "/api/clips" : "/api/transcribe";
+      const send = () => fetch(`${this._base()}${endpoint}`, {
+        method: "POST",
+        headers,
+        body: blob,
+        credentials: "include",
+      });
       let res;
       try {
         res = await send();
@@ -233,7 +265,27 @@ export class SpeechClient {
         res = await send();
       }
       const data = await res.json().catch(() => null);
-      if (res.ok && data) {
+      if (res.ok && data && recordingContext.contributionMode) {
+        const detail = {
+          clipId: data.clip_id,
+          promptId: data.prompt_id || recordingContext.promptId,
+          taskType: data.task_type || recordingContext.taskType,
+          validationState: data.validation_state,
+          basicAccepted: Boolean(data.basic_accepted),
+          qc: data.qc || {},
+          audioBlob: blob,
+          audioInfo: this.lastAudioInfo,
+          context: recordingContext,
+        };
+        if (detail.basicAccepted) {
+          emit("stt:clip-accepted", detail);
+          this._pollContributionClip(detail.clipId, recordingContext).catch(() => {});
+        } else {
+          const reason = detail.qc?.reasons?.[0] || "Aufnahme erfüllt die Qualitätsprüfung nicht.";
+          emit("stt:clip-rejected", { ...detail, reason });
+          emit("stt:error", { message: `${reason} Bitte erneut aufnehmen.`, context: recordingContext, handled: true });
+        }
+      } else if (res.ok && data) {
         emit("stt:result", {
           text: data.text || "",
           seconds: data.processing_seconds ?? null,
@@ -244,19 +296,65 @@ export class SpeechClient {
           model: data.model || null,
           modelConfidence: data.model_confidence ?? data.confidence ?? null,
           wordConfidences: Array.isArray(data.word_confidences) ? data.word_confidences : [],
+          context: recordingContext,
         });
       } else {
         // Without a JSON body this is not the backend answering — it is
         // whatever host the request actually reached, so say which one.
         emit("stt:error", {
           message: (data && data.detail) || this._backendFailureDetail(res.status),
+          context: recordingContext,
         });
       }
     } catch (err) {
-      emit("stt:error", { message: this._backendFailureDetail() });
+      emit("stt:error", { message: this._backendFailureDetail(), context: recordingContext });
     } finally {
+      this.transcribing = false;
       this._recordingContext = {};
       emit("stt:status", { state: "idle" });
+    }
+  }
+
+  async _pollContributionClip(clipId, context) {
+    if (!clipId) return;
+    const terminal = new Set(["training_ready", "review_required", "rejected", "deleted"]);
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, attempt < 4 ? 750 : 1500));
+      let response;
+      try {
+        response = await fetch(`${this._base()}/api/clips/${encodeURIComponent(clipId)}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+      } catch (error) {
+        continue;
+      }
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      if (!data) continue;
+      emit("stt:clip-status", {
+        clipId,
+        validationState: data.validation_state,
+        trainingReady: Boolean(data.training_ready),
+        contributionUnits: Number(data.contribution_units) || 0,
+        qualityScore: Number(data.quality_score) || 0,
+        context,
+      });
+      if (!terminal.has(data.validation_state)) continue;
+      emit("stt:result", {
+        text: data.transcript || "",
+        seconds: null,
+        audioBlob: null,
+        audioInfo: null,
+        audioFile: null,
+        verbatim: data.transcript || "",
+        model: data.model || null,
+        modelConfidence: data.confidence ?? null,
+        wordConfidences: [],
+        contribution: data,
+        context,
+      });
+      return;
     }
   }
 

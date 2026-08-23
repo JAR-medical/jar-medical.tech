@@ -2,6 +2,7 @@ import { emit } from "./events.js";
 import { CASES, ReportParser, createSeededRandom, normalizeText, randomSeed, randomizeCase } from "./cases.js";
 import { scoreAccuracy } from "./accuracy.js";
 import { apiUrl } from "./api.js";
+import { VOICE_STAGE_COUNT, voicePromptAt } from "./voice_prompts.js";
 
 const BASE_SCORE = { rot: 150, gelb: 100 };
 const PARTIAL_BONUS = 10;
@@ -61,6 +62,7 @@ export class Game {
     this.scenarioSync = Promise.resolve(false);
     this.level = null;
     this.levelIndex = 0;
+    this.contributionMode = false;
   }
 
   // Templates are drawn least-used-first so a five-level run spreads the eight
@@ -112,6 +114,7 @@ export class Game {
     const caseUsage = options.caseUsage instanceof Map ? options.caseUsage : new Map();
     this.level = options.level || null;
     this.levelIndex = Number.isFinite(options.levelIndex) ? Number(options.levelIndex) : 0;
+    this.contributionMode = Boolean(options.contributionMode);
     this.score = Number(options.startScore) || 0;
 
     const templates = this._selectTemplates(total, rng, caseUsage);
@@ -145,6 +148,8 @@ export class Game {
         performedActions: new Set(),
         usedItemIds: new Set(),
         completionMode: null,
+        voiceStage: 0,
+        acceptedVoiceClips: [],
         bestAccuracy: null,
         resolved: false,
         saved: false,
@@ -181,6 +186,7 @@ export class Game {
     this.scenario = null;
     this.scenarioId = null;
     this.scenarioSync = Promise.resolve(false);
+    this.contributionMode = false;
   }
 
   serializeRun(run) {
@@ -279,6 +285,8 @@ export class Game {
       levelTitle: this.level?.title || null,
       hidden: this.runs.filter((r) => r.hidden).length,
       hiddenFound: this.runs.filter((r) => r.hidden && r.resolved).length,
+      acceptedVoiceClips: this.runs.reduce((sum, run) => sum + run.acceptedVoiceClips.length, 0),
+      requiredVoiceClips: this.contributionMode ? this.runs.length * VOICE_STAGE_COUNT : 0,
       levelAccuracy: accuracies.length
         ? Math.round(accuracies.reduce((sum, value) => sum + value, 0) / accuracies.length)
         : null,
@@ -289,7 +297,7 @@ export class Game {
     const run = this.byPatientId.get(patientId);
     if (!run) return null;
     const t = run.template;
-    return {
+    const view = {
       patientId: run.patientId,
       name: run.name,
       age: run.age,
@@ -308,10 +316,59 @@ export class Game {
         const group = (t.required || []).find((candidate) => candidate.key === key);
         return group?.label_de || group?.label_en || key;
       }),
+      requiredActionLabels: (t.required || [])
+        .filter((group) => (group.base_key || group.key) !== "transport")
+        .map((group) => group.label_de || group.label_en || group.key),
       completionMode: run.completionMode,
       resolved: run.resolved,
       hidden: Boolean(run.hidden),
       bestAccuracy: run.bestAccuracy,
+      contributionMode: this.contributionMode,
+      voiceStage: run.voiceStage,
+      voiceStageCount: VOICE_STAGE_COUNT,
+      acceptedVoiceClips: run.acceptedVoiceClips.length,
+    };
+    view.voicePrompt = this.contributionMode ? voicePromptAt(view, run.voiceStage) : null;
+    return view;
+  }
+
+  acceptVoiceClip(patientId, clip = {}) {
+    const run = this.byPatientId.get(patientId);
+    if (!this.contributionMode || !run || run.resolved) {
+      return { accepted: false, saved: false, reason: "Kein aktiver Sprachfall." };
+    }
+    const view = this.getView(patientId);
+    const expectedPrompt = view?.voicePrompt;
+    if (!expectedPrompt || clip.promptId !== expectedPrompt.promptId) {
+      return { accepted: false, saved: false, reason: "Diese Sprachaufgabe ist nicht mehr aktuell." };
+    }
+    if (run.acceptedVoiceClips.some((entry) => entry.clipId === clip.clipId)) {
+      return { accepted: false, saved: false, reason: "Aufnahme wurde bereits gezählt." };
+    }
+    run.acceptedVoiceClips.push({
+      clipId: clip.clipId,
+      promptId: clip.promptId,
+      state: clip.validationState || "basic_accepted",
+    });
+    run.voiceStage += 1;
+    const completed = run.voiceStage >= VOICE_STAGE_COUNT;
+    emit("voice:accepted", {
+      patientId,
+      clipId: clip.clipId,
+      promptId: clip.promptId,
+      stage: run.voiceStage,
+      total: VOICE_STAGE_COUNT,
+      completed,
+    });
+    const scoreDelta = completed ? this._completeRun(run, "voice-sequence") : 0;
+    return {
+      accepted: true,
+      saved: completed,
+      completed,
+      scoreDelta,
+      stage: run.voiceStage,
+      total: VOICE_STAGE_COUNT,
+      nextPrompt: completed ? null : this.getView(patientId)?.voicePrompt,
     };
   }
 
@@ -348,6 +405,26 @@ export class Game {
       hiddenBonus,
     });
     return scoreDelta;
+  }
+
+  // Dev shortcuts behind the settings password. They close patients through
+  // the same path a finished treatment does, so a skipped level scores, emits
+  // and ends exactly like a played one — there is no second code path to keep
+  // in step.
+  resolvePatient(patientId, completionMode = "kit") {
+    const run = this.byPatientId.get(patientId);
+    if (!run || run.resolved) return 0;
+    return this._completeRun(run, completionMode);
+  }
+
+  resolveAllPatients(completionMode = "kit") {
+    let resolved = 0;
+    for (const run of this.runs) {
+      if (run.resolved) continue;
+      this._completeRun(run, completionMode);
+      resolved += 1;
+    }
+    return resolved;
   }
 
   // Points awarded by the layer above (streak bonuses, discovery bonuses) that
@@ -415,7 +492,11 @@ export class Game {
       completed,
     };
     this.recordActionUse(run, item, result);
-    if (completed) this._completeRun(run, "kit");
+    if (completed && !this.contributionMode) this._completeRun(run, "kit");
+    if (completed && this.contributionMode) {
+      result.completed = false;
+      result.message = `${item.label} eingesetzt — Behandlung vorbereitet; Sprachübergabe bleibt erforderlich.`;
+    }
     return result;
   }
 
@@ -437,6 +518,17 @@ export class Game {
         saved: false,
       };
     }
+    if (this.contributionMode) {
+      return {
+        verdict: "rejected",
+        matchedKeys: [],
+        missingKeys: [],
+        forbiddenHits: [],
+        feedback: ["Dieser Modus wird ausschließlich über die fünf Sprachschritte abgeschlossen."],
+        scoreDelta: 0,
+        saved: false,
+      };
+    }
 
     const normalizedTranscript = transcript || "";
     const audioRecorded = options?.source === "audio" || options?.audio === true;
@@ -449,7 +541,7 @@ export class Game {
     }
 
     let result = run.parser.parse(normalizedTranscript, [...run.performedActions]);
-    if (audioRecorded && normalizedTranscript.trim()) {
+    if (audioRecorded && normalizedTranscript.trim() && !this.contributionMode) {
       result = {
         ...result,
         verdict: "saved",
@@ -501,6 +593,8 @@ export class Game {
         levelTitle: st.levelTitle,
         levelAccuracy: st.levelAccuracy,
         hidden: st.hidden,
+        acceptedVoiceClips: st.acceptedVoiceClips,
+        requiredVoiceClips: st.requiredVoiceClips,
         rank: Game.rankFor(st.saved, st.total),
       });
     }

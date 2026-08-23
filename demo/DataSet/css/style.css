@@ -28,14 +28,21 @@ html, body {
   color: var(--text);
   font-family: "Segoe UI", system-ui, sans-serif;
   overscroll-behavior: none;
+  /* A pinch zoom that inflates text reflows the HUD around a canvas that
+     never moved, so the two stop lining up. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body { user-select: none; -webkit-user-select: none; }
 input { user-select: text; -webkit-user-select: text; }
 button, input { font: inherit; }
-button { -webkit-tap-highlight-color: transparent; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
-#app, #app canvas { position: absolute; inset: 0; touch-action: none; }
+/* The canvas is sized by this rule alone — three.js is told not to write an
+   inline width/height — so it covers the viewport whatever the drawing
+   buffer underneath it currently is. */
+#app, #app canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 canvas { display: block; image-rendering: pixelated; }
 
 .hidden { display: none !important; }
@@ -210,6 +217,65 @@ canvas { display: block; image-rendering: pixelated; }
   .training-consent { align-items: stretch; flex-direction: column; }
   .consent-btn { align-self: flex-start; }
 }
+
+.play-mode {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+  padding: 0.65rem;
+  border: 1px solid #b8c7ce;
+  background: #eef4f6;
+  color: #2b3a41;
+  font-size: 0.72rem;
+}
+.play-mode label { display: flex; align-items: center; gap: 0.55rem; cursor: pointer; }
+.play-mode label.locked { opacity: 0.52; cursor: not-allowed; }
+.play-mode input { accent-color: #0073aa; }
+.age-confirm { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.35rem; font-weight: 700; }
+.age-confirm input { width: 1.15rem; height: 1.15rem; accent-color: var(--green); }
+
+#calibration-screen { z-index: 72; }
+.calibration-box { width: min(620px, 94vw); }
+.calibration-box .report-script { margin: 1rem 0; }
+.voice-step-progress {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.55rem;
+  border: 2px solid var(--green);
+  color: var(--green);
+  font: 800 0.75rem/1 "Courier New", monospace;
+}
+.recovery-code {
+  display: block;
+  margin-top: 0.8rem;
+  padding: 0.55rem;
+  border: 1px dashed var(--yellow);
+  color: var(--yellow);
+  overflow-wrap: anywhere;
+}
+
+.voice-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--green);
+  font: 800 0.68rem/1 "Courier New", monospace;
+  letter-spacing: 0.09em;
+}
+#voice-stage-progress {
+  min-width: 2.8rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--green);
+  text-align: center;
+}
+.btn.danger {
+  margin-top: 0.8rem;
+  border-color: #b8443d;
+  background: #742d29;
+  color: #fff;
+}
+.btn.danger:hover { background: #963a34; }
 
 .badge {
   display: inline-block;
@@ -1828,11 +1894,18 @@ body.touch-device .desktop-only { display: none; }
 }
 #hidden-hint { color: #66d9ff; font-size: 0.78rem; }
 
-.hud-toggle {
+/* Settings are the single control in this corner; sound options live in its
+   Ton tab so the HUD stays uncluttered. */
+#hud-toggles {
   position: absolute;
   top: calc(14px + var(--safe-top));
   right: calc(14px + var(--safe-right));
   z-index: 30;
+  display: flex;
+  align-items: flex-start;
+}
+
+.hud-toggle {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1847,6 +1920,15 @@ body.touch-device .desktop-only { display: none; }
 .hud-toggle span { font: 700 0.55rem/1 "Courier New", monospace; letter-spacing: 0.12em; color: var(--muted); }
 .hud-toggle[aria-pressed="false"] { opacity: 0.55; border-color: #5a3030; }
 .hud-toggle:hover { border-color: var(--green); }
+
+.hud-toggle.mini {
+  padding: 0.2rem 0.32rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+.hud-toggle.mini span { font-size: 0.42rem; letter-spacing: 0.1em; }
+.hud-toggle.mini:hover { opacity: 1; }
+.hud-toggle.mini[aria-expanded="true"] { border-color: var(--green); opacity: 1; }
 
 /* Recording is the one moment the game deliberately goes silent, so the
    button carries the feedback the audio no longer can. */
@@ -1931,11 +2013,349 @@ body.touch-device .desktop-only { display: none; }
 
 @media (max-width: 720px) {
   #combo-panel { top: auto; bottom: 92px; }
-  .hud-toggle { top: auto; bottom: calc(14px + var(--safe-bottom)); right: calc(14px + var(--safe-right)); }
+  #hud-toggles { top: auto; bottom: calc(14px + var(--safe-bottom)); right: calc(14px + var(--safe-right)); }
   .identity-row input { width: 8rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   #screen-flash, .score-pop, .voice-record.recording, #score-value.bumped, #combo-panel.gained { animation: none; }
   .score-pop { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------------------
+   Start-screen identity, settings panel.
+
+   The name is asked for once, on the start screen, because a leaderboard row
+   that says "Deine Schicht" is worth nothing to the person reading the board.
+   Everything else lives behind the gear: volumes, the level map with what this
+   run has already done, the boards, and the dev tools.
+   --------------------------------------------------------------------------- */
+
+.start-identity {
+  display: block;
+  width: min(100%, 38rem);
+  margin: 1.15rem auto 0;
+  padding: 0.9rem;
+  background: linear-gradient(145deg, #f8fbfd, #f1f7fa);
+  border: 1px solid #d5e3ea;
+  border-left: 4px solid #0073aa;
+  box-shadow: 0 8px 24px rgba(0, 75, 110, 0.08);
+  text-align: left;
+  color: #26343b;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.identity-profile-head {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #dce8ee;
+}
+.identity-avatar {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  background: #dfe9ee;
+  border: 1px solid #c5d3da;
+  color: #65757d;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.identity-avatar.ready { background: #0073aa; border-color: #005f8d; color: #fff; }
+.identity-preview { display: flex; min-width: 0; flex-direction: column; gap: 0.08rem; }
+.identity-kicker {
+  color: #0073aa;
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.identity-preview strong {
+  overflow: hidden;
+  color: #1a1a1a;
+  font-size: 1rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.identity-preview small { overflow: hidden; color: #6c7a81; font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.identity-state {
+  padding: 0.28rem 0.45rem;
+  border: 1px solid currentColor;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.identity-state.missing { color: #8a5a20; background: #fff9ec; }
+.identity-state.ready { color: #0073aa; background: #eaf6fb; }
+.identity-state.saved { color: #287346; background: #eff9f2; }
+.identity-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+.identity-field { display: block; min-width: 0; }
+.identity-field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+  color: #34434a;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.identity-field-label b,
+.identity-field-label em { margin-left: 0.22rem; font-size: 0.56rem; font-style: normal; font-weight: 700; text-transform: uppercase; }
+.identity-field-label b { color: #a33a32; }
+.identity-field-label em { color: #748188; }
+.identity-field-label > span:last-child { color: #87949a; font-size: 0.58rem; font-weight: 600; }
+.identity-input-shell { position: relative; display: block; }
+.identity-input-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #d1dce1;
+  color: #0073aa;
+  font-size: 0.76rem;
+  font-weight: 900;
+  pointer-events: none;
+}
+.start-identity input {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.52rem 0.65rem 0.52rem 2.5rem;
+  background: #fff;
+  border: 1px solid #afc0c8;
+  border-radius: 0;
+  color: #1f2a2f;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.start-identity input::placeholder { color: #89969d; }
+.start-identity input:hover { border-color: #748d99; }
+.start-identity input:focus { outline: none; border-color: #0073aa; box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.13); }
+.start-identity input.invalid { border-color: #b8443d; box-shadow: 0 0 0 3px rgba(184, 68, 61, 0.1); }
+.identity-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; margin-top: 0.55rem; }
+.identity-foot #identity-hint { margin: 0; color: #718087; font-size: 0.62rem; line-height: 1.35; }
+.start-identity .identity-error {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #a33a32;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+@media (max-width: 620px) {
+  .start-identity { margin-top: 0.8rem; padding: 0.75rem; }
+  .identity-profile-head { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .identity-avatar { width: 2.5rem; height: 2.5rem; }
+  .identity-state { grid-column: 1 / -1; justify-self: start; margin-top: -0.15rem; }
+  .identity-fields { grid-template-columns: 1fr; gap: 0.55rem; }
+  .identity-foot { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .start-identity { margin-top: 0.55rem; padding: 0.6rem; }
+  .identity-profile-head { padding-bottom: 0.45rem; }
+  .identity-fields { margin-top: 0.5rem; }
+  .identity-foot { margin-top: 0.35rem; }
+}
+
+#settings-panel { z-index: 60; }
+.settings-box {
+  width: min(720px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.settings-header h2 {
+  margin: 0;
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.08em;
+  color: var(--green);
+  font-size: 1.15rem;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border-bottom: 2px solid var(--panel-border);
+  padding-bottom: 0.5rem;
+}
+.settings-tab {
+  padding: 0.3rem 0.7rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--panel-border);
+  color: var(--muted);
+  font: 700 0.72rem/1 "Courier New", monospace;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.settings-tab.active { color: #0b1206; background: var(--green); border-color: var(--green); }
+.settings-tab.admin-on { border-color: var(--yellow); color: var(--yellow); }
+.settings-tab.admin-on.active { color: #1a1400; background: var(--yellow); }
+
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.8rem 0.2rem 0.2rem;
+}
+.settings-section h3 {
+  margin: 0.9rem 0 0.4rem;
+  font: 700 0.72rem/1 "Courier New", monospace;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.82rem;
+}
+.settings-row label { color: var(--muted); letter-spacing: 0.04em; }
+.settings-row output {
+  font: 700 0.8rem/1 "Courier New", monospace;
+  color: var(--green);
+  min-width: 3.2rem;
+  text-align: right;
+}
+.settings-row input[type="password"],
+.settings-row input[type="text"] {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--panel-border);
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  width: 100%;
+}
+.settings-row input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+.settings-row input[type="range"] {
+  width: 100%;
+  accent-color: #7cfc00;
+}
+.settings-row .toggle-btn { justify-self: start; min-width: 5rem; }
+.settings-row .toggle-btn[aria-pressed="false"] {
+  background: linear-gradient(180deg, #6a6a6a, #464646);
+  border-color: #2d2d2d;
+  box-shadow: 0 3px 0 #262626;
+  color: #101010;
+}
+
+.settings-note {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+/* Progress: the run's totals on top, then one card per level saying what it
+   is and — once played — what this run actually managed there. */
+.settings-run {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.settings-run div {
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--panel-border);
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.settings-run span {
+  font: 700 0.6rem/1 "Courier New", monospace;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.settings-run b { font-family: "Courier New", monospace; font-size: 1rem; color: var(--text); }
+
+.settings-levels { display: flex; flex-direction: column; gap: 0.4rem; }
+.level-card {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(0, 0, 0, 0.32);
+  border: 2px solid var(--panel-border);
+  border-left-width: 5px;
+  padding: 0.45rem 0.6rem;
+}
+.level-card.done { border-left-color: var(--green); }
+.level-card.current { border-left-color: var(--yellow); background: rgba(255, 210, 63, 0.07); }
+.level-card.locked { opacity: 0.55; }
+.level-card .level-no {
+  font: 900 1.1rem/1 "Courier New", monospace;
+  color: var(--muted);
+  text-align: center;
+}
+.level-card.done .level-no { color: var(--green); }
+.level-card.current .level-no { color: var(--yellow); }
+.level-card .level-name { display: block; font-weight: 700; font-size: 0.88rem; }
+.level-card .level-meta { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
+.level-card .level-meta .hidden-count { color: #66d9ff; }
+.level-card .level-result {
+  font: 700 0.74rem/1.4 "Courier New", monospace;
+  text-align: right;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.level-card.done .level-result b { color: var(--green); display: block; }
+.level-card.current .level-result b { color: var(--yellow); display: block; }
+
+.settings-identity { justify-content: flex-start; margin-top: 0; }
+.settings-lb-tabs { justify-content: flex-start; }
+
+.admin-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 2px solid var(--yellow);
+  background: rgba(255, 210, 63, 0.1);
+  color: var(--yellow);
+  padding: 0.4rem 0.6rem;
+  font: 700 0.76rem/1 "Courier New", monospace;
+  letter-spacing: 0.08em;
+}
+.admin-levels { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.admin-levels button { text-align: left; }
+.admin-levels button.current { outline: 2px solid var(--yellow); outline-offset: 1px; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.admin-actions .btn, .admin-levels .btn { font-size: 0.76rem; }
+
+@media (max-width: 720px) {
+  .settings-box { width: 100%; max-height: 88vh; }
+  .settings-row { grid-template-columns: minmax(0, 1fr); }
+  .settings-row output { text-align: left; }
+  .level-card { grid-template-columns: 2rem minmax(0, 1fr); }
+  .level-card .level-result { grid-column: 2; text-align: left; }
 }

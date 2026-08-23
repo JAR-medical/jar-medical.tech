@@ -19,6 +19,8 @@ export class Campaign {
     this.savedTotal = 0;
     this.patientTotal = 0;
     this.elapsedTotal = 0;
+    this.acceptedVoiceClips = 0;
+    this.requiredVoiceClips = 0;
     this.results = [];
     this.usedHints = new Set();
     this.caseUsage = new Map();
@@ -63,6 +65,8 @@ export class Campaign {
     this.savedTotal += Number(stats?.saved) || 0;
     this.patientTotal += Number(stats?.total) || Number(stats?.saved) || 0;
     this.elapsedTotal += Number(stats?.elapsed) || 0;
+    this.acceptedVoiceClips += Number(stats?.acceptedVoiceClips) || 0;
+    this.requiredVoiceClips += Number(stats?.requiredVoiceClips) || 0;
     this.results.push({
       levelId: level?.id || `level-${this.index + 1}`,
       title: level?.title || "",
@@ -70,6 +74,8 @@ export class Campaign {
       total: Number(stats?.total) || 0,
       score: this.carriedScore,
       elapsed: Number(stats?.elapsed) || 0,
+      acceptedVoiceClips: Number(stats?.acceptedVoiceClips) || 0,
+      requiredVoiceClips: Number(stats?.requiredVoiceClips) || 0,
       accuracy: this.accuracySummary().average,
     });
     return this.results[this.results.length - 1];
@@ -84,6 +90,8 @@ export class Campaign {
       saved: this.savedTotal,
       total: this.patientTotal,
       elapsed: this.elapsedTotal,
+      acceptedVoiceClips: this.acceptedVoiceClips,
+      requiredVoiceClips: this.requiredVoiceClips,
       accuracy: accuracy.average,
       accuracyLabel: accuracy.label,
       accuracySamples: accuracy.count,

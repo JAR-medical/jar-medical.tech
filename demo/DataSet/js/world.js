@@ -170,6 +170,13 @@ const FACES = [
   { dir: "nz", normal: [0, 0, -1], corners: [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]] },
 ];
 
+// Glass is collidable, but it must not hide the face of the solid block
+// directly behind it. Otherwise that face is culled and the transparent glass
+// lets the renderer expose still-farther blocks as an X-ray tunnel.
+function isNonOccluding(block) {
+  return block === BLOCK.AIR || block === BLOCK.WATER || block === BLOCK.GLASS;
+}
+
 function makeWoolTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 64;
@@ -304,6 +311,7 @@ export class World {
     this.blocks = new Uint8Array(WORLD_SIZE * WORLD_SIZE * WORLD_HEIGHT);
     this.heightMap = new Int16Array(WORLD_SIZE * WORLD_SIZE);
     this.chunkMeshes = new Array(CHUNKS * CHUNKS).fill(null);
+    this.glassMeshes = new Array(CHUNKS * CHUNKS).fill(null);
     this.waterMeshes = new Array(CHUNKS * CHUNKS).fill(null);
     this.blanketMeshes = new Array(CHUNKS * CHUNKS).fill(null);
     this.disasterScene = null;
@@ -312,6 +320,13 @@ export class World {
     this.disasterProps.name = "medicraft-disaster-scene";
     this.scene.add(this.disasterProps);
     this.solidMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.glassMaterial = new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
     this.waterMaterial = new THREE.MeshLambertMaterial({
       vertexColors: true,
       transparent: true,
@@ -1550,12 +1565,15 @@ export class World {
     for (let i = 0; i < this.chunkMeshes.length; i++) {
       this._removeMesh(this.chunkMeshes[i]);
       this.chunkMeshes[i] = null;
+      this._removeMesh(this.glassMeshes[i]);
+      this.glassMeshes[i] = null;
       this._removeMesh(this.waterMeshes[i]);
       this.waterMeshes[i] = null;
       this._removeMesh(this.blanketMeshes[i]);
       this.blanketMeshes[i] = null;
     }
     this.solidMaterial.dispose();
+    this.glassMaterial.dispose();
     this.waterMaterial.dispose();
     this.blanketMaterial.map?.dispose();
     this.blanketMaterial.dispose();
@@ -1590,9 +1608,11 @@ export class World {
   _rebuildChunk(ci, cj) {
     const index = cj * CHUNKS + ci;
     this._removeMesh(this.chunkMeshes[index]);
+    this._removeMesh(this.glassMeshes[index]);
     this._removeMesh(this.waterMeshes[index]);
     this._removeMesh(this.blanketMeshes[index]);
     this.chunkMeshes[index] = null;
+    this.glassMeshes[index] = null;
     this.waterMeshes[index] = null;
     this.blanketMeshes[index] = null;
     this._buildChunk(ci, cj);
@@ -1603,6 +1623,9 @@ export class World {
     const positions = [];
     const normals = [];
     const colors = [];
+    const glassPositions = [];
+    const glassNormals = [];
+    const glassColors = [];
     const waterPositions = [];
     const waterNormals = [];
     const waterColors = [];
@@ -1621,13 +1644,14 @@ export class World {
           if (block === BLOCK.AIR) continue;
           const isWater = block === BLOCK.WATER;
           const isBlanket = block === BLOCK.EMERGENCY_BLANKET;
+          const isGlass = block === BLOCK.GLASS;
           for (const face of FACES) {
             const neighborBlock = this.getBlock(x + face.normal[0], y + face.normal[1], z + face.normal[2]);
             if (isWater) {
               if (neighborBlock !== BLOCK.AIR) continue;
               this._pushFace(waterPositions, waterNormals, waterColors, x, y, z, face, block, 1.0, 0);
             } else if (isBlanket) {
-              if (neighborBlock !== BLOCK.AIR && neighborBlock !== BLOCK.WATER) continue;
+              if (!isNonOccluding(neighborBlock)) continue;
               this._pushFace(
                 blanketPositions,
                 blanketNormals,
@@ -1641,8 +1665,23 @@ export class World {
                 1,
                 blanketUvs
               );
-            } else {
+            } else if (isGlass) {
               if (neighborBlock !== BLOCK.AIR && neighborBlock !== BLOCK.WATER) continue;
+              const jitter = 0.96 + hash3(x, y, z, this.seed) * 0.08;
+              this._pushFace(
+                glassPositions,
+                glassNormals,
+                glassColors,
+                x,
+                y,
+                z,
+                face,
+                block,
+                FACE_SHADE[face.dir],
+                jitter,
+              );
+            } else {
+              if (!isNonOccluding(neighborBlock)) continue;
               const jitter = 0.96 + hash3(x, y, z, this.seed) * 0.08;
               this._pushFace(positions, normals, colors, x, y, z, face, block, FACE_SHADE[face.dir], jitter);
             }
@@ -1664,6 +1703,22 @@ export class World {
       this.chunkMeshes[index] = mesh;
     } else {
       this.chunkMeshes[index] = new THREE.Object3D();
+    }
+
+    if (glassPositions.length > 0) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(glassPositions, 3));
+      geometry.setAttribute("normal", new THREE.Float32BufferAttribute(glassNormals, 3));
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(glassColors, 3));
+      geometry.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geometry, this.glassMaterial);
+      mesh.renderOrder = 1;
+      mesh.matrixAutoUpdate = false;
+      mesh.updateMatrix();
+      this.scene.add(mesh);
+      this.glassMeshes[index] = mesh;
+    } else {
+      this.glassMeshes[index] = new THREE.Object3D();
     }
 
     if (waterPositions.length > 0) {

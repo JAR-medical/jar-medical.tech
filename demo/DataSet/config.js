@@ -14,4 +14,5 @@
 // deploy the backend (see medicraft/DEPLOY.md — render.yaml is ready to go) and
 // put that hostname here instead.
 window.MEDICRAFT_API_BASE = window.MEDICRAFT_API_BASES[0];
-window.MEDICRAFT_API_BASES = ["https://medicraft.onrender.com"];
+window.MEDICRAFT_API_BASES = ["https://webster-just-singing-electrical.trycloudflare.com"];
+window.MEDICRAFT_API_BASE = window.MEDICRAFT_API_BASES[0];

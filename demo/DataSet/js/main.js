@@ -5,13 +5,14 @@ import { Player } from "./player.js";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js";
 import { SpeechClient } from "./stt.js";
-import { UI } from "./ui.js";
+import { UI } from "./ui.js?v=20260823-u1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
-import { resolveApiBase } from "./api.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
+import { ContributionClient } from "./contributions.js";
+import { shortenVoicePrompt } from "./voice_prompts.js";
 import {
   fetchRemoteRuns,
   hasStoredIdentity,
@@ -40,13 +41,12 @@ const REVEAL_RANGE = 9;
 // Rendering budget. Menus do not need 144 fps, and a hidden tab needs none.
 const MENU_FRAME_MS = 1000 / 30;
 
-class App {
+export class App {
   constructor() {
     this.mode = "loading";
     this.currentPatientId = null;
     this.currentReportScript = "";
     this.hudAccumulator = 0;
-    this.submitTimer = null;
     this.streak = 0;
     this.bestStreak = 0;
     this.hiddenFound = 0;
@@ -55,21 +55,36 @@ class App {
     this.lastSummary = null;
     this.searchPingCooldown = 0;
     this.lastFrameAt = 0;
+    this.runKey = null;
+    this._resumeAfterSettings = false;
+    this.playMode = "shift";
+    this.requestedPlayMode = "shift";
+    this.calibrationIndex = 0;
+    this.calibrationPrompt = null;
+    this.trainingReadyClips = 0;
+    this.voiceRetryCounts = new Map();
+    this.voicePromptOverrides = new Map();
 
     const touchDevice =
       navigator.maxTouchPoints > 0 ||
       window.matchMedia?.("(hover: none) and (pointer: coarse)").matches === true ||
       window.innerWidth <= 760;
+    this.touchDevice = touchDevice;
+    this.view = $("app");
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, touchDevice ? 1.5 : 2));
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    $("app").appendChild(this.renderer.domElement);
+    const view = this.viewportSize();
+    this.renderer.setPixelRatio(this.pixelRatio());
+    // updateStyle = false: the stylesheet stretches the canvas over #app, so
+    // only the drawing buffer follows a measurement. Letting three.js write an
+    // inline width/height instead is what left part of the screen black.
+    this.renderer.setSize(view.width, view.height, false);
+    this.view.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
 
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 420);
+    this.camera = new THREE.PerspectiveCamera(75, view.width / view.height, 0.1, 420);
 
     this.hemiLight = new THREE.HemisphereLight(0xcfe8ff, 0x54442e, 0.9);
     this.scene.add(this.hemiLight);
@@ -80,25 +95,22 @@ class App {
     this.campaign = new Campaign(LEVELS);
     this.levelTimer = null;
 
-    const seed = (Date.now() % 100000) | 0;
-    this.world = new World(this.scene, seed, LEVELS[0]);
-    this.player = new Player(this.camera, this.world, this.renderer.domElement);
+    // The first map used to be generated before the menu appeared, then
+    // generated a second time when the player actually started the mission.
+    // Keep the menu lightweight and build the world only when it is needed.
+    this.world = null;
+    this.player = new Player(this.camera, null, this.renderer.domElement);
     this.entities = new PatientManager(this.scene);
     this.game = new Game(this.entities);
     this.speech = new SpeechClient();  // base resolved from window.MEDICRAFT_API_BASE
+    this.contributions = new ContributionClient();
     this.ui = new UI();
     this.audio = new GameAudio();
     this.ui.setAudio(this.audio);
 
     this.clock = new THREE.Clock();
 
-    const resize = () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener("resize", resize);
-    window.visualViewport?.addEventListener("resize", resize);
+    this.bindViewport();
 
     this.wireUi();
     this.renderer.domElement.addEventListener("click", () => {
@@ -116,28 +128,137 @@ class App {
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
 
-    setTimeout(async () => {
-      $("loading-overlay").classList.add("hidden");
-      this.mode = "start";
-      // Settle on a backend before the first health probe, so the badge and
-      // every later /api/* call agree on which host they are talking to.
-      await resolveApiBase().catch(() => {});
-      const ok = await this.speech.checkHealth().catch(() => false);
-      this.ui.showStart(ok);
-      this.audio.duck("menu", true);
-    }, 900);
+    // The health probe is informative, not a prerequisite for starting: typed
+    // reports work without STT and a slow/offline upstream must not hold the
+    // first screen behind a spinner. checkHealth updates the badge when it
+    // finishes in the background.
+    $("loading-overlay").classList.add("hidden");
+    this.mode = "start";
+    this.ui.showStart(null);
+    this.audio.duck("menu", true);
+    this.speech.checkHealth().catch(() => {});
+    this.contributions.refreshSummary().then((summary) => {
+      this.trainingReadyClips = Number(summary.training_ready_clips) || 0;
+      this.ui.renderContributionSummary(summary);
+    }).catch(() => {});
+  }
+  // Sizing the canvas off window.innerWidth/innerHeight reads correctly until a
+  // phone pinches: iOS reports the *zoomed* visual viewport there, so the canvas
+  // was rebuilt smaller than the page and everything it no longer covered showed
+  // the black body behind it. #app is laid out in the layout viewport, which a
+  // zoom does not move, so it is the honest measurement.
+  viewportSize() {
+    const host = this.view || $("app");
+    const width = host?.clientWidth || document.documentElement.clientWidth || window.innerWidth;
+    const height = host?.clientHeight || document.documentElement.clientHeight || window.innerHeight;
+    return { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
   }
 
+  // Phones render at 1.5x at most: a 3x buffer costs three times the fill rate
+  // for a pixel-art world nobody can tell apart at arm's length.
+  pixelRatio() {
+    return Math.min(window.devicePixelRatio || 1, this.touchDevice ? 1.5 : 2);
+  }
+
+  applyViewport() {
+    this._resizeQueued = false;
+    const { width, height } = this.viewportSize();
+    const ratio = this.pixelRatio();
+    if (width === this._viewWidth && height === this._viewHeight && ratio === this._viewRatio) return;
+    this._viewWidth = width;
+    this._viewHeight = height;
+    this._viewRatio = ratio;
+    this.renderer.setPixelRatio(ratio);
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // Everything that can change the box — a rotation, the URL bar sliding away,
+  // the soft keyboard, a window drag — funnels into one rAF-coalesced pass.
+  bindViewport() {
+    const queue = () => {
+      if (this._resizeQueued) return;
+      // A hidden tab is handed no frames, and a callback queued into one that
+      // never arrives would leave the flag set and every later resize ignored.
+      if (document.hidden) {
+        this.applyViewport();
+        return;
+      }
+      this._resizeQueued = true;
+      requestAnimationFrame(() => this.applyViewport());
+    };
+    window.addEventListener("resize", queue);
+    window.addEventListener("orientationchange", queue);
+    window.visualViewport?.addEventListener("resize", queue);
+    if (typeof ResizeObserver === "function" && this.view) new ResizeObserver(queue).observe(this.view);
+
+    // iOS Safari has ignored user-scalable=no since iOS 10, so the zoom that broke
+    // the canvas has to be refused gesture by gesture. Two fingers on the screen
+    // are the left stick plus the look area, never a pinch this game wants.
+    for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+      document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+    }
+    document.addEventListener(
+      "touchmove",
+      (event) => {
+        if (event.touches.length > 1) event.preventDefault();
+      },
+      { passive: false },
+    );
+    // Double-tap zoom, minus the double taps that are really two quick presses of
+    // the same button — swallowing those would eat menu clicks.
+    let lastTouchEnd = 0;
+    document.addEventListener(
+      "touchend",
+      (event) => {
+        const now = performance.now();
+        const control =
+          event.target instanceof Element && event.target.closest("button, input, select, textarea, a, label");
+        if (!control && now - lastTouchEnd < 320) event.preventDefault();
+        lastTouchEnd = now;
+      },
+      { passive: false },
+    );
+    // A zoom that still slipped through leaves the page panned away from the HUD
+    // once it snaps back; put it where the layout thinks it is.
+    window.visualViewport?.addEventListener("scroll", () => {
+      if ((window.visualViewport.scale || 1) <= 1.01 && (window.scrollX || window.scrollY)) window.scrollTo(0, 0);
+    });
+    this.applyViewport();
+  }
   wireUi() {
     this.ui.bindMain({
-      onStart: () => this.showBriefing(),
+      onStart: ({ mode } = {}) => this.showBriefing(mode),
       onConsentAccepted: () => this.startMission(),
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
-      onRestart: () => this.showBriefing(),
+      onRestart: () => this.showBriefing(this.playMode),
       onNextLevel: () => this.teleportToNextLevel(),
       onIdentityChanged: (identity) => this.publishRun(identity),
+      onSettingsOpen: () => this.settingsSnapshot(),
+      onContributionSummary: () => this.contributions.summary,
+      onWithdrawContribution: () => this.withdrawContribution(),
+      onAdminAction: (action, payload) => this.runAdminAction(action, payload),
+    });
+
+    // The settings panel is a pause in everything but name: the world keeps
+    // rendering behind it, but nothing the player does reaches the paramedic.
+    on("ui:settings-open", () => {
+      this._resumeAfterSettings = this.mode === "playing";
+      if (!this._resumeAfterSettings) return;
+      this.player.enabled = false;
+      this.player._stopBreaking?.();
+      document.exitPointerLock?.();
+    });
+
+    on("ui:settings-close", () => {
+      if (this._resumeAfterSettings && this.mode === "playing") {
+        this.player.enabled = true;
+        this.requestLock();
+      }
+      this._resumeAfterSettings = false;
     });
 
     on("input:interact", () => {
@@ -168,26 +289,42 @@ class App {
 
     on("stt:status", ({ state, detail }) => {
       this.ui.setSttStatus(state, detail);
-      // The bed goes silent for the whole recording *and* the transcription
-      // that follows, so a late fade-in never lands in the tail of the clip.
-      const speaking = state === "recording" || state === "transcribing";
-      this.audio.duck("recording", speaking);
-      if (state === "transcribing") this.ui.toast("Transkription läuft …", "info");
+      // Once recording stops, the WAV is complete: gameplay audio can return
+      // while the immutable take is uploaded and transcribed in the background.
+      this.audio.duck("recording", state === "recording");
+      if (state === "transcribing") {
+        this.ui.toast("Transkription läuft im Hintergrund — Fenster kann geschlossen werden.", "info");
+      }
     });
 
-    on("stt:error", ({ message }) => {
+    on("stt:error", ({ message, context = {}, handled = false }) => {
       this.ui.toast(message, "bad");
       this.ui.flash("bad");
+      if (!handled && this.contributions.session) {
+        this.contributions.track("record_abandoned", {
+          prompt_id: context.promptId || null,
+          patient_id: context.patientId || null,
+          reason: message,
+        });
+      }
     });
 
     on("ui:record-start", () => {
       if (this.mode !== "chart") return;
       this.audio.duck("recording", true);
-      this.speech.startRecording({
+      const view = this.game.getView(this.currentPatientId);
+      const basePrompt = view?.voicePrompt;
+      const prompt = basePrompt ? this.voicePromptOverrides.get(basePrompt.promptId) || basePrompt : null;
+      let context = {
         expectedText: this.currentReportScript,
         scenarioId: this.game.scenarioId,
         patientId: this.currentPatientId,
-      }).catch((err) => {
+      };
+      if (prompt && this.contributions.session) {
+        context = this.contributions.recordingContext(prompt, context);
+        this.contributions.track("record_started", { patient_id: this.currentPatientId, prompt_id: prompt.promptId });
+      }
+      this.speech.startRecording(context).catch((err) => {
         this.audio.duck("recording", false);
         this.ui.toast(String(err?.message || "Aufnahme konnte nicht gestartet werden."), "bad");
       });
@@ -198,18 +335,128 @@ class App {
       this.speech.stopRecording().catch(() => {});
     });
 
-    on("stt:result", ({ text, seconds, audioBlob, audioInfo }) => {
-      this.ui.showVoiceRawData({ audioBlob, audioInfo, processingSeconds: seconds });
+    on("ui:calibration-record-start", () => {
+      if (this.mode !== "calibration" || !this.calibrationPrompt) return;
+      const prompt = {
+        promptId: this.calibrationPrompt.prompt_id,
+        taskType: this.calibrationPrompt.task_type,
+        expectedText: this.calibrationPrompt.text,
+        requiredConcepts: this.calibrationPrompt.required_concepts || [],
+      };
+      this.contributions.track("record_started", { prompt_id: prompt.promptId, calibration: true });
+      this.audio.duck("recording", true);
+      this.speech.startRecording(this.contributions.recordingContext(prompt, {
+        calibration: true,
+        scenarioId: "calibration",
+        patientId: `calibration-${this.calibrationIndex + 1}`,
+      })).catch((error) => this.ui.toast(String(error?.message || error), "bad"));
+    });
+
+    on("ui:calibration-record-stop", () => {
+      if (this.mode !== "calibration") return;
+      this.speech.stopRecording().catch(() => {});
+    });
+
+    on("stt:clip-accepted", (detail) => {
+      const { context = {} } = detail;
+      this.audio.play("transcribed");
+      this.contributions.track("basic_accepted", {
+        clip_id: detail.clipId,
+        prompt_id: detail.promptId,
+        patient_id: context.patientId,
+      });
+      if (context.calibration) {
+        this.advanceCalibration(detail);
+        return;
+      }
+      const result = this.game.acceptVoiceClip(context.patientId, detail);
+      if (!result.accepted) {
+        this.ui.toast(result.reason || "Sprachschritt konnte nicht gezählt werden.", "warn");
+        return;
+      }
+      this.voiceRetryCounts.delete(context.promptId);
+      this.voicePromptOverrides.delete(context.promptId);
+      const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
+      if (sameChart) {
+        this.ui.showVoiceRawData({ audioBlob: detail.audioBlob, audioInfo: detail.audioInfo });
+        this.ui.showVoiceAccepted(result);
+        this.ui.setRecordingUI(false, true);
+      }
+      this.ui.scorePop("+1 SPRACHSCHRITT", "good");
+      if (result.completed) {
+        if (sameChart) setTimeout(() => this.closeChart(), 900);
+      } else if (sameChart) {
+        setTimeout(() => {
+          if (this.mode !== "chart" || this.currentPatientId !== context.patientId) return;
+          const view = this.game.getView(context.patientId);
+          this.currentReportScript = view?.voicePrompt?.expectedText || "";
+          this.ui.setVoicePrompt(view?.voicePrompt);
+          this.ui.setRecordingUI(false, false);
+          this.contributions.track("prompt_shown", {
+            patient_id: context.patientId,
+            prompt_id: view?.voicePrompt?.promptId,
+          });
+        }, 650);
+      }
+    });
+
+    on("stt:clip-rejected", ({ context = {}, reason }) => {
+      this.contributions.track("retry_requested", { prompt_id: context.promptId, reason });
+      if (context.calibration && this.ui.el.calibrationStatus) this.ui.el.calibrationStatus.textContent = reason;
+      if (!context.calibration && context.promptId) {
+        const retries = (this.voiceRetryCounts.get(context.promptId) || 0) + 1;
+        this.voiceRetryCounts.set(context.promptId, retries);
+        const view = this.game.getView(context.patientId);
+        if (retries >= 2 && view?.voicePrompt?.promptId === context.promptId) {
+          const shorter = shortenVoicePrompt(view.voicePrompt);
+          this.voicePromptOverrides.set(context.promptId, shorter);
+          if (this.mode === "chart" && this.currentPatientId === context.patientId) {
+            this.currentReportScript = shorter.expectedText || "";
+            this.ui.setVoicePrompt(shorter);
+            this.ui.toast("Die Sprachaufgabe wurde nach zwei Versuchen verkürzt.", "info");
+          }
+        }
+      }
+    });
+
+    on("stt:clip-status", ({ validationState, contributionUnits, context = {} }) => {
+      if (validationState === "training_ready") {
+        this.contributions.track("training_ready", { prompt_id: context.promptId, units: contributionUnits });
+      } else if (validationState === "review_required") {
+        this.contributions.track("review_required", { prompt_id: context.promptId });
+      }
+      clearTimeout(this._contributionRefreshTimer);
+      this._contributionRefreshTimer = setTimeout(() => {
+        this.contributions.refreshSummary().then((summary) => {
+          this.trainingReadyClips = Number(summary.training_ready_clips) || 0;
+          this.ui.renderContributionSummary(summary, this.contributions.recoveryCode);
+        }).catch(() => {});
+      }, 250);
+    });
+
+    on("stt:result", ({ text, seconds, audioBlob, audioInfo, context = {} }) => {
+      if (context.contributionMode) {
+        const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
+        if (sameChart && text) this.ui.appendTranscript(text);
+        return;
+      }
+      const patientId = context.patientId || null;
+      const sameChart = this.mode === "chart" && this.currentPatientId === patientId;
+      if (sameChart) this.ui.showVoiceRawData({ audioBlob, audioInfo, processingSeconds: seconds });
       if (!text || !text.trim()) {
         this.ui.toast("Leere Aufnahme — nochmal sprechen.", "warn");
         return;
       }
       this.audio.play("transcribed");
-      this.ui.appendTranscript(text);
-      clearTimeout(this.submitTimer);
-      this.submitTimer = setTimeout(() => {
-        this.submitReport(text, { source: "audio", keepChart: true });
-      }, 700);
+      if (sameChart) this.ui.appendTranscript(text);
+      const result = this.submitReport(text, {
+        source: "audio",
+        keepChart: true,
+        background: !sameChart,
+        patientId,
+        scenarioId: context.scenarioId || null,
+      });
+      if (result && !sameChart) this.ui.toast("Transkription im Hintergrund abgeschlossen.", "good");
     });
 
     on("patient:revealed", ({ name, hidden }) => {
@@ -232,6 +479,8 @@ class App {
           ? "sofort geheilt"
           : completionMode === "audio"
             ? "Audiobericht"
+            : completionMode === "voice-sequence"
+              ? "fünf Sprachschritten"
             : completionMode === "kit"
               ? "Rettungsset"
               : "Bericht";
@@ -292,6 +541,125 @@ class App {
 
     on("game:won", finishLevel);
     on("game:lost", finishLevel);
+    // The dev tools end a level the same way the last rescue does, so a skipped
+    // level goes through the identical bookkeeping as a played one.
+    this._finishLevel = finishLevel;
+  }
+
+  // Everything the settings panel shows about the run, read-only. Building it
+  // here keeps the panel from reaching into the game, campaign or entities.
+  settingsSnapshot() {
+    const running = this.mode === "playing" || this.mode === "chart";
+    const campaign = this.campaign.summary();
+    const state = running ? this.game.state() : null;
+    // A run in progress still deserves a row on the boards, so the panel gets a
+    // summary shaped exactly like the one the end screen submits. Before the
+    // first level there is nothing to rank, and a 0/0 ghost row on a board
+    // other people read is worse than no row at all.
+    const played = Boolean(this.lastSummary) || running || campaign.results.length > 0;
+    const summary = !played
+      ? null
+      : this.lastSummary || {
+          ...campaign,
+          score: state ? state.score : campaign.score,
+          saved: campaign.saved + (state?.saved || 0),
+          total: campaign.total + (state?.total || 0),
+          elapsed: campaign.elapsed + (state?.elapsed || 0),
+          hiddenFound: this.hiddenFound,
+        };
+    // Opening the panel is as good a moment as any to see whether the server
+    // board moved; the render below does not wait for it.
+    if (this.mode !== "loading") this.refreshRemoteBoard().catch(() => {});
+    return {
+      mode: this.mode,
+      running,
+      levelIndex: this.campaign.index,
+      levelCount: this.campaign.levelCount,
+      results: campaign.results,
+      score: campaign.score,
+      elapsed: campaign.elapsed,
+      savedTotal: campaign.saved,
+      patientTotal: campaign.total,
+      accuracy: campaign.accuracy,
+      accuracyLabel: campaign.accuracyLabel,
+      accuracySamples: campaign.accuracySamples,
+      streak: this.streak,
+      bestStreak: this.bestStreak,
+      hiddenFound: this.hiddenFound,
+      hiddenTotal: this.hiddenTotal,
+      current: state,
+      summary,
+      runKey: this.runKey || null,
+    };
+  }
+
+  // Dev-only shortcuts behind the settings password. Each one returns the
+  // toast the panel shows, so a refused action says why.
+  runAdminAction(action, payload = {}) {
+    const running = this.mode === "playing" || this.mode === "chart";
+    switch (action) {
+      case "jump-level": {
+        const index = Number(payload?.index);
+        if (!Number.isInteger(index) || index < 0 || index >= this.campaign.levelCount) {
+          return { ok: false, message: "Kein solches Level." };
+        }
+        clearTimeout(this.levelTimer);
+        this.closeChart(true);
+        // Jumping in from a menu starts a fresh run at that level rather than
+        // resuming whatever the last one left behind.
+        if (!running) {
+          this.ui.hideMenus();
+          this.campaign.reset();
+          this.streak = 0;
+          this.bestStreak = 0;
+          this.hiddenFound = 0;
+          this.hiddenTotal = 0;
+          this.runSubmitted = false;
+          this.lastSummary = null;
+          this.runKey = null;
+          this.ui.setCombo({ streak: 0 });
+        }
+        this.campaign.index = index;
+        this.startLevel();
+        return { ok: true, close: true, message: `Level ${index + 1} geladen.` };
+      }
+      case "skip-level": {
+        if (!running) return { ok: false, message: "Kein Level aktiv." };
+        const resolved = this.game.resolveAllPatients?.("kit") ?? 0;
+        if (!resolved) {
+          // Nothing left to resolve (or nothing spawned): end it directly.
+          this._finishLevel?.(this.game.state());
+        }
+        return { ok: true, close: true, message: "Level übersprungen." };
+      }
+      case "reveal-hidden": {
+        if (!running) return { ok: false, message: "Kein Level aktiv." };
+        let revealed = 0;
+        for (const patient of this.entities.getAll()) {
+          if (this.entities.reveal(patient.id)) revealed += 1;
+        }
+        return { ok: true, message: revealed ? `${revealed} Patient(en) aufgedeckt.` : "Nichts mehr versteckt." };
+      }
+      case "heal-nearest": {
+        if (!running) return { ok: false, message: "Kein Level aktiv." };
+        const patient = this.entities.getNearest(this.player.position, 512, { activeOnly: true });
+        if (!patient) return { ok: false, message: "Kein offener Patient mehr." };
+        this.game.resolvePatient?.(patient.id, "kit");
+        return { ok: true, message: `${patient.name} geheilt.` };
+      }
+      case "add-score": {
+        this.game.awardBonus(500, "Admin");
+        return { ok: true, message: "+500 Punkte." };
+      }
+      case "finish-run": {
+        if (this.mode === "end") return { ok: false, message: "Lauf ist schon beendet." };
+        if (running) this.campaign.completeLevel(this.game.state());
+        this.finishCampaign();
+        return { ok: true, close: true, message: "Lauf beendet." };
+      }
+      default:
+        return { ok: false, message: "Unbekannte Aktion." };
+    }
   }
 
   // Consecutive rescues pay a bonus that grows with the streak, and a clean
@@ -344,8 +712,9 @@ class App {
 
   // Leaving the map for a menu must cancel a pending teleport, or the countdown
   // would drop the player into the next level from behind the briefing screen.
-  showBriefing() {
+  showBriefing(mode = "shift") {
     clearTimeout(this.levelTimer);
+    this.requestedPlayMode = mode === "story" ? "story" : "shift";
     this.mode = "start";
     this.player.enabled = false;
     this.audio.unlock();
@@ -355,7 +724,102 @@ class App {
     this.ui.showBriefing();
   }
 
-  startMission() {
+  async startMission() {
+    try {
+      const session = await this.contributions.startSession({
+        ageBand: "16+",
+        locale: "de-DE",
+        mode: this.requestedPlayMode,
+      });
+      this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
+      this.ui.renderContributionSummary(session.summary, session.recovery_code);
+      if (Number(session.summary?.completed_shifts) > 0) {
+        this.contributions.track("next_shift_started", { mode: this.requestedPlayMode });
+      }
+    } catch (error) {
+      this.ui.toast(`Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`, "bad");
+      this.ui.showBriefing();
+      return;
+    }
+    let calibrated = false;
+    try {
+      calibrated = localStorage.getItem("medicraft.voice-calibrated") === "1";
+    } catch (error) {
+      calibrated = false;
+    }
+    if (!calibrated) {
+      await this.startCalibration();
+      return;
+    }
+    this.beginMission();
+  }
+
+  async startCalibration() {
+    this.mode = "calibration";
+    this.player.enabled = false;
+    this.calibrationIndex = 0;
+    try {
+      this.calibrationPrompt = await this.contributions.nextPrompt("calibration");
+      this.contributions.track("prompt_shown", { prompt_id: this.calibrationPrompt.prompt_id, calibration: true });
+      this.ui.showCalibration(this.calibrationPrompt, {
+        index: this.calibrationIndex,
+        count: 3,
+        recoveryCode: this.contributions.recoveryCode,
+      });
+    } catch (error) {
+      this.ui.toast(String(error?.message || "Kalibrierung konnte nicht geladen werden."), "bad");
+      this.ui.showBriefing();
+    }
+  }
+
+  async advanceCalibration() {
+    this.calibrationIndex += 1;
+    if (this.calibrationIndex >= 3) {
+      try {
+        localStorage.setItem("medicraft.voice-calibrated", "1");
+      } catch (error) {
+        // Calibration remains valid for this page even when storage is blocked.
+      }
+      this.ui.hideCalibration();
+      this.beginMission();
+      return;
+    }
+    try {
+      this.calibrationPrompt = await this.contributions.nextPrompt("calibration");
+      this.contributions.track("prompt_shown", { prompt_id: this.calibrationPrompt.prompt_id, calibration: true });
+      this.ui.setCalibrationPrompt(this.calibrationPrompt, this.calibrationIndex, 3);
+    } catch (error) {
+      this.ui.toast(String(error?.message || "Nächster Kalibrierungssatz fehlt."), "bad");
+    }
+  }
+
+  shiftLevel() {
+    const unlocks = this.contributions.summary?.unlocks || {};
+    const candidates = [LEVELS[2]];
+    if (unlocks.industrial_map) candidates.push(LEVELS[3]);
+    if (unlocks.alpine_map) candidates.push(LEVELS[4]);
+    let rotation = 0;
+    try {
+      rotation = Number(localStorage.getItem("medicraft.shift-rotation")) || 0;
+      localStorage.setItem("medicraft.shift-rotation", String(rotation + 1));
+    } catch (error) {
+      rotation = Math.floor(Math.random() * candidates.length);
+    }
+    const source = candidates[rotation % candidates.length];
+    return {
+      ...source,
+      id: `${source.id}_shift`,
+      title: `${source.title} — Kurzschicht`,
+      patientCount: 4,
+      anchors: source.anchors.slice(0, 4),
+    };
+  }
+
+  beginMission() {
+    this.playMode = this.requestedPlayMode;
+    const storyUnlocked = Boolean(this.contributions.summary?.unlocks?.story_campaign);
+    if (this.playMode === "story" && !storyUnlocked) this.playMode = "shift";
+    this.campaign = new Campaign(this.playMode === "story" ? LEVELS : [this.shiftLevel()]);
     this.campaign.reset();
     this.streak = 0;
     this.bestStreak = 0;
@@ -363,9 +827,27 @@ class App {
     this.hiddenTotal = 0;
     this.runSubmitted = false;
     this.lastSummary = null;
+    this.voiceRetryCounts.clear();
+    this.voicePromptOverrides.clear();
     this.ui.setCombo({ streak: 0 });
     this.audio.play("mission-start");
     this.startLevel();
+  }
+
+  async withdrawContribution() {
+    if (this.speech.recording) this.speech.abort();
+    const result = await this.contributions.withdraw();
+    try {
+      localStorage.removeItem("medicraft.voice-calibrated");
+    } catch (error) {
+      // The server-side withdrawal is authoritative.
+    }
+    this.trainingReadyClips = 0;
+    this.ui.renderContributionSummary({});
+    this.ui.closeSettings();
+    this.ui.showStart(null);
+    this.mode = "start";
+    return result;
   }
 
   // Every level rebuilds the world from its own blueprint list and drops the
@@ -389,6 +871,7 @@ class App {
       startScore: this.campaign.carriedScore,
       usedHints: this.campaign.usedHints,
       caseUsage: this.campaign.caseUsage,
+      contributionMode: true,
     });
     this.currentReportScript = "";
 
@@ -430,8 +913,18 @@ class App {
     this.audio.duck("menu", true);
     this.audio.playMusic("menu");
     this.audio.play("campaign-complete");
+    this.contributions.completeShift().then((contributionSummary) => {
+      if (!contributionSummary) return;
+      this.trainingReadyClips = Number(contributionSummary.training_ready_clips) || 0;
+      this.ui.renderContributionSummary(contributionSummary, this.contributions.recoveryCode);
+    }).catch(() => {});
 
-    const summary = { ...this.campaign.summary(), hiddenFound: this.hiddenFound };
+    const summary = {
+      ...this.campaign.summary(),
+      hiddenFound: this.hiddenFound,
+      trainingReadyClips: this.trainingReadyClips,
+      playMode: this.playMode,
+    };
     this.lastSummary = summary;
     // One stamp identifies this run on every board it lands on, so the row it
     // occupies can be highlighted instead of duplicated.
@@ -485,8 +978,14 @@ class App {
   }
 
   async refreshRemoteBoard(status = "") {
-    const entries = await fetchRemoteRuns(25);
-    this.ui.applyRemoteLeaderboard(entries, entries ? status : status || "Kein Server erreichbar.");
+    const board = await fetchRemoteRuns(25);
+    const entries = board?.entries ?? null;
+    let message = status;
+    if (!entries) message = status || "Kein Server erreichbar.";
+    else if (board.source === "published") {
+      message = status || "Server offline — zuletzt veröffentlichter Stand.";
+    }
+    this.ui.applyRemoteLeaderboard(entries, message);
   }
 
   requestLock() {
@@ -505,10 +1004,15 @@ class App {
     const view = this.game.getView(patientId);
     if (!view) return;
     this.currentPatientId = patientId;
-    this.currentReportScript = view.hint || "";
+    const prompt = view.voicePrompt ? this.voicePromptOverrides.get(view.voicePrompt.promptId) || view.voicePrompt : null;
+    this.currentReportScript = prompt?.expectedText || view.hint || "";
     this.ui.clearVerdict();
     this.ui.appendTranscript("");
     this.ui.openChart(view);
+    if (prompt) {
+      this.ui.setVoicePrompt(prompt);
+      this.contributions.track("prompt_shown", { patient_id: patientId, prompt_id: prompt.promptId });
+    }
     this.setMode("chart");
     // The chart is where speaking happens, so the bed drops before the player
     // has even reached for the record button.
@@ -520,13 +1024,18 @@ class App {
 
   closeChart(silent = false) {
     if (!this.currentPatientId && this.mode !== "chart") return;
+    if (this.speech.recording) {
+      // Closing the chart is a valid way to finish speaking. Forced closes
+      // during level/menu transitions still discard a partial take, while a
+      // player close seals the WAV and leaves its transcription running.
+      if (silent) this.speech.abort();
+      else this.speech.stopRecording().catch(() => {});
+    }
     this.currentPatientId = null;
-    if (this.speech.recording) this.speech.abort();
     this.currentReportScript = "";
     this.ui.closeChart();
     this.audio.duck("chart", false);
     this.audio.duck("recording", false);
-    clearTimeout(this.submitTimer);
     if (!silent && this.mode === "chart") {
       this.audio.play("ui-back");
       this.setMode("playing");
@@ -570,18 +1079,24 @@ class App {
   }
 
   submitReport(text, options = {}) {
-    if (this.mode !== "chart" || !this.currentPatientId) return;
+    const patientId = options.patientId || this.currentPatientId;
+    const sameChart = this.mode === "chart" && this.currentPatientId === patientId;
+    if (!patientId || (!sameChart && !options.background)) return null;
     const trimmed = (text || "").trim();
     if (!trimmed) {
       this.ui.toast("Kein Berichtinhalt.", "warn");
-      return;
+      return null;
     }
-    const result = this.game.submitReport(this.currentPatientId, trimmed, options);
+    if (options.scenarioId && options.scenarioId !== this.game.scenarioId) {
+      this.ui.toast("Die Transkription gehört zu einem bereits beendeten Einsatz.", "warn");
+      return null;
+    }
+    const result = this.game.submitReport(patientId, trimmed, options);
     if (options.source === "audio") this.campaign.recordAccuracy(result.accuracy);
-    this.ui.showVerdict(result);
+    if (sameChart) this.ui.showVerdict(result);
     if (!result.saved) {
       this.audio.play(result.verdict === "partial" ? "partial" : "rejected");
-      this.ui.flash(result.verdict === "partial" ? "warn" : "bad");
+      if (sameChart) this.ui.flash(result.verdict === "partial" ? "warn" : "bad");
     }
     if (result.accuracy?.scored) {
       this.ui.scorePop(`${result.accuracy.score}% ${result.accuracy.label}`, result.accuracy.score >= 80 ? "good" : "warn");
@@ -589,6 +1104,7 @@ class App {
     if (result.saved && !options.keepChart) {
       setTimeout(() => this.closeChart(), 1100);
     }
+    return result;
   }
 
   // The search ping is the only guidance a concealed casualty gets: it starts
@@ -627,6 +1143,7 @@ class App {
       levelTitle: this.campaign.current()?.title || state.levelTitle,
       accuracy: this.campaign.accuracySummary(),
       hiddenRemaining: this.entities.hiddenRemaining?.() ?? 0,
+      trainingReadyClips: this.trainingReadyClips,
     });
 
     if (this.mode === "playing") {
@@ -664,7 +1181,7 @@ class App {
     this.lastFrameAt = now;
 
     const dt = Math.min(this.clock.getDelta(), 0.05);
-    this.world.update(this.player.position, dt);
+    this.world?.update(this.player.position, dt);
     this.audio.update(dt);
     if (running) {
       this.player.update(dt);
@@ -684,4 +1201,4 @@ class App {
   }
 }
 
-if (typeof document !== "undefined") new App();
+if (typeof document !== "undefined" && document.getElementById?.("app")) new App();

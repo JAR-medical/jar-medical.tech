@@ -1,8 +1,10 @@
 import { emit } from "./events.js";
 import { HOTBAR_ITEMS, hotbarKeyLabel } from "./items.js";
+import { LEVELS, hiddenCount } from "./levels.js";
 import {
   LEADERBOARD_NOTE,
   LEADERBOARD_NOTES,
+  hasStoredIdentity,
   leaderboardView,
   loadIdentity,
   loadLocalRuns,
@@ -18,11 +20,21 @@ function mmss(seconds) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// The admin password is a convenience lock for development, not a security
+// boundary: it lives in the shipped bundle, so anyone who opens the sources can
+// read it. It exists so the dev tools are not one stray click away during a
+// real session, and nothing behind it touches the backend.
+const ADMIN_PASSWORD = "12345678";
+const ADMIN_SESSION_KEY = "medicraft.admin";
+
 export class UI {
   constructor() {
     this.handlers = {};
     this._vDown = false;
     this._recording = false;
+    this._calibrationRecording = false;
+    this._sttState = "idle";
+    this._playerNameTouched = false;
     this._audioCtx = null;
     this._voiceObjectUrl = null;
     this._bannerTimer = null;
@@ -36,7 +48,17 @@ export class UI {
     this._lbIdentity = null;
     this._lbSummary = null;
     this._lbStatus = "";
+    this._setLbScope = "global";
+    this._settingsTab = "sound";
+    this._settingsSnapshot = null;
+    this._admin = false;
     this.audio = null;
+
+    try {
+      this._admin = globalThis.sessionStorage?.getItem(ADMIN_SESSION_KEY) === "1";
+    } catch (err) {
+      this._admin = false;
+    }
 
     this.isTouchDevice =
       navigator.maxTouchPoints > 0 ||
@@ -62,6 +84,14 @@ export class UI {
       btnStart: $("btn-start"),
       briefingScreen: $("briefing-screen"),
       btnConsent: $("btn-consent"),
+      ageConfirm: $("age-confirm"),
+      consentError: $("consent-error"),
+      calibrationScreen: $("calibration-screen"),
+      calibrationProgress: $("calibration-progress"),
+      calibrationPrompt: $("calibration-prompt"),
+      calibrationRecord: $("calibration-record"),
+      calibrationStatus: $("calibration-status"),
+      recoveryCode: $("recovery-code"),
       sttBadge: $("stt-badge"),
       endScreen: $("end-screen"),
       endTitle: $("end-title"),
@@ -88,6 +118,8 @@ export class UI {
       missionTimer: $("mission-timer"),
       scoreValue: $("score-value"),
       accuracyValue: $("accuracy-value"),
+      voiceClipsValue: $("voice-clips-value"),
+      trainingReadyValue: $("training-ready-value"),
       hiddenHint: $("hidden-hint"),
       prompt: $("prompt"),
       promptText: $("prompt-text"),
@@ -101,6 +133,8 @@ export class UI {
       chartSymptoms: $("chart-symptoms"),
       chartVitalsBody: $("chart-vitals-body"),
       chartHint: $("chart-hint"),
+      voiceStageLabel: $("voice-stage-label"),
+      voiceStageProgress: $("voice-stage-progress"),
       chartProfile: $("chart-profile"),
       chartActions: $("chart-actions"),
       transcriptArea: $("transcript-area"),
@@ -129,34 +163,91 @@ export class UI {
       comboBarFill: $("combo-bar-fill"),
       proximityMeter: $("proximity-meter"),
       proximityFill: $("proximity-fill"),
-      audioToggle: $("audio-toggle"),
       endMedals: $("end-medals"),
       endBest: $("end-best"),
       crewName: $("crew-name"),
       crewStation: $("crew-station"),
       btnSaveName: $("btn-save-name"),
-      lbTabs: Array.from(document.querySelectorAll(".lb-tab")),
+      lbTabs: Array.from(document.querySelectorAll("#end-screen .lb-tab")),
+      playerName: $("player-name"),
+      playerCrew: $("player-crew"),
+      playerNameError: $("player-name-error"),
+      playerNameCount: $("player-name-count"),
+      playerCrewCount: $("player-crew-count"),
+      identityAvatar: $("identity-avatar"),
+      identityPreviewName: $("identity-preview-name"),
+      identityPreviewCrew: $("identity-preview-crew"),
+      identityState: $("identity-state"),
+      playModes: Array.from(document.querySelectorAll('input[name="play-mode"]')),
+      storyMode: $("story-mode"),
+      storyModeOption: $("story-mode-option"),
+      settingsToggle: $("settings-toggle"),
+      settingsPanel: $("settings-panel"),
+      settingsClose: $("settings-close"),
+      settingsTabs: Array.from(document.querySelectorAll(".settings-tab")),
+      settingsSections: Array.from(document.querySelectorAll(".settings-section")),
+      setSoundEnabled: $("set-sound-enabled"),
+      setMusicVolume: $("set-music-volume"),
+      setMusicValue: $("set-music-value"),
+      setSfxVolume: $("set-sfx-volume"),
+      setSfxValue: $("set-sfx-value"),
+      settingsRun: $("settings-run"),
+      settingsLevels: $("settings-levels"),
+      setPlayerName: $("set-player-name"),
+      setPlayerCrew: $("set-player-crew"),
+      setSaveName: $("set-save-name"),
+      settingsLbTabs: Array.from(document.querySelectorAll("#settings-panel .lb-tab")),
+      settingsLeaderboard: $("settings-leaderboard"),
+      contributionSummary: $("contribution-summary"),
+      contributionRecovery: $("contribution-recovery"),
+      withdrawContribution: $("withdraw-contribution"),
+      withdrawStatus: $("withdraw-status"),
+      adminLock: $("admin-lock"),
+      adminPassword: $("admin-password"),
+      adminUnlock: $("admin-unlock"),
+      adminError: $("admin-error"),
+      adminTools: $("admin-tools"),
+      adminLockAgain: $("admin-lock-again"),
+      adminLevels: $("admin-levels"),
+      adminButtons: Array.from(document.querySelectorAll("[data-admin]")),
     };
 
     window.addEventListener("keydown", (e) => {
       if (e.repeat) return;
-      const typingInFallback = document.activeElement === this.el.fallbackInput;
+      const activeElement = document.activeElement;
+      const typingInFallback = activeElement === this.el.fallbackInput;
+      // A field can remain focused after its menu is hidden (notably when a run
+      // starts via Enter). Only a visible editor should suppress shortcuts.
+      const typingAnywhere =
+        ["INPUT", "TEXTAREA"].includes(activeElement?.tagName) &&
+        Boolean(activeElement?.getClientRects?.().length);
       if (e.key === "Escape") {
+        // The settings panel sits on top of everything, so it is what Escape
+        // closes first; only then does Escape mean "leave the chart".
+        if (this._settingsOpen) {
+          this.closeSettings();
+          return;
+        }
         if (this._chartOpen && this.handlers.onCloseChart) {
           this.handlers.onCloseChart();
         }
         return;
       }
+      if ((e.code === "KeyU" || e.key === "u" || e.key === "U") && !typingAnywhere) {
+        e.preventDefault();
+        this.toggleSettings();
+        return;
+      }
+      if ((e.key === "m" || e.key === "M") && !typingAnywhere) {
+        this.toggleAudio();
+        return;
+      }
+      // Chart shortcuts stay behind the settings panel: it covers the chart, so
+      // a keypress meant for the panel must not start a recording underneath.
+      if (this._settingsOpen) return;
       if ((e.key === "v" || e.key === "V") && this._chartOpen && !typingInFallback) {
         this._vDown = true;
         this._requestRecordStart();
-      }
-      if ((e.key === "t" || e.key === "T") && this._chartOpen && !typingInFallback) {
-        e.preventDefault();
-        this.el.fallbackInput.focus();
-      }
-      if ((e.key === "m" || e.key === "M") && !typingInFallback && document.activeElement?.tagName !== "INPUT") {
-        this.toggleAudio();
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -172,23 +263,68 @@ export class UI {
     return !this.el.chartPanel.classList.contains("hidden");
   }
 
+  get _settingsOpen() {
+    return Boolean(this.el.settingsPanel) && !this.el.settingsPanel.classList.contains("hidden");
+  }
+
   _hideMenus() {
+    const activeElement = document.activeElement;
+    if (["INPUT", "TEXTAREA"].includes(activeElement?.tagName)) activeElement.blur();
     this.el.startScreen.classList.add("hidden");
     this.el.briefingScreen.classList.add("hidden");
+    this.el.calibrationScreen?.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.hideLevelComplete();
   }
 
+  // Same thing, for callers outside the UI — the dev level jump drops the
+  // player straight into a map from whatever menu they were on.
+  hideMenus() {
+    this._hideMenus();
+  }
+
   bindMain(h) {
     this.handlers = h;
+    this.prefillPlayerName();
     this.el.btnStart.addEventListener("click", () => {
+      // No run starts nameless: the board other people read is the whole point
+      // of asking, and "Deine Schicht" on it is worth nothing to them.
+      const identity = this._commitPlayerName();
+      if (!identity) return;
       this._hideMenus();
-      h.onStart();
+      const mode = this.el.playModes.find((input) => input.checked)?.value || "shift";
+      h.onStart({ mode });
+    });
+    this.el.playerName?.addEventListener("input", () => {
+      this._playerNameTouched = true;
+      this.updateStartIdentity();
+    });
+    this.el.playerCrew?.addEventListener("input", () => this.updateStartIdentity());
+    this.el.playerName?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (!(this.el.playerName.value || "").trim()) {
+        this._commitPlayerName();
+        return;
+      }
+      this.el.playerCrew?.focus({ preventScroll: true });
+    });
+    this.el.playerCrew?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.el.btnStart.click();
     });
     this.el.btnConsent.addEventListener("click", () => {
+      if (!this.el.ageConfirm?.checked) {
+        this.el.consentError?.classList.remove("hidden");
+        this.el.ageConfirm?.focus({ preventScroll: true });
+        return;
+      }
+      this.el.consentError?.classList.add("hidden");
       this.el.briefingScreen.classList.add("hidden");
       h.onConsentAccepted();
     });
+    this.el.ageConfirm?.addEventListener("change", () => this.el.consentError?.classList.add("hidden"));
     this.el.btnRestart.addEventListener("click", () => {
       this._hideMenus();
       h.onRestart();
@@ -222,7 +358,11 @@ export class UI {
       if (this._recording) this._requestRecordStop();
       else this._requestRecordStart();
     });
-    this.el.audioToggle?.addEventListener("click", () => this.toggleAudio());
+    this.el.calibrationRecord?.addEventListener("click", () => {
+      this._calibrationRecording = !this._calibrationRecording;
+      this.setCalibrationRecording(this._calibrationRecording, false);
+      emit(this._calibrationRecording ? "ui:calibration-record-start" : "ui:calibration-record-stop", {});
+    });
     this.el.btnSaveName?.addEventListener("click", () => this._commitIdentity());
     for (const field of [this.el.crewName, this.el.crewStation]) {
       field?.addEventListener("keydown", (event) => {
@@ -237,6 +377,19 @@ export class UI {
         this.setLeaderboardScope(tab.dataset.scope);
       });
     }
+    this._bindSettings();
+    this.el.withdrawContribution?.addEventListener("click", async () => {
+      if (!window.confirm("Alle gespeicherten Sprachaufnahmen widerrufen und löschen?")) return;
+      this.el.withdrawContribution.disabled = true;
+      if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = "Löschung wird ausgeführt …";
+      try {
+        const result = await this.handlers.onWithdrawContribution?.();
+        if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = `${result?.deleted_clips || 0} Aufnahmen wurden gelöscht.`;
+      } catch (error) {
+        if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = String(error?.message || "Löschung fehlgeschlagen.");
+        this.el.withdrawContribution.disabled = false;
+      }
+    });
     // Every button in the game makes the same click, so the audio wiring lives
     // here once instead of at each call site. It also doubles as the gesture
     // that unlocks the AudioContext.
@@ -255,23 +408,18 @@ export class UI {
 
   setAudio(audio) {
     this.audio = audio;
-    this.syncAudioButton();
+    this.syncSoundControls();
   }
 
   toggleAudio() {
     if (!this.audio) return;
     const enabled = this.audio.toggle();
-    this.syncAudioButton();
+    if (this.el.setSoundEnabled) {
+      this.el.setSoundEnabled.setAttribute("aria-pressed", String(enabled));
+      this.el.setSoundEnabled.textContent = enabled ? "An" : "Aus";
+    }
     this.toast(enabled ? "Ton an" : "Ton aus", "info");
     if (enabled) this.audio.play("ui-confirm");
-  }
-
-  syncAudioButton() {
-    const button = this.el.audioToggle;
-    if (!button) return;
-    const enabled = Boolean(this.audio?.enabled);
-    button.setAttribute("aria-pressed", String(enabled));
-    button.firstChild.textContent = enabled ? "🔊" : "🔇";
   }
 
   _commitIdentity() {
@@ -281,11 +429,399 @@ export class UI {
     });
     if (this.el.crewName) this.el.crewName.value = identity.name;
     if (this.el.crewStation) this.el.crewStation.value = identity.crew;
+    if (this.el.playerName) this.el.playerName.value = identity.name;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    this.syncSettingsIdentity(identity);
+    this.updateStartIdentity({ saved: true });
     this._lbIdentity = identity;
     this.renderLeaderboard(this._lbSummary);
     this.audio?.play("ui-confirm");
     this.handlers.onIdentityChanged?.(identity);
     return identity;
+  }
+
+  // ---------------------------------------------------------------------
+  // Player name (start screen)
+  // ---------------------------------------------------------------------
+
+  prefillPlayerName() {
+    const stored = hasStoredIdentity() ? loadIdentity() : null;
+    if (this.el.playerName) this.el.playerName.value = stored?.name || "";
+    if (this.el.playerCrew) this.el.playerCrew.value = stored?.crew && stored.crew !== "J.A.R. Medical Demo" ? stored.crew : "";
+    this._playerNameTouched = false;
+    this.updateStartIdentity();
+  }
+
+  updateStartIdentity({ saved = false } = {}) {
+    const name = (this.el.playerName?.value || "").trim();
+    const crew = (this.el.playerCrew?.value || "").trim();
+    const stored = hasStoredIdentity() ? loadIdentity() : null;
+    const storedCrew = stored?.crew === "J.A.R. Medical Demo" ? "" : (stored?.crew || "").trim();
+    const unchanged = Boolean(name) && stored?.name === name && storedCrew === crew;
+    const invalid = this._playerNameTouched && !name;
+
+    if (this.el.playerNameCount) this.el.playerNameCount.textContent = `${this.el.playerName?.value.length || 0} / 28`;
+    if (this.el.playerCrewCount) this.el.playerCrewCount.textContent = `${this.el.playerCrew?.value.length || 0} / 28`;
+    if (this.el.identityAvatar) {
+      const initials = name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toLocaleUpperCase("de-DE");
+      this.el.identityAvatar.textContent = initials || "?";
+      this.el.identityAvatar.classList.toggle("ready", Boolean(name));
+    }
+    if (this.el.identityPreviewName) this.el.identityPreviewName.textContent = name || "Spielername wählen";
+    if (this.el.identityPreviewCrew) this.el.identityPreviewCrew.textContent = crew || "Wache oder Team optional";
+    if (this.el.identityState) {
+      const state = saved || unchanged ? "saved" : name ? "ready" : "missing";
+      this.el.identityState.className = `identity-state ${state}`;
+      this.el.identityState.textContent = state === "saved" ? "GESPEICHERT" : state === "ready" ? "BEREIT" : "NAME FEHLT";
+    }
+    this.el.playerName?.classList.toggle("invalid", invalid);
+    this.el.playerName?.setAttribute("aria-invalid", String(invalid));
+    this.el.playerNameError?.classList.toggle("hidden", !invalid);
+  }
+
+  // Returns the saved identity, or null when the field is still empty — in
+  // which case the field itself says why nothing happened.
+  _commitPlayerName() {
+    const raw = (this.el.playerName?.value || "").trim();
+    if (!raw) {
+      this._playerNameTouched = true;
+      this.updateStartIdentity();
+      this.el.playerName?.focus({ preventScroll: true });
+      this.audio?.play("warn");
+      return null;
+    }
+    const identity = saveIdentity({ name: raw, crew: this.el.playerCrew?.value });
+    if (this.el.playerName) this.el.playerName.value = identity.name;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    this._lbIdentity = identity;
+    this.prefillIdentity(identity);
+    this.syncSettingsIdentity(identity);
+    this.updateStartIdentity({ saved: true });
+    this.handlers.onIdentityChanged?.(identity);
+    return identity;
+  }
+
+  syncSettingsIdentity(identity = loadIdentity()) {
+    if (this.el.setPlayerName) this.el.setPlayerName.value = identity?.name || "";
+    if (this.el.setPlayerCrew) this.el.setPlayerCrew.value = identity?.crew || "";
+  }
+
+  // ---------------------------------------------------------------------
+  // Settings panel
+  // ---------------------------------------------------------------------
+
+  _bindSettings() {
+    this.el.settingsToggle?.addEventListener("click", () => this.toggleSettings());
+    this.el.settingsClose?.addEventListener("click", () => this.closeSettings());
+    this.el.settingsPanel?.addEventListener("click", (event) => {
+      if (event.target === this.el.settingsPanel) this.closeSettings();
+    });
+    for (const tab of this.el.settingsTabs) {
+      tab.addEventListener("click", () => this.setSettingsTab(tab.dataset.tab));
+    }
+
+    this.el.setSoundEnabled?.addEventListener("click", () => {
+      this.toggleAudio();
+      this.syncSoundControls();
+    });
+    const bindVolume = (input, setter) => {
+      if (!input) return;
+      const apply = () => {
+        this.audio?.unlock();
+        setter(Number(input.value) / 100);
+        this.syncSoundControls();
+      };
+      input.addEventListener("pointerdown", () => this.audio?.unlock(), { passive: true });
+      input.addEventListener("keydown", () => this.audio?.unlock(), { passive: true });
+      input.addEventListener("input", apply);
+      input.addEventListener("change", apply);
+    };
+    bindVolume(this.el.setMusicVolume, (value) => this.audio?.setMusicVolume(value));
+    bindVolume(this.el.setSfxVolume, (value) => this.audio?.setSfxVolume(value));
+    // One preview beep on release, so a slider drag is not a machine-gun of
+    // test tones but still tells the player what they just set.
+    this.el.setSfxVolume?.addEventListener("change", () => this.audio?.play("ui-confirm"));
+
+    this.el.setSaveName?.addEventListener("click", () => this._commitSettingsIdentity());
+    for (const field of [this.el.setPlayerName, this.el.setPlayerCrew]) {
+      field?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        this._commitSettingsIdentity();
+      });
+    }
+    for (const tab of this.el.settingsLbTabs) {
+      tab.addEventListener("click", () => {
+        this.audio?.play("ui-click");
+        this._setLbScope = tab.dataset.scope;
+        for (const other of this.el.settingsLbTabs) other.classList.toggle("active", other === tab);
+        this.renderSettingsBoard();
+      });
+    }
+
+    this.el.adminUnlock?.addEventListener("click", () => this._tryAdminUnlock());
+    this.el.adminPassword?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this._tryAdminUnlock();
+    });
+    this.el.adminPassword?.addEventListener("input", () => this.el.adminError?.classList.add("hidden"));
+    this.el.adminLockAgain?.addEventListener("click", () => {
+      this.setAdmin(false);
+      this.toast("Admin-Modus gesperrt.", "info");
+    });
+    for (const button of this.el.adminButtons) {
+      button.addEventListener("click", () => this._runAdminAction(button.dataset.admin));
+    }
+    this.setAdmin(this._admin, { silent: true });
+  }
+
+  toggleSettings() {
+    if (this._settingsOpen) this.closeSettings();
+    else this.openSettings();
+  }
+
+  openSettings() {
+    if (!this.el.settingsPanel || this._settingsOpen) return;
+    this.audio?.unlock();
+    this.el.settingsPanel.classList.remove("hidden");
+    this.el.settingsToggle?.setAttribute("aria-expanded", "true");
+    this.syncSoundControls();
+    this.syncSettingsIdentity(this._lbIdentity || loadIdentity());
+    this._lbData.local = loadLocalRuns();
+    this.applySettingsSnapshot(this.handlers.onSettingsOpen?.() || null);
+    this.setSettingsTab(this._settingsTab, { silent: true });
+    this.el.settingsClose?.focus({ preventScroll: true });
+    emit("ui:settings-open", {});
+  }
+
+  closeSettings() {
+    if (!this._settingsOpen) return;
+    this.el.settingsPanel.classList.add("hidden");
+    this.el.settingsToggle?.setAttribute("aria-expanded", "false");
+    this.audio?.play("ui-back");
+    emit("ui:settings-close", {});
+  }
+
+  setSettingsTab(tab, { silent = false } = {}) {
+    const name = tab || "sound";
+    this._settingsTab = name;
+    for (const button of this.el.settingsTabs) button.classList.toggle("active", button.dataset.tab === name);
+    for (const section of this.el.settingsSections) {
+      const match = section.dataset.panel === name;
+      section.classList.toggle("hidden", !match);
+      section.setAttribute("aria-hidden", String(!match));
+    }
+    if (name === "board") this.renderSettingsBoard();
+    if (name === "progress") this.renderProgress();
+    if (name === "data") this.renderContributionSummary(this.handlers.onContributionSummary?.() || null);
+    if (!silent) this.audio?.play("ui-click");
+  }
+
+  syncSoundControls() {
+    const enabled = Boolean(this.audio?.enabled);
+    if (this.el.setSoundEnabled) {
+      this.el.setSoundEnabled.setAttribute("aria-pressed", String(enabled));
+      this.el.setSoundEnabled.textContent = enabled ? "An" : "Aus";
+    }
+    const music = Math.round((this.audio?.musicVolume ?? 0.7) * 100);
+    const sfx = Math.round((this.audio?.sfxVolume ?? 0.85) * 100);
+    if (this.el.setMusicVolume) this.el.setMusicVolume.value = String(music);
+    if (this.el.setSfxVolume) this.el.setSfxVolume.value = String(sfx);
+    if (this.el.setMusicValue) this.el.setMusicValue.textContent = `${music} %`;
+    if (this.el.setSfxValue) this.el.setSfxValue.textContent = `${sfx} %`;
+  }
+
+  _commitSettingsIdentity() {
+    const identity = saveIdentity({
+      name: this.el.setPlayerName?.value,
+      crew: this.el.setPlayerCrew?.value,
+    });
+    this.syncSettingsIdentity(identity);
+    this.prefillIdentity(identity);
+    if (this.el.playerName) this.el.playerName.value = identity.name;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    this._lbIdentity = identity;
+    this.updateStartIdentity({ saved: true });
+    this.audio?.play("ui-confirm");
+    this.toast(`Name gespeichert: ${identity.name}`, "good");
+    this.renderSettingsBoard();
+    this.renderLeaderboard(this._lbSummary);
+    this.handlers.onIdentityChanged?.(identity);
+    return identity;
+  }
+
+  // The snapshot is whatever main.js knows about the run right now. The panel
+  // never reaches into the game itself, so opening it cannot change anything.
+  applySettingsSnapshot(snapshot) {
+    this._settingsSnapshot = snapshot;
+    this.renderProgress();
+    this.renderSettingsBoard();
+    this._renderAdminLevels();
+  }
+
+  renderProgress() {
+    const host = this.el.settingsLevels;
+    if (!host) return;
+    const snap = this._settingsSnapshot || {};
+    const results = Array.isArray(snap.results) ? snap.results : [];
+    const current = snap.current || null;
+    const running = Boolean(snap.running);
+    const levelIndex = Number.isInteger(snap.levelIndex) ? snap.levelIndex : 0;
+
+    if (this.el.settingsRun) {
+      const savedNow = (Number(snap.savedTotal) || 0) + (current ? Number(current.saved) || 0 : 0);
+      const totalNow = (Number(snap.patientTotal) || 0) + (current ? Number(current.total) || 0 : 0);
+      const elapsedNow = (Number(snap.elapsed) || 0) + (current ? Number(current.elapsed) || 0 : 0);
+      const tiles = [
+        ["Level", `${Math.min(results.length + (running ? 1 : 0), LEVELS.length)}/${LEVELS.length}`],
+        ["Gerettet", `${savedNow}/${totalNow}`],
+        ["Punkte", String(current ? current.score : snap.score || 0)],
+        ["Genauigkeit", snap.accuracySamples ? `${snap.accuracy}%` : "—"],
+        ["Zeit", mmss(elapsedNow)],
+        ["Beste Serie", String(snap.bestStreak || 0)],
+        ["Versteckte", `${snap.hiddenFound || 0}/${snap.hiddenTotal || 0}`],
+      ];
+      this.el.settingsRun.innerHTML = tiles
+        .map(([label, value]) => `<div><span>${label}</span><b>${escapeHtml(value)}</b></div>`)
+        .join("");
+    }
+
+    host.innerHTML = LEVELS.map((level, index) => {
+      const done = index < results.length;
+      const isCurrent = running && index === levelIndex && !done;
+      const state = done ? "done" : isCurrent ? "current" : "locked";
+      const hidden = hiddenCount(level);
+      const meta = [
+        level.subtitle,
+        `${level.patientCount} Patient${level.patientCount === 1 ? "" : "en"}`,
+        hidden ? `<span class="hidden-count">${hidden} versteckt</span>` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const result = done
+        ? `<b>${results[index].saved}/${results[index].total}</b>${mmss(results[index].elapsed)}`
+        : isCurrent
+          ? `<b>${current ? current.saved : 0}/${current ? current.total : level.patientCount}</b>läuft`
+          : "—";
+      return (
+        `<div class="level-card ${state}">` +
+        `<span class="level-no">${done ? "✔" : index + 1}</span>` +
+        `<span><span class="level-name">${escapeHtml(level.title)}</span>` +
+        `<span class="level-meta">${meta}</span></span>` +
+        `<span class="level-result">${result}</span>` +
+        `</div>`
+      );
+    }).join("");
+  }
+
+  renderContributionSummary(summary, recoveryCode = null) {
+    if (summary) this._contributionSummary = summary;
+    const data = this._contributionSummary || {};
+    if (this.el.contributionSummary) {
+      const tiles = [
+        ["Beiträge", data.contributed_clips || 0],
+        ["Audio akzeptiert", data.basic_accepted_clips || 0],
+        ["Training-ready", data.training_ready_clips || 0],
+        ["In Prüfung", data.review_required_clips || 0],
+        ["Beitragspunkte", data.contribution_units || 0],
+        ["Schichten", data.completed_shifts || 0],
+        ["Rang", data.rank || "Einsatzhelfer"],
+      ];
+      this.el.contributionSummary.innerHTML = tiles
+        .map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`)
+        .join("");
+    }
+    if (recoveryCode && this.el.contributionRecovery) {
+      this.el.contributionRecovery.textContent = `Löschcode: ${recoveryCode}`;
+      this.el.contributionRecovery.classList.remove("hidden");
+    }
+    const unlocked = Boolean(data.unlocks?.story_campaign);
+    if (this.el.storyMode) this.el.storyMode.disabled = !unlocked;
+    this.el.storyModeOption?.classList.toggle("locked", !unlocked);
+  }
+
+  renderSettingsBoard() {
+    const host = this.el.settingsLeaderboard;
+    if (!host) return;
+    const summary = this._settingsSnapshot?.summary || this._lbSummary;
+    if (!summary) {
+      host.innerHTML = `<p class="lb-note">Die Bestenliste zeigt deinen Lauf, sobald der erste Einsatz läuft.</p>`;
+      return;
+    }
+    this.renderLeaderboard(summary, {
+      host,
+      scope: this._setLbScope,
+      youKey: this._settingsSnapshot?.runKey || this._lbYouKey[this._setLbScope],
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Admin (dev tools)
+  // ---------------------------------------------------------------------
+
+  _tryAdminUnlock() {
+    const value = this.el.adminPassword?.value || "";
+    if (value !== ADMIN_PASSWORD) {
+      this.el.adminError?.classList.remove("hidden");
+      this.audio?.play("warn");
+      return false;
+    }
+    if (this.el.adminPassword) this.el.adminPassword.value = "";
+    this.el.adminError?.classList.add("hidden");
+    this.setAdmin(true);
+    this.toast("🔓 Admin-Modus aktiv — Level lassen sich jetzt überspringen.", "good");
+    return true;
+  }
+
+  setAdmin(on, { silent = false } = {}) {
+    this._admin = Boolean(on);
+    try {
+      if (this._admin) globalThis.sessionStorage?.setItem(ADMIN_SESSION_KEY, "1");
+      else globalThis.sessionStorage?.removeItem(ADMIN_SESSION_KEY);
+    } catch (err) {
+      /* private mode, or no storage at all */
+    }
+    this.el.adminLock?.classList.toggle("hidden", this._admin);
+    this.el.adminTools?.classList.toggle("hidden", !this._admin);
+    for (const tab of this.el.settingsTabs) {
+      if (tab.dataset.tab === "admin") tab.classList.toggle("admin-on", this._admin);
+    }
+    if (this._admin) this._renderAdminLevels();
+    if (!silent) this.audio?.play(this._admin ? "ui-confirm" : "ui-back");
+    return this._admin;
+  }
+
+  get isAdmin() {
+    return this._admin;
+  }
+
+  _renderAdminLevels() {
+    const host = this.el.adminLevels;
+    if (!host) return;
+    const active = this._settingsSnapshot?.levelIndex ?? -1;
+    host.innerHTML = LEVELS.map(
+      (level, index) =>
+        `<button class="btn small${index === active ? " current" : ""}" type="button" data-jump="${index}">` +
+        `${index + 1} · ${escapeHtml(level.title)}</button>`,
+    ).join("");
+    for (const button of host.querySelectorAll("[data-jump]")) {
+      button.addEventListener("click", () => this._runAdminAction("jump-level", { index: Number(button.dataset.jump) }));
+    }
+  }
+
+  _runAdminAction(action, payload = {}) {
+    if (!this._admin || !action) return;
+    const result = this.handlers.onAdminAction?.(action, payload);
+    if (result?.message) this.toast(result.message, result.ok === false ? "warn" : "good");
+    if (result?.close) this.closeSettings();
+    else this.applySettingsSnapshot(this.handlers.onSettingsOpen?.() || null);
   }
 
   _requestRecordStart() {
@@ -441,11 +977,13 @@ export class UI {
 
   }
 
-  showStart(sttReady) {
+  showStart(sttReady = null) {
     this.el.startScreen.classList.remove("hidden");
     this.el.briefingScreen.classList.add("hidden");
+    this.el.calibrationScreen?.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.hud.classList.add("hidden");
+    this.prefillPlayerName();
     this._setBadge(sttReady);
   }
 
@@ -453,11 +991,56 @@ export class UI {
     this.el.startScreen.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.briefingScreen.classList.remove("hidden");
+    this.el.calibrationScreen?.classList.add("hidden");
     this.el.btnConsent.focus({ preventScroll: true });
+  }
+
+  showCalibration(prompt, { index = 0, count = 3, recoveryCode = null } = {}) {
+    this.el.startScreen.classList.add("hidden");
+    this.el.briefingScreen.classList.add("hidden");
+    this.el.endScreen.classList.add("hidden");
+    this.el.calibrationScreen?.classList.remove("hidden");
+    if (recoveryCode && this.el.recoveryCode) {
+      this.el.recoveryCode.textContent = `Löschcode: ${recoveryCode}`;
+      this.el.recoveryCode.classList.remove("hidden");
+    }
+    this.setCalibrationPrompt(prompt, index, count);
+  }
+
+  setCalibrationPrompt(prompt, index = 0, count = 3) {
+    if (this.el.calibrationProgress) this.el.calibrationProgress.textContent = `Schritt ${index + 1}/${count}`;
+    if (this.el.calibrationPrompt) {
+      this.el.calibrationPrompt.innerHTML = `<span class="script-label">SPRICH DAS</span><span class="script-copy">${escapeHtml(prompt?.text || "")}</span>`;
+    }
+    if (this.el.calibrationStatus) this.el.calibrationStatus.textContent = "Bereit für die Aufnahme.";
+    this._calibrationRecording = false;
+    this.setCalibrationRecording(false, false);
+  }
+
+  setCalibrationRecording(recording, busy = false) {
+    const button = this.el.calibrationRecord;
+    if (!button) return;
+    button.disabled = Boolean(busy);
+    button.classList.toggle("recording", Boolean(recording));
+    button.setAttribute("aria-pressed", String(Boolean(recording)));
+    button.textContent = busy ? "⏳ Qualitätsprüfung …" : recording ? "■ Aufnahme beenden" : "🎤 Aufnahme starten";
+    if (this.el.calibrationStatus) {
+      this.el.calibrationStatus.textContent = busy ? "Aufnahme wird gespeichert und geprüft …" : recording ? "Sprich jetzt deutlich." : "Bereit für die Aufnahme.";
+    }
+  }
+
+  hideCalibration() {
+    this.el.calibrationScreen?.classList.add("hidden");
+    this._calibrationRecording = false;
   }
 
   _setBadge(sttReady) {
     const badge = this.el.sttBadge;
+    if (sttReady === null || sttReady === "checking") {
+      badge.className = "badge unknown";
+      badge.textContent = "STT: wird geprüft …";
+      return;
+    }
     if (sttReady) {
       badge.className = "badge ready";
       badge.textContent = "STT: bereit";
@@ -468,18 +1051,22 @@ export class UI {
   }
 
   setSttStatus(state, detail) {
+    this._sttState = state;
     if (!this.el.startScreen.classList.contains("hidden")) {
       this._setBadge(state === "ready");
     }
     if (state === "recording") {
       this._recording = true;
       this.setRecordingUI(true, false);
+      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(true, false);
     } else if (state === "transcribing") {
       this._recording = false;
       this.setRecordingUI(false, true);
+      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(false, true);
     } else if (state === "idle" || state === "ready" || state === "error" || state === "unavailable") {
       this._recording = false;
       this.setRecordingUI(false, false);
+      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(false, false);
     }
   }
 
@@ -614,6 +1201,12 @@ export class UI {
         ? `${accuracy.average}% · ${accuracy.label}`
         : "—";
     }
+    if (this.el.voiceClipsValue) {
+      const accepted = Number(state.acceptedVoiceClips) || 0;
+      const required = Number(state.requiredVoiceClips) || 0;
+      this.el.voiceClipsValue.textContent = required ? `${accepted}/${required}` : String(accepted);
+    }
+    if (this.el.trainingReadyValue) this.el.trainingReadyValue.textContent = String(Number(state.trainingReadyClips) || 0);
     if (this.el.hiddenHint) {
       const remaining = Number(state.hiddenRemaining) || 0;
       this.el.hiddenHint.textContent = remaining
@@ -719,7 +1312,12 @@ export class UI {
       tr.innerHTML = `<td>${label}</td><td>${value}</td>`;
       this.el.chartVitalsBody.appendChild(tr);
     }
-    this.el.chartHint.innerHTML = `<span class="script-label">SAG DAS</span><span class="script-copy">${view.hint}</span>`;
+    this.setVoicePrompt(view.voicePrompt || {
+      label: "Bericht sprechen",
+      stageNumber: 1,
+      stageCount: 1,
+      text: view.hint,
+    });
     this.el.chartActions.innerHTML = "";
     if (view.usedItems?.length) {
       const itemsById = new Map(HOTBAR_ITEMS.map((item) => [item.id, item]));
@@ -750,11 +1348,31 @@ export class UI {
     }
     this.transcriptPlaceholder();
     this._recording = false;
-    this.setRecordingUI(false, false);
+    this.setRecordingUI(false, this._sttState === "transcribing");
     this.clearVoiceOutput();
     this.clearVerdict();
     this.updateChartTimer(view.elapsed);
     this.el.chartPanel.classList.remove("hidden");
+  }
+
+  setVoicePrompt(prompt) {
+    if (!prompt) return;
+    if (this.el.voiceStageLabel) this.el.voiceStageLabel.textContent = String(prompt.label || "Sprachaufgabe").toUpperCase();
+    if (this.el.voiceStageProgress) this.el.voiceStageProgress.textContent = `${prompt.stageNumber || 1}/${prompt.stageCount || 1}`;
+    if (this.el.chartHint) {
+      const instruction = prompt.taskType === "spontaneous_handoff" ? "IN EIGENEN WORTEN" : "SPRICH DAS";
+      this.el.chartHint.innerHTML = `<span class="script-label">${instruction}</span><span class="script-copy">${escapeHtml(prompt.text || "")}</span>`;
+    }
+    this.clearVerdict();
+    this.transcriptPlaceholder();
+  }
+
+  showVoiceAccepted({ stage = 1, total = 5, completed = false } = {}) {
+    this.clearVerdict();
+    const line = document.createElement("div");
+    line.className = "feedback-line good";
+    line.textContent = completed ? "PATIENTENDIALOG ABGESCHLOSSEN ✔" : `SPRACHSCHRITT ${stage}/${total} GESPEICHERT ✔`;
+    this.el.verdictBox.appendChild(line);
   }
 
   updateChartTimer(elapsedSeconds) {
@@ -899,7 +1517,8 @@ export class UI {
       `<div>Gerettet: <b>${summary.saved}/${summary.total}</b></div>` +
       `<div>Punkte: <b>${summary.score}</b></div>` +
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
-      `<div>Gewertete Sprachberichte: <b>${summary.accuracySamples || 0}</b></div>` +
+      `<div>Gespeicherte Sprachschritte: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
+      `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>` +
       `<div class="end-levels">${levelRows}</div>`;
 
     this.renderMedals(summary, extras);
@@ -917,7 +1536,7 @@ export class UI {
     this._lbStatus = extras.remoteStatus || "";
     this.setLeaderboardScope(this._lbData.global ? "global" : "local", { silent: true });
 
-    this.el.btnRestart.textContent = "↻ Neuer Durchlauf ab Level 1";
+    this.el.btnRestart.textContent = summary.playMode === "shift" ? "↻ Nächste Kurzschicht" : "↻ Neuer Durchlauf ab Level 1";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
     this.setCombo({ streak: 0 });
@@ -993,7 +1612,9 @@ export class UI {
   // `global` and `local` are real runs. `demo` is openly fictional and the note
   // under it says so, so a player never mistakes the demo crews for people.
   renderLeaderboard(summary, options = {}) {
-    const host = this.el.endLeaderboard;
+    // `host` lets the settings panel reuse the same renderer for its own copy
+    // of the board; without one this is the end screen, exactly as before.
+    const host = options.host || this.el.endLeaderboard;
     if (!host || !summary) return;
     const scope = options.scope || this._lbScope || "demo";
     const entries = scope === "demo" ? null : this._lbData[scope];
@@ -1001,7 +1622,7 @@ export class UI {
       scope,
       entries: entries || undefined,
       identity: options.identity || this._lbIdentity,
-      youKey: this._lbYouKey[scope],
+      youKey: options.youKey ?? this._lbYouKey[scope],
     });
 
     const rows = board.shown
@@ -1043,6 +1664,7 @@ export class UI {
     if (youKey) this._lbYouKey.global = String(youKey);
     this._lbStatus = status;
     if (this._lbScope === "global") this.renderLeaderboard(this._lbSummary);
+    if (this._settingsOpen && this._setLbScope === "global") this.renderSettingsBoard();
   }
 
   closeChart() {
