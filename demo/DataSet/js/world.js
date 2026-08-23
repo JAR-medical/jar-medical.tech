@@ -42,7 +42,10 @@ export const BLOCK = {
 export const BLOCK_BY_NAME = Object.freeze({ ...BLOCK });
 
 export const WORLD_SIZE = 128;
-export const WORLD_HEIGHT = 40;
+// Tall enough that a level can raise a mountain well above the incident and
+// still leave sky over the summit. Only levels that declare `terrain.massifs`
+// build anywhere near the top — everything else stays under y=30 as before.
+export const WORLD_HEIGHT = 56;
 const CHUNK = 16;
 const CHUNKS = WORLD_SIZE / CHUNK;
 const WATER_LEVEL = 11;
@@ -331,15 +334,67 @@ export class World {
     }
   }
 
+  // Terrain-scale relief a level can ask for on top of the rolling noise: one
+  // entry per summit, so a map can be given a mountain that actually towers
+  // over the incident instead of a hill the player looks down on. `relief`
+  // mixes in ridged noise, which is what turns a smooth cone into a flank of
+  // spurs and gullies — and gullies are where avalanches start.
+  _massifLift(x, z) {
+    const peaks = this.terrain.massifs;
+    if (!peaks || peaks.length === 0) return 0;
+    let lift = 0;
+    for (const peak of peaks) {
+      const [px, pz] = peak.at;
+      const radius = peak.radius ?? 60;
+      const dist = Math.hypot((x - px) / (peak.stretchX ?? 1), (z - pz) / (peak.stretchZ ?? 1));
+      if (dist >= radius) continue;
+      const t = 1 - dist / radius;
+      const relief = peak.relief ?? 0.35;
+      const ridge = 1 - Math.abs(fbm2(x * 0.045, z * 0.045, this.seed + 977, 3) * 2 - 1);
+      const shaped = Math.pow(t, peak.falloff ?? 1.5);
+      // A finer octave on top, or the rounded profile terraces into contour
+      // steps everywhere the slope is gentle.
+      const grain = (fbm2(x * 0.16, z * 0.16, this.seed + 1481, 2) - 0.5) * (peak.grain ?? 3);
+      lift += (peak.height ?? 18) * shaped * (1 - relief + relief * 2 * ridge) + grain * shaped;
+    }
+    return lift;
+  }
+
   _baseHeight(x, z) {
     const n = fbm2(x * 0.03, z * 0.03, this.seed, 4);
     const base = this.terrain.base ?? 13;
     const amplitude = this.terrain.amplitude ?? 12;
-    return Math.max(4, Math.min(30, Math.round(base + (n - 0.5) * amplitude)));
+    const ceiling = this.terrain.massifs ? WORLD_HEIGHT - 4 : 30;
+    return Math.max(4, Math.min(ceiling, Math.round(base + (n - 0.5) * amplitude + this._massifLift(x, z))));
   }
 
   _topBlock() {
     return BLOCK[this.terrain.topBlock] ?? BLOCK.GRASS;
+  }
+
+  // Snow lies everywhere it can lie, and bares the rock everywhere it cannot:
+  // on a real winter face the grey is the steep ground, not an altitude band.
+  // Run over the finished height map, so it costs one pass and no extra noise.
+  _paintCliffs() {
+    const slope = this.terrain.cliffSlope;
+    if (slope === undefined) return;
+    const minHeight = this.terrain.cliffMinHeight ?? 0;
+    const rock = BLOCK[this.terrain.rockBlock] ?? BLOCK.STONE;
+    for (let z = 1; z < WORLD_SIZE - 1; z++) {
+      for (let x = 1; x < WORLD_SIZE - 1; x++) {
+        const h = this.heightMap[z * WORLD_SIZE + x];
+        if (h < minHeight) continue;
+        const drop = Math.max(
+          Math.abs(h - this.heightMap[z * WORLD_SIZE + x - 1]),
+          Math.abs(h - this.heightMap[z * WORLD_SIZE + x + 1]),
+          Math.abs(h - this.heightMap[(z - 1) * WORLD_SIZE + x]),
+          Math.abs(h - this.heightMap[(z + 1) * WORLD_SIZE + x]),
+        );
+        if (drop < slope) continue;
+        // The face itself, not just its lip: snow does not cling to any of it.
+        for (let y = Math.max(1, h - drop); y < h; y++) this.blocks[idx(x, y, z)] = rock;
+      }
+    }
   }
 
   _shoreBlock() {
@@ -373,10 +428,14 @@ export class World {
         this._fillColumn(x, z, h, h <= WATER_LEVEL + 1 ? shore : top);
       }
     }
+    this._paintCliffs();
     if (this.level.build === "collapse" || this.level.clinicPlaza) this._carveClinicPlaza();
     this._plantTrees();
     if (this.level.build === "collapse") this._buildDisasterScene();
     else this._buildLevelScene();
+    // After the site is levelled, so the track cuts through the rim the feather
+    // left behind instead of being flattened away with it.
+    this._carveAvalanche();
     this.clinic.y = this.heightMap[Math.floor(this.clinic.z) * WORLD_SIZE + Math.floor(this.clinic.x)];
     this._collectPatientAnchors();
   }
@@ -419,6 +478,17 @@ export class World {
         if (block === undefined) return;
         this._setGeneratedBlock(x, y, z, block);
       },
+      // What a structure would be standing on right now, as an offset from the
+      // site floor — so a builder can fit itself to whatever the structures
+      // before it piled up there.
+      topAt: (x, z) => {
+        if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) return 0;
+        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+          const block = this.blocks[idx(x, y, z)];
+          if (block !== BLOCK.AIR && block !== BLOCK.WATER) return Math.max(0, y + 1 - floorY);
+        }
+        return 0;
+      },
       pave: (x0, z0, x1, z1, name) => {
         const block = BLOCK[name] ?? top;
         for (let z = z0; z <= z1; z++) {
@@ -445,6 +515,231 @@ export class World {
     const spawn = this.level.spawn?.at;
     this.clinic = { x: spawn ? spawn[0] : cx, y: floorY, z: spawn ? spawn[1] : cz };
     this._addSmokePlumes();
+    this._addDustClouds();
+    this._addSnowfall();
+  }
+
+  // The powder cloud a slab throws up hangs over the deposit long after the
+  // flow has stopped. Levels place it where the front came to rest.
+  _addDustClouds() {
+    const sources = (this.level.structures || []).filter((entry) => entry.type === "dust");
+    if (sources.length === 0) return;
+    const rng = mulberry32((this.seed ^ 0x68e31da4) >>> 0);
+    for (const source of sources) {
+      const [px, pz] = source.at;
+      const material = new THREE.MeshLambertMaterial({
+        color: source.color ?? 0xeef4fa,
+        transparent: true,
+        opacity: source.opacity ?? 0.34,
+        depthWrite: false,
+      });
+      const puffs = source.count ?? 6;
+      const spread = source.spread ?? 7;
+      const base = this.plazaY + (source.lift ?? 2);
+      for (let i = 0; i < puffs; i++) {
+        const radius = (source.radius ?? 3) * (0.6 + rng() * 0.9);
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 6), material);
+        puff.position.set(
+          px + 0.5 + (rng() * 2 - 1) * spread,
+          base + rng() * (source.height ?? 6),
+          pz + 0.5 + (rng() * 2 - 1) * spread,
+        );
+        this.disasterProps.add(puff);
+      }
+    }
+  }
+
+  // Drifting snow, carried with the player so a few hundred points cover the
+  // whole map. Purely cosmetic — it never touches the block grid.
+  _addSnowfall() {
+    const cfg = this.level.snowfall;
+    if (!cfg) return;
+    const count = cfg.count ?? 900;
+    const spread = cfg.spread ?? 48;
+    const rng = mulberry32((this.seed ^ 0x2545f491) >>> 0);
+    const positions = new Float32Array(count * 3);
+    const drift = new Float32Array(count * 2);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (rng() - 0.5) * spread;
+      positions[i * 3 + 1] = rng() * spread;
+      positions[i * 3 + 2] = (rng() - 0.5) * spread;
+      drift[i * 2] = (cfg.fall ?? 2.4) * (0.6 + rng() * 0.8);
+      drift[i * 2 + 1] = (rng() - 0.5) * (cfg.wind ?? 1.4);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: cfg.size ?? 0.24,
+      transparent: true,
+      opacity: cfg.opacity ?? 0.8,
+      depthWrite: false,
+    });
+    const points = new THREE.Points(geometry, material);
+    points.frustumCulled = false;
+    this.disasterProps.add(points);
+    this.snowfall = { points, positions, drift, count, spread };
+  }
+
+  _updateSnowfall(playerPos, dt) {
+    const snow = this.snowfall;
+    if (!snow) return;
+    const { positions, drift, count, spread } = snow;
+    const half = spread / 2;
+    const originX = Math.round(playerPos.x);
+    const originY = Math.round(playerPos.y);
+    const originZ = Math.round(playerPos.z);
+    snow.points.position.set(originX, originY - half + spread * 0.15, originZ);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] += drift[i * 2 + 1] * dt;
+      positions[i * 3 + 1] -= drift[i * 2] * dt;
+      if (positions[i * 3 + 1] < 0) {
+        positions[i * 3 + 1] += spread;
+        positions[i * 3] = (Math.random() - 0.5) * spread;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * spread;
+      }
+      if (positions[i * 3] > half) positions[i * 3] -= spread;
+      else if (positions[i * 3] < -half) positions[i * 3] += spread;
+    }
+    snow.points.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // A slab avalanche leaves three things behind, and a map that shows all three
+  // reads as an avalanche instead of a snowdrift: the fracture crown where the
+  // slab tore away, the scoured track below it with snow pushed up into levees
+  // along both flanks, and the deposit where the flow ran out and stopped. The
+  // track is cut into the finished terrain and stops at the site boundary — the
+  // deposit inside the cordon is built from the level's own structures, so the
+  // authored rescue scene stays authored.
+  _carveAvalanche() {
+    const cfg = this.terrain.avalanche;
+    if (!cfg) return;
+    const rng = mulberry32((this.seed ^ 0x7f4a7c15) >>> 0);
+    const path = [cfg.crown, ...(cfg.bends || []), cfg.runout].filter(Boolean);
+    if (path.length < 2) return;
+
+    const site = this.level.site?.area || null;
+    const insideSite = (x, z) =>
+      site && x >= site[0] && x <= site[2] && z >= site[1] && z <= site[3];
+    const snow = BLOCK[this.terrain.topBlock] ?? BLOCK.SNOW;
+    const bed = BLOCK[cfg.bedBlock] ?? BLOCK.ICE;
+    const floorY = this.plazaY;
+
+    // Total length first, so width and depth follow the distance travelled
+    // rather than the number of bends the author happened to use.
+    const legs = [];
+    let total = 0;
+    for (let i = 1; i < path.length; i++) {
+      const length = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+      legs.push({ from: path[i - 1], to: path[i], length });
+      total += length;
+    }
+    if (total <= 0) return;
+
+    const widthTop = cfg.widthTop ?? 7;
+    const widthBottom = cfg.widthBottom ?? 18;
+    const scour = cfg.scour ?? 2;
+    const crownDrop = cfg.crownDrop ?? 4;
+    const crownSpan = cfg.crownSpan ?? 0.08;
+    const levee = cfg.levee ?? 2;
+    const slabDepth = cfg.slabDepth ?? 4;
+
+    const lower = (x, z, drop, block) => {
+      if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return;
+      if (insideSite(x, z)) return;
+      const current = this.heightMap[z * WORLD_SIZE + x];
+      const target = Math.max(floorY, Math.min(current, current - drop));
+      this._fillColumn(x, z, target, block);
+    };
+    const raise = (x, z, add, block) => {
+      if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return;
+      if (insideSite(x, z)) return;
+      const current = this.heightMap[z * WORLD_SIZE + x];
+      this._fillColumn(x, z, Math.min(WORLD_HEIGHT - 2, current + add), block);
+    };
+    // The fracture wall is only white if the snow above it is deep: give the
+    // untouched slab a thick cap so the cut face shows snow, not bedrock.
+    const capSlab = (x, z) => {
+      if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return;
+      if (insideSite(x, z)) return;
+      const h = this.heightMap[z * WORLD_SIZE + x];
+      for (let y = Math.max(1, h - slabDepth); y < h; y++) this._setGeneratedBlock(x, y, z, snow);
+    };
+
+    const step = 0.5;
+    let travelled = 0;
+    for (const leg of legs) {
+      const steps = Math.max(1, Math.round(leg.length / step));
+      const dirX = (leg.to[0] - leg.from[0]) / leg.length;
+      const dirZ = (leg.to[1] - leg.from[1]) / leg.length;
+      const perpX = -dirZ;
+      const perpZ = dirX;
+      for (let s = 0; s <= steps; s++) {
+        const along = travelled + (s / steps) * leg.length;
+        const u = along / total;
+        const cx = leg.from[0] + dirX * leg.length * (s / steps);
+        const cz = leg.from[1] + dirZ * leg.length * (s / steps);
+        const half = (widthTop + (widthBottom - widthTop) * u) / 2;
+        const inCrown = u <= crownSpan;
+
+        for (let d = -Math.ceil(half) - levee; d <= Math.ceil(half) + levee; d++) {
+          const x = Math.round(cx + perpX * d);
+          const z = Math.round(cz + perpZ * d);
+          const across = Math.abs(d) / half;
+
+          if (across <= 1) {
+            // Scoured bed: deepest in the middle, feathering out to the flanks,
+            // and cut deepest of all right under the crown.
+            const bowl = 1 - across * across;
+            const depth = inCrown ? crownDrop * bowl + scour : scour * bowl;
+            lower(x, z, Math.round(depth), rng() < (cfg.rockChance ?? 0.18) ? BLOCK.STONE : bed);
+          } else if (Math.abs(d) <= half + levee) {
+            // Levee: what the flow shouldered aside, higher further down.
+            const shoulder = 1 - (Math.abs(d) - half) / levee;
+            raise(x, z, Math.max(0, Math.round(levee * shoulder * (0.4 + u))), snow);
+          }
+        }
+
+        // Crown wall: the slab still standing above the tear-off line.
+        if (inCrown) {
+          for (let d = -Math.ceil(half) - 2; d <= Math.ceil(half) + 2; d++) {
+            capSlab(Math.round(cx + perpX * d - dirX * 2), Math.round(cz + perpZ * d - dirZ * 2));
+            capSlab(Math.round(cx + perpX * d - dirX), Math.round(cz + perpZ * d - dirZ));
+          }
+        }
+
+        // Debris riding the surface: ice blocks torn out of the slab and the
+        // odd tree the flow snapped off and carried down.
+        if (u > 0.2 && rng() < (cfg.debrisChance ?? 0.16)) {
+          const d = (rng() * 2 - 1) * half;
+          const x = Math.round(cx + perpX * d);
+          const z = Math.round(cz + perpZ * d);
+          if (!insideSite(x, z) && x > 1 && x < WORLD_SIZE - 1 && z > 1 && z < WORLD_SIZE - 1) {
+            const y = this.heightMap[z * WORLD_SIZE + x];
+            const chunkBlock = rng() < 0.25 ? BLOCK.WOOD : rng() < 0.5 ? BLOCK.ICE : snow;
+            const size = chunkBlock === BLOCK.WOOD ? 1 : 1 + Math.floor(rng() * 2);
+            for (let dy = 0; dy < size; dy++) {
+              for (let dx = 0; dx < size; dx++) {
+                for (let dz = 0; dz < size; dz++) {
+                  this._setGeneratedBlock(x + dx, y + dy, z + dz, chunkBlock);
+                }
+              }
+            }
+            if (chunkBlock === BLOCK.WOOD) {
+              // A snapped trunk lies pointing the way the flow went.
+              for (let i = 1; i < 4 + Math.floor(rng() * 3); i++) {
+                this._setGeneratedBlock(Math.round(x + dirX * i), y, Math.round(z + dirZ * i), BLOCK.WOOD);
+              }
+            }
+          }
+        }
+      }
+      travelled += leg.length;
+    }
+
+    for (let z = 0; z < WORLD_SIZE; z++) {
+      for (let x = 0; x < WORLD_SIZE; x++) this._updateHeightAt(x, z);
+    }
   }
 
   _addSmokePlumes() {
@@ -530,6 +825,7 @@ export class World {
       const z = 4 + Math.floor(rng() * (WORLD_SIZE - 8));
       const g = this.heightMap[z * WORLD_SIZE + x];
       if (g <= WATER_LEVEL + 1) continue;
+      if (this.terrain.treeLine !== undefined && g > this.terrain.treeLine) continue;
       if (site && x >= site[0] - 3 && x <= site[2] + 3 && z >= site[1] - 3 && z <= site[3] + 3) continue;
       const dxClinic = x - 64;
       const dzClinic = z - 64;
@@ -917,7 +1213,8 @@ export class World {
     emit("world:blockchanged", { x, y, z, block: id });
   }
 
-  update(playerPos) {
+  update(playerPos, dt = 1 / 60) {
+    this._updateSnowfall(playerPos, Math.min(dt, 0.1));
     const pcx = Math.max(0, Math.min(CHUNKS - 1, Math.floor(playerPos.x / CHUNK)));
     const pcz = Math.max(0, Math.min(CHUNKS - 1, Math.floor(playerPos.z / CHUNK)));
     let budget = 3;
@@ -1065,6 +1362,7 @@ export class World {
       if (child.material?.map) child.material.map.dispose();
       if (child.material) child.material.dispose();
     });
+    this.snowfall = null;
     this.scene.remove(this.disasterProps);
     this.disasterProps.traverse((child) => {
       if (child.geometry) child.geometry.dispose();

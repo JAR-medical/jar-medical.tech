@@ -1,5 +1,5 @@
 import { emit } from "./events.js";
-import { apiBase, apiBaseConfigured, apiOrigin } from "./api.js";
+import { apiBase, apiBaseConfigured, apiOrigin, invalidateApiBase, resolveApiBase } from "./api.js";
 
 const TARGET_RATE = 16000;
 const MAX_SECONDS = 25;
@@ -47,6 +47,9 @@ export class SpeechClient {
   }
 
   async checkHealth() {
+    // Re-probe the configured list every time the badge is refreshed, so a
+    // backend that came back up is picked up without a page reload.
+    if (this.baseUrl === null) await resolveApiBase({ force: true }).catch(() => {});
     try {
       const res = await fetch(`${this._base()}/api/health`);
       // A static host answers /api/health with its own 404 page, so a non-OK
@@ -215,11 +218,20 @@ export class SpeechClient {
     addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
     emit("stt:status", { state: "transcribing" });
     try {
-      const res = await fetch(`${this._base()}/api/transcribe`, {
-        method: "POST",
-        headers,
-        body: blob,
-      });
+      // A take is expensive to redo, so if the selected backend has gone away
+      // between the health probe and now, fail over and send it once more
+      // rather than losing the recording.
+      const send = () => fetch(`${this._base()}/api/transcribe`, { method: "POST", headers, body: blob });
+      let res;
+      try {
+        res = await send();
+      } catch (transportError) {
+        if (this.baseUrl !== null) throw transportError;
+        invalidateApiBase();
+        const next = await resolveApiBase({ force: true });
+        if (!next && next !== "") throw transportError;
+        res = await send();
+      }
       const data = await res.json().catch(() => null);
       if (res.ok && data) {
         emit("stt:result", {

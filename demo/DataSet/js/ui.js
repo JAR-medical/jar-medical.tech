@@ -1,5 +1,10 @@
 import { emit } from "./events.js";
 import { HOTBAR_ITEMS, hotbarKeyLabel } from "./items.js";
+import { LEADERBOARD_NOTE, leaderboardView } from "./leaderboard.js";
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
+}
 
 function mmss(seconds) {
   const s = Math.max(0, Math.floor(seconds));
@@ -45,6 +50,7 @@ export class UI {
       endScreen: $("end-screen"),
       endTitle: $("end-title"),
       endStats: $("end-stats"),
+      endLeaderboard: $("end-leaderboard"),
       endRank: $("end-rank"),
       btnRestart: $("btn-restart"),
       levelComplete: $("level-complete"),
@@ -723,9 +729,42 @@ export class UI {
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
       `<div>Gewertete Sprachberichte: <b>${summary.accuracySamples || 0}</b></div>` +
       `<div class="end-levels">${levelRows}</div>`;
+    this.renderLeaderboard(summary);
     this.el.btnRestart.textContent = "↻ Neuer Durchlauf ab Level 1";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
+  }
+
+  // The board is openly fictional and says so, so a player never mistakes the
+  // demo crews for other people's runs.
+  renderLeaderboard(summary) {
+    const host = this.el.endLeaderboard;
+    if (!host) return;
+    const board = leaderboardView(summary);
+    const rows = board.shown
+      .map((row) => {
+        if (row.gap) return `<div class="lb-row lb-gap"><span>⋯</span></div>`;
+        const medal = row.rank <= 3 ? ` lb-top${row.rank}` : "";
+        return (
+          `<div class="lb-row${row.you ? " lb-you" : ""}${medal}">` +
+          `<span class="lb-rank">${row.rank}</span>` +
+          `<span class="lb-name"><b>${escapeHtml(row.name)}</b><small>${escapeHtml(row.crew)}</small></span>` +
+          `<span class="lb-saved">${row.saved}/${row.total}</span>` +
+          `<span class="lb-acc">${row.accuracy || 0}%</span>` +
+          `<span class="lb-time">${mmss(row.elapsed)}</span>` +
+          `<span class="lb-score">${row.score}</span>` +
+          `</div>`
+        );
+      })
+      .join("");
+
+    host.innerHTML =
+      `<div class="lb-head"><b>BESTENLISTE</b><span>Platz ${board.yourRank} von ${board.count}</span></div>` +
+      `<div class="lb-legend"><span class="lb-rank">#</span><span class="lb-name">Schicht</span>` +
+      `<span class="lb-saved">Gerettet</span><span class="lb-acc">Genau.</span>` +
+      `<span class="lb-time">Zeit</span><span class="lb-score">Punkte</span></div>` +
+      `<div class="lb-rows">${rows}</div>` +
+      `<p class="lb-note">${escapeHtml(LEADERBOARD_NOTE)}</p>`;
   }
 
   closeChart() {

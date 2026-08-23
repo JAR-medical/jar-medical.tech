@@ -4,22 +4,96 @@
 // and its /api/* routes share an origin, so the base is "" and every call stays
 // relative. Published as static files — GitHub Pages at
 // jar-medical.tech/demo/DataSet, for instance — there is no backend on the same
-// origin, so a config.js next to index.html sets window.MEDICRAFT_API_BASE to an
-// absolute backend URL before main.js loads. index.html loads that file with a
-// plain <script> tag so it runs ahead of the deferred module entry point —
-// without the tag the base stays undefined and every /api/* call silently goes
-// to the static host, which answers 404 for GET and 405 for POST.
+// origin, so config.js next to index.html names one. index.html loads that file
+// with a plain <script> tag so it runs ahead of the deferred module entry
+// point; without the tag the base stays undefined and every /api/* call
+// silently goes to the static host, which answers 404 for GET and 405 for POST.
+//
+// config.js may name several backends. They are probed in order at startup and
+// the first one whose /api/health answers wins, so a permanent host can be
+// listed ahead of a temporary tunnel and neither going down takes the game with
+// it. A Cloudflare quick-tunnel hostname in particular is regenerated on every
+// restart, and a single pinned base makes that an outage.
 //
 // The backend sends Access-Control-Allow-Origin: *, so cross-origin works.
 
+const HEALTH_TIMEOUT_MS = 6000;
+
+function normalize(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  return value.trim().replace(/\/+$/, "");
+}
+
+// Every base config.js offered, in preference order. An empty string is a
+// legitimate entry: it means "same origin".
+export function apiBases() {
+  const configured = typeof window !== "undefined" ? window.MEDICRAFT_API_BASES : null;
+  const single = typeof window !== "undefined" ? window.MEDICRAFT_API_BASE : null;
+  const list = Array.isArray(configured) ? configured : [single];
+  const bases = [];
+  for (const entry of list) {
+    if (typeof entry !== "string") continue;
+    const base = normalize(entry) ?? "";
+    if (!bases.includes(base)) bases.push(base);
+  }
+  return bases.length ? bases : [""];
+}
+
+let selected = null;
+let resolving = null;
+
 export function apiBase() {
-  const configured = typeof window !== "undefined" ? window.MEDICRAFT_API_BASE : null;
-  if (typeof configured !== "string" || !configured.trim()) return "";
-  return configured.trim().replace(/\/+$/, "");
+  return selected ?? apiBases()[0];
 }
 
 export function apiUrl(path) {
   return `${apiBase()}${path}`;
+}
+
+async function probe(base) {
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS) : null;
+  try {
+    const res = await fetch(`${base}/api/health`, {
+      cache: "no-store",
+      signal: controller?.signal,
+    });
+    // A static host answers /api/health with its own 404 page, so only an OK
+    // response means this base actually has a Medicraft backend behind it.
+    return res.ok;
+  } catch (err) {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// Pick the first configured base that answers. Concurrent callers share one
+// resolution; the result is cached until something invalidates it.
+export async function resolveApiBase({ force = false } = {}) {
+  if (!force && selected !== null) return selected;
+  if (resolving) return resolving;
+  resolving = (async () => {
+    const bases = apiBases();
+    for (const base of bases) {
+      if (await probe(base)) return base;
+    }
+    return bases[0];
+  })()
+    .then((base) => {
+      selected = base;
+      return base;
+    })
+    .finally(() => {
+      resolving = null;
+    });
+  return resolving;
+}
+
+// Call when a request to the selected base fails at the transport level, so the
+// next resolve re-probes instead of retrying a host that has gone away.
+export function invalidateApiBase() {
+  selected = null;
 }
 
 // True only when config.js actually named a backend. An unset base is not the

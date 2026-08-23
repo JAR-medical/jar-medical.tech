@@ -340,6 +340,146 @@ export const STRUCTURE_BUILDERS = {
     if (entry.light) api.put(cx, api.surfaceY + clearance - 1, cz, "LAMP");
   },
 
+  // The deposit an avalanche leaves once it runs out of slope: lobes of packed
+  // snow and torn-out ice piled along the flow line, deepest in the middle,
+  // thinning to nothing at the edges, and highest at the blunt front where the
+  // flow finally stopped. `from`/`to` are the flow line; everything else is how
+  // far it spread and how rough it came to rest.
+  debris_flow(api, entry) {
+    const [x0, z0] = entry.from;
+    const [x1, z1] = entry.to;
+    const length = Math.hypot(x1 - x0, z1 - z0);
+    if (length <= 0) return;
+    const dirX = (x1 - x0) / length;
+    const dirZ = (z1 - z0) / length;
+    const perpX = -dirZ;
+    const perpZ = dirX;
+    const widthFrom = entry.widthFrom ?? 12;
+    const widthTo = entry.widthTo ?? 22;
+    const peak = entry.height ?? 4;
+    const rough = entry.rough ?? 1.2;
+    const iceChance = entry.iceChance ?? 0.22;
+    // Flowing snow scrapes up whatever it crosses, so the deposit is dirty in
+    // patches. It also stops the tongue reading as more of the same snowfield.
+    const dirtChance = entry.dirtChance ?? 0.12;
+    const block = entry.block || "SNOW";
+    const iceBlock = entry.iceBlock || "ICE";
+    const dirtBlock = entry.dirtBlock || "GRAVEL";
+    const steps = Math.max(1, Math.round(length * 2));
+
+    for (let s = 0; s <= steps; s++) {
+      const u = s / steps;
+      const cx = x0 + dirX * length * u;
+      const cz = z0 + dirZ * length * u;
+      const half = (widthFrom + (widthTo - widthFrom) * u) / 2;
+      // Thin where the flow was still moving fast, piled up at the front —
+      // unless the level asks for a runout margin instead, which tapers away
+      // to nothing so the deposit stays walkable from the downhill side.
+      const along =
+        entry.front === false
+          ? (1 - u * 0.4) * Math.min(1, (1 - u) / (entry.taper ?? 0.28))
+          : 0.55 + Math.pow(u, 1.6) * 0.9;
+      for (let d = -Math.ceil(half); d <= Math.ceil(half); d++) {
+        const x = Math.round(cx + perpX * d);
+        const z = Math.round(cz + perpZ * d);
+        const across = 1 - Math.pow(Math.abs(d) / half, 2);
+        if (across <= 0) continue;
+        const h = Math.round(peak * across * along + api.rng() * rough - rough / 2);
+        for (let y = 0; y < h; y++) {
+          if (y < h - 1) {
+            api.put(x, api.surfaceY + y, z, block);
+            continue;
+          }
+          const roll = api.rng();
+          api.put(x, api.surfaceY + y, z, roll < iceChance ? iceBlock : roll < iceChance + dirtChance ? dirtBlock : block);
+        }
+      }
+    }
+  },
+
+  // A tree the flow snapped off and carried: the trunk lies pointing the way
+  // the snow went, with the splintered stump left standing behind it.
+  log(api, entry) {
+    const [x, z] = entry.at;
+    const [dx, dz] = entry.dir || [1, 0];
+    const length = entry.length || 5;
+    const lift = entry.lift || 0;
+    for (let i = 0; i < length; i++) {
+      api.put(Math.round(x + dx * i), api.surfaceY + lift, Math.round(z + dz * i), entry.block || "WOOD");
+    }
+    for (let y = 0; y < (entry.stump || 0); y++) {
+      api.put(Math.round(x - dx), api.surfaceY + y, Math.round(z - dz), entry.block || "WOOD");
+    }
+  },
+
+  // The probe line a search party leaves behind, one pole per step.
+  probes(api, entry) {
+    const [x0, z0] = entry.from;
+    const [x1, z1] = entry.to;
+    const length = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0)));
+    const step = entry.step || 3;
+    const height = entry.height || 2;
+    for (let i = 0; i <= length; i += step) {
+      const t = i / length;
+      const x = Math.round(x0 + (x1 - x0) * t);
+      const z = Math.round(z0 + (z1 - z0) * t);
+      const lift = api.surfaceY + (entry.lift || 0);
+      for (let y = 0; y < height; y++) api.put(x, lift + y, z, entry.post || "STEEL");
+      if (entry.flag !== false) api.put(x, lift + height, z, entry.tip || "CAUTION");
+    }
+  },
+
+  // A dug ramp out of a trench: a lane of one-block steps with the headroom
+  // above it cleared, so anything sunk below the surface can be walked back
+  // out of instead of becoming a pit.
+  ramp(api, entry) {
+    const [x0, z0] = entry.from;
+    const [x1, z1] = entry.to;
+    const dx = x1 - x0;
+    const dz = z1 - z0;
+    const steps = Math.max(Math.abs(dx), Math.abs(dz));
+    if (steps === 0) return;
+    const width = entry.width ?? 3;
+    const spread = Math.floor((width - 1) / 2);
+    // Left unset, the high end meets whatever the structures before it piled
+    // up here, so the ramp joins the surface instead of ending a step short.
+    const fromY = entry.fromY ?? api.topAt?.(x0, z0) ?? 0;
+    const toY = entry.toY ?? 0;
+    const headroom = entry.headroom ?? 3;
+    const block = entry.block || "SNOW";
+    const perpX = dz === 0 ? 0 : 1;
+    const perpZ = dz === 0 ? 1 : 0;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const y = Math.round(fromY + (toY - fromY) * t);
+      const cx = Math.round(x0 + dx * t);
+      const cz = Math.round(z0 + dz * t);
+      for (let w = -spread; w <= spread; w++) {
+        const x = cx + perpX * w;
+        const z = cz + perpZ * w;
+        for (let fy = 0; fy < y; fy++) api.put(x, api.surfaceY + fy, z, block);
+        for (let cy = y; cy < y + headroom; cy++) api.put(x, api.surfaceY + cy, z, "AIR");
+      }
+    }
+  },
+
+  // Clears a box back to air. Used to keep a way into a hollow open after
+  // later structures have piled snow over the top of it.
+  carve(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    const from = entry.from ?? 0;
+    const to = entry.to ?? 2;
+    for (let y = from; y <= to; y++) {
+      for (let z = z0; z <= z1; z++) {
+        for (let x = x0; x <= x1; x++) api.put(x, api.surfaceY + y, z, "AIR");
+      }
+    }
+  },
+
+  // Placed by the world as three.js props, not blocks — listed here so an
+  // unknown-type warning never fires on a level that uses it.
+  dust() {},
+
   scatter(api, entry) {
     const [x0, z0, x1, z1] = entry.area;
     const block = entry.block || "RUBBLE";

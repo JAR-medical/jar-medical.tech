@@ -458,9 +458,193 @@ export const CASES = [
   },
 ];
 
+// Two reports that say the same thing must compare as the same thing. A medic
+// who says "500 Milligramm" and one who writes "500 mg" performed one identical
+// treatment, and neither the required-item detector nor the accuracy score may
+// punish the choice. Everything below is written the long way round: the
+// abbreviation, the spoken form and the symbol all fold onto one canonical
+// token, so the comparison never sees the difference.
+//
+// Only spellings of the *same* term belong here. Two different drugs, or a drug
+// and its class, stay distinct — those live in a case's `any` synonym list,
+// where a case author decides what counts.
+
+// Multi-token forms first: normalizeText has already turned "i.v." into "i v",
+// so the dotted abbreviations arrive here as separate tokens.
+const PHRASE_CANON = new Map(Object.entries({
+  "i v": "intravenoes",
+  "i m": "intramuskulaer",
+  "i o": "intraossaer",
+  "i n": "intranasal",
+  "s c": "subkutan",
+  "s l": "sublingual",
+  "p o": "peroral",
+  "z n": "zustand nach",
+  "v a": "verdacht auf",
+  "n a": "notarzt",
+  "mm hg": "millimeter quecksilbersaeule",
+  "mmol l": "millimol pro liter",
+  "mg dl": "milligramm pro deziliter",
+  "mg kg": "milligramm pro kilogramm",
+  "ml h": "milliliter pro stunde",
+  "l min": "liter pro minute",
+  "glasgow coma scale": "gcs",
+  "glasgow coma score": "gcs",
+}));
+
+// Single tokens. Left side is what someone may write or say, right side is the
+// one spelling both sides of every comparison end up using.
+const TERM_CANON = new Map(Object.entries({
+  // units of mass, volume, dose
+  mg: "milligramm",
+  milligram: "milligramm",
+  milligramme: "milligramm",
+  mcg: "mikrogramm",
+  ug: "mikrogramm",
+  mikrogram: "mikrogramm",
+  microgramm: "mikrogramm",
+  g: "gramm",
+  gr: "gramm",
+  kg: "kilogramm",
+  kilo: "kilogramm",
+  ml: "milliliter",
+  cc: "milliliter",
+  l: "liter",
+  dl: "deziliter",
+  ie: "internationale einheiten",
+  iu: "internationale einheiten",
+  mval: "millival",
+  mmol: "millimol",
+  mmhg: "millimeter quecksilbersaeule",
+  amp: "ampulle",
+  ampullen: "ampulle",
+  tbl: "tablette",
+  tabletten: "tablette",
+  hube: "hub",
+  huebe: "hub",
+
+  // routes and application
+  iv: "intravenoes",
+  intravenous: "intravenoes",
+  intravenoese: "intravenoes",
+  im: "intramuskulaer",
+  intramuscular: "intramuskulaer",
+  intramuskulaere: "intramuskulaer",
+  io: "intraossaer",
+  intraosseous: "intraossaer",
+  sc: "subkutan",
+  subcutan: "subkutan",
+  subkutane: "subkutan",
+  po: "peroral",
+  oral: "peroral",
+  nasal: "intranasal",
+  buccal: "bukkal",
+
+  // vital signs and findings
+  rr: "blutdruck",
+  bd: "blutdruck",
+  hf: "herzfrequenz",
+  hr: "herzfrequenz",
+  puls: "herzfrequenz",
+  af: "atemfrequenz",
+  spo2: "sauerstoffsaettigung",
+  sao2: "sauerstoffsaettigung",
+  saettigung: "sauerstoffsaettigung",
+  etco2: "endexspiratorisches kohlendioxid",
+  bz: "blutzucker",
+  temp: "temperatur",
+
+  // treatments, devices, services
+  o2: "sauerstoff",
+  oxygen: "sauerstoff",
+  ecg: "ekg",
+  elektrokardiogramm: "ekg",
+  aed: "defibrillator",
+  defi: "defibrillator",
+  defibrillation: "defibrillator",
+  hws: "halswirbelsaeule",
+  bws: "brustwirbelsaeule",
+  lws: "lendenwirbelsaeule",
+  sht: "schaedel hirn trauma",
+  hlw: "reanimation",
+  cpr: "reanimation",
+  rea: "reanimation",
+  zvk: "zentraler venenkatheter",
+  rtw: "rettungswagen",
+  nef: "notarzteinsatzfahrzeug",
+  rth: "rettungshubschrauber",
+  kh: "krankenhaus",
+  klinik: "krankenhaus",
+  zielklinik: "krankenhaus",
+  hospital: "krankenhaus",
+  pat: "patient",
+  patientin: "patient",
+  verletzte: "patient",
+  verletzter: "patient",
+
+  // number words, so "zwoelf Kanal" and "12 Kanal" are one and the same script
+  eins: "1",
+  ein: "1",
+  eine: "1",
+  zwei: "2",
+  zwo: "2",
+  drei: "3",
+  vier: "4",
+  fuenf: "5",
+  sechs: "6",
+  sieben: "7",
+  acht: "8",
+  neun: "9",
+  zehn: "10",
+  elf: "11",
+  zwoelf: "12",
+  zwanzig: "20",
+  dreissig: "30",
+  vierzig: "40",
+  fuenfzig: "50",
+  hundert: "100",
+  tausend: "1000",
+}));
+
+const PHRASE_MAX_TOKENS = Math.max(...[...PHRASE_CANON.keys()].map((key) => key.split(" ").length));
+
+// Symbols die in the character sweep below, so the ones that carry meaning are
+// spelled out before they are lost.
+function spellSymbols(text) {
+  return text
+    .replaceAll("µ", "mikro")
+    .replaceAll("μ", "mikro")
+    .replaceAll("%", " prozent ")
+    .replaceAll("‰", " promille ")
+    .replaceAll("°", " grad ")
+    .replaceAll("&", " und ");
+}
+
+// Longest phrase first, so "s p o 2" is not eaten by "p o".
+function canonicalizeTokens(tokens) {
+  const out = [];
+  for (let i = 0; i < tokens.length; ) {
+    let matched = false;
+    for (let span = Math.min(PHRASE_MAX_TOKENS, tokens.length - i); span > 1; span--) {
+      const phrase = tokens.slice(i, i + span).join(" ");
+      const replacement = PHRASE_CANON.get(phrase);
+      if (replacement === undefined) continue;
+      out.push(...replacement.split(" "));
+      i += span;
+      matched = true;
+      break;
+    }
+    if (matched) continue;
+    const token = tokens[i];
+    const replacement = TERM_CANON.get(token);
+    out.push(...(replacement === undefined ? [token] : replacement.split(" ")));
+    i += 1;
+  }
+  return out;
+}
+
 export function normalizeText(s) {
-  return String(s ?? "")
-    .toLowerCase()
+  const flattened = spellSymbols(String(s ?? "").toLowerCase())
     .replaceAll("ä", "ae")
     .replaceAll("ö", "oe")
     .replaceAll("ü", "ue")
@@ -468,6 +652,8 @@ export function normalizeText(s) {
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
+  if (!flattened) return "";
+  return canonicalizeTokens(flattened.split(" ")).join(" ");
 }
 
 export function levenshtein(a, b) {
@@ -506,11 +692,20 @@ export class ReportParser {
   matchesSynonym(padded, tokens, synonym) {
     const s = normalizeText(synonym);
     if (!s) return false;
-    if (s.includes(" ")) return padded.includes(` ${s} `);
+    // A multi-word synonym may have been spoken as one compound, and a compound
+    // synonym may have been heard as two words — "Sauerstoff Gabe" and
+    // "Sauerstoffgabe" are the same treatment either way round.
+    if (s.includes(" ")) {
+      if (padded.includes(` ${s} `)) return true;
+      return tokens.includes(s.replaceAll(" ", ""));
+    }
     if (tokens.includes(s)) return true;
     const limit = fuzzyThreshold(s.length);
+    const glued = [];
+    for (let i = 1; i < tokens.length; i++) glued.push(tokens[i - 1] + tokens[i]);
+    if (glued.includes(s)) return true;
     if (limit === 0) return false;
-    return tokens.some((tok) => levenshtein(s, tok) <= limit);
+    return tokens.some((tok) => levenshtein(s, tok) <= limit) || glued.some((tok) => levenshtein(s, tok) <= limit);
   }
 
   parse(transcript, performedKeys = []) {

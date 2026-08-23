@@ -13,23 +13,33 @@ function tokens(text) {
   return normalized ? normalized.split(" ") : [];
 }
 
+// Splitting one compound into two words, or gluing two words into one, is a
+// transcription artefact and not a wrong report: it costs a fraction of a word
+// instead of the full substitution a different word would cost.
+const SPLIT_COST = 0.35;
+
 function tokenDistance(a, b) {
   const m = a.length;
   const n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
+  let prev2 = null;
   let prev = new Array(n + 1);
-  let curr = new Array(n + 1);
   for (let j = 0; j <= n; j++) prev[j] = j;
   for (let i = 1; i <= m; i++) {
+    const curr = new Array(n + 1);
     curr[0] = i;
     for (let j = 1; j <= n; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      let best = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      // one expected word heard as two
+      if (j >= 2 && a[i - 1] === b[j - 2] + b[j - 1]) best = Math.min(best, prev[j - 2] + SPLIT_COST);
+      // two expected words heard as one
+      if (i >= 2 && prev2 && b[j - 1] === a[i - 2] + a[i - 1]) best = Math.min(best, prev2[j - 1] + SPLIT_COST);
+      curr[j] = best;
     }
-    const swap = prev;
+    prev2 = prev;
     prev = curr;
-    curr = swap;
   }
   return prev[n];
 }
@@ -74,7 +84,7 @@ export function scoreAccuracy(expectedText, spokenText) {
     charAccuracy: Math.round(charAccuracy * 1000) / 1000,
     expectedWordCount: expectedWords.length,
     spokenWordCount: spokenWords.length,
-    correctWords: Math.max(0, expectedWords.length - wordEdits),
+    correctWords: Math.max(0, Math.round(expectedWords.length - wordEdits)),
     label: accuracyLabel(score),
     scored: true,
   };

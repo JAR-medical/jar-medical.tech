@@ -31,14 +31,45 @@ const INDUSTRIAL = {
   treeCount: 40,
 };
 
+// The avalanche map is the one level whose terrain is a character in the
+// scene: a massif that towers over the station, a tree line the flank rises
+// past, rock bands above it, and the track the slab tore down into the site.
+// `massifs`, `rockLine`, `treeLine` and `avalanche` are all read by World.
 const ALPINE = {
   amplitude: 20,
   base: 16,
   topBlock: "SNOW",
   subBlock: "STONE",
   shoreBlock: "ICE",
-  treeCount: 70,
+  rockBlock: "STONE",
+  cliffSlope: 3,
+  cliffMinHeight: 24,
+  treeLine: 30,
+  treeCount: 90,
   treeLeaves: "SNOW",
+  massifs: [
+    // The face the slab came off, with its summit inside the map so the player
+    // can look up the full length of the track from the deposit.
+    { at: [48, 4], radius: 86, height: 34, falloff: 1.9, relief: 0.24 },
+    // Two shoulders that close the valley off to either side.
+    { at: [106, 6], radius: 62, height: 24, falloff: 1.8, relief: 0.4 },
+    { at: [4, 54], radius: 54, height: 20, falloff: 1.7, relief: 0.42 },
+  ],
+  avalanche: {
+    crown: [50, 10],
+    bends: [[54, 20], [60, 30]],
+    runout: [70, 46],
+    widthTop: 9,
+    widthBottom: 26,
+    scour: 4,
+    crownDrop: 6,
+    crownSpan: 0.1,
+    slabDepth: 5,
+    levee: 3,
+    bedBlock: "ICE",
+    rockChance: 0.2,
+    debrisChance: 0.18,
+  },
 };
 
 function guardrailRun(z, fromX, toX, rotation = 0) {
@@ -230,71 +261,98 @@ export const LEVELS = Object.freeze([
   {
     id: "alpine_avalanche",
     title: "Lawinenabgang Bergstation",
-    subtitle: "Verschüttete am Lift",
-    patientCount: 7,
+    subtitle: "Verschüttete im Lawinenkegel",
+    patientCount: 6,
     briefing:
-      "Eine Lawine hat die Bergstation und die Gondelbahn getroffen. Sieben Verletzte — drei liegen verschüttet oder im Inneren und sind von weitem nicht zu sehen.",
+      "Ein Schneebrett ist über der Bergstation abgegangen und hat Station, Gondelbahn und Piste unter sich begraben. Sechs Verletzte — zwei liegen verschüttet oder im Inneren und sind von weitem nicht zu sehen.",
     sky: 0xd6e8f5,
-    fog: 0.013,
+    fog: 0.0065,
     terrain: ALPINE,
-    site: { area: [40, 36, 108, 100], feather: 5 },
+    snowfall: { count: 1100, spread: 52, fall: 2.6, wind: 1.8 },
+    site: { area: [40, 36, 108, 100], feather: 9 },
     structures: [
       { type: "ground", area: [42, 38, 106, 98], block: "SNOW" },
-      { type: "ground", area: [56, 58, 96, 76], block: "ICE" },
+      // The groomed piste the flow crossed, still readable at the edges.
+      { type: "ground", area: [46, 76, 100, 84], block: "ICE" },
+
+      // The deposit: one broad tongue down the fall line, a second lobe that
+      // split off around the station, and the levees the flow shouldered aside.
+      { type: "debris_flow", from: [64, 38], to: [84, 76], widthFrom: 26, widthTo: 38, height: 7, rough: 1.0, iceChance: 0.26, front: false, taper: 0.3 },
+      { type: "debris_flow", from: [58, 44], to: [50, 74], widthFrom: 14, widthTo: 22, height: 5, rough: 1.0, iceChance: 0.2, front: false, taper: 0.35 },
+      { type: "mound", at: [46, 62], radius: 9, height: 4, block: "SNOW" },
+      { type: "mound", at: [98, 60], radius: 8, height: 4, block: "SNOW" },
+      { type: "mound", at: [88, 76], radius: 7, height: 5, block: "SNOW" },
+
+      // Everything the flow hit. The station is stamped after the deposit, so
+      // the snow packs around it and its inside is clear again.
       { type: "blueprint", id: "lift_station", at: [60, 46] },
       { type: "blueprint", id: "lift_pylon", at: [80, 50] },
       { type: "blueprint", id: "lift_pylon", at: [96, 54] },
-      { type: "blueprint", id: "gondola_cabin", at: [78, 62] },
+      { type: "blueprint", id: "gondola_cabin", at: [78, 62], lift: 1 },
       { type: "blueprint", id: "gondola_cabin", at: [88, 70], rotation: 1 },
-      { type: "fire", at: [77, 66], height: 2, spread: [[1, 0]] },
-      { type: "mound", at: [70, 68], radius: 8, height: 5, block: "SNOW" },
-      { type: "mound", at: [86, 56], radius: 7, height: 4, block: "SNOW" },
-      { type: "mound", at: [56, 84], radius: 6, height: 4, block: "SNOW" },
+      { type: "fire", at: [70, 58], height: 2, spread: [[1, 0]] },
+
+      // Trees the slab snapped off and carried into the runout.
+      { type: "log", at: [62, 66], dir: [1, 1], length: 6, stump: 2 },
+      { type: "log", at: [74, 70], dir: [1, 0], length: 7, lift: 1 },
+      { type: "log", at: [80, 58], dir: [0, 1], length: 5, stump: 1 },
+      { type: "log", at: [54, 68], dir: [1, 1], length: 5 },
+
+      // Torn-out slab blocks lying on the surface of the deposit.
+      { type: "scatter", area: [56, 42, 94, 76], block: "ICE", count: 90, maxHeight: 1 },
+      { type: "scatter", area: [58, 44, 92, 74], block: "GRAVEL", count: 45, maxHeight: 1 },
+      { type: "scatter", area: [50, 40, 100, 80], block: "SNOW", count: 110, maxHeight: 1 },
+
+      // The tunnel the first crew dug down to the station door, and the steps
+      // out of it: the casualty inside can be reached without mining the whole
+      // deposit away, and the dig is a way in rather than a pit.
+      { type: "ramp", from: [66, 69], to: [66, 58], width: 3, headroom: 3 },
+      { type: "carve", area: [64, 57, 68, 58], from: 0, to: 2 },
+
+      // The air pocket under the deposit, and the way in that the dig opened.
       {
         type: "shelter",
-        at: [50, 80],
+        at: [62, 72],
         radius: 7,
         height: 6,
         block: "SNOW",
-        mouth: [0, 1],
-        clearance: 3,
-        light: true,
-      },
-      {
-        type: "shelter",
-        at: [98, 44],
-        radius: 6,
-        height: 6,
-        block: "ICE",
         mouth: [-1, 0],
         clearance: 3,
         light: true,
       },
-      { type: "scatter", area: [56, 56, 96, 82], block: "ICE", count: 60, maxHeight: 1 },
-      { type: "scatter", area: [60, 50, 100, 78], block: "SNOW", count: 80, maxHeight: 2 },
-      { type: "blueprint", id: "tent_triage", at: [76, 86] },
-      { type: "blueprint", id: "canopy_redcross", at: [88, 86] },
-      { type: "blueprint", id: "ambulance", at: [96, 90] },
-      { type: "blueprint", id: "helipad", at: [62, 88] },
+      { type: "carve", area: [54, 71, 62, 73], from: 0, to: 2 },
+
+      // The search line the party worked before the medics arrived.
+      { type: "probes", from: [70, 78], to: [90, 74], step: 3, height: 2 },
+      { type: "probes", from: [56, 60], to: [56, 74], step: 4, height: 2 },
+
+      // Powder still hanging over the front of the deposit.
+      { type: "dust", at: [78, 70], count: 22, spread: 17, radius: 2.6, height: 4, lift: 1, opacity: 0.14 },
+      { type: "dust", at: [64, 44], count: 18, spread: 15, radius: 2.4, height: 5, lift: 2, opacity: 0.13 },
+
+      // Staging sits along the western half of the apron, so the player lands
+      // on open ground with the deposit and the face above it in full view.
+      { type: "blueprint", id: "helipad", at: [50, 88] },
+      { type: "blueprint", id: "tent_triage", at: [62, 88] },
+      { type: "blueprint", id: "canopy_redcross", at: [74, 88] },
+      { type: "blueprint", id: "ambulance", at: [84, 90] },
       { type: "cordon", area: [46, 42, 102, 96], step: 3 },
       { type: "lamppost", at: [46, 44], post: "STEEL", height: 4 },
       { type: "lamppost", at: [102, 44], post: "STEEL", height: 4 },
       { type: "lamppost", at: [46, 94], post: "STEEL", height: 4 },
       { type: "lamppost", at: [102, 94], post: "STEEL", height: 4 },
-      { type: "tree", at: [44, 60], leaves: "SNOW" },
-      { type: "tree", at: [44, 72], leaves: "SNOW" },
-      { type: "tree", at: [104, 66], leaves: "SNOW" },
-      { type: "tree", at: [104, 78], leaves: "SNOW" },
+      { type: "tree", at: [44, 86], leaves: "SNOW" },
+      { type: "tree", at: [104, 84], leaves: "SNOW" },
+      { type: "tree", at: [104, 94], leaves: "SNOW" },
     ],
-    spawn: { at: [94.5, 94.5], face: [66, 56] },
+    spawn: { at: [98.5, 92.5], face: [58, 30] },
     anchors: [
-      { id: "A", spots: [[68, 60], [64, 64], [72, 58], [66, 56]] },
-      { id: "B", spots: [[84, 66], [80, 70], [88, 64], [82, 74]] },
-      { id: "C", spots: [[54, 62], [50, 66], [58, 68], [52, 58]] },
+      { id: "A", spots: [[68, 66], [64, 64], [72, 62], [70, 70]] },
+      { id: "B", spots: [[84, 68], [80, 72], [88, 66], [82, 76]] },
+      { id: "C", spots: [[52, 60], [48, 66], [54, 56], [50, 70]] },
       { id: "D", spots: [[92, 82], [88, 80], [96, 84], [90, 78]] },
       { id: "F", hidden: true, spots: [[63, 50], [68, 52], [65, 54], [70, 48]] },
-      { id: "G", hidden: true, spots: [[50, 80], [50, 82], [49, 84], [50, 86]] },
-      { id: "H", hidden: true, spots: [[98, 44], [96, 44], [94, 44], [93, 44]] },
+      { id: "G", hidden: true, spots: [[62, 72], [61, 72], [60, 72], [59, 72]] },
     ],
   },
 ]);

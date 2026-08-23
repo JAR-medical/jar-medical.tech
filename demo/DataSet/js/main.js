@@ -8,6 +8,7 @@ import { SpeechClient } from "./stt.js";
 import { UI } from "./ui.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
+import { resolveApiBase } from "./api.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
 
@@ -75,6 +76,9 @@ class App {
     setTimeout(async () => {
       $("loading-overlay").classList.add("hidden");
       this.mode = "start";
+      // Settle on a backend before the first health probe, so the badge and
+      // every later /api/* call agree on which host they are talking to.
+      await resolveApiBase().catch(() => {});
       const ok = await this.speech.checkHealth().catch(() => false);
       this.ui.showStart(ok);
     }, 900);
@@ -419,7 +423,7 @@ class App {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const running = this.mode === "playing" || this.mode === "chart";
 
-    this.world.update(this.player.position);
+    this.world.update(this.player.position, dt);
     if (running) {
       this.player.update(dt);
       this.entities.update(dt, this.game.state().elapsed, this.player.position);

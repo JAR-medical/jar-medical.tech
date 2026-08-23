@@ -1054,6 +1054,142 @@ body.touch-device .desktop-only { display: none; }
   color: #0073aa;
 }
 
+/* End-screen leaderboard. Openly a demo board — the note under it says so —
+   so it is styled as a plain result table rather than as a trophy case. */
+.leaderboard {
+  width: min(100%, 620px);
+  margin: 1.4rem auto 0.4rem;
+  text-align: left;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.lb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid #0073aa;
+}
+
+.lb-head b {
+  color: #0073aa;
+  font-size: 0.92rem;
+  letter-spacing: 0.14em;
+}
+
+.lb-head span {
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.lb-legend,
+.lb-row {
+  display: grid;
+  grid-template-columns: 2.1rem minmax(0, 1fr) 4.2rem 3.4rem 3.8rem 4.2rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.3rem;
+}
+
+.lb-legend {
+  color: #767676;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.lb-row {
+  border-bottom: 1px solid #f0f0f0;
+  color: #444;
+  font-size: 0.86rem;
+}
+
+.lb-row .lb-saved,
+.lb-row .lb-acc,
+.lb-row .lb-time,
+.lb-row .lb-score,
+.lb-legend .lb-saved,
+.lb-legend .lb-acc,
+.lb-legend .lb-time,
+.lb-legend .lb-score {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-rank {
+  color: #767676;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lb-name b {
+  color: #1a1a1a;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-name small {
+  color: #767676;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-score {
+  color: #0073aa;
+  font-weight: 700;
+}
+
+.lb-top1 .lb-rank { color: #b8860b; font-weight: 700; }
+.lb-top2 .lb-rank { color: #808080; font-weight: 700; }
+.lb-top3 .lb-rank { color: #a0522d; font-weight: 700; }
+
+.lb-row.lb-you {
+  background: #eaf4fa;
+  box-shadow: inset 3px 0 0 #0073aa;
+}
+
+.lb-row.lb-you .lb-name b { color: #005177; }
+
+.lb-gap {
+  display: block;
+  color: #b0b0b0;
+  text-align: center;
+  letter-spacing: 0.3em;
+  padding: 0.1rem 0;
+}
+
+.lb-note {
+  margin: 0.6rem 0 0;
+  color: #767676;
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+@media (max-width: 760px) {
+  .lb-legend,
+  .lb-row {
+    grid-template-columns: 1.7rem minmax(0, 1fr) 3.2rem 3.6rem;
+    font-size: 0.8rem;
+  }
+  .lb-legend .lb-acc,
+  .lb-legend .lb-time,
+  .lb-row .lb-acc,
+  .lb-row .lb-time {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   #start-screen .start-box,
   #end-screen .start-box,
