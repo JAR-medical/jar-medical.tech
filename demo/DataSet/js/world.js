@@ -114,6 +114,53 @@ const PALETTE = {
 
 const FACE_SHADE = { py: 1.0, ny: 0.55, px: 0.7, nx: 0.7, pz: 0.8, nz: 0.8 };
 
+// What a block sounds like underfoot and under a pickaxe. Audio needs a handful
+// of surface classes, not thirty-one block ids, and the mapping belongs next to
+// the palette it mirrors rather than inside the synthesiser.
+const BLOCK_MATERIAL = {
+  [BLOCK.GRASS]: "grass",
+  [BLOCK.LEAVES]: "grass",
+  [BLOCK.MOSS]: "grass",
+  [BLOCK.DIRT]: "gravel",
+  [BLOCK.PATH]: "gravel",
+  [BLOCK.GRAVEL]: "gravel",
+  [BLOCK.RUBBLE]: "gravel",
+  [BLOCK.SAND]: "gravel",
+  [BLOCK.SANDSTONE]: "stone",
+  [BLOCK.STONE]: "stone",
+  [BLOCK.DARKSTONE]: "stone",
+  [BLOCK.CONCRETE]: "stone",
+  [BLOCK.BRICK]: "stone",
+  [BLOCK.ASPHALT]: "stone",
+  [BLOCK.WOOD]: "wood",
+  [BLOCK.PLANKS]: "wood",
+  [BLOCK.ROOF]: "wood",
+  [BLOCK.TENT]: "wood",
+  [BLOCK.METAL]: "metal",
+  [BLOCK.STEEL]: "metal",
+  [BLOCK.RAIL]: "metal",
+  [BLOCK.NEON]: "metal",
+  [BLOCK.CAUTION]: "metal",
+  [BLOCK.REDCROSS]: "stone",
+  [BLOCK.LAMP]: "glass",
+  [BLOCK.GLASS]: "glass",
+  [BLOCK.ICE]: "ice",
+  [BLOCK.SNOW]: "snow",
+  [BLOCK.EMERGENCY_BLANKET]: "snow",
+  [BLOCK.WATER]: "water",
+};
+
+export function blockMaterial(blockId) {
+  return BLOCK_MATERIAL[blockId] || "default";
+}
+
+export function blockPalette(blockId) {
+  return PALETTE[blockId] || [1, 0, 1];
+}
+
+const DEBRIS_CAPACITY = 320;
+const DEBRIS_GRAVITY = -17;
+
 const FACES = [
   { dir: "py", normal: [0, 1, 0], corners: [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]] },
   { dir: "ny", normal: [0, -1, 0], corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] },
@@ -274,8 +321,105 @@ export class World {
     this.blanketMaterial = new THREE.MeshLambertMaterial({ map: makeWoolTexture() });
     this.breakEffect = this._createBreakEffect();
     this.scene.add(this.breakEffect);
+    // Chunk remeshes are queued, not run inline: holding the left button down
+    // used to rebuild a 16×16×56 chunk inside the click handler, which is a
+    // frame hitch on every block. The queue spends that work in update().
+    this.dirtyChunks = new Set();
+    this.debris = this._createDebris();
+    this.scene.add(this.debris.points);
+    this.props = [];
+    this.propClock = 0;
     this.clinic = { x: 64.5, y: 15, z: 64.5 };
     this._generate();
+  }
+
+  // One preallocated point cloud for every shard the world will ever throw.
+  // Breaking blocks is the most repeated action in the game, so it must not
+  // allocate a geometry per swing.
+  _createDebris() {
+    const positions = new Float32Array(DEBRIS_CAPACITY * 3);
+    const colors = new Float32Array(DEBRIS_CAPACITY * 3);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geometry.setDrawRange(0, 0);
+    const material = new THREE.PointsMaterial({
+      size: 0.17,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+    });
+    const points = new THREE.Points(geometry, material);
+    points.frustumCulled = false;
+    points.name = "medicraft-debris";
+    return {
+      points,
+      positions,
+      colors,
+      velocities: new Float32Array(DEBRIS_CAPACITY * 3),
+      life: new Float32Array(DEBRIS_CAPACITY),
+      count: 0,
+    };
+  }
+
+  spawnBlockDebris(x, y, z, blockId, amount = 14) {
+    const debris = this.debris;
+    if (!debris) return;
+    const [pr, pg, pb] = blockPalette(blockId);
+    for (let i = 0; i < amount && debris.count < DEBRIS_CAPACITY; i++) {
+      const slot = debris.count++;
+      const base = slot * 3;
+      debris.positions[base] = x + 0.5 + (Math.random() - 0.5) * 0.9;
+      debris.positions[base + 1] = y + 0.5 + (Math.random() - 0.5) * 0.9;
+      debris.positions[base + 2] = z + 0.5 + (Math.random() - 0.5) * 0.9;
+      debris.velocities[base] = (Math.random() - 0.5) * 3.4;
+      debris.velocities[base + 1] = 2.2 + Math.random() * 3.4;
+      debris.velocities[base + 2] = (Math.random() - 0.5) * 3.4;
+      const shade = 0.75 + Math.random() * 0.45;
+      debris.colors[base] = Math.min(1, pr * shade);
+      debris.colors[base + 1] = Math.min(1, pg * shade);
+      debris.colors[base + 2] = Math.min(1, pb * shade);
+      debris.life[slot] = 0.75 + Math.random() * 0.55;
+    }
+    debris.points.geometry.setDrawRange(0, debris.count);
+  }
+
+  _updateDebris(dt) {
+    const debris = this.debris;
+    if (!debris || debris.count === 0) return;
+    for (let slot = debris.count - 1; slot >= 0; slot--) {
+      const base = slot * 3;
+      debris.life[slot] -= dt;
+      if (debris.life[slot] <= 0) {
+        // Swap-with-last keeps the live particles contiguous, so the draw
+        // range stays tight without rebuilding the buffer.
+        const last = --debris.count;
+        if (slot !== last) {
+          const from = last * 3;
+          for (let axis = 0; axis < 3; axis++) {
+            debris.positions[base + axis] = debris.positions[from + axis];
+            debris.velocities[base + axis] = debris.velocities[from + axis];
+            debris.colors[base + axis] = debris.colors[from + axis];
+          }
+          debris.life[slot] = debris.life[last];
+        }
+        continue;
+      }
+      debris.velocities[base + 1] += DEBRIS_GRAVITY * dt;
+      debris.positions[base] += debris.velocities[base] * dt;
+      debris.positions[base + 1] += debris.velocities[base + 1] * dt;
+      debris.positions[base + 2] += debris.velocities[base + 2] * dt;
+      if (this.isSolid(debris.positions[base], debris.positions[base + 1] - 0.06, debris.positions[base + 2])) {
+        debris.velocities[base + 1] = Math.abs(debris.velocities[base + 1]) * 0.28;
+        debris.velocities[base] *= 0.6;
+        debris.velocities[base + 2] *= 0.6;
+      }
+    }
+    debris.points.geometry.setDrawRange(0, debris.count);
+    debris.points.geometry.attributes.position.needsUpdate = true;
+    debris.points.geometry.attributes.color.needsUpdate = true;
+    debris.points.material.opacity = 0.95;
   }
 
   _createBreakEffect() {
@@ -545,6 +689,7 @@ export class World {
           pz + 0.5 + (rng() * 2 - 1) * spread,
         );
         this.disasterProps.add(puff);
+        this._registerProp(puff, "dust", rng);
       }
     }
   }
@@ -751,6 +896,7 @@ export class World {
       opacity: 0.5,
       depthWrite: false,
     });
+    const rng = mulberry32((this.seed ^ 0x1b873593) >>> 0);
     for (const [index, source] of sources.entries()) {
       const [px, pz] = source.at;
       const base = this.plazaY + (source.lift || 0) + (source.height || 2) + 2;
@@ -759,6 +905,7 @@ export class World {
         const puff = new THREE.Mesh(new THREE.SphereGeometry(1.0 + i * 0.5, 8, 6), smokeMaterial);
         puff.position.set(px + 0.5 + i * drift, base + i * 2.2, pz + 0.5 - i * 0.3);
         this.disasterProps.add(puff);
+        this._registerProp(puff, "smoke", rng);
       }
     }
   }
@@ -1201,20 +1348,76 @@ export class World {
     y = Math.floor(y);
     z = Math.floor(z);
     if (x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= WORLD_SIZE) return;
+    const previous = this.blocks[idx(x, y, z)];
     this.blocks[idx(x, y, z)] = id;
     this._updateHeightAt(x, z);
     const ci = Math.floor(x / CHUNK);
     const cj = Math.floor(z / CHUNK);
-    this._rebuildChunk(ci, cj);
-    if (x % CHUNK === 0 && ci > 0) this._rebuildChunk(ci - 1, cj);
-    if (x % CHUNK === CHUNK - 1 && ci < CHUNKS - 1) this._rebuildChunk(ci + 1, cj);
-    if (z % CHUNK === 0 && cj > 0) this._rebuildChunk(ci, cj - 1);
-    if (z % CHUNK === CHUNK - 1 && cj < CHUNKS - 1) this._rebuildChunk(ci, cj + 1);
-    emit("world:blockchanged", { x, y, z, block: id });
+    this._markChunkDirty(ci, cj);
+    if (x % CHUNK === 0 && ci > 0) this._markChunkDirty(ci - 1, cj);
+    if (x % CHUNK === CHUNK - 1 && ci < CHUNKS - 1) this._markChunkDirty(ci + 1, cj);
+    if (z % CHUNK === 0 && cj > 0) this._markChunkDirty(ci, cj - 1);
+    if (z % CHUNK === CHUNK - 1 && cj < CHUNKS - 1) this._markChunkDirty(ci, cj + 1);
+    emit("world:blockchanged", { x, y, z, block: id, previous });
+  }
+
+  _markChunkDirty(ci, cj) {
+    this.dirtyChunks.add(cj * CHUNKS + ci);
+  }
+
+  // A queued remesh must still be flushed if something reads geometry before
+  // the next frame; the headless checks and setBlock loops during world build
+  // both do, so this stays callable on its own.
+  flushDirtyChunks(limit = Infinity) {
+    if (this.dirtyChunks.size === 0) return 0;
+    let done = 0;
+    for (const index of this.dirtyChunks) {
+      if (done >= limit) break;
+      this.dirtyChunks.delete(index);
+      // A chunk the streaming loop has not reached yet will be meshed from the
+      // current block array anyway, so there is nothing to rebuild.
+      if (this.chunkMeshes[index] === null) continue;
+      this._rebuildChunk(index % CHUNKS, Math.floor(index / CHUNKS));
+      done++;
+    }
+    return done;
+  }
+
+  // Smoke and powder used to be static spheres pinned over the incident, which
+  // reads as scenery. Giving each puff a slow rise, drift and breathe turns the
+  // same geometry into a column that is still burning.
+  _registerProp(mesh, kind, rng) {
+    this.props.push({
+      mesh,
+      kind,
+      baseY: mesh.position.y,
+      baseScale: mesh.scale.x,
+      phase: rng() * Math.PI * 2,
+      speed: 0.25 + rng() * 0.45,
+      rise: kind === "smoke" ? 0.55 + rng() * 0.6 : 0.18 + rng() * 0.25,
+      sway: 0.35 + rng() * 0.7,
+    });
+  }
+
+  _updateProps(dt) {
+    if (this.props.length === 0) return;
+    this.propClock += dt;
+    const clock = this.propClock;
+    for (const prop of this.props) {
+      const wave = Math.sin(clock * prop.speed + prop.phase);
+      prop.mesh.position.y = prop.baseY + wave * prop.rise;
+      prop.mesh.position.x += Math.cos(clock * prop.speed * 0.6 + prop.phase) * prop.sway * dt;
+      const breathe = 1 + wave * (prop.kind === "smoke" ? 0.08 : 0.05);
+      prop.mesh.scale.setScalar(prop.baseScale * breathe);
+    }
   }
 
   update(playerPos, dt = 1 / 60) {
-    this._updateSnowfall(playerPos, Math.min(dt, 0.1));
+    const step = Math.min(dt, 0.1);
+    this._updateSnowfall(playerPos, step);
+    this._updateDebris(step);
+    this._updateProps(step);
+    this.flushDirtyChunks(2);
     const pcx = Math.max(0, Math.min(CHUNKS - 1, Math.floor(playerPos.x / CHUNK)));
     const pcz = Math.max(0, Math.min(CHUNKS - 1, Math.floor(playerPos.z / CHUNK)));
     let budget = 3;
@@ -1363,6 +1566,14 @@ export class World {
       if (child.material) child.material.dispose();
     });
     this.snowfall = null;
+    this.dirtyChunks.clear();
+    this.props = [];
+    if (this.debris) {
+      this.scene.remove(this.debris.points);
+      this.debris.points.geometry.dispose();
+      this.debris.points.material.dispose();
+      this.debris = null;
+    }
     this.scene.remove(this.disasterProps);
     this.disasterProps.traverse((child) => {
       if (child.geometry) child.geometry.dispose();

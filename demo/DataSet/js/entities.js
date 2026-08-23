@@ -1,4 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
+import { emit } from "./events.js";
 
 const SEVERITY_COLORS = { rot: 0xff4136, gelb: 0xffd23f };
 const SAVED_COLOR = 0x57d94a;
@@ -34,6 +35,7 @@ export class PatientManager {
     this.scene = scene;
     this.patients = [];
     this.effects = [];
+    this.rings = [];
   }
 
   spawn(cases, spots) {
@@ -138,6 +140,20 @@ export class PatientManager {
         p.beaconMat.opacity = 0.35 + 0.15 * Math.sin(elapsed * 3 + p.phase);
       }
     }
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const ring = this.rings[i];
+      ring.age += dt;
+      const t = ring.age / ring.ttl;
+      const scale = 1 + t * ring.spread;
+      ring.mesh.scale.set(scale, scale, scale);
+      ring.mesh.material.opacity = Math.max(0, 0.85 * (1 - t));
+      if (ring.age >= ring.ttl) {
+        this.scene.remove(ring.mesh);
+        ring.mesh.geometry.dispose();
+        ring.mesh.material.dispose();
+        this.rings.splice(i, 1);
+      }
+    }
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const fx = this.effects[i];
       fx.age += dt;
@@ -160,10 +176,14 @@ export class PatientManager {
     return this.patients;
   }
 
-  getNearest(pos, maxDist) {
+  // `activeOnly` matters more than it looks: without it a patient who has just
+  // been treated keeps winning the proximity test and hides the casualty lying
+  // a metre behind them, so the interact prompt never appears.
+  getNearest(pos, maxDist, { activeOnly = false } = {}) {
     let best = null;
     let bestDist = maxDist * maxDist;
     for (const p of this.patients) {
+      if (activeOnly && p.resolved) continue;
       const dx = p.pos.x - pos.x;
       const dy = p.pos.y - pos.y;
       const dz = p.pos.z - pos.z;
@@ -183,12 +203,25 @@ export class PatientManager {
     if (p.beacon) p.beacon.visible = true;
     if (p.sprite) p.sprite.visible = true;
     p.beaconMat.opacity = 0.45;
-    this.treatmentFx(id, SEVERITY_COLORS[p.severity] || SAVED_COLOR);
+    this.treatmentFx(id, SEVERITY_COLORS[p.severity] || SAVED_COLOR, 32);
+    emit("patient:revealed", { patientId: p.id, name: p.name, hidden: p.hidden });
     return true;
   }
 
   hiddenRemaining() {
     return this.patients.filter((p) => p.hidden && !p.revealed && !p.resolved).length;
+  }
+
+  // Distance to the closest casualty who has not been found yet, so the HUD and
+  // the audio ping can tell the player they are getting warmer.
+  nearestHiddenDistance(pos) {
+    let best = Infinity;
+    for (const p of this.patients) {
+      if (!p.hidden || p.revealed || p.resolved) continue;
+      const distance = p.pos.distanceTo(pos);
+      if (distance < best) best = distance;
+    }
+    return best;
   }
 
   markSaved(id) {
@@ -197,8 +230,34 @@ export class PatientManager {
     p.resolved = true;
     p.saved = true;
     p.shirtMat.color.setHex(SAVED_COLOR);
-    p.beaconMat.color.setHex(SAVED_COLOR);
-    p.beaconMat.opacity = 0.35;
+    if (!p.beaconDisposed) {
+      p.beaconMat.color.setHex(SAVED_COLOR);
+      p.beaconMat.opacity = 0.35;
+    }
+    this.rescueFx(id);
+  }
+
+  // The moment a report lands is the game's single biggest reward, so it gets
+  // more than a puff: a ring that opens outwards along the ground and a burst
+  // of green rising out of the patient.
+  rescueFx(id) {
+    const p = this.getById(id);
+    if (!p) return;
+    this.treatmentFx(id, SAVED_COLOR, 40);
+    const geometry = new THREE.RingGeometry(0.4, 0.62, 28);
+    const material = new THREE.MeshBasicMaterial({
+      color: SAVED_COLOR,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const ring = new THREE.Mesh(geometry, material);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(p.pos.x, p.pos.y + 0.08, p.pos.z);
+    this.scene.add(ring);
+    this.rings.push({ mesh: ring, age: 0, ttl: 1.1, spread: 5.5 });
   }
 
   markDead(id) {
@@ -212,19 +271,19 @@ export class PatientManager {
     if (p.mesh) {
       for (const child of p.mesh.children) {
         if (child.material === p.beaconMat) {
-          this.scene.remove(child);
+          p.mesh.remove(child);
           child.geometry.dispose();
           p.beaconMat.dispose();
+          p.beaconDisposed = true;
           break;
         }
       }
     }
   }
 
-  treatmentFx(id, color = SAVED_COLOR) {
+  treatmentFx(id, color = SAVED_COLOR, count = 24) {
     const p = this.getById(id);
     if (!p) return;
-    const count = 24;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       positions[i * 3] = p.pos.x + (Math.random() - 0.5) * 0.9;
@@ -254,6 +313,7 @@ export class PatientManager {
       this.scene.remove(p.mesh);
       p.mesh.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
+        if (child.material === p.beaconMat && p.beaconDisposed) return;
         if (child.material && child.material !== p.shirtMat && child.material !== p.skinMat && child.material !== p.pantsMat) {
           if (child.material.map) child.material.map.dispose();
           child.material.dispose();
@@ -268,7 +328,13 @@ export class PatientManager {
       fx.points.geometry.dispose();
       fx.points.material.dispose();
     }
+    for (const ring of this.rings) {
+      this.scene.remove(ring.mesh);
+      ring.mesh.geometry.dispose();
+      ring.mesh.material.dispose();
+    }
     this.patients = [];
     this.effects = [];
+    this.rings = [];
   }
 }

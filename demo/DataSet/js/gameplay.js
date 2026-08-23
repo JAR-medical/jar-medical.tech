@@ -350,6 +350,17 @@ export class Game {
     return scoreDelta;
   }
 
+  // Points awarded by the layer above (streak bonuses, discovery bonuses) that
+  // are not tied to one report verdict. Additive on purpose: the per-patient
+  // scoring in _completeRun is untouched.
+  awardBonus(points, reason = "bonus") {
+    const delta = Math.round(Number(points) || 0);
+    if (!delta) return this.score;
+    this.score += delta;
+    emit("score:bonus", { delta, reason, score: this.score });
+    return this.score;
+  }
+
   useItem(patientId, item) {
     const run = this.byPatientId.get(patientId);
     if (!run || run.resolved) {

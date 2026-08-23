@@ -1,6 +1,13 @@
 import { emit } from "./events.js";
 import { HOTBAR_ITEMS, hotbarKeyLabel } from "./items.js";
-import { LEADERBOARD_NOTE, leaderboardView } from "./leaderboard.js";
+import {
+  LEADERBOARD_NOTE,
+  LEADERBOARD_NOTES,
+  leaderboardView,
+  loadIdentity,
+  loadLocalRuns,
+  saveIdentity,
+} from "./leaderboard.js";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -18,9 +25,18 @@ export class UI {
     this._recording = false;
     this._audioCtx = null;
     this._voiceObjectUrl = null;
-    this._toastTimer = null;
     this._bannerTimer = null;
     this._countdownTimer = null;
+    this._toasts = [];
+    this._scoreShown = 0;
+    this._proximity = -1;
+    this._lbScope = "global";
+    this._lbData = { global: null, local: null, demo: null };
+    this._lbYouKey = { global: null, local: null, demo: null };
+    this._lbIdentity = null;
+    this._lbSummary = null;
+    this._lbStatus = "";
+    this.audio = null;
 
     this.isTouchDevice =
       navigator.maxTouchPoints > 0 ||
@@ -104,6 +120,22 @@ export class UI {
       touchSprint: $("touch-sprint"),
       touchBreak: $("touch-break"),
       touchUse: $("touch-use"),
+      screenFlash: $("screen-flash"),
+      screenVignette: $("screen-vignette"),
+      scorePops: $("score-pops"),
+      comboPanel: $("combo-panel"),
+      comboCount: $("combo-count"),
+      comboMultiplier: $("combo-multiplier"),
+      comboBarFill: $("combo-bar-fill"),
+      proximityMeter: $("proximity-meter"),
+      proximityFill: $("proximity-fill"),
+      audioToggle: $("audio-toggle"),
+      endMedals: $("end-medals"),
+      endBest: $("end-best"),
+      crewName: $("crew-name"),
+      crewStation: $("crew-station"),
+      btnSaveName: $("btn-save-name"),
+      lbTabs: Array.from(document.querySelectorAll(".lb-tab")),
     };
 
     window.addEventListener("keydown", (e) => {
@@ -122,6 +154,9 @@ export class UI {
       if ((e.key === "t" || e.key === "T") && this._chartOpen && !typingInFallback) {
         e.preventDefault();
         this.el.fallbackInput.focus();
+      }
+      if ((e.key === "m" || e.key === "M") && !typingInFallback && document.activeElement?.tagName !== "INPUT") {
+        this.toggleAudio();
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -187,13 +222,78 @@ export class UI {
       if (this._recording) this._requestRecordStop();
       else this._requestRecordStart();
     });
+    this.el.audioToggle?.addEventListener("click", () => this.toggleAudio());
+    this.el.btnSaveName?.addEventListener("click", () => this._commitIdentity());
+    for (const field of [this.el.crewName, this.el.crewStation]) {
+      field?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        this._commitIdentity();
+      });
+    }
+    for (const tab of this.el.lbTabs) {
+      tab.addEventListener("click", () => {
+        this.audio?.play("ui-click");
+        this.setLeaderboardScope(tab.dataset.scope);
+      });
+    }
+    // Every button in the game makes the same click, so the audio wiring lives
+    // here once instead of at each call site. It also doubles as the gesture
+    // that unlocks the AudioContext.
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        const button = event.target instanceof Element ? event.target.closest("button") : null;
+        if (!button || button.disabled) return;
+        this.audio?.unlock();
+        if (!button.classList.contains("lb-tab")) this.audio?.play("ui-click");
+      },
+      true,
+    );
     this._bindTouchControls();
+  }
+
+  setAudio(audio) {
+    this.audio = audio;
+    this.syncAudioButton();
+  }
+
+  toggleAudio() {
+    if (!this.audio) return;
+    const enabled = this.audio.toggle();
+    this.syncAudioButton();
+    this.toast(enabled ? "Ton an" : "Ton aus", "info");
+    if (enabled) this.audio.play("ui-confirm");
+  }
+
+  syncAudioButton() {
+    const button = this.el.audioToggle;
+    if (!button) return;
+    const enabled = Boolean(this.audio?.enabled);
+    button.setAttribute("aria-pressed", String(enabled));
+    button.firstChild.textContent = enabled ? "🔊" : "🔇";
+  }
+
+  _commitIdentity() {
+    const identity = saveIdentity({
+      name: this.el.crewName?.value,
+      crew: this.el.crewStation?.value,
+    });
+    if (this.el.crewName) this.el.crewName.value = identity.name;
+    if (this.el.crewStation) this.el.crewStation.value = identity.crew;
+    this._lbIdentity = identity;
+    this.renderLeaderboard(this._lbSummary);
+    this.audio?.play("ui-confirm");
+    this.handlers.onIdentityChanged?.(identity);
+    return identity;
   }
 
   _requestRecordStart() {
     if (!this._chartOpen || this._recording) return;
     this._recording = true;
     this.setRecordingUI(true, false);
+    // The cue plays before the duck, so the player hears "go" and then silence.
+    this.audio?.play("record-start");
     emit("ui:record-start", {});
   }
 
@@ -201,6 +301,7 @@ export class UI {
     if (!this._recording) return;
     this._recording = false;
     this.setRecordingUI(false, true);
+    this.audio?.play("record-stop");
     emit("ui:record-stop", {});
   }
 
@@ -395,17 +496,81 @@ export class UI {
         : "🎤 Aufnahme starten";
   }
 
+  // Toasts used to replace each other, so a rescue message could be erased by
+  // the hint that followed it a frame later. They stack now, oldest first, up
+  // to three at a time.
   toast(msg, type = "info") {
-    if (this._toastTimer) clearTimeout(this._toastTimer);
-
     const div = document.createElement("div");
     div.className = `toast ${type === "info" ? "" : type}`.trim();
     div.textContent = msg;
-    this.el.toasts.replaceChildren(div);
-    this._toastTimer = setTimeout(() => {
-      if (div.parentNode === this.el.toasts) div.remove();
-      this._toastTimer = null;
-    }, 4000);
+    this.el.toasts.appendChild(div);
+    this._toasts.push(div);
+    while (this._toasts.length > 3) this._removeToast(this._toasts[0]);
+    setTimeout(() => this._removeToast(div), 4000);
+    if (type === "bad") this.audio?.play("warn");
+    else if (type !== "good") this.audio?.play("toast");
+  }
+
+  _removeToast(div) {
+    const index = this._toasts.indexOf(div);
+    if (index >= 0) this._toasts.splice(index, 1);
+    if (div.parentNode !== this.el.toasts) return;
+    div.classList.add("leaving");
+    setTimeout(() => div.remove(), 250);
+  }
+
+  // A number that leaps off the crosshair is worth more than the same number
+  // appearing quietly in the corner.
+  scorePop(text, kind = "good") {
+    const host = this.el.scorePops;
+    if (!host || !text) return;
+    const div = document.createElement("div");
+    div.className = `score-pop ${kind}`;
+    div.textContent = text;
+    host.appendChild(div);
+    while (host.childElementCount > 5) host.firstElementChild.remove();
+    setTimeout(() => div.remove(), 1300);
+  }
+
+  flash(kind = "good") {
+    const el = this.el.screenFlash;
+    if (!el) return;
+    el.className = "";
+    // Reading offsetWidth restarts the CSS animation; without it a second
+    // flash inside the same second does nothing at all.
+    void el.offsetWidth;
+    el.className = `flash-${kind}`;
+  }
+
+  setCombo({ streak = 0, multiplier = 1, progress = 0 } = {}) {
+    const panel = this.el.comboPanel;
+    if (!panel) return;
+    const active = streak >= 2;
+    panel.classList.toggle("hidden", !active);
+    if (!active) return;
+    const grew = this.el.comboCount.textContent !== String(streak);
+    this.el.comboCount.textContent = String(streak);
+    this.el.comboMultiplier.textContent = `×${multiplier.toFixed(1)}`;
+    this.el.comboBarFill.style.width = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
+    panel.classList.toggle("hot", multiplier >= 1.5);
+    if (grew) {
+      panel.classList.remove("gained");
+      void panel.offsetWidth;
+      panel.classList.add("gained");
+    }
+  }
+
+  // How close the nearest unfound casualty is, 0 (far) to 1 (on top of them).
+  setProximity(ratio) {
+    const value = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : -1;
+    if (Math.abs(value - this._proximity) < 0.02) return;
+    this._proximity = value;
+    const meter = this.el.proximityMeter;
+    if (meter) {
+      meter.classList.toggle("hidden", value < 0);
+      if (value >= 0) this.el.proximityFill.style.width = `${Math.round(value * 100)}%`;
+    }
+    this.el.screenVignette?.classList.toggle("close", value > 0.55);
   }
 
   showPrompt(text) {
@@ -428,7 +593,13 @@ export class UI {
     if (state.dead > 0) line += ` · ✖${state.dead}`;
     this.el.missionLine.textContent = line;
     this.el.missionTimer.textContent = mmss(state.elapsed);
-    this.el.scoreValue.textContent = String(state.score);
+    if (state.score !== this._scoreShown) {
+      this._scoreShown = state.score;
+      this.el.scoreValue.textContent = String(state.score);
+      this.el.scoreValue.classList.remove("bumped");
+      void this.el.scoreValue.offsetWidth;
+      this.el.scoreValue.classList.add("bumped");
+    }
 
     if (this.el.levelLine) {
       const number = state.levelNumber || 1;
@@ -495,6 +666,7 @@ export class UI {
     this._countdownTimer = setInterval(() => {
       remaining -= 1;
       if (this.el.levelCountdown) this.el.levelCountdown.textContent = String(Math.max(0, remaining));
+      if (remaining > 0) this.audio?.play("countdown");
       if (remaining <= 0) clearInterval(this._countdownTimer);
     }, 1000);
   }
@@ -704,7 +876,7 @@ export class UI {
     }
   }
 
-  showEnd(summary) {
+  showEnd(summary, extras = {}) {
     this.closeChart();
     this.hideLevelComplete();
     const cleared = summary.levelsCleared ?? 0;
@@ -729,18 +901,109 @@ export class UI {
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
       `<div>Gewertete Sprachberichte: <b>${summary.accuracySamples || 0}</b></div>` +
       `<div class="end-levels">${levelRows}</div>`;
-    this.renderLeaderboard(summary);
+
+    this.renderMedals(summary, extras);
+    this.renderPersonalBest(extras.personalBest, summary);
+    this.prefillIdentity(extras.identity);
+
+    this._lbSummary = summary;
+    this._lbData = {
+      global: Array.isArray(extras.remoteEntries) ? extras.remoteEntries : null,
+      local: loadLocalRuns(),
+      demo: null,
+    };
+    this._lbYouKey = { global: null, local: extras.runKey || null, demo: null };
+    this._lbIdentity = extras.identity || loadIdentity();
+    this._lbStatus = extras.remoteStatus || "";
+    this.setLeaderboardScope(this._lbData.global ? "global" : "local", { silent: true });
+
     this.el.btnRestart.textContent = "↻ Neuer Durchlauf ab Level 1";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
+    this.setCombo({ streak: 0 });
+    this.setProximity(-1);
   }
 
-  // The board is openly fictional and says so, so a player never mistakes the
-  // demo crews for other people's runs.
-  renderLeaderboard(summary) {
-    const host = this.el.endLeaderboard;
+  // Medals name what the run actually did well. A score alone says "3499"; a
+  // medal says "every concealed casualty found", which is the thing worth
+  // trying to repeat.
+  renderMedals(summary, extras = {}) {
+    const host = this.el.endMedals;
     if (!host) return;
-    const board = leaderboardView(summary);
+    const medals = [];
+    const savedAll = summary.total > 0 && summary.saved >= summary.total;
+    if (savedAll) medals.push({ cls: "gold", icon: "🏅", label: "Alle Patienten gerettet" });
+    if ((summary.levelsCleared ?? 0) >= (summary.levelCount ?? 0) && (summary.levelCount ?? 0) > 0) {
+      medals.push({ cls: "gold", icon: "🎖", label: "Kampagne abgeschlossen" });
+    }
+    if (summary.accuracySamples > 0 && summary.accuracy >= 90) {
+      medals.push({ cls: "green", icon: "🎙", label: "Funkdisziplin", detail: `${summary.accuracy}% Genauigkeit` });
+    } else if (summary.accuracySamples > 0 && summary.accuracy >= 75) {
+      medals.push({ cls: "green", icon: "🎙", label: "Klare Übergabe", detail: `${summary.accuracy}%` });
+    }
+    if (extras.hiddenTotal > 0 && extras.hiddenFound >= extras.hiddenTotal) {
+      medals.push({ cls: "blue", icon: "🔎", label: "Alle Versteckten gefunden", detail: `${extras.hiddenFound}/${extras.hiddenTotal}` });
+    } else if (extras.hiddenFound > 0) {
+      medals.push({ cls: "blue", icon: "🔎", label: "Versteckte gefunden", detail: `${extras.hiddenFound}/${extras.hiddenTotal}` });
+    }
+    if (extras.bestStreak >= 5) medals.push({ cls: "green", icon: "🔥", label: "Serie", detail: `${extras.bestStreak} in Folge` });
+    if (savedAll && summary.elapsed > 0 && summary.elapsed < 900) {
+      medals.push({ cls: "gold", icon: "⚡", label: "Schnelle Schicht", detail: mmss(summary.elapsed) });
+    }
+    if (extras.personalBest?.beatenScore) medals.push({ cls: "gold", icon: "📈", label: "Neuer Punkterekord" });
+
+    host.innerHTML = medals
+      .map(
+        (medal) =>
+          `<span class="medal ${medal.cls}">${medal.icon} ${escapeHtml(medal.label)}` +
+          `${medal.detail ? ` <small>${escapeHtml(medal.detail)}</small>` : ""}</span>`,
+      )
+      .join("");
+    if (medals.length) this.audio?.play("medal");
+  }
+
+  renderPersonalBest(best, summary) {
+    const host = this.el.endBest;
+    if (!host) return;
+    if (!best?.next || best.next.runs <= 1) {
+      host.innerHTML = "";
+      return;
+    }
+    const record = best.beatenScore;
+    host.innerHTML =
+      `<div>Beste Punktzahl: <b>${best.next.score}</b>${record ? ` <span class="record">— neuer Rekord (+${summary.score - best.previous.score})</span>` : ""}</div>` +
+      `<div>Beste Genauigkeit: <b>${Math.round(best.next.accuracy)}%</b> · Läufe: <b>${best.next.runs}</b></div>`;
+  }
+
+  prefillIdentity(identity = loadIdentity()) {
+    if (this.el.crewName) this.el.crewName.value = identity?.name || "";
+    if (this.el.crewStation) this.el.crewStation.value = identity?.crew || "";
+  }
+
+  // The scope decides which rows the board is built from; the renderer below
+  // does not care where they came from.
+  setLeaderboardScope(scope, { silent = false } = {}) {
+    if (!scope) return;
+    this._lbScope = scope;
+    for (const tab of this.el.lbTabs) tab.classList.toggle("active", tab.dataset.scope === scope);
+    if (!silent) this.audio?.play("ui-click");
+    this.renderLeaderboard(this._lbSummary);
+  }
+
+  // `global` and `local` are real runs. `demo` is openly fictional and the note
+  // under it says so, so a player never mistakes the demo crews for people.
+  renderLeaderboard(summary, options = {}) {
+    const host = this.el.endLeaderboard;
+    if (!host || !summary) return;
+    const scope = options.scope || this._lbScope || "demo";
+    const entries = scope === "demo" ? null : this._lbData[scope];
+    const board = leaderboardView(summary, {
+      scope,
+      entries: entries || undefined,
+      identity: options.identity || this._lbIdentity,
+      youKey: this._lbYouKey[scope],
+    });
+
     const rows = board.shown
       .map((row) => {
         if (row.gap) return `<div class="lb-row lb-gap"><span>⋯</span></div>`;
@@ -750,7 +1013,7 @@ export class UI {
           `<span class="lb-rank">${row.rank}</span>` +
           `<span class="lb-name"><b>${escapeHtml(row.name)}</b><small>${escapeHtml(row.crew)}</small></span>` +
           `<span class="lb-saved">${row.saved}/${row.total}</span>` +
-          `<span class="lb-acc">${row.accuracy || 0}%</span>` +
+          `<span class="lb-acc">${Math.round(row.accuracy) || 0}%</span>` +
           `<span class="lb-time">${mmss(row.elapsed)}</span>` +
           `<span class="lb-score">${row.score}</span>` +
           `</div>`
@@ -758,13 +1021,28 @@ export class UI {
       })
       .join("");
 
+    const heading = { global: "SERVER-BESTENLISTE", local: "DEINE LÄUFE", demo: "DEMO-BESTENLISTE" }[scope] || "BESTENLISTE";
+    const note = scope === "global" && !entries
+      ? "Kein Server erreichbar — es wird nur lokal gewertet."
+      : LEADERBOARD_NOTES[scope] || LEADERBOARD_NOTE;
+    const status = this._lbStatus && scope === "global" ? `<p class="lb-status">${escapeHtml(this._lbStatus)}</p>` : "";
+
     host.innerHTML =
-      `<div class="lb-head"><b>BESTENLISTE</b><span>Platz ${board.yourRank} von ${board.count}</span></div>` +
+      `<div class="lb-head"><b>${heading}</b><span>Platz ${board.yourRank} von ${board.count}</span></div>` +
       `<div class="lb-legend"><span class="lb-rank">#</span><span class="lb-name">Schicht</span>` +
       `<span class="lb-saved">Gerettet</span><span class="lb-acc">Genau.</span>` +
       `<span class="lb-time">Zeit</span><span class="lb-score">Punkte</span></div>` +
       `<div class="lb-rows">${rows}</div>` +
-      `<p class="lb-note">${escapeHtml(LEADERBOARD_NOTE)}</p>`;
+      `<p class="lb-note">${escapeHtml(note)}</p>${status}`;
+  }
+
+  // Called once the backend answers, so the end screen fills in without the
+  // player having to wait on the network before seeing their run.
+  applyRemoteLeaderboard(entries, status = "", youKey = null) {
+    this._lbData.global = Array.isArray(entries) ? entries : null;
+    if (youKey) this._lbYouKey.global = String(youKey);
+    this._lbStatus = status;
+    if (this._lbScope === "global") this.renderLeaderboard(this._lbSummary);
   }
 
   closeChart() {
@@ -775,7 +1053,15 @@ export class UI {
     if (this.el.fallbackInput === document.activeElement) this.el.fallbackInput.blur();
   }
 
+  // Kept because the frozen contract has main.js calling it; it now routes
+  // through the shared engine so one mute switch covers everything, and only
+  // falls back to its own context if the engine never started.
   playTone(freq, durMs, type = "square") {
+    if (this.audio?.ready) {
+      this.audio._tone({ freq, dur: Math.max(0.03, durMs / 1000), type, gain: 0.18 });
+      return;
+    }
+    if (this.audio && !this.audio.enabled) return;
     try {
       if (!this._audioCtx) this._audioCtx = new AudioContext();
       if (this._audioCtx.state === "suspended") this._audioCtx.resume();

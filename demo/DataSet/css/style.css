@@ -1692,3 +1692,250 @@ body.touch-device .desktop-only { display: none; }
   background: linear-gradient(90deg, var(--red), var(--yellow) 55%, var(--green));
 }
 .accuracy-detail { font-size: 0.72rem; color: var(--muted); }
+
+/* ────────────────────────────────────────────────────────────────────────
+   Feedback layer: screen effects, score pops, streak meter, sound toggle.
+   Everything here is presentational and sits above the canvas but below the
+   modals, so nothing in it can swallow a click meant for the chart.
+   ──────────────────────────────────────────────────────────────────────── */
+
+#screen-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+#screen-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(124, 252, 0, 0.35) 0%, rgba(124, 252, 0, 0) 70%);
+}
+#screen-flash.flash-good { animation: fx-flash 0.55s ease-out; }
+#screen-flash.flash-bad {
+  background: radial-gradient(ellipse at center, rgba(255, 65, 54, 0.4) 0%, rgba(255, 65, 54, 0) 70%);
+  animation: fx-flash 0.6s ease-out;
+}
+#screen-flash.flash-warn {
+  background: radial-gradient(ellipse at center, rgba(255, 210, 63, 0.3) 0%, rgba(255, 210, 63, 0) 70%);
+  animation: fx-flash 0.5s ease-out;
+}
+#screen-flash.flash-find {
+  background: radial-gradient(ellipse at center, rgba(102, 217, 255, 0.34) 0%, rgba(102, 217, 255, 0) 72%);
+  animation: fx-flash 0.7s ease-out;
+}
+@keyframes fx-flash {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* A permanent, very soft edge darkening. It costs nothing and it is the
+   cheapest thing that makes a flat voxel render look composed. */
+#screen-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.42) 100%);
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+  opacity: 0.75;
+}
+#screen-vignette.close {
+  box-shadow: inset 0 0 140px rgba(102, 217, 255, 0.35);
+  opacity: 1;
+}
+
+#score-pops {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 16;
+}
+.score-pop {
+  font: 900 1.6rem/1 "Courier New", monospace;
+  color: var(--green);
+  text-shadow: 2px 2px 0 #000, 0 0 18px rgba(124, 252, 0, 0.55);
+  animation: pop-rise 1.25s ease-out forwards;
+  white-space: nowrap;
+}
+.score-pop.bad { color: var(--red); text-shadow: 2px 2px 0 #000, 0 0 18px rgba(255, 65, 54, 0.5); }
+.score-pop.warn { color: var(--yellow); text-shadow: 2px 2px 0 #000, 0 0 18px rgba(255, 210, 63, 0.5); }
+.score-pop.find { color: #66d9ff; text-shadow: 2px 2px 0 #000, 0 0 18px rgba(102, 217, 255, 0.5); }
+.score-pop.small { font-size: 1.15rem; }
+@keyframes pop-rise {
+  0% { opacity: 0; transform: translateY(14px) scale(0.7); }
+  16% { opacity: 1; transform: translateY(0) scale(1.14); }
+  32% { transform: translateY(-6px) scale(1); }
+  100% { opacity: 0; transform: translateY(-52px) scale(0.95); }
+}
+
+#score-value.bumped { display: inline-block; animation: value-bump 0.4s ease-out; }
+@keyframes value-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); color: #fff; }
+  100% { transform: scale(1); }
+}
+
+#combo-panel {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.8rem;
+  border-color: var(--yellow);
+}
+#combo-panel.hidden { display: none !important; }
+.combo-label { font: 800 0.66rem/1 "Courier New", monospace; letter-spacing: 0.18em; color: var(--muted); }
+#combo-count { font: 900 1.3rem/1 "Courier New", monospace; color: var(--yellow); }
+#combo-multiplier { font: 800 0.9rem/1 "Courier New", monospace; color: var(--green); }
+#combo-panel.hot { border-color: var(--green); box-shadow: 0 0 22px rgba(124, 252, 0, 0.28); }
+#combo-panel.gained { animation: value-bump 0.45s ease-out; }
+.combo-bar {
+  width: 74px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+}
+.combo-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--yellow), var(--green));
+  transition: width 0.35s ease;
+}
+
+#proximity-meter {
+  margin-top: 4px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+}
+#proximity-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #2b6ea8, #66d9ff);
+  transition: width 0.2s linear;
+}
+#hidden-hint { color: #66d9ff; font-size: 0.78rem; }
+
+.hud-toggle {
+  position: absolute;
+  top: calc(14px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 0.3rem 0.5rem;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  color: var(--text);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+.hud-toggle span { font: 700 0.55rem/1 "Courier New", monospace; letter-spacing: 0.12em; color: var(--muted); }
+.hud-toggle[aria-pressed="false"] { opacity: 0.55; border-color: #5a3030; }
+.hud-toggle:hover { border-color: var(--green); }
+
+/* Recording is the one moment the game deliberately goes silent, so the
+   button carries the feedback the audio no longer can. */
+.voice-record.recording { animation: rec-pulse 1.1s ease-in-out infinite; }
+@keyframes rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 65, 54, 0.55); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 65, 54, 0); }
+}
+
+.toast { transition: opacity 0.25s ease; }
+.toast.leaving { opacity: 0; }
+
+/* End screen: medals, personal best, board tabs. */
+.medals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 0.8rem 0;
+}
+.medals:empty { display: none; }
+.medal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  border: 2px solid var(--yellow);
+  background: rgba(255, 210, 63, 0.1);
+  color: var(--yellow);
+  font: 700 0.78rem/1.2 "Segoe UI", system-ui, sans-serif;
+}
+.medal.gold { border-color: #ffd700; color: #ffe873; background: rgba(255, 215, 0, 0.14); }
+.medal.green { border-color: var(--green); color: var(--green); background: rgba(124, 252, 0, 0.1); }
+.medal.blue { border-color: #66d9ff; color: #9fe8ff; background: rgba(102, 217, 255, 0.1); }
+.medal small { color: inherit; opacity: 0.75; font-weight: 600; }
+
+.personal-best {
+  font: 700 0.82rem/1.6 "Courier New", monospace;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+.personal-best:empty { display: none; }
+.personal-best b { color: var(--green); }
+.personal-best .record { color: var(--yellow); }
+
+.identity-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.identity-row input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  padding: 0.32rem 0.5rem;
+  font-family: inherit;
+  width: 10rem;
+  max-width: 38vw;
+}
+.identity-row input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+
+.lb-tabs { display: flex; justify-content: center; gap: 0.3rem; margin-bottom: 0.5rem; }
+.lb-tab {
+  padding: 0.3rem 0.9rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--panel-border);
+  color: var(--muted);
+  font: 700 0.74rem/1 "Courier New", monospace;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.lb-tab.active { color: #0b1206; background: var(--green); border-color: var(--green); }
+.lb-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.lb-status { color: var(--muted); font-size: 0.72rem; margin: 0.3rem 0 0; }
+.lb-status.bad { color: var(--red); }
+
+@media (max-width: 720px) {
+  #combo-panel { top: auto; bottom: 92px; }
+  .hud-toggle { top: auto; bottom: calc(14px + var(--safe-bottom)); right: calc(14px + var(--safe-right)); }
+  .identity-row input { width: 8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #screen-flash, .score-pop, .voice-record.recording, #score-value.bumped, #combo-panel.gained { animation: none; }
+  .score-pop { opacity: 1; }
+}

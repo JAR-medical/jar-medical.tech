@@ -26,7 +26,8 @@
         <div class="start-help">
           <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Shift</b> sprinten<br />
           <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
-          <b>Linksklick halten</b> Block abbauen · <b>E</b> Patientenkarte öffnen · Bericht aufnehmen · <b>T</b> tippen</span>
+          <b>Linksklick halten</b> Block abbauen · <b>E</b> Patientenkarte öffnen · Bericht aufnehmen · <b>T</b> tippen<br />
+          <b>M</b> Ton an/aus — die Musik verstummt automatisch, solange du sprichst</span>
           <span class="touch-only"><b>Linker Stick</b> bewegen · <b>Rechte Seite wischen</b> umsehen · <b>🩺</b> Patientenkarte öffnen<br />
           <b>⛏ gedrückt halten</b> Block abbauen · in der Karte sprechen</span>
         </div>
@@ -89,6 +90,20 @@
       <h1 id="end-title" class="game-title" style="font-size:2.4rem;">EINSATZ ABGESCHLOSSEN</h1>
       <p id="end-rank" class="subtitle">—</p>
       <div id="end-stats"></div>
+      <div id="end-medals" class="medals" aria-label="Auszeichnungen"></div>
+      <div id="end-best" class="personal-best"></div>
+      <div class="identity-row">
+        <label for="crew-name">Schicht</label>
+        <input id="crew-name" type="text" maxlength="28" autocomplete="off" placeholder="Deine Schicht" />
+        <label for="crew-station">Wache</label>
+        <input id="crew-station" type="text" maxlength="28" autocomplete="off" placeholder="Wache / Team" />
+        <button id="btn-save-name" class="btn small" type="button">Eintragen</button>
+      </div>
+      <div class="lb-tabs" role="tablist" aria-label="Bestenlisten">
+        <button class="lb-tab active" type="button" data-scope="global" role="tab">Server</button>
+        <button class="lb-tab" type="button" data-scope="local" role="tab">Dieses Gerät</button>
+        <button class="lb-tab" type="button" data-scope="demo" role="tab">Demo</button>
+      </div>
       <div id="end-leaderboard" class="leaderboard"></div>
       <button id="btn-restart" class="btn big">↻ Neue Welt &amp; Patienten</button>
     </div>
@@ -96,6 +111,15 @@
 
     <div id="hud" class="hidden">
       <div id="crosshair"></div>
+      <div id="screen-fx" aria-hidden="true"><div id="screen-flash"></div><div id="screen-vignette"></div></div>
+      <div id="score-pops" aria-hidden="true"></div>
+
+      <div id="combo-panel" class="panel hidden" aria-live="polite">
+        <span class="combo-label">SERIE</span>
+        <b id="combo-count">0</b>
+        <span id="combo-multiplier">×1.0</span>
+        <div class="combo-bar"><i id="combo-bar-fill"></i></div>
+      </div>
 
     <div id="touch-controls" aria-label="Touch-Steuerung">
       <div id="touch-look" aria-hidden="true"><span>WISCHEN ZUM UMSEHEN</span></div>
@@ -122,7 +146,10 @@
       <div>Punkte <span id="score-value">0</span></div>
       <div>Genauigkeit <span id="accuracy-value">—</span></div>
       <div id="hidden-hint" class="hidden"></div>
+      <div id="proximity-meter" class="hidden" aria-hidden="true"><i id="proximity-fill"></i></div>
     </div>
+
+    <button id="audio-toggle" class="hud-toggle" type="button" aria-pressed="true" title="Ton an/aus (M)">🔊<span>TON</span></button>
 
     <div id="level-banner" class="hidden" aria-live="polite">
       <span id="level-banner-kicker">LEVEL 1/5</span>

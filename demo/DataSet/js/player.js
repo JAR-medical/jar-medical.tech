@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
-import { BLOCK, WORLD_SIZE } from "./world.js";
+import { BLOCK, WORLD_SIZE, blockMaterial } from "./world.js";
 import { HOTBAR_BLOCKS, HOTBAR_ITEMS } from "./items.js";
 
 export { HOTBAR_BLOCKS, HOTBAR_ITEMS };
@@ -63,6 +63,11 @@ export class Player {
     this._breakHeld = false;
     this.breakProgress = 0;
     this.breakPhase = 0;
+    this.moving = false;
+    this.sprinting = false;
+    this.surface = "default";
+    this._wasGrounded = true;
+    this._lastBreakPhase = 0;
 
     on("input:touch-move", ({ x = 0, y = 0 }) => {
       this.touchMove.x = Math.max(-1, Math.min(1, Number(x) || 0));
@@ -213,6 +218,9 @@ export class Player {
     if ((this.jumpQueued || this.keys.has("Space")) && this.grounded) {
       this.velocity.y = JUMP_VELOCITY;
       this.jumpQueued = false;
+      this.grounded = false;
+      this._wasGrounded = false;
+      emit("player:jump", { surface: this.surface });
     }
 
     this.velocity.y = Math.max(TERMINAL_VELOCITY, this.velocity.y + GRAVITY * dt);
@@ -222,6 +230,7 @@ export class Player {
     if (this._collides(nx, p.y, p.z)) nx = p.x;
     let nz = p.z + this.velocity.z * dt;
     if (this._collides(nx, p.y, nz)) nz = p.z;
+    const impactSpeed = -this.velocity.y;
     let ny = p.y + this.velocity.y * dt;
     if (this._collides(nx, ny, nz)) {
       if (this.velocity.y < 0) this.grounded = true;
@@ -234,6 +243,14 @@ export class Player {
     p.x = nx;
     p.y = ny;
     p.z = nz;
+
+    this.moving = length > 0 && (Math.abs(this.velocity.x) > 0.05 || Math.abs(this.velocity.z) > 0.05);
+    this.sprinting = sprinting;
+    this.surface = blockMaterial(this.world.getBlock(Math.floor(p.x), Math.floor(p.y - 0.12), Math.floor(p.z)));
+    if (this.grounded && !this._wasGrounded && impactSpeed > 3) {
+      emit("player:land", { surface: this.surface, strength: Math.min(1, impactSpeed / 16) });
+    }
+    this._wasGrounded = this.grounded;
 
     if (p.y < -10) {
       const c = this.world.clinic;
@@ -327,6 +344,14 @@ export class Player {
     this._updateBreakProgress();
     if (activeTarget.elapsed < activeTarget.duration) return;
     this.world.setBlock(activeTarget.x, activeTarget.y, activeTarget.z, BLOCK.AIR);
+    this.world.spawnBlockDebris?.(activeTarget.x, activeTarget.y, activeTarget.z, activeTarget.block);
+    emit("player:block-broken", {
+      x: activeTarget.x,
+      y: activeTarget.y,
+      z: activeTarget.z,
+      block: activeTarget.block,
+      material: blockMaterial(activeTarget.block),
+    });
     this._cancelBreaking();
   }
 
@@ -339,12 +364,17 @@ export class Player {
     }
     this.breakProgress = Math.min(1, this._breaking.elapsed / this._breaking.duration);
     this.breakPhase = this.breakProgress > 0 ? Math.min(10, Math.ceil(this.breakProgress * 10)) : 0;
+    if (this.breakPhase !== this._lastBreakPhase) {
+      this._lastBreakPhase = this.breakPhase;
+      if (this.breakPhase > 0) emit("player:break-tick", { material: blockMaterial(this._breaking.block), phase: this.breakPhase });
+    }
     this.world.setBreakEffect?.(this.breakProgress, this.breakPhase, this._breaking);
   }
 
   _cancelBreaking() {
     if (!this._breaking) return;
     this._breaking = null;
+    this._lastBreakPhase = 0;
     this._updateBreakProgress();
   }
 
@@ -376,5 +406,6 @@ export class Player {
       tz + 1 > p.z - HALF_WIDTH;
     if (overlapsPlayer) return;
     this.world.setBlock(tx, ty, tz, blockId);
+    emit("player:block-placed", { x: tx, y: ty, z: tz, block: blockId, material: blockMaterial(blockId) });
   }
 }
