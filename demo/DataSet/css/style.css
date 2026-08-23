@@ -1443,3 +1443,116 @@ body.touch-device .desktop-only { display: none; }
     font-size: 0.65rem;
   }
 }
+
+/* Campaign levels: HUD readouts, the drop-in banner and the teleport screen. */
+#level-line {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  margin-bottom: 0.15rem;
+}
+#accuracy-value { color: var(--yellow); }
+#hidden-hint {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #ffb454;
+  letter-spacing: 0.04em;
+}
+
+#level-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: min(680px, 92vw);
+  padding: 0.6rem 1.2rem;
+  text-align: center;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7);
+  font-family: "Courier New", monospace;
+  pointer-events: none;
+  animation: banner-in 0.35s ease-out;
+}
+#level-banner-kicker { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--yellow); }
+#level-banner-title { font-size: 1.25rem; color: var(--green); letter-spacing: 0.04em; }
+#level-banner-text { font-size: 0.78rem; color: #cdd8bf; line-height: 1.35; }
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.level-box { max-width: 640px; }
+.level-kicker {
+  font-family: "Courier New", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: var(--yellow);
+  margin-bottom: 0.4rem;
+}
+.level-box .game-title { font-size: clamp(1.8rem, 4.5vw, 2.8rem); }
+.level-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem;
+  margin: 1.2rem 0;
+  font-family: "Courier New", monospace;
+}
+.level-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.6rem;
+  border: 2px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.3);
+}
+.level-stats span { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.level-stats b { color: var(--green); font-size: 1.05rem; }
+
+.level-next {
+  border: 2px dashed var(--panel-border);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1.1rem;
+  text-align: left;
+}
+.level-next-label { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.level-next b { display: block; color: var(--yellow); font-size: 1.1rem; margin: 0.2rem 0 0.35rem; }
+.level-next p { margin: 0; font-size: 0.82rem; line-height: 1.45; color: #cdd8bf; }
+
+.end-levels { margin-top: 0.8rem; border-top: 2px solid var(--panel-border); padding-top: 0.6rem; }
+.end-level { display: flex; justify-content: space-between; gap: 1.2rem; font-size: 0.8rem; line-height: 1.6; }
+.end-level span { color: var(--muted); }
+
+/* Read-back accuracy for one report, shown with the verdict. */
+.accuracy-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0.7rem;
+  font-family: "Courier New", monospace;
+}
+.accuracy-line b { color: var(--yellow); }
+.accuracy-bar {
+  flex: 1 1 120px;
+  min-width: 100px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--panel-border);
+  position: relative;
+}
+.accuracy-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--accuracy, 0%);
+  background: linear-gradient(90deg, var(--red), var(--yellow) 55%, var(--green));
+}
+.accuracy-detail { font-size: 0.72rem; color: var(--muted); }

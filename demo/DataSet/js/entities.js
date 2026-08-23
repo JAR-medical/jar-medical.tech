@@ -4,6 +4,7 @@ const SEVERITY_COLORS = { rot: 0xff4136, gelb: 0xffd23f };
 const SAVED_COLOR = 0x57d94a;
 const DEAD_COLOR = 0x77777c;
 const SKIN_TONES = [0xd9a066, 0xc68b59, 0xb87a4b, 0xe0ac7e, 0xa8703f, 0xd29b6a];
+const REVEAL_DISTANCE = 9;
 
 function makeNameSprite(id, name) {
   const canvas = document.createElement("canvas");
@@ -75,15 +76,19 @@ export class PatientManager {
     legR.position.set(0.14, 0.13, -0.92);
     group.add(legR);
 
+    // A concealed casualty carries no signal column and no floating name until
+    // the medic is close enough to have genuinely found them.
+    const hidden = Boolean(spot.hidden);
     const beaconMat = new THREE.MeshBasicMaterial({
       color: shirtColor,
       transparent: true,
-      opacity: 0.45,
+      opacity: hidden ? 0 : 0.45,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
     const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.14, 6, 0.14), beaconMat);
     beacon.position.set(0, 3, 0);
+    beacon.visible = !hidden;
     group.add(beacon);
 
     const sprite = makeNameSprite(
@@ -92,6 +97,7 @@ export class PatientManager {
     );
     sprite.position.set(0, 2.45, 0);
     sprite.scale.set(2.55, 0.45, 1);
+    sprite.visible = !hidden;
     group.add(sprite);
 
     group.position.set(spot.x, spot.y, spot.z);
@@ -107,8 +113,13 @@ export class PatientManager {
       resolved: false,
       saved: false,
       dead: false,
+      hidden,
+      revealed: !hidden,
+      anchorId: spot.anchorId || null,
       mesh: group,
       torso,
+      beacon,
+      sprite,
       shirtMat,
       pantsMat,
       skinMat,
@@ -117,9 +128,12 @@ export class PatientManager {
     });
   }
 
-  update(dt, elapsed) {
+  update(dt, elapsed, playerPos = null) {
     for (const p of this.patients) {
-      if (!p.resolved) {
+      if (p.hidden && !p.revealed && playerPos) {
+        if (p.pos.distanceTo(playerPos) <= REVEAL_DISTANCE) this.reveal(p.id);
+      }
+      if (!p.resolved && p.revealed) {
         p.torso.scale.y = 1 + 0.04 * Math.sin(elapsed * 2 + p.phase);
         p.beaconMat.opacity = 0.35 + 0.15 * Math.sin(elapsed * 3 + p.phase);
       }
@@ -160,6 +174,21 @@ export class PatientManager {
       }
     }
     return best;
+  }
+
+  reveal(id) {
+    const p = this.getById(id);
+    if (!p || p.revealed) return false;
+    p.revealed = true;
+    if (p.beacon) p.beacon.visible = true;
+    if (p.sprite) p.sprite.visible = true;
+    p.beaconMat.opacity = 0.45;
+    this.treatmentFx(id, SEVERITY_COLORS[p.severity] || SAVED_COLOR);
+    return true;
+  }
+
+  hiddenRemaining() {
+    return this.patients.filter((p) => p.hidden && !p.revealed && !p.resolved).length;
   }
 
   markSaved(id) {

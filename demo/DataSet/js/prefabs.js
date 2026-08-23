@@ -1,0 +1,436 @@
+// Blueprint library. Maps are declared, not hand-placed: every level lists
+// structures by id and the world stamps them, so a new scene is a data edit.
+//
+// A blueprint is a Minecraft-schematic-shaped record — size plus one ASCII
+// layer per Y level, rows running along Z, characters along X — which is
+// exactly what `scripts/make_prefabs.py` emits when it converts a downloaded
+// `.schematic` / `.schem` file into this format.
+
+import { IMPORTED_BLUEPRINTS } from "./prefabs_imported.js";
+
+export const CHAR_BLOCKS = Object.freeze({
+  " ": null,
+  ".": null,
+  _: "AIR",
+  g: "GRASS",
+  d: "DIRT",
+  S: "STONE",
+  s: "SAND",
+  w: "WATER",
+  W: "WOOD",
+  E: "LEAVES",
+  p: "PATH",
+  X: "REDCROSS",
+  L: "LAMP",
+  B: "EMERGENCY_BLANKET",
+  M: "METAL",
+  R: "RUBBLE",
+  A: "ASPHALT",
+  C: "CONCRETE",
+  "#": "BRICK",
+  G: "GLASS",
+  F: "FIRE",
+  Y: "CAUTION",
+  N: "SNOW",
+  I: "ICE",
+  P: "PLANKS",
+  O: "ROOF",
+  V: "GRAVEL",
+  T: "STEEL",
+  Z: "TENT",
+  J: "RAIL",
+  Q: "MOSS",
+  H: "SANDSTONE",
+  K: "DARKSTONE",
+  U: "NEON",
+});
+
+function blueprint(size, layers) {
+  return Object.freeze({ size: Object.freeze(size), layers: Object.freeze(layers.map((rows) => Object.freeze(rows))) });
+}
+
+const BUILT_IN_BLUEPRINTS = {
+  car: blueprint([5, 3, 3], [
+    ["MMMMM", "MMMMM", "MMMMM"],
+    [".MGM.", ".M_M.", ".MGM."],
+    [".MMM.", ".MMM.", ".MMM."],
+  ]),
+
+  car_wreck: blueprint([5, 3, 3], [
+    ["MMMMM", "MMRMM", "MMMMM"],
+    [".RM..", ".M_R.", "..MR."],
+    ["..R..", ".R...", "....."],
+  ]),
+
+  van: blueprint([7, 4, 4], [
+    ["MMMMMMM", "MMMMMMM", "MMMMMMM", "MMMMMMM"],
+    ["CCCCCCC", "C_____C", "C_____C", "CCCCCCC"],
+    ["CGCGCGC", "C_____C", "C_____C", "CGCGCGC"],
+    ["CCCCCCC", "CCCCCCC", "CCCCCCC", "CCCCCCC"],
+  ]),
+
+  ambulance: blueprint([7, 5, 4], [
+    ["MMMMMMM", "MMMMMMM", "MMMMMMM", "MMMMMMM"],
+    ["CCCCCCC", "C_____C", "C_____C", "CCCCCCC"],
+    ["CGCXCGC", "C_____C", "C_____C", "CGCXCGC"],
+    ["CCCCCCC", "CCCCCCC", "CCCCCCC", "CCCCCCC"],
+    ["L.....L", ".......", ".......", "L.....L"],
+  ]),
+
+  fire_engine: blueprint([9, 5, 4], [
+    ["MMMMMMMMM", "MMMMMMMMM", "MMMMMMMMM", "MMMMMMMMM"],
+    ["XXXXXXXXX", "X_______X", "X_______X", "XXXXXXXXX"],
+    ["XGXXXXXGX", "X_______X", "X_______X", "XGXXXXXGX"],
+    ["XXXXXXXXX", "XXXXXXXXX", "XXXXXXXXX", "XXXXXXXXX"],
+    ["L.......L", ".........", ".........", "L.......L"],
+  ]),
+
+  bus: blueprint([11, 4, 4], [
+    ["MMMMMMMMMMM", "MMMMMMMMMMM", "MMMMMMMMMMM", "MMMMMMMMMMM"],
+    ["YYYYYYYYYYY", "Y_________Y", "Y_________Y", "YYYYYYYYYYY"],
+    ["YGYGYGYGYGY", "Y_________Y", "Y_________Y", "YGYGYGYGYGY"],
+    ["YYYYYYYYYYY", "YYYYYYYYYYY", "YYYYYYYYYYY", "YYYYYYYYYYY"],
+  ]),
+
+  truck_trailer: blueprint([13, 5, 4], [
+    ["MMMMMMMMMMMMM", "MMMMMMMMMMMMM", "MMMMMMMMMMMMM", "MMMMMMMMMMMMM"],
+    ["TTTTTTTTTTTTT", "T___________T", "T___________T", "TTTTTTTTTTTTT"],
+    ["TGTTTTTTTTTTT", "T___________T", "T___________T", "TGTTTTTTTTTTT"],
+    ["TTTTTTTTTTTTT", "TTTTTTTTTTTTT", "TTTTTTTTTTTTT", "TTTTTTTTTTTTT"],
+    ["....YYYYYYYYY", ".............", ".............", "....YYYYYYYYY"],
+  ]),
+
+  container: blueprint([7, 4, 4], [
+    ["MMMMMMM", "MMMMMMM", "MMMMMMM", "MMMMMMM"],
+    ["M_____M", "M_____M", "M_____M", "MMMMMMM"],
+    ["M_____M", "M_____M", "M_____M", "MMMMMMM"],
+    ["MMMMMMM", "MMMMMMM", "MMMMMMM", "MMMMMMM"],
+  ]),
+
+  guardrail: blueprint([8, 2, 1], [
+    ["T.T.T.T."],
+    ["TTTTTTTT"],
+  ]),
+
+  canopy_redcross: blueprint([7, 5, 5], [
+    ["W.....W", ".BBBBB.", ".BBBBB.", ".BBBBB.", "W.....W"],
+    ["W.....W", ".......", ".......", ".......", "W.....W"],
+    ["W.....W", ".......", ".......", ".......", "W.....W"],
+    ["W.....W", ".......", ".......", ".......", "W.....W"],
+    ["XXXXXXX", "XXXXXXX", "XXXXXXX", "XXXXXXX", "XXXXXXX"],
+  ]),
+
+  tent_triage: blueprint([7, 4, 7], [
+    ["ZZZZZZZ", "Z_____Z", "Z_____Z", "Z_____Z", "Z_____Z", "Z_____Z", "ZZZ_ZZZ"],
+    ["ZZZZZZZ", "Z_____Z", "Z_____Z", "Z_____Z", "Z_____Z", "Z_____Z", "ZZZ_ZZZ"],
+    ["ZZZZZZZ", "Z_____Z", "Z_____Z", "Z__L__Z", "Z_____Z", "Z_____Z", "ZZZZZZZ"],
+    [".ZZZZZ.", ".ZZZZZ.", ".ZZZZZ.", ".ZZZZZ.", ".ZZZZZ.", ".ZZZZZ.", ".ZZZZZ."],
+  ]),
+
+  house: blueprint([9, 8, 9], [
+    ["#########", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "####_####"],
+    ["#########", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "#_______#", "####_####"],
+    ["##G###G##", "#_______#", "G_______G", "#_______#", "#_______#", "#_______#", "G_______G", "#_______#", "##G###G##"],
+    ["#########", "#_______#", "#_______#", "#_______#", "#___L___#", "#_______#", "#_______#", "#_______#", "#########"],
+    ["PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP", "PPPPPPPPP"],
+    [".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO.", ".OOOOOOO."],
+    ["..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO..", "..OOOOO.."],
+    ["...OOO...", "...OOO...", "...OOO...", "...OOO...", "...OOO...", "...OOO...", "...OOO...", "...OOO...", "...OOO..."],
+  ]),
+
+  shop: blueprint([11, 6, 7], [
+    ["###########", "#_________#", "#_________#", "#_________#", "#_________#", "#_________#", "####___####"],
+    ["###########", "#_________#", "#_________#", "#_________#", "#_________#", "#_________#", "####___####"],
+    ["##GG#GG####", "#_________#", "#_________#", "#____L____#", "#_________#", "#_________#", "###GGGGG###"],
+    ["###########", "#_________#", "#_________#", "#_________#", "#_________#", "#_________#", "###########"],
+    ["CCCCCCCCCCC", "CCCCCCCCCCC", "CCCCCCCCCCC", "CCCCCCCCCCC", "CCCCCCCCCCC", "CCCCCCCCCCC", "CCCCCCCCCCC"],
+    ["Y.........Y", "...........", "...........", "...........", "...........", "...........", "Y.........Y"],
+  ]),
+
+  gondola_cabin: blueprint([5, 5, 5], [
+    ["TTTTT", "T___T", "T___T", "T___T", "TTTTT"],
+    ["TGGGT", "G___G", "G___G", "G___G", "TGG_T"],
+    ["TGGGT", "G___G", "G___G", "G___G", "TGG_T"],
+    ["TTTTT", "TTTTT", "TTTTT", "TTTTT", "TTTTT"],
+    ["..T..", ".....", ".....", ".....", "..T.."],
+  ]),
+
+  lift_pylon: blueprint([3, 12, 3], [
+    ["TTT", "T_T", "TTT"],
+    ["T.T", "...", "T.T"],
+    ["T.T", "...", "T.T"],
+    ["T.T", "...", "T.T"],
+    ["TTT", "...", "TTT"],
+    ["T.T", "...", "T.T"],
+    ["T.T", "...", "T.T"],
+    ["T.T", "...", "T.T"],
+    ["TTT", "...", "TTT"],
+    ["T.T", "...", "T.T"],
+    ["T.T", "...", "T.T"],
+    ["TTT", "TTT", "TTT"],
+  ]),
+
+  lift_station: blueprint([13, 8, 11], [
+    ["TTTTTTTTTTTTT", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "TTTTT___TTTTT"],
+    ["TTTTTTTTTTTTT", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "TTTTT___TTTTT"],
+    ["TGGTTTTTTGGT.", "T___________T", "G___________G", "G___________G", "T_____L_____T", "G___________G", "G___________G", "T___________T", "G___________G", "T___________T", "TTTGGGGGGGTTT"],
+    ["TTTTTTTTTTTTT", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "T___________T", "TTTTTTTTTTTTT"],
+    ["CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC", "CCCCCCCCCCCCC"],
+    [".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN.", ".NNNNNNNNNNN."],
+    ["..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN..", "..NNNNNNNNN.."],
+    ["L...........L", ".............", ".............", ".............", ".............", ".............", ".............", ".............", ".............", ".............", "L...........L"],
+  ]),
+
+  clinic: blueprint([15, 7, 13], [
+    ["CCCCCCCCCCCCCCC", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "CCCCCC___CCCCCC"],
+    ["CCCCCCCCCCCCCCC", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "C_____________C", "CCCCCC___CCCCCC"],
+    ["CCGGCCXCCGGCCCC", "C_____________C", "G_____________G", "G_____________G", "C_____________C", "G______L______G", "G_____________G", "C_____________C", "G_____________G", "G_____________G", "C_____________C", "C_____________C", "CCGGGCXXXCGGGCC"],
+    ["CCCCCCCCCCCCCCC", "C_____________C", "G_____________G", "C_____________C", "G_____________G", "C_____________C", "G_____________G", "C_____________C", "G_____________G", "C_____________C", "G_____________G", "C_____________C", "CCGGGCCCCCGGGCC"],
+    ["CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC", "CCCCCCCCCCCCCCC"],
+    ["L.............L", "...............", "......XXX......", "......X.X......", "......XXX......", "...............", "...............", "...............", "...............", "...............", "...............", "...............", "L.............L"],
+    ["...............", "...............", ".......X.......", "......XXX......", ".......X.......", "...............", "...............", "...............", "...............", "...............", "...............", "...............", "..............."],
+  ]),
+
+  helipad: blueprint([9, 1, 9], [
+    ["CCCCCCCCC", "CYYYYYYYC", "CY.....YC", "CY.XXX.YC", "CY.X.X.YC", "CY.XXX.YC", "CY.....YC", "CYYYYYYYC", "CCCCCCCCC"],
+  ]),
+};
+
+// Anything `scripts/make_prefabs.py` converted from a downloaded Minecraft
+// schematic joins the library under its file name and can be placed by a level
+// exactly like a built-in structure.
+export const BLUEPRINTS = Object.freeze({ ...BUILT_IN_BLUEPRINTS, ...IMPORTED_BLUEPRINTS });
+
+function rotatePoint(x, z, sizeX, sizeZ, rotation) {
+  switch (rotation) {
+    case 1:
+      return [sizeZ - 1 - z, x];
+    case 2:
+      return [sizeX - 1 - x, sizeZ - 1 - z];
+    case 3:
+      return [z, sizeX - 1 - x];
+    default:
+      return [x, z];
+  }
+}
+
+export function blueprintFootprint(id, rotation = 0) {
+  const bp = BLUEPRINTS[id];
+  if (!bp) return null;
+  const [sx, sy, sz] = bp.size;
+  const turn = ((rotation % 4) + 4) % 4;
+  return turn % 2 === 1 ? { x: sz, y: sy, z: sx } : { x: sx, y: sy, z: sz };
+}
+
+// `api` is the small facade the World hands to the blueprint layer:
+// { put(x,y,z,blockName), pave(x0,z0,x1,z1,blockName), surfaceY, rng }.
+export function stampBlueprint(api, id, ox, oy, oz, options = {}) {
+  const bp = BLUEPRINTS[id];
+  if (!bp) return false;
+  const rotation = (((options.rotation || 0) % 4) + 4) % 4;
+  const [sx, , sz] = bp.size;
+  const overrides = options.palette || {};
+  for (let y = 0; y < bp.layers.length; y++) {
+    const rows = bp.layers[y];
+    for (let z = 0; z < rows.length; z++) {
+      const row = rows[z];
+      for (let x = 0; x < row.length; x++) {
+        const char = row[x];
+        const name = overrides[char] !== undefined ? overrides[char] : CHAR_BLOCKS[char];
+        if (name === null || name === undefined) continue;
+        const [rx, rz] = rotatePoint(x, z, sx, sz, rotation);
+        api.put(ox + rx, oy + y, oz + rz, name);
+      }
+    }
+  }
+  return true;
+}
+
+export const STRUCTURE_BUILDERS = {
+  blueprint(api, entry) {
+    stampBlueprint(api, entry.id, entry.at[0], api.surfaceY + (entry.lift || 0), entry.at[1], entry);
+  },
+
+  ground(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    api.pave(x0, z0, x1, z1, entry.block || "GRASS");
+  },
+
+  road(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    api.pave(x0, z0, x1, z1, entry.block || "ASPHALT");
+    if (!entry.markings) return;
+    const alongX = x1 - x0 >= z1 - z0;
+    const mid = alongX ? Math.floor((z0 + z1) / 2) : Math.floor((x0 + x1) / 2);
+    const from = alongX ? x0 : z0;
+    const to = alongX ? x1 : z1;
+    for (let v = from; v <= to; v++) {
+      if (v % 4 >= 2) continue;
+      if (alongX) api.pave(v, mid, v, mid, "CONCRETE");
+      else api.pave(mid, v, mid, v, "CONCRETE");
+    }
+  },
+
+  hall(api, entry) {
+    const [x0, z0] = entry.at;
+    const x1 = x0 + entry.width - 1;
+    const z1 = z0 + entry.depth - 1;
+    const h = entry.height || 6;
+    const wall = entry.wall || "CONCRETE";
+    const roof = entry.roof || "METAL";
+    for (let y = 0; y < h; y++) {
+      for (let x = x0; x <= x1; x++) {
+        api.put(x, api.surfaceY + y, z0, wall);
+        api.put(x, api.surfaceY + y, z1, wall);
+      }
+      for (let z = z0; z <= z1; z++) {
+        api.put(x0, api.surfaceY + y, z, wall);
+        api.put(x1, api.surfaceY + y, z, wall);
+      }
+    }
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) api.put(x, api.surfaceY + h, z, roof);
+    }
+    for (const [wx, wz] of entry.windows || []) {
+      api.put(wx, api.surfaceY + (entry.windowY || 2), wz, "GLASS");
+    }
+    for (const [dx, dz] of entry.doors || []) {
+      for (let y = 0; y < (entry.doorHeight || 3); y++) {
+        for (let w = 0; w < (entry.doorWidth || 1); w++) {
+          api.put(dx + w, api.surfaceY + y, dz, "AIR");
+        }
+      }
+    }
+    if (entry.light) api.put(x0 + Math.floor(entry.width / 2), api.surfaceY + h - 1, z0 + Math.floor(entry.depth / 2), "LAMP");
+  },
+
+  mound(api, entry) {
+    const [cx, cz] = entry.at;
+    const radius = entry.radius || 5;
+    const peak = entry.height || 4;
+    const block = entry.block || "RUBBLE";
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const dist = Math.hypot(dx, dz);
+        if (dist > radius) continue;
+        const h = Math.round(peak * (1 - dist / radius) + api.rng() * 0.9 - 0.4);
+        for (let y = 0; y < h; y++) api.put(cx + dx, api.surfaceY + y, cz + dz, block);
+      }
+    }
+  },
+
+  // A mound with a walk-in cavity: the hollow is where a hidden casualty lies.
+  shelter(api, entry) {
+    const [cx, cz] = entry.at;
+    const radius = entry.radius || 6;
+    STRUCTURE_BUILDERS.mound(api, { ...entry, radius, height: entry.height || 5, block: entry.block || "SNOW" });
+    const [mx, mz] = entry.mouth || [0, 1];
+    const dirX = Math.sign(mx);
+    const dirZ = Math.sign(mz);
+    const clearance = entry.clearance || 3;
+    for (let step = 0; step <= radius; step++) {
+      const x = cx + dirX * (radius - step);
+      const z = cz + dirZ * (radius - step);
+      for (let y = 0; y < clearance; y++) {
+        api.put(x, api.surfaceY + y, z, "AIR");
+        api.put(x + (dirZ ? 1 : 0), api.surfaceY + y, z + (dirX ? 1 : 0), "AIR");
+        api.put(x - (dirZ ? 1 : 0), api.surfaceY + y, z - (dirX ? 1 : 0), "AIR");
+      }
+    }
+    if (entry.light) api.put(cx, api.surfaceY + clearance - 1, cz, "LAMP");
+  },
+
+  scatter(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    const block = entry.block || "RUBBLE";
+    for (let i = 0; i < (entry.count || 20); i++) {
+      const x = x0 + Math.floor(api.rng() * (x1 - x0 + 1));
+      const z = z0 + Math.floor(api.rng() * (z1 - z0 + 1));
+      const h = 1 + Math.floor(api.rng() * (entry.maxHeight || 2));
+      for (let y = 0; y < h; y++) api.put(x, api.surfaceY + y, z, block);
+    }
+  },
+
+  cordon(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    const step = entry.step || 1;
+    for (let x = x0; x <= x1; x += step) {
+      api.put(x, api.surfaceY, z0, "CAUTION");
+      api.put(x, api.surfaceY, z1, "CAUTION");
+    }
+    for (let z = z0; z <= z1; z += step) {
+      api.put(x0, api.surfaceY, z, "CAUTION");
+      api.put(x1, api.surfaceY, z, "CAUTION");
+    }
+  },
+
+  lamppost(api, entry) {
+    const [x, z] = entry.at;
+    const h = entry.height || 3;
+    for (let y = 0; y < h; y++) api.put(x, api.surfaceY + y, z, entry.post || "WOOD");
+    api.put(x, api.surfaceY + h, z, "LAMP");
+  },
+
+  tree(api, entry) {
+    const [x, z] = entry.at;
+    const trunk = entry.height || 3;
+    const crown = entry.leaves || "LEAVES";
+    for (let y = 0; y < trunk; y++) api.put(x, api.surfaceY + y, z, "WOOD");
+    for (let dy = 0; dy <= 1; dy++) {
+      const spread = dy === 0 ? 2 : 1;
+      for (let dz = -spread; dz <= spread; dz++) {
+        for (let dx = -spread; dx <= spread; dx++) {
+          if (Math.abs(dx) === spread && Math.abs(dz) === spread) continue;
+          api.put(x + dx, api.surfaceY + trunk + dy, z + dz, crown);
+        }
+      }
+    }
+    api.put(x, api.surfaceY + trunk + 2, z, crown);
+  },
+
+  fire(api, entry) {
+    const [x, z] = entry.at;
+    const lift = entry.lift || 0;
+    for (let y = 0; y < (entry.height || 2); y++) api.put(x, api.surfaceY + lift + y, z, "FIRE");
+    for (const [ox, oz] of entry.spread || []) api.put(x + ox, api.surfaceY + lift, z + oz, "FIRE");
+  },
+
+  pad(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) api.put(x, api.surfaceY, z, entry.block || "EMERGENCY_BLANKET");
+    }
+  },
+
+  rail(api, entry) {
+    const [x0, z0, x1, z1] = entry.area;
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) api.put(x, api.surfaceY, z, "RAIL");
+    }
+  },
+};
+
+export function buildStructure(api, entry) {
+  const builder = STRUCTURE_BUILDERS[entry.type];
+  if (!builder) return false;
+  builder(api, entry);
+  return true;
+}
+
+export function validateBlueprints() {
+  const problems = [];
+  for (const [id, bp] of Object.entries(BLUEPRINTS)) {
+    const [sx, sy, sz] = bp.size;
+    if (bp.layers.length !== sy) problems.push(`${id}: ${bp.layers.length} layers, size says ${sy}`);
+    bp.layers.forEach((rows, y) => {
+      if (rows.length !== sz) problems.push(`${id}: layer ${y} has ${rows.length} rows, size says ${sz}`);
+      rows.forEach((row, z) => {
+        if (row.length !== sx) problems.push(`${id}: layer ${y} row ${z} is ${row.length} wide, size says ${sx}`);
+        for (const char of row) {
+          if (!(char in CHAR_BLOCKS)) problems.push(`${id}: layer ${y} row ${z} uses unknown char "${char}"`);
+        }
+      });
+    });
+  }
+  return problems;
+}

@@ -1,6 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit } from "./events.js";
 import { fbm2, hash3, mulberry32 } from "./noise.js";
+import { buildStructure } from "./prefabs.js";
+import { LEVELS } from "./levels.js";
 
 export const BLOCK = {
   AIR: 0,
@@ -23,7 +25,21 @@ export const BLOCK = {
   GLASS: 17,
   FIRE: 18,
   CAUTION: 19,
+  SNOW: 20,
+  ICE: 21,
+  PLANKS: 22,
+  ROOF: 23,
+  GRAVEL: 24,
+  STEEL: 25,
+  TENT: 26,
+  RAIL: 27,
+  MOSS: 28,
+  SANDSTONE: 29,
+  DARKSTONE: 30,
+  NEON: 31,
 };
+
+export const BLOCK_BY_NAME = Object.freeze({ ...BLOCK });
 
 export const WORLD_SIZE = 128;
 export const WORLD_HEIGHT = 40;
@@ -45,6 +61,18 @@ const HEIGHT_BLOCKS = new Set([
   BLOCK.BRICK,
   BLOCK.GLASS,
   BLOCK.CAUTION,
+  BLOCK.SNOW,
+  BLOCK.ICE,
+  BLOCK.PLANKS,
+  BLOCK.ROOF,
+  BLOCK.GRAVEL,
+  BLOCK.STEEL,
+  BLOCK.TENT,
+  BLOCK.RAIL,
+  BLOCK.MOSS,
+  BLOCK.SANDSTONE,
+  BLOCK.DARKSTONE,
+  BLOCK.NEON,
 ]);
 
 const PALETTE = {
@@ -67,6 +95,18 @@ const PALETTE = {
   [BLOCK.GLASS]: [0.55, 0.76, 0.86],
   [BLOCK.FIRE]: [1.0, 0.45, 0.12],
   [BLOCK.CAUTION]: [0.97, 0.79, 0.15],
+  [BLOCK.SNOW]: [0.94, 0.96, 0.98],
+  [BLOCK.ICE]: [0.68, 0.84, 0.93],
+  [BLOCK.PLANKS]: [0.72, 0.55, 0.33],
+  [BLOCK.ROOF]: [0.40, 0.22, 0.20],
+  [BLOCK.GRAVEL]: [0.60, 0.58, 0.55],
+  [BLOCK.STEEL]: [0.62, 0.66, 0.70],
+  [BLOCK.TENT]: [0.90, 0.88, 0.80],
+  [BLOCK.RAIL]: [0.45, 0.42, 0.40],
+  [BLOCK.MOSS]: [0.32, 0.48, 0.26],
+  [BLOCK.SANDSTONE]: [0.85, 0.78, 0.58],
+  [BLOCK.DARKSTONE]: [0.28, 0.29, 0.31],
+  [BLOCK.NEON]: [0.35, 0.95, 0.85],
 };
 
 const FACE_SHADE = { py: 1.0, ny: 0.55, px: 0.7, nx: 0.7, pz: 0.8, nz: 0.8 };
@@ -202,10 +242,15 @@ function makeBreakStageTexture(stage) {
   return texture;
 }
 
+const DEFAULT_LEVEL = LEVELS.find((level) => level.build === "collapse") || LEVELS[0];
+
 export class World {
-  constructor(scene, seed) {
+  constructor(scene, seed, level = DEFAULT_LEVEL) {
     this.scene = scene;
     this.seed = seed >>> 0;
+    this.level = level || DEFAULT_LEVEL;
+    this.terrain = { ...(this.level.terrain || {}) };
+    this.patientAnchors = [];
     this.blocks = new Uint8Array(WORLD_SIZE * WORLD_SIZE * WORLD_HEIGHT);
     this.heightMap = new Int16Array(WORLD_SIZE * WORLD_SIZE);
     this.chunkMeshes = new Array(CHUNKS * CHUNKS).fill(null);
@@ -288,14 +333,25 @@ export class World {
 
   _baseHeight(x, z) {
     const n = fbm2(x * 0.03, z * 0.03, this.seed, 4);
-    return Math.max(4, Math.min(30, Math.round(13 + (n - 0.5) * 12)));
+    const base = this.terrain.base ?? 13;
+    const amplitude = this.terrain.amplitude ?? 12;
+    return Math.max(4, Math.min(30, Math.round(base + (n - 0.5) * amplitude)));
+  }
+
+  _topBlock() {
+    return BLOCK[this.terrain.topBlock] ?? BLOCK.GRASS;
+  }
+
+  _shoreBlock() {
+    return BLOCK[this.terrain.shoreBlock] ?? BLOCK.SAND;
   }
 
   _fillColumn(x, z, height, topBlock) {
+    const subSurface = BLOCK[this.terrain.subBlock] ?? null;
     for (let y = 0; y < height; y++) {
       let block;
       if (y < height - 3) block = BLOCK.STONE;
-      else if (y < height - 1) block = topBlock === BLOCK.SAND ? BLOCK.SAND : BLOCK.DIRT;
+      else if (y < height - 1) block = subSurface ?? (topBlock === BLOCK.SAND ? BLOCK.SAND : BLOCK.DIRT);
       else block = topBlock;
       this.blocks[idx(x, y, z)] = block;
     }
@@ -309,17 +365,140 @@ export class World {
   }
 
   _generate() {
+    const top = this._topBlock();
+    const shore = this._shoreBlock();
     for (let z = 0; z < WORLD_SIZE; z++) {
       for (let x = 0; x < WORLD_SIZE; x++) {
         const h = this._baseHeight(x, z);
-        if (h <= WATER_LEVEL + 1) this._fillColumn(x, z, h, BLOCK.SAND);
-        else this._fillColumn(x, z, h, BLOCK.GRASS);
+        this._fillColumn(x, z, h, h <= WATER_LEVEL + 1 ? shore : top);
       }
     }
-    this._carveClinicPlaza();
+    if (this.level.build === "collapse" || this.level.clinicPlaza) this._carveClinicPlaza();
     this._plantTrees();
-    this._buildDisasterScene();
-    this.clinic.y = this.heightMap[64 * WORLD_SIZE + 64];
+    if (this.level.build === "collapse") this._buildDisasterScene();
+    else this._buildLevelScene();
+    this.clinic.y = this.heightMap[Math.floor(this.clinic.z) * WORLD_SIZE + Math.floor(this.clinic.x)];
+    this._collectPatientAnchors();
+  }
+
+  // Blueprint-driven maps: levels declare a site to level out and a list of
+  // structures, and the world stamps them. No level needs its own builder.
+  _buildLevelScene() {
+    const rng = mulberry32((this.seed ^ 0x1b873593) >>> 0);
+    const site = this.level.site || { area: [16, 16, 112, 112], feather: 4 };
+    const [sx0, sz0, sx1, sz1] = site.area;
+    const floorY = Math.max(this._baseHeight(Math.floor((sx0 + sx1) / 2), Math.floor((sz0 + sz1) / 2)), WATER_LEVEL + 2);
+    this.plazaY = floorY;
+
+    const top = this._topBlock();
+    for (let z = sz0; z <= sz1; z++) {
+      for (let x = sx0; x <= sx1; x++) {
+        if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) continue;
+        this._fillColumn(x, z, floorY, top);
+      }
+    }
+    const feather = site.feather ?? 4;
+    for (let step = 1; step <= feather; step++) {
+      const t = step / (feather + 1);
+      const cells = [];
+      for (let x = sx0 - step; x <= sx1 + step; x++) cells.push([x, sz0 - step], [x, sz1 + step]);
+      for (let z = sz0 - step; z <= sz1 + step; z++) cells.push([sx0 - step, z], [sx1 + step, z]);
+      for (const [x, z] of cells) {
+        if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) continue;
+        const base = this._baseHeight(x, z);
+        const h = Math.round(floorY + (base - floorY) * t);
+        this._fillColumn(x, z, Math.max(WATER_LEVEL + 2, h), top);
+      }
+    }
+
+    const api = {
+      surfaceY: floorY,
+      rng,
+      put: (x, y, z, name) => {
+        const block = BLOCK[name];
+        if (block === undefined) return;
+        this._setGeneratedBlock(x, y, z, block);
+      },
+      pave: (x0, z0, x1, z1, name) => {
+        const block = BLOCK[name] ?? top;
+        for (let z = z0; z <= z1; z++) {
+          for (let x = x0; x <= x1; x++) {
+            if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) continue;
+            this._fillColumn(x, z, floorY, block);
+          }
+        }
+      },
+    };
+
+    for (const entry of this.level.structures || []) buildStructure(api, entry);
+
+    const cx = (sx0 + sx1) / 2;
+    const cz = (sz0 + sz1) / 2;
+    this.disasterScene = {
+      x: cx,
+      z: cz,
+      radius: Math.max(sx1 - sx0, sz1 - sz0) / 2,
+      floorY,
+      title: this.level.title || "Einsatzstelle",
+      victimSpots: [],
+    };
+    const spawn = this.level.spawn?.at;
+    this.clinic = { x: spawn ? spawn[0] : cx, y: floorY, z: spawn ? spawn[1] : cz };
+    this._addSmokePlumes();
+  }
+
+  _addSmokePlumes() {
+    const sources = (this.level.structures || []).filter((entry) => entry.type === "fire");
+    if (sources.length === 0) return;
+    const smokeMaterial = new THREE.MeshLambertMaterial({
+      color: 0x33363a,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+    });
+    for (const [index, source] of sources.entries()) {
+      const [px, pz] = source.at;
+      const base = this.plazaY + (source.lift || 0) + (source.height || 2) + 2;
+      const drift = index % 2 === 0 ? 0.6 : -0.5;
+      for (let i = 0; i < 4; i++) {
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(1.0 + i * 0.5, 8, 6), smokeMaterial);
+        puff.position.set(px + 0.5 + i * drift, base + i * 2.2, pz + 0.5 - i * 0.3);
+        this.disasterProps.add(puff);
+      }
+    }
+  }
+
+  // Each anchor keeps only the candidate spots that survived the build: a
+  // casualty is always placed on open, reachable ground.
+  _collectPatientAnchors() {
+    const floorY = this.plazaY;
+    this.patientAnchors = [];
+    for (const anchor of this.level.anchors || []) {
+      const spots = [];
+      for (const [x, z] of anchor.spots || []) {
+        const y = this._standingSurface(Math.floor(x), Math.floor(z), floorY);
+        if (y === null) continue;
+        spots.push({ x: Math.floor(x) + 0.5, y, z: Math.floor(z) + 0.5 });
+      }
+      if (spots.length === 0) continue;
+      this.patientAnchors.push({ id: anchor.id, hidden: Boolean(anchor.hidden), spots });
+      if (this.disasterScene) this.disasterScene.victimSpots.push(...spots);
+    }
+  }
+
+  // Lowest level at or above the site floor with a solid block underfoot and
+  // two blocks of headroom — works inside halls and hollowed snow drifts too.
+  _standingSurface(x, z, floorY) {
+    if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return null;
+    const from = Math.max(1, floorY);
+    for (let y = from; y < Math.min(WORLD_HEIGHT - 2, floorY + 10); y++) {
+      const below = this.getBlock(x, y - 1, z);
+      if (below === BLOCK.AIR || below === BLOCK.WATER || below === BLOCK.FIRE) continue;
+      if (this.getBlock(x, y, z) !== BLOCK.AIR) continue;
+      if (this.getBlock(x, y + 1, z) !== BLOCK.AIR) continue;
+      return y;
+    }
+    return null;
   }
 
   _carveClinicPlaza() {
@@ -343,14 +522,18 @@ export class World {
 
   _plantTrees() {
     const rng = mulberry32(this.seed ^ 0x51ed270b);
-    for (let attempt = 0; attempt < 110; attempt++) {
+    const leaves = BLOCK[this.terrain.treeLeaves] ?? BLOCK.LEAVES;
+    const site = this.level.site?.area || null;
+    const attempts = this.terrain.treeCount ?? 110;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const x = 4 + Math.floor(rng() * (WORLD_SIZE - 8));
       const z = 4 + Math.floor(rng() * (WORLD_SIZE - 8));
       const g = this.heightMap[z * WORLD_SIZE + x];
       if (g <= WATER_LEVEL + 1) continue;
+      if (site && x >= site[0] - 3 && x <= site[2] + 3 && z >= site[1] - 3 && z <= site[3] + 3) continue;
       const dxClinic = x - 64;
       const dzClinic = z - 64;
-      if (dxClinic * dxClinic + dzClinic * dzClinic < 20 * 20) continue;
+      if (!site && dxClinic * dxClinic + dzClinic * dzClinic < 20 * 20) continue;
       if (this.getBlock(x, g, z) !== BLOCK.AIR) continue;
       const trunkHeight = 3 + Math.floor(rng() * 3);
       for (let y = g; y < g + trunkHeight && y < WORLD_HEIGHT; y++) {
@@ -366,7 +549,7 @@ export class World {
             const by = ly;
             const bz = z + lz;
             if (bx < 0 || bx >= WORLD_SIZE || bz < 0 || bz >= WORLD_SIZE || by >= WORLD_HEIGHT) continue;
-            if (this.blocks[idx(bx, by, bz)] === BLOCK.AIR) this.blocks[idx(bx, by, bz)] = BLOCK.LEAVES;
+            if (this.blocks[idx(bx, by, bz)] === BLOCK.AIR) this.blocks[idx(bx, by, bz)] = leaves;
           }
         }
       }
@@ -806,6 +989,8 @@ export class World {
     return null;
   }
 
+  // One casualty per authored anchor, one of that anchor's three-to-five spots
+  // per shift: the pattern is set, the exact positions are not.
   findPatientSpots(n, options = {}) {
     const scenarioSeed = Number.isFinite(options?.seed) ? Number(options.seed) >>> 0 : Math.floor(Math.random() * 0xffffffff) >>> 0;
     const rng = mulberry32((this.seed ^ scenarioSeed ^ 0x5f3759df) >>> 0);
@@ -813,8 +998,22 @@ export class World {
     const spots = [];
     const clearOf = (spot, gap) => spots.every((s) => Math.hypot(s.x - spot.x, s.z - spot.z) >= gap);
 
-    // Casualties belong to the incident: the curated spots put them in the
-    // debris, on the road beside the bus and on the triage blankets.
+    const anchors = [...this.patientAnchors].sort((a, b) => Number(b.hidden) - Number(a.hidden)).slice(0, n);
+    for (const anchor of anchors) {
+      const order = [...anchor.spots];
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+      }
+      const chosen = order.find((spot) => clearOf(spot, 4)) || order[0];
+      spots.push({ ...chosen, hidden: anchor.hidden, anchorId: anchor.id });
+    }
+    if (spots.length >= n) return spots;
+
+    // Anchors that all failed validation, or a level with none: fall back to the
+    // curated victim list, then to any open ground inside the incident.
     const pool = (scene?.victimSpots || []).map((s) => ({ ...s }));
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
@@ -825,7 +1024,7 @@ export class World {
     for (const spot of pool) {
       if (spots.length >= n) break;
       if (!clearOf(spot, 4.5)) continue;
-      spots.push(spot);
+      spots.push({ ...spot, hidden: false, anchorId: null });
     }
     if (spots.length >= n || !scene) return spots;
 
@@ -840,7 +1039,7 @@ export class World {
       if (y === null || y > scene.floorY + 1) continue;
       if (this.getBlock(x, y, z) !== BLOCK.AIR) continue;
       if (this.getBlock(x, y + 1, z) !== BLOCK.AIR) continue;
-      const spot = { x: x + 0.5, y, z: z + 0.5 };
+      const spot = { x: x + 0.5, y, z: z + 0.5, hidden: false, anchorId: null };
       if (!clearOf(spot, 5)) continue;
       spots.push(spot);
     }

@@ -14,6 +14,8 @@ export class UI {
     this._audioCtx = null;
     this._voiceObjectUrl = null;
     this._toastTimer = null;
+    this._bannerTimer = null;
+    this._countdownTimer = null;
 
     this.isTouchDevice =
       navigator.maxTouchPoints > 0 ||
@@ -45,10 +47,26 @@ export class UI {
       endStats: $("end-stats"),
       endRank: $("end-rank"),
       btnRestart: $("btn-restart"),
+      levelComplete: $("level-complete"),
+      levelCompleteIndex: $("level-complete-index"),
+      levelCompleteCount: $("level-complete-count"),
+      levelCompleteTitle: $("level-complete-title"),
+      levelCompleteStats: $("level-complete-stats"),
+      levelNextTitle: $("level-next-title"),
+      levelNextBriefing: $("level-next-briefing"),
+      btnNextLevel: $("btn-next-level"),
+      levelCountdown: $("level-countdown"),
+      levelBanner: $("level-banner"),
+      levelBannerKicker: $("level-banner-kicker"),
+      levelBannerTitle: $("level-banner-title"),
+      levelBannerText: $("level-banner-text"),
       hud: $("hud"),
+      levelLine: $("level-line"),
       missionLine: $("mission-line"),
       missionTimer: $("mission-timer"),
       scoreValue: $("score-value"),
+      accuracyValue: $("accuracy-value"),
+      hiddenHint: $("hidden-hint"),
       prompt: $("prompt"),
       promptText: $("prompt-text"),
       hotbar,
@@ -117,6 +135,7 @@ export class UI {
     this.el.startScreen.classList.add("hidden");
     this.el.briefingScreen.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
+    this.hideLevelComplete();
   }
 
   bindMain(h) {
@@ -132,6 +151,10 @@ export class UI {
     this.el.btnRestart.addEventListener("click", () => {
       this._hideMenus();
       h.onRestart();
+    });
+    this.el.btnNextLevel?.addEventListener("click", () => {
+      this.hideLevelComplete();
+      h.onNextLevel?.();
     });
     this.el.chartClose.addEventListener("click", () => h.onCloseChart());
     const submitTyped = () => {
@@ -400,10 +423,83 @@ export class UI {
     this.el.missionLine.textContent = line;
     this.el.missionTimer.textContent = mmss(state.elapsed);
     this.el.scoreValue.textContent = String(state.score);
+
+    if (this.el.levelLine) {
+      const number = state.levelNumber || 1;
+      const count = state.levelCount || 1;
+      this.el.levelLine.textContent = state.levelTitle
+        ? `Level ${number}/${count} · ${state.levelTitle}`
+        : `Level ${number}/${count}`;
+    }
+    if (this.el.accuracyValue) {
+      const accuracy = state.accuracy;
+      this.el.accuracyValue.textContent = accuracy?.count
+        ? `${accuracy.average}% · ${accuracy.label}`
+        : "—";
+    }
+    if (this.el.hiddenHint) {
+      const remaining = Number(state.hiddenRemaining) || 0;
+      this.el.hiddenHint.textContent = remaining
+        ? `${remaining} Patient${remaining === 1 ? "" : "en"} noch nicht gesichtet`
+        : "";
+      this.el.hiddenHint.classList.toggle("hidden", remaining === 0);
+    }
+  }
+
+  showLevelBanner({ index = 0, count = 1, title = "", subtitle = "", briefing = "", patients = 0, hidden = 0 } = {}) {
+    if (!this.el.levelBanner) return;
+    clearTimeout(this._bannerTimer);
+    this.el.levelBannerKicker.textContent = `LEVEL ${index + 1}/${count}${subtitle ? ` · ${subtitle}` : ""}`;
+    this.el.levelBannerTitle.textContent = title;
+    const parts = [`${patients} Patient${patients === 1 ? "" : "en"}`];
+    if (hidden > 0) parts.push(`${hidden} davon versteckt`);
+    this.el.levelBannerText.textContent = `${parts.join(" · ")}${briefing ? ` — ${briefing}` : ""}`;
+    this.el.levelBanner.classList.remove("hidden");
+    this._bannerTimer = setTimeout(() => this.el.levelBanner.classList.add("hidden"), 9000);
+  }
+
+  showLevelComplete({ cleared, next, index = 0, count = 1, stats = {}, campaign = {}, delaySeconds = 6 } = {}) {
+    if (!this.el.levelComplete) return;
+    this.closeChart();
+    this.el.hud.classList.add("hidden");
+    this.el.levelBanner?.classList.add("hidden");
+    this.el.levelCompleteIndex.textContent = String(index + 1);
+    this.el.levelCompleteCount.textContent = String(count);
+    this.el.levelCompleteTitle.textContent = cleared?.title || "Einsatz abgeschlossen";
+
+    const rows = [
+      ["Gerettet", `${stats.saved ?? 0}/${stats.total ?? stats.saved ?? 0}`],
+      ["Einsatzzeit", mmss(stats.elapsed ?? 0)],
+      ["Punkte gesamt", String(campaign.score ?? stats.score ?? 0)],
+      ["Genauigkeit gesamt", campaign.accuracySamples ? `${campaign.accuracy}% · ${campaign.accuracyLabel}` : "—"],
+    ];
+    if (stats.hidden) rows.splice(1, 0, ["Versteckte Patienten", String(stats.hidden)]);
+    this.el.levelCompleteStats.innerHTML = rows
+      .map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`)
+      .join("");
+
+    this.el.levelNextTitle.textContent = next?.title || "—";
+    this.el.levelNextBriefing.textContent = next?.briefing || "";
+    this.el.levelComplete.classList.remove("hidden");
+    this.el.btnNextLevel?.focus({ preventScroll: true });
+
+    clearInterval(this._countdownTimer);
+    let remaining = Math.max(1, Math.round(delaySeconds));
+    if (this.el.levelCountdown) this.el.levelCountdown.textContent = String(remaining);
+    this._countdownTimer = setInterval(() => {
+      remaining -= 1;
+      if (this.el.levelCountdown) this.el.levelCountdown.textContent = String(Math.max(0, remaining));
+      if (remaining <= 0) clearInterval(this._countdownTimer);
+    }, 1000);
+  }
+
+  hideLevelComplete() {
+    clearInterval(this._countdownTimer);
+    this.el.levelComplete?.classList.add("hidden");
   }
 
   openChart(view) {
-    this.el.chartTitle.textContent = `${view.name} · ${view.age} J.`;
+    this.el.chartTitle.textContent = `${view.name} · ${view.age} J.${view.hidden ? " · versteckt aufgefunden" : ""}`;
     this.el.chartSeverity.textContent = view.severity.toUpperCase();
     this.el.chartSeverity.className = `chip ${view.severity}`;
     this.el.chartProfile.innerHTML = "";
@@ -552,6 +648,21 @@ export class UI {
     }
     this.el.verdictBox.appendChild(headline);
 
+    if (result.accuracy?.scored) {
+      const accuracy = document.createElement("div");
+      accuracy.className = "accuracy-line";
+      const bar = document.createElement("span");
+      bar.className = "accuracy-bar";
+      bar.style.setProperty("--accuracy", `${result.accuracy.score}%`);
+      const text = document.createElement("b");
+      text.textContent = `${result.accuracy.score}% · ${result.accuracy.label}`;
+      const detail = document.createElement("span");
+      detail.className = "accuracy-detail";
+      detail.textContent = `${result.accuracy.correctWords}/${result.accuracy.expectedWordCount} Wörter erkannt`;
+      accuracy.append(text, bar, detail);
+      this.el.verdictBox.appendChild(accuracy);
+    }
+
     const chips = document.createElement("div");
     chips.className = "verdict-chips";
     const matchedLabels = result.matchedLabels || result.matchedKeys || [];
@@ -587,18 +698,32 @@ export class UI {
     }
   }
 
-  showEnd(stats) {
+  showEnd(summary) {
     this.closeChart();
-    const won = stats.won !== false;
-    this.el.endTitle.textContent = won ? "EINSATZ ABGESCHLOSSEN" : "EINSATZ BEENDET";
-    this.el.endRank.textContent = stats.rank;
+    this.hideLevelComplete();
+    const cleared = summary.levelsCleared ?? 0;
+    const total = summary.levelCount ?? cleared;
+    const complete = cleared >= total && total > 0;
+    this.el.endTitle.textContent = complete ? "ALLE LEVEL ABGESCHLOSSEN" : "DURCHLAUF BEENDET";
+    this.el.endRank.textContent = summary.accuracySamples
+      ? `${summary.accuracy}% Sprachgenauigkeit · ${summary.accuracyLabel}`
+      : "Keine Sprachaufnahme gewertet";
+
+    const levelRows = (summary.results || [])
+      .map(
+        (entry, index) =>
+          `<div class="end-level"><span>Level ${index + 1} · ${entry.title}</span><b>${entry.saved}/${entry.total} · ${mmss(entry.elapsed)}</b></div>`,
+      )
+      .join("");
+
     this.el.endStats.innerHTML =
-      `<div>Gerettet: <b>${stats.saved}</b></div>` +
-      `<div>Verloren: <b style="color:#ff4136">${stats.dead}</b></div>` +
-      `<div>Punkte: <b>${stats.score}</b></div>` +
-      `<div>Einsatzzeit: <b>${mmss(stats.elapsed)}</b></div>` +
-      `<div>${won ? "Alle Patienten versorgt." : "Nicht alle Patienten konnten gerettet werden."}</div>`;
-    this.el.btnRestart.textContent = "↻ Neue Welt & Patienten";
+      `<div>Level: <b>${cleared}/${total}</b></div>` +
+      `<div>Gerettet: <b>${summary.saved}/${summary.total}</b></div>` +
+      `<div>Punkte: <b>${summary.score}</b></div>` +
+      `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
+      `<div>Gewertete Sprachberichte: <b>${summary.accuracySamples || 0}</b></div>` +
+      `<div class="end-levels">${levelRows}</div>`;
+    this.el.btnRestart.textContent = "↻ Neuer Durchlauf ab Level 1";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
   }

@@ -8,9 +8,11 @@ import { SpeechClient } from "./stt.js";
 import { UI } from "./ui.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
+import { Campaign } from "./campaign.js";
+import { LEVELS } from "./levels.js";
 
 const $ = (id) => document.getElementById(id);
-const PATIENT_COUNT = 6;
+const TELEPORT_DELAY_MS = 6000;
 
 class App {
   constructor() {
@@ -41,8 +43,11 @@ class App {
     this.dirLight.position.set(60, 90, 30);
     this.scene.add(this.dirLight);
 
+    this.campaign = new Campaign(LEVELS);
+    this.levelTimer = null;
+
     const seed = (Date.now() % 100000) | 0;
-    this.world = new World(this.scene, seed);
+    this.world = new World(this.scene, seed, LEVELS[0]);
     this.player = new Player(this.camera, this.world, this.renderer.domElement);
     this.entities = new PatientManager(this.scene);
     this.game = new Game(this.entities);
@@ -77,12 +82,13 @@ class App {
 
   wireUi() {
     this.ui.bindMain({
-      onStart: () => this.ui.showBriefing(),
+      onStart: () => this.showBriefing(),
       onConsentAccepted: () => this.startMission(),
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
-      onRestart: () => this.ui.showBriefing(),
+      onRestart: () => this.showBriefing(),
+      onNextLevel: () => this.teleportToNextLevel(),
     });
 
     on("input:interact", () => {
@@ -139,7 +145,7 @@ class App {
       }, 700);
     });
 
-    on("patient:saved", ({ caseTitle, scoreDelta, completionMode }) => {
+    on("patient:saved", ({ caseTitle, scoreDelta, completionMode, accuracy, hiddenBonus }) => {
       const mode =
         completionMode === "instant"
           ? "sofort geheilt"
@@ -148,7 +154,11 @@ class App {
             : completionMode === "kit"
               ? "Rettungsset"
               : "Bericht";
-      this.ui.toast(`✔ ${caseTitle} gerettet mit ${mode} (+${scoreDelta})`, "good");
+      const extras = [];
+      if (Number.isFinite(accuracy)) extras.push(`Genauigkeit ${accuracy}%`);
+      if (hiddenBonus) extras.push("Versteckt gefunden");
+      const suffix = extras.length ? ` · ${extras.join(" · ")}` : "";
+      this.ui.toast(`✔ ${caseTitle} gerettet mit ${mode} (+${scoreDelta})${suffix}`, "good");
       this.ui.playTone(880, 120, "square");
       setTimeout(() => this.ui.playTone(1320, 160, "square"), 130);
     });
@@ -160,16 +170,45 @@ class App {
       this.ui.playTone(160, 350, "sawtooth");
     });
 
-    const finishMission = (stats) => {
-      this.mode = "end";
+    // The last patient of a level ends it: the player is pulled out of the map,
+    // shown what the level cost them in points and accuracy, and teleported on.
+    const finishLevel = (stats) => {
+      clearTimeout(this.levelTimer);
+      this.mode = "levelend";
       document.exitPointerLock?.();
       this.player.enabled = false;
       this.closeChart(true);
-      this.ui.showEnd(stats);
+      this.campaign.completeLevel(stats);
+
+      if (this.campaign.isFinal()) {
+        this.finishCampaign();
+        return;
+      }
+      const next = this.campaign.levels[this.campaign.index + 1];
+      this.ui.showLevelComplete({
+        cleared: this.campaign.current(),
+        next,
+        index: this.campaign.index,
+        count: this.campaign.levelCount,
+        stats,
+        campaign: this.campaign.summary(),
+        delaySeconds: Math.round(TELEPORT_DELAY_MS / 1000),
+      });
+      this.ui.playTone(660, 120, "square");
+      setTimeout(() => this.ui.playTone(990, 200, "square"), 140);
+      this.levelTimer = setTimeout(() => this.teleportToNextLevel(), TELEPORT_DELAY_MS);
     };
 
-    on("game:won", finishMission);
-    on("game:lost", finishMission);
+    on("game:won", finishLevel);
+    on("game:lost", finishLevel);
+  }
+
+  teleportToNextLevel() {
+    clearTimeout(this.levelTimer);
+    if (this.mode !== "levelend") return;
+    this.ui.hideLevelComplete();
+    this.campaign.advance();
+    this.startLevel();
   }
 
   setMode(mode) {
@@ -178,28 +217,81 @@ class App {
     $("hud").classList.toggle("hidden", !(mode === "playing" || mode === "chart"));
   }
 
-  rebuildWorld() {
+  rebuildWorld(level) {
     this.world?.dispose();
-    this.world = new World(this.scene, randomSeed());
+    this.world = new World(this.scene, randomSeed(), level);
     this.player.world = this.world;
+    const sky = level?.sky ?? 0x87ceeb;
+    this.scene.background = new THREE.Color(sky);
+    this.scene.fog = new THREE.FogExp2(sky, level?.fog ?? 0.008);
+  }
+
+  // Leaving the map for a menu must cancel a pending teleport, or the countdown
+  // would drop the player into the next level from behind the briefing screen.
+  showBriefing() {
+    clearTimeout(this.levelTimer);
+    this.mode = "start";
+    this.player.enabled = false;
+    this.ui.showBriefing();
   }
 
   startMission() {
+    this.campaign.reset();
+    this.startLevel();
+  }
+
+  // Every level rebuilds the world from its own blueprint list and drops the
+  // player at that map's staging point. Score, accuracy and the run's
+  // no-repeat ledgers live in the campaign, so they carry across the teleport.
+  startLevel() {
+    clearTimeout(this.levelTimer);
+    const level = this.campaign.current();
+    if (!level) {
+      this.finishCampaign();
+      return;
+    }
     this.entities.reset();
-    this.rebuildWorld();
+    this.rebuildWorld(level);
     const scenarioSeed = randomSeed();
-    const spots = this.world.findPatientSpots(PATIENT_COUNT, { seed: scenarioSeed });
-    this.game.start(spots, PATIENT_COUNT, { scenarioSeed });
+    const spots = this.world.findPatientSpots(level.patientCount, { seed: scenarioSeed });
+    this.game.start(spots, level.patientCount, {
+      scenarioSeed,
+      level,
+      levelIndex: this.campaign.index,
+      startScore: this.campaign.carriedScore,
+      usedHints: this.campaign.usedHints,
+      caseUsage: this.campaign.caseUsage,
+    });
     this.currentReportScript = "";
-    const c = this.world.clinic;
-    this.player.teleport(c.x + 3.5, this.world.getHeight(c.x + 3.5, c.z + 3.5) + 0.2, c.z + 3.5);
-    const disaster = this.world.disasterScene;
-    if (disaster) this.player.faceTowards(disaster.x, disaster.z);
+
+    const spawn = level.spawn?.at || [this.world.clinic.x, this.world.clinic.z];
+    const spawnY = this.world.getHeight(spawn[0], spawn[1]) + 0.2;
+    this.player.teleport(spawn[0], spawnY, spawn[1]);
+    const face = level.spawn?.face || (this.world.disasterScene ? [this.world.disasterScene.x, this.world.disasterScene.z] : null);
+    if (face) this.player.faceTowards(face[0], face[1]);
+
     this.ui.clearVerdict();
     this.ui.appendTranscript("");
     this.setMode("playing");
-    this.ui.toast(`${spots.length} Patienten gemeldet — keine Zeitbegrenzung.`, "info");
+    this.ui.showLevelBanner({
+      index: this.campaign.index,
+      count: this.campaign.levelCount,
+      title: level.title,
+      subtitle: level.subtitle,
+      briefing: level.briefing,
+      patients: spots.length,
+      hidden: spots.filter((spot) => spot.hidden).length,
+    });
     this.requestLock();
+  }
+
+  finishCampaign() {
+    clearTimeout(this.levelTimer);
+    this.mode = "end";
+    document.exitPointerLock?.();
+    this.player.enabled = false;
+    this.closeChart(true);
+    this.ui.showEnd(this.campaign.summary());
   }
 
   requestLock() {
@@ -281,6 +373,7 @@ class App {
       return;
     }
     const result = this.game.submitReport(this.currentPatientId, trimmed, options);
+    if (options.source === "audio") this.campaign.recordAccuracy(result.accuracy);
     this.ui.showVerdict(result);
     this.ui.playTone(result.saved ? 988 : 220, 140, result.saved ? "square" : "triangle");
     if (result.saved && !options.keepChart) {
@@ -294,7 +387,14 @@ class App {
     this.hudAccumulator = 0;
 
     const state = this.game.state();
-    this.ui.updateHud(state);
+    this.ui.updateHud({
+      ...state,
+      levelNumber: this.campaign.index + 1,
+      levelCount: this.campaign.levelCount,
+      levelTitle: this.campaign.current()?.title || state.levelTitle,
+      accuracy: this.campaign.accuracySummary(),
+      hiddenRemaining: this.entities.hiddenRemaining?.() ?? 0,
+    });
 
     if (this.mode === "playing") {
       const near = this.entities.getNearest(this.player.position, 4);
@@ -322,7 +422,7 @@ class App {
     this.world.update(this.player.position);
     if (running) {
       this.player.update(dt);
-      this.entities.update(dt, this.game.state().elapsed);
+      this.entities.update(dt, this.game.state().elapsed, this.player.position);
       this.game.update(dt);
     }
     this.updateHudTick(dt);

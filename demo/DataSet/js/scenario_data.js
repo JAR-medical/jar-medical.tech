@@ -401,6 +401,40 @@ function randomVitals(templateVitals, rules, rng) {
   };
 }
 
+// Several ways to phrase the same handover. A run draws a different one each
+// time so a player never reads the identical script twice, and the dataset
+// gets varied sentence structure rather than one memorised template.
+export const HINT_TEMPLATES = [
+  ({ findings, title, treatment }) =>
+    `Befund: ${findings}. Verdacht: ${title}. Allergien und Vorerkrankungen beachten. Maßnahme: ${treatment}.`,
+  ({ findings, title, treatment }) =>
+    `Ich habe hier einen Patienten, ${findings}. Ich vermute ${title}. Ich mache ${treatment}.`,
+  ({ findings, title, treatment }) =>
+    `Übergabe an die Leitstelle: ${findings}. Verdachtsdiagnose ${title}. Durchgeführt werden ${treatment}.`,
+  ({ findings, title, treatment, vitals }) =>
+    `Erstbefund ${findings}. Blutdruck ${vitals.RR}, Herzfrequenz ${vitals.HF}, Sättigung ${vitals.SpO2}. Verdacht auf ${title}. Maßnahmen: ${treatment}.`,
+  ({ findings, title, treatment }) =>
+    `Notfallmeldung: ${findings}. Es besteht der Verdacht auf ${title}. Ich leite ein: ${treatment}.`,
+  ({ findings, title, treatment, vitals }) =>
+    `Der Patient zeigt ${findings}, Glasgow Coma Scale ${vitals.GCS}, Blutzucker ${vitals.BZ}. Diagnose am Einsatzort: ${title}. Therapie: ${treatment}.`,
+  ({ findings, title, treatment, historyText }) =>
+    `Lagemeldung: ${findings}. Vorerkrankungen ${historyText}. Arbeitsdiagnose ${title}. Ich versorge mit ${treatment}.`,
+  ({ findings, title, treatment, allergyText }) =>
+    `Patient aufgefunden, ${findings}. Allergien: ${allergyText}. Verdacht auf ${title}. Behandlung: ${treatment}.`,
+];
+
+function buildHint({ template, findingsText, treatmentText, vitals, allergy, history, rng }) {
+  const shape = HINT_TEMPLATES[Math.floor(rng() * HINT_TEMPLATES.length) % HINT_TEMPLATES.length];
+  return shape({
+    findings: findingsText,
+    title: template.title_de,
+    treatment: treatmentText,
+    vitals,
+    allergyText: allergy && allergy.id !== "none" ? allergy.label_de : "keine bekannten Allergien",
+    historyText: history.length ? history.map((entry) => entry.label_de).join(" und ") : "keine relevanten Vorerkrankungen",
+  });
+}
+
 export function randomizeCase(template, rng = Math.random) {
   const rules = CASE_PROFILE_RULES[template.id] || {};
   const context = pick(rules.contexts || [{ id: "scene", label_de: "am Einsatzort", label_en: "at the scene" }], rng);
@@ -431,12 +465,21 @@ export function randomizeCase(template, rng = Math.random) {
     currentMedications: currentMedications.map(publicEntry),
     treatmentPlan: { actions: treatment.actions },
   };
-  const hint_de = `Befund: ${findingsText}. Verdacht: ${template.title_de}. Allergien und Vorerkrankungen beachten. Maßnahme: ${treatmentText}.`;
+  const vitals = randomVitals(template.vitals, rules, rng);
+  const hint_de = buildHint({
+    template,
+    findingsText,
+    treatmentText,
+    vitals,
+    allergy,
+    history,
+    rng,
+  });
   return {
     ...template,
     story_de: `${template.story_de} ${context.label_de}.`,
     symptoms,
-    vitals: randomVitals(template.vitals, rules, rng),
+    vitals,
     required: treatment.required,
     hint_de,
     profile,

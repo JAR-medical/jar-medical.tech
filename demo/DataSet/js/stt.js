@@ -1,5 +1,5 @@
 import { emit } from "./events.js";
-import { apiBase } from "./api.js";
+import { apiBase, apiBaseConfigured, apiOrigin } from "./api.js";
 
 const TARGET_RATE = 16000;
 const MAX_SECONDS = 25;
@@ -26,9 +26,35 @@ export class SpeechClient {
     this.lastAudioInfo = null;
   }
 
+  // The base this client actually calls: an explicit constructor argument wins,
+  // otherwise whatever config.js set.
+  _base() {
+    return this.baseUrl ?? apiBase();
+  }
+
+  // A misconfigured static deployment and a backend that is genuinely down look
+  // identical from a failed fetch. Say which one it was: the first is a missing
+  // config.js entry, the second is a server to restart.
+  _backendFailureDetail(status = null) {
+    const base = this._base();
+    const origin = base || apiOrigin();
+    if (!base && !apiBaseConfigured() && typeof location !== "undefined" && location.protocol !== "file:") {
+      return `Kein Backend konfiguriert — /api/* geht an ${origin}, das keine API hat.`
+        + " In config.js muss window.MEDICRAFT_API_BASE auf den Medicraft-Server zeigen.";
+    }
+    if (status) return `Backend ${origin} antwortet mit HTTP ${status}.`;
+    return `Backend ${origin} nicht erreichbar.`;
+  }
+
   async checkHealth() {
     try {
-      const res = await fetch(`${this.baseUrl ?? apiBase()}/api/health`);
+      const res = await fetch(`${this._base()}/api/health`);
+      // A static host answers /api/health with its own 404 page, so a non-OK
+      // response here is a deployment problem, not an STT problem.
+      if (!res.ok) {
+        emit("stt:status", { state: "unavailable", detail: this._backendFailureDetail(res.status) });
+        return false;
+      }
       const data = await res.json();
       const ready = data.stt === "ready";
       const state = ready ? "ready" : data.stt || "unavailable";
@@ -36,7 +62,7 @@ export class SpeechClient {
       emit("stt:status", { state, detail });
       return ready;
     } catch (err) {
-      emit("stt:status", { state: "unavailable", detail: "STT-Dienst nicht erreichbar" });
+      emit("stt:status", { state: "unavailable", detail: this._backendFailureDetail() });
       return false;
     }
   }
@@ -189,7 +215,7 @@ export class SpeechClient {
     addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
     emit("stt:status", { state: "transcribing" });
     try {
-      const res = await fetch(`${this.baseUrl ?? apiBase()}/api/transcribe`, {
+      const res = await fetch(`${this._base()}/api/transcribe`, {
         method: "POST",
         headers,
         body: blob,
@@ -208,10 +234,14 @@ export class SpeechClient {
           wordConfidences: Array.isArray(data.word_confidences) ? data.word_confidences : [],
         });
       } else {
-        emit("stt:error", { message: (data && data.detail) || `Serverfehler ${res.status}` });
+        // Without a JSON body this is not the backend answering — it is
+        // whatever host the request actually reached, so say which one.
+        emit("stt:error", {
+          message: (data && data.detail) || this._backendFailureDetail(res.status),
+        });
       }
     } catch (err) {
-      emit("stt:error", { message: "STT-Dienst nicht erreichbar — prüfe die Serververbindung." });
+      emit("stt:error", { message: this._backendFailureDetail() });
     } finally {
       this._recordingContext = {};
       emit("stt:status", { state: "idle" });

@@ -1,9 +1,13 @@
 import { emit } from "./events.js";
-import { CASES, ReportParser, createSeededRandom, randomSeed, randomizeCase } from "./cases.js";
+import { CASES, ReportParser, createSeededRandom, normalizeText, randomSeed, randomizeCase } from "./cases.js";
+import { scoreAccuracy } from "./accuracy.js";
 import { apiUrl } from "./api.js";
 
 const BASE_SCORE = { rot: 150, gelb: 100 };
 const PARTIAL_BONUS = 10;
+const ACCURACY_BONUS = 60;
+const HIDDEN_BONUS = 40;
+const HINT_ATTEMPTS = 24;
 const SEVERITY_LABELS = { rot: "ROT — sofort behandeln", gelb: "GELB — dringend behandeln" };
 const DEFAULT_PATIENT_COUNT = 6;
 
@@ -55,19 +59,70 @@ export class Game {
     this.scenario = null;
     this.scenarioId = null;
     this.scenarioSync = Promise.resolve(false);
+    this.level = null;
+    this.levelIndex = 0;
+  }
+
+  // Templates are drawn least-used-first so a five-level run spreads the eight
+  // case types instead of repeating the same two, and every generated report
+  // script is checked against the run's ledger before it is handed out.
+  _selectTemplates(total, rng, usage) {
+    const byUse = new Map();
+    for (const template of CASES) {
+      const used = usage.get(template.id) || 0;
+      if (!byUse.has(used)) byUse.set(used, []);
+      byUse.get(used).push(template);
+    }
+    const ordered = [];
+    for (const used of [...byUse.keys()].sort((a, b) => a - b)) {
+      ordered.push(...shuffle(byUse.get(used), rng));
+    }
+    const picked = [];
+    while (picked.length < total) {
+      picked.push(...ordered.slice(0, Math.min(total - picked.length, ordered.length)));
+      if (ordered.length === 0) break;
+    }
+    return picked.slice(0, total);
+  }
+
+  _uniqueVariant(template, rng, usedHints) {
+    let fallback = null;
+    for (let attempt = 0; attempt < HINT_ATTEMPTS; attempt++) {
+      const candidate = randomizeCase(template, rng);
+      fallback = candidate;
+      const key = normalizeText(candidate.hint_de);
+      if (usedHints.has(key)) continue;
+      usedHints.add(key);
+      return candidate;
+    }
+    const disambiguated = {
+      ...fallback,
+      hint_de: `${fallback.hint_de} Einsatznummer ${usedHints.size + 1}.`,
+    };
+    usedHints.add(normalizeText(disambiguated.hint_de));
+    return disambiguated;
   }
 
   start(spots, count = DEFAULT_PATIENT_COUNT, options = {}) {
     this.reset();
-    const total = Math.min(count || DEFAULT_PATIENT_COUNT, CASES.length);
+    const total = Math.max(1, Number(count) || DEFAULT_PATIENT_COUNT);
     const seed = Number.isFinite(options?.scenarioSeed) ? Number(options.scenarioSeed) >>> 0 : randomSeed();
     const rng = createSeededRandom(seed);
-    const templates = shuffle(CASES, rng).slice(0, total);
-    const assigned = templates.map((template) => ({
-      ...randomizeCase(template, rng),
-      name: template.names[Math.floor(rng() * template.names.length)],
-      age: randomInt(template.ageRange[0], template.ageRange[1], rng),
-    }));
+    const usedHints = options.usedHints instanceof Set ? options.usedHints : new Set();
+    const caseUsage = options.caseUsage instanceof Map ? options.caseUsage : new Map();
+    this.level = options.level || null;
+    this.levelIndex = Number.isFinite(options.levelIndex) ? Number(options.levelIndex) : 0;
+    this.score = Number(options.startScore) || 0;
+
+    const templates = this._selectTemplates(total, rng, caseUsage);
+    const assigned = templates.map((template) => {
+      caseUsage.set(template.id, (caseUsage.get(template.id) || 0) + 1);
+      return {
+        ...this._uniqueVariant(template, rng, usedHints),
+        name: template.names[Math.floor(rng() * template.names.length)],
+        age: randomInt(template.ageRange[0], template.ageRange[1], rng),
+      };
+    });
     const safeSpots =
       Array.isArray(spots) && spots.length >= total
         ? shuffle(spots.slice(0, total), rng)
@@ -77,7 +132,7 @@ export class Game {
 
     const spawned = this.entities.getAll();
     assigned.forEach((template, index) => {
-      const entity = spawned.find((p) => p.caseId === template.id) || spawned[index];
+      const entity = spawned[index];
       if (!entity) return;
       const run = {
         patientId: entity.id,
@@ -85,10 +140,12 @@ export class Game {
         template,
         name: template.name,
         age: template.age,
+        hidden: Boolean(safeSpots[index]?.hidden),
         partialGiven: false,
         performedActions: new Set(),
         usedItemIds: new Set(),
         completionMode: null,
+        bestAccuracy: null,
         resolved: false,
         saved: false,
         dead: false,
@@ -103,6 +160,9 @@ export class Game {
       schema_version: 1,
       scenario_id: this.scenarioId,
       seed,
+      level_id: this.level?.id || null,
+      level_index: this.levelIndex,
+      level_title: this.level?.title || null,
       loaded_at: new Date().toISOString(),
       patients: this.runs.map((run) => this.serializeRun(run)),
     };
@@ -133,6 +193,7 @@ export class Game {
       name: run.name,
       age: run.age,
       severity: run.template.severity,
+      concealed: Boolean(run.hidden),
       position: entity
         ? { x: Number(entity.pos.x), y: Number(entity.pos.y), z: Number(entity.pos.z) }
         : null,
@@ -182,6 +243,18 @@ export class Game {
         matched_keys: result.matchedKeys,
         missing_keys: result.missingKeys,
         forbidden_hits: result.forbiddenHits,
+        level_id: this.level?.id || null,
+        level_index: this.levelIndex,
+        expected_text: run.template.hint_de,
+        accuracy: result.accuracy
+          ? {
+              score: result.accuracy.score,
+              word_accuracy: result.accuracy.wordAccuracy,
+              char_accuracy: result.accuracy.charAccuracy,
+              expected_words: result.accuracy.expectedWordCount,
+              spoken_words: result.accuracy.spokenWordCount,
+            }
+          : null,
       },
     };
     const send = (registered) => postJson("/api/scenarios/reports", registered ? payload : { ...payload, scenario: this.scenario });
@@ -193,6 +266,7 @@ export class Game {
   state() {
     const saved = this.runs.filter((r) => r.saved).length;
     const dead = this.runs.filter((r) => r.dead).length;
+    const accuracies = this.runs.map((r) => r.bestAccuracy).filter((value) => Number.isFinite(value));
     return {
       total: this.runs.length,
       saved,
@@ -200,6 +274,14 @@ export class Game {
       active: this.runs.length - saved - dead,
       score: this.score,
       elapsed: Math.floor(this.elapsed),
+      levelIndex: this.levelIndex,
+      levelId: this.level?.id || null,
+      levelTitle: this.level?.title || null,
+      hidden: this.runs.filter((r) => r.hidden).length,
+      hiddenFound: this.runs.filter((r) => r.hidden && r.resolved).length,
+      levelAccuracy: accuracies.length
+        ? Math.round(accuracies.reduce((sum, value) => sum + value, 0) / accuracies.length)
+        : null,
     };
   }
 
@@ -228,6 +310,8 @@ export class Game {
       }),
       completionMode: run.completionMode,
       resolved: run.resolved,
+      hidden: Boolean(run.hidden),
+      bestAccuracy: run.bestAccuracy,
     };
   }
 
@@ -238,12 +322,19 @@ export class Game {
     return requiredTreatment.length > 0 && requiredTreatment.every((group) => run.performedActions.has(group.key));
   }
 
+  // Base points for the rescue, a bonus proportional to how faithfully the
+  // script was read back, and a finder's bonus for a concealed casualty.
   _completeRun(run, completionMode) {
     if (!run || run.resolved) return 0;
     run.resolved = true;
     run.saved = true;
     run.completionMode = completionMode;
-    const scoreDelta = BASE_SCORE[run.template.severity] || BASE_SCORE.gelb;
+    const base = BASE_SCORE[run.template.severity] || BASE_SCORE.gelb;
+    const accuracyBonus = Number.isFinite(run.bestAccuracy)
+      ? Math.round((ACCURACY_BONUS * run.bestAccuracy) / 100)
+      : 0;
+    const hiddenBonus = run.hidden ? HIDDEN_BONUS : 0;
+    const scoreDelta = base + accuracyBonus + hiddenBonus;
     this.score += scoreDelta;
     this.entities.markSaved?.(run.patientId);
     this.entities.healFx?.(run.patientId);
@@ -252,6 +343,9 @@ export class Game {
       caseTitle: run.caseTitle,
       scoreDelta,
       completionMode,
+      accuracy: run.bestAccuracy,
+      accuracyBonus,
+      hiddenBonus,
     });
     return scoreDelta;
   }
@@ -335,6 +429,14 @@ export class Game {
 
     const normalizedTranscript = transcript || "";
     const audioRecorded = options?.source === "audio" || options?.audio === true;
+
+    // How close the spoken words came to the script on the chart. Kept per
+    // patient so re-reading a report can only improve the recorded accuracy.
+    const accuracy = scoreAccuracy(run.template.hint_de, normalizedTranscript);
+    if (accuracy.scored && (!Number.isFinite(run.bestAccuracy) || accuracy.score > run.bestAccuracy)) {
+      run.bestAccuracy = accuracy.score;
+    }
+
     let result = run.parser.parse(normalizedTranscript, [...run.performedActions]);
     if (audioRecorded && normalizedTranscript.trim()) {
       result = {
@@ -365,7 +467,7 @@ export class Game {
       emit("patient:partial", { patientId: run.patientId, scoreDelta: PARTIAL_BONUS });
     }
 
-    return { ...result, scoreDelta, saved: result.verdict === "saved" };
+    return { ...result, scoreDelta, saved: result.verdict === "saved", accuracy, expectedText: run.template.hint_de };
   }
 
   update(dt) {
@@ -379,9 +481,15 @@ export class Game {
       emit(won ? "game:won" : "game:lost", {
         won,
         saved: st.saved,
+        total: st.total,
         dead: st.dead,
         score: st.score,
         elapsed: st.elapsed,
+        levelIndex: st.levelIndex,
+        levelId: st.levelId,
+        levelTitle: st.levelTitle,
+        levelAccuracy: st.levelAccuracy,
+        hidden: st.hidden,
         rank: Game.rankFor(st.saved, st.total),
       });
     }

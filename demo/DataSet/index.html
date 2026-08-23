@@ -19,7 +19,7 @@
       <h1 class="game-title">MEDICRAFT</h1>
       <div class="start-message">
         <span class="start-focus"><b>WICHTIG:</b> Öffne bei jedem Patienten die Karte und sprich den vollständigen Text, der dort angezeigt wird, genau so.</span>
-        <p class="start-description">Finde alle sechs Patienten in deinem eigenen Tempo. Die aufgenommenen Sprachdaten werden für ein Sprachmodell verwendet, das Rettungskräfte in Krisensituationen unterstützt.</p>
+        <p class="start-description">Fünf Einsätze mit 1, 2, 4, 6 und 7 Patienten — nach dem letzten geretteten Patienten wirst du zum nächsten Einsatzort teleportiert. Punkte und Sprachgenauigkeit werden über alle Level hinweg mitgenommen. Die aufgenommenen Sprachdaten werden für ein Sprachmodell verwendet, das Rettungskräfte in Krisensituationen unterstützt.</p>
       </div>
       <button id="btn-start" class="btn big">▶ Einsatz starten</button>
       <div class="start-footer">
@@ -52,7 +52,8 @@
         </article>
         <article class="briefing-step">
           <div class="step-number">03</div>
-          <h2>Alle 6 Patienten finden</h2>
+          <h2>5 Level, 20 Patienten</h2>
+          <p>Jedes Level hat eine eigene Karte und mehr Verletzte. Ab Level 4 liegen einzelne Patienten versteckt.</p>
         </article>
       </div>
 
@@ -66,6 +67,20 @@
         </div>
         <button id="btn-consent" class="btn small consent-btn" type="button">Ich stimme zu &amp; weiter</button>
       </div>
+    </div>
+  </div>
+
+  <div id="level-complete" class="fullscreen hidden" role="dialog" aria-modal="true" aria-labelledby="level-complete-title">
+    <div class="start-box level-box">
+      <div class="level-kicker">LEVEL <span id="level-complete-index">1</span>/<span id="level-complete-count">5</span> ABGESCHLOSSEN</div>
+      <h1 id="level-complete-title" class="game-title">Übungsplatz Klinik</h1>
+      <div id="level-complete-stats" class="level-stats"></div>
+      <div class="level-next">
+        <span class="level-next-label">Nächster Einsatzort</span>
+        <b id="level-next-title">—</b>
+        <p id="level-next-briefing"></p>
+      </div>
+      <button id="btn-next-level" class="btn big">⇢ Teleport starten (<span id="level-countdown">6</span>)</button>
     </div>
   </div>
 
@@ -100,9 +115,18 @@
     </div>
 
     <div id="mission-panel" class="panel">
-      <div id="mission-line">Patienten 0/6</div>
+      <div id="level-line">Level 1/5</div>
+      <div id="mission-line">Patienten 0/1</div>
       <div id="mission-timer">00:00</div>
       <div>Punkte <span id="score-value">0</span></div>
+      <div>Genauigkeit <span id="accuracy-value">—</span></div>
+      <div id="hidden-hint" class="hidden"></div>
+    </div>
+
+    <div id="level-banner" class="hidden" aria-live="polite">
+      <span id="level-banner-kicker">LEVEL 1/5</span>
+      <b id="level-banner-title">Übungsplatz Klinik</b>
+      <span id="level-banner-text"></span>
     </div>
 
     <div id="prompt" class="hidden"><b>[E]</b> <span id="prompt-text"></span></div>
@@ -156,6 +180,9 @@
 
   </div>
 
+  <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
+       deferred module entry point runs. -->
+  <script src="./config.js"></script>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>
