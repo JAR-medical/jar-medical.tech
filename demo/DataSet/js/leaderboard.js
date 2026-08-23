@@ -19,19 +19,19 @@ import { apiUrl, hasBackend } from "./api.js";
 const ROSTER = Object.freeze([
   { name: "Team Nordwand", crew: "Bergwacht Oberstdorf", score: 3200, saved: 19, total: 19, accuracy: 70, elapsed: 1188 },
   { name: "Crew Alpenrose", crew: "BRK Garmisch", score: 3025, saved: 18, total: 19, accuracy: 68, elapsed: 1302 },
-  { name: "Schicht Hochtal", crew: "ASB Sonthofen", score: 2850, saved: 18, total: 19, accuracy: 66, elapsed: 1247 },
+  { name: "Team Hochtal", crew: "ASB Sonthofen", score: 2850, saved: 18, total: 19, accuracy: 66, elapsed: 1247 },
   { name: "Team Firnkante", crew: "Bergrettung Tirol", score: 2675, saved: 17, total: 19, accuracy: 64, elapsed: 1415 },
   { name: "Crew Talstation", crew: "DRK Kempten", score: 2500, saved: 17, total: 19, accuracy: 62, elapsed: 1361 },
-  { name: "Schicht Windkolk", crew: "Bergwacht Ramsau", score: 2325, saved: 16, total: 19, accuracy: 60, elapsed: 1490 },
+  { name: "Team Windkolk", crew: "Bergwacht Ramsau", score: 2325, saved: 16, total: 19, accuracy: 60, elapsed: 1490 },
   { name: "Team Gratweg", crew: "Malteser Füssen", score: 2150, saved: 16, total: 19, accuracy: 58, elapsed: 1436 },
   { name: "Crew Lawinenhund", crew: "Bergwacht Berchtesgaden", score: 1975, saved: 15, total: 19, accuracy: 56, elapsed: 1523 },
-  { name: "Schicht Schneefeld", crew: "JUH Immenstadt", score: 1800, saved: 14, total: 19, accuracy: 54, elapsed: 1602 },
+  { name: "Team Schneefeld", crew: "JUH Immenstadt", score: 1800, saved: 14, total: 19, accuracy: 54, elapsed: 1602 },
   { name: "Team Steilhang", crew: "Bergwacht Lenggries", score: 1625, saved: 13, total: 19, accuracy: 52, elapsed: 1688 },
   { name: "Crew Gondelbahn", crew: "ASB Mittenwald", score: 1450, saved: 12, total: 19, accuracy: 50, elapsed: 1744 },
-  { name: "Schicht Bergstation", crew: "DRK Oberammergau", score: 1275, saved: 11, total: 19, accuracy: 48, elapsed: 1810 },
+  { name: "Team Bergstation", crew: "DRK Oberammergau", score: 1275, saved: 11, total: 19, accuracy: 48, elapsed: 1810 },
 ]);
 
-export const LEADERBOARD_NOTE = "Demo-Bestenliste — die Crews sind erfunden, dein Lauf ist echt.";
+export const LEADERBOARD_NOTE = "Demo-Bestenliste — die Teams sind erfunden, dein Beitrag ist echt.";
 export const LEADERBOARD_NOTES = Object.freeze({
   demo: LEADERBOARD_NOTE,
   local: "Deine eigenen Läufe auf diesem Gerät — nur lokal gespeichert.",
@@ -49,6 +49,8 @@ const PUBLISHED_BOARD_URL = "./leaderboard.json";
 const IDENTITY_KEY = "medicraft.identity";
 const RUNS_KEY = "medicraft.runs";
 const BEST_KEY = "medicraft.best";
+const ANONYMOUS_NAME = "Anonym";
+const EMPTY_TEAM = "";
 const LOCAL_RUN_LIMIT = 40;
 const REMOTE_TIMEOUT_MS = 4000;
 
@@ -91,23 +93,27 @@ function cleanName(value, fallback) {
 
 export function loadIdentity() {
   const stored = readJson(IDENTITY_KEY, null);
+  // Older builds used public-looking placeholder values. Treat those as empty
+  // so upgrading does not turn an anonymous player into a fake named entry.
+  const storedName = stored?.name === "Deine Schicht" ? "" : stored?.name;
+  const storedCrew = stored?.crew === "J.A.R. Medical Demo" ? "" : stored?.crew;
   return {
-    name: cleanName(stored?.name, "Deine Schicht"),
-    crew: cleanName(stored?.crew, "J.A.R. Medical Demo"),
+    name: cleanName(storedName, EMPTY_TEAM),
+    crew: cleanName(storedCrew, EMPTY_TEAM),
   };
 }
 
-// Whether the player has ever named their shift. A run from a browser that has
-// is submitted straight away; a first-time run waits for the name field, so
-// nobody lands on a public board as "Deine Schicht".
+// Whether the player chose a public name. Gameplay never depends on this: an
+// unnamed run is submitted as "Anonym" so the data collection can continue.
 export function hasStoredIdentity() {
-  return Boolean(readJson(IDENTITY_KEY, null)?.name);
+  return Boolean(loadIdentity().name);
 }
 
-export function saveIdentity({ name, crew } = {}) {
+export function saveIdentity({ name = "", crew = "" } = {}) {
+  const safeName = cleanName(name, EMPTY_TEAM);
   const identity = {
-    name: cleanName(name, "Deine Schicht"),
-    crew: cleanName(crew, "J.A.R. Medical Demo"),
+    name: safeName,
+    crew: safeName ? cleanName(crew, EMPTY_TEAM) : EMPTY_TEAM,
   };
   writeJson(IDENTITY_KEY, identity);
   return identity;
@@ -116,8 +122,8 @@ export function saveIdentity({ name, crew } = {}) {
 // One finished run, in the shape both boards and the server agree on.
 export function runFromSummary(summary, identity = loadIdentity()) {
   return {
-    name: cleanName(identity?.name, "Deine Schicht"),
-    crew: cleanName(identity?.crew, "J.A.R. Medical Demo"),
+    name: cleanName(identity?.name, ANONYMOUS_NAME),
+    crew: cleanName(identity?.crew, "—"),
     score: Math.round(Number(summary?.score) || 0),
     saved: Math.round(Number(summary?.saved) || 0),
     total: Math.round(Number(summary?.total) || 0),
@@ -264,7 +270,7 @@ function rowKey(entry) {
 
 function normalizeRow(entry, you = false) {
   return {
-    name: cleanName(entry?.name, "Schicht"),
+    name: cleanName(entry?.name, ANONYMOUS_NAME),
     crew: cleanName(entry?.crew, "—"),
     score: Number(entry?.score) || 0,
     saved: Number(entry?.saved) || 0,

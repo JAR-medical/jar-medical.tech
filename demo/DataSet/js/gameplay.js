@@ -328,7 +328,7 @@ export class Game {
       voiceStageCount: VOICE_STAGE_COUNT,
       acceptedVoiceClips: run.acceptedVoiceClips.length,
     };
-    view.voicePrompt = this.contributionMode ? voicePromptAt(view, run.voiceStage) : null;
+    view.voicePrompt = this.contributionMode ? voicePromptAt(view, 0) : null;
     return view;
   }
 
@@ -336,6 +336,9 @@ export class Game {
     const run = this.byPatientId.get(patientId);
     if (!this.contributionMode || !run || run.resolved) {
       return { accepted: false, saved: false, reason: "Kein aktiver Sprachfall." };
+    }
+    if (run.acceptedVoiceClips.length >= VOICE_STAGE_COUNT) {
+      return { accepted: false, saved: false, reason: "Für diesen Patienten wurde bereits eine Aufnahme gespeichert." };
     }
     const view = this.getView(patientId);
     const expectedPrompt = view?.voicePrompt;
@@ -350,25 +353,24 @@ export class Game {
       promptId: clip.promptId,
       state: clip.validationState || "basic_accepted",
     });
-    run.voiceStage += 1;
-    const completed = run.voiceStage >= VOICE_STAGE_COUNT;
+    run.voiceStage = VOICE_STAGE_COUNT;
     emit("voice:accepted", {
       patientId,
       clipId: clip.clipId,
       promptId: clip.promptId,
       stage: run.voiceStage,
       total: VOICE_STAGE_COUNT,
-      completed,
+      completed: false,
     });
-    const scoreDelta = completed ? this._completeRun(run, "voice-sequence") : 0;
     return {
       accepted: true,
-      saved: completed,
-      completed,
-      scoreDelta,
+      saved: false,
+      completed: false,
+      uploaded: true,
+      scoreDelta: 0,
       stage: run.voiceStage,
       total: VOICE_STAGE_COUNT,
-      nextPrompt: completed ? null : this.getView(patientId)?.voicePrompt,
+      nextPrompt: null,
     };
   }
 
@@ -461,7 +463,7 @@ export class Game {
         itemLabel: item.label,
         actionKeys: applicableGroups.map((group) => group.key),
         actionLabels: applicableGroups.map((group) => group.label_de || group.label_en || group.key),
-        message: "Med-Kit eingesetzt — alles behandelt; Bericht weiterhin möglich.",
+        message: "Med-Kit eingesetzt — alles behandelt; Sprachbericht weiterhin möglich.",
         completed: false,
         additive: true,
       };
@@ -495,7 +497,7 @@ export class Game {
     if (completed && !this.contributionMode) this._completeRun(run, "kit");
     if (completed && this.contributionMode) {
       result.completed = false;
-      result.message = `${item.label} eingesetzt — Behandlung vorbereitet; Sprachübergabe bleibt erforderlich.`;
+      result.message = `${item.label} eingesetzt — Behandlung vorbereitet; Sprachbericht bleibt erforderlich.`;
     }
     return result;
   }
@@ -518,20 +520,30 @@ export class Game {
         saved: false,
       };
     }
-    if (this.contributionMode) {
+    const normalizedTranscript = transcript || "";
+    const audioRecorded = options?.source === "audio" || options?.audio === true;
+    if (this.contributionMode && !audioRecorded) {
       return {
         verdict: "rejected",
         matchedKeys: [],
         missingKeys: [],
         forbiddenHits: [],
-        feedback: ["Dieser Modus wird ausschließlich über die fünf Sprachschritte abgeschlossen."],
+        feedback: ["In der Datensammlung zählt nur ein Sprachbericht pro Patient."],
         scoreDelta: 0,
         saved: false,
       };
     }
-
-    const normalizedTranscript = transcript || "";
-    const audioRecorded = options?.source === "audio" || options?.audio === true;
+    if (this.contributionMode && run.acceptedVoiceClips.length === 0) {
+      return {
+        verdict: "rejected",
+        matchedKeys: [],
+        missingKeys: [],
+        forbiddenHits: [],
+        feedback: ["Erst die Aufnahme speichern, dann wird der Bericht bewertet."],
+        scoreDelta: 0,
+        saved: false,
+      };
+    }
 
     // How close the spoken words came to the script on the chart. Kept per
     // patient so re-reading a report can only improve the recorded accuracy.
@@ -541,14 +553,18 @@ export class Game {
     }
 
     let result = run.parser.parse(normalizedTranscript, [...run.performedActions]);
-    if (audioRecorded && normalizedTranscript.trim() && !this.contributionMode) {
+    if (audioRecorded) {
       result = {
         ...result,
         verdict: "saved",
         matchedKeys: [],
         missingKeys: [],
         forbiddenHits: [],
-        feedback: ["Audio-Bericht aufgenommen — Patient dokumentiert."],
+        feedback: [
+          normalizedTranscript.trim()
+            ? "Audio-Bericht aufgenommen — Patient dokumentiert."
+            : "Audio-Bericht gespeichert — keine Transkription erkannt; Genauigkeit 0%.",
+        ],
       };
     }
     let scoreDelta = 0;

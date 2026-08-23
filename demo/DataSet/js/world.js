@@ -46,6 +46,9 @@ export const WORLD_SIZE = 128;
 // still leave sky over the summit. Only levels that declare `terrain.massifs`
 // build anywhere near the top — everything else stays under y=30 as before.
 export const WORLD_HEIGHT = 56;
+// WORLD_HEIGHT remains the terrain-generation baseline. Player blocks are
+// stored sparsely, so it is no longer a placement or rendering ceiling.
+export const WORLD_BORDER_HEIGHT = 18;
 const CHUNK = 16;
 const CHUNKS = WORLD_SIZE / CHUNK;
 const WATER_LEVEL = 11;
@@ -308,8 +311,13 @@ export class World {
     this.level = level || DEFAULT_LEVEL;
     this.terrain = { ...(this.level.terrain || {}) };
     this.patientAnchors = [];
-    this.blocks = new Uint8Array(WORLD_SIZE * WORLD_SIZE * WORLD_HEIGHT);
-    this.heightMap = new Int16Array(WORLD_SIZE * WORLD_SIZE);
+    // A fixed 3D array made the old terrain height an accidental build limit.
+    // Sparse storage keeps the generated terrain compact while allowing player
+    // blocks at any non-negative y coordinate.
+    this.blocks = new Map();
+    this.columnMaxY = new Int32Array(WORLD_SIZE * WORLD_SIZE);
+    this.chunkMaxY = new Int32Array(CHUNKS * CHUNKS);
+    this.heightMap = new Int32Array(WORLD_SIZE * WORLD_SIZE);
     this.chunkMeshes = new Array(CHUNKS * CHUNKS).fill(null);
     this.glassMeshes = new Array(CHUNKS * CHUNKS).fill(null);
     this.waterMeshes = new Array(CHUNKS * CHUNKS).fill(null);
@@ -324,7 +332,11 @@ export class World {
       vertexColors: true,
       transparent: true,
       opacity: 0.45,
-      depthWrite: false,
+      // Glass still blends with the nearest surface behind it, but it must
+      // claim its own depth. Without this, a later transparent chunk can draw
+      // through the nearer pane and turn windows into an X-ray view.
+      depthTest: true,
+      depthWrite: true,
       side: THREE.DoubleSide,
     });
     this.waterMaterial = new THREE.MeshLambertMaterial({
@@ -346,6 +358,40 @@ export class World {
     this.propClock = 0;
     this.clinic = { x: 64.5, y: 15, z: 64.5 };
     this._generate();
+  }
+
+  _getStoredBlock(x, y, z) {
+    return this.blocks.get(idx(x, y, z)) ?? BLOCK.AIR;
+  }
+
+  _writeBlock(x, y, z, block) {
+    const key = idx(x, y, z);
+    const column = z * WORLD_SIZE + x;
+    const chunkIndex = Math.floor(z / CHUNK) * CHUNKS + Math.floor(x / CHUNK);
+    if (block === BLOCK.AIR) {
+      if (!this.blocks.has(key)) return;
+      this.blocks.delete(key);
+      if (y >= this.columnMaxY[column]) {
+        let next = y - 1;
+        while (next > 0 && this._getStoredBlock(x, next, z) === BLOCK.AIR) next--;
+        this.columnMaxY[column] = this._getStoredBlock(x, next, z) === BLOCK.AIR ? 0 : next;
+      }
+      if (y >= this.chunkMaxY[chunkIndex]) {
+        let next = 0;
+        const x0 = Math.floor(x / CHUNK) * CHUNK;
+        const z0 = Math.floor(z / CHUNK) * CHUNK;
+        for (let lz = 0; lz < CHUNK; lz++) {
+          for (let lx = 0; lx < CHUNK; lx++) {
+            next = Math.max(next, this.columnMaxY[(z0 + lz) * WORLD_SIZE + x0 + lx]);
+          }
+        }
+        this.chunkMaxY[chunkIndex] = next;
+      }
+      return;
+    }
+    this.blocks.set(key, block);
+    this.columnMaxY[column] = Math.max(this.columnMaxY[column], y);
+    this.chunkMaxY[chunkIndex] = Math.max(this.chunkMaxY[chunkIndex], y);
   }
 
   // One preallocated point cloud for every shard the world will ever throw.
@@ -551,7 +597,7 @@ export class World {
         );
         if (drop < slope) continue;
         // The face itself, not just its lip: snow does not cling to any of it.
-        for (let y = Math.max(1, h - drop); y < h; y++) this.blocks[idx(x, y, z)] = rock;
+        for (let y = Math.max(1, h - drop); y < h; y++) this._writeBlock(x, y, z, rock);
       }
     }
   }
@@ -562,16 +608,17 @@ export class World {
 
   _fillColumn(x, z, height, topBlock) {
     const subSurface = BLOCK[this.terrain.subBlock] ?? null;
+    const column = z * WORLD_SIZE + x;
+    for (let y = this.columnMaxY[column]; y >= height; y--) this._writeBlock(x, y, z, BLOCK.AIR);
     for (let y = 0; y < height; y++) {
       let block;
       if (y < height - 3) block = BLOCK.STONE;
       else if (y < height - 1) block = subSurface ?? (topBlock === BLOCK.SAND ? BLOCK.SAND : BLOCK.DIRT);
       else block = topBlock;
-      this.blocks[idx(x, y, z)] = block;
+      this._writeBlock(x, y, z, block);
     }
-    for (let y = height; y < WORLD_HEIGHT; y++) this.blocks[idx(x, y, z)] = BLOCK.AIR;
     if (height <= WATER_LEVEL) {
-      for (let y = height; y <= WATER_LEVEL; y++) this.blocks[idx(x, y, z)] = BLOCK.WATER;
+      for (let y = height; y <= WATER_LEVEL; y++) this._writeBlock(x, y, z, BLOCK.WATER);
       this.heightMap[z * WORLD_SIZE + x] = WATER_LEVEL + 1;
     } else {
       this.heightMap[z * WORLD_SIZE + x] = height;
@@ -595,8 +642,40 @@ export class World {
     // After the site is levelled, so the track cuts through the rim the feather
     // left behind instead of being flattened away with it.
     this._carveAvalanche();
+    this._buildMapBorder();
     this.clinic.y = this.heightMap[Math.floor(this.clinic.z) * WORLD_SIZE + Math.floor(this.clinic.x)];
     this._collectPatientAnchors();
+  }
+
+  _buildMapBorder() {
+    // Keep the perimeter inside the playable coordinates so it is both
+    // visible from the map and collidable from every direction. The caution
+    // cap makes the boundary readable at a distance without enclosing the sky.
+    for (let y = 0; y < WORLD_BORDER_HEIGHT; y++) {
+      for (let edge = 0; edge < WORLD_SIZE; edge++) {
+        this._setGeneratedBlock(edge, y, 0, BLOCK.CONCRETE);
+        this._setGeneratedBlock(edge, y, WORLD_SIZE - 1, BLOCK.CONCRETE);
+        this._setGeneratedBlock(0, y, edge, BLOCK.CONCRETE);
+        this._setGeneratedBlock(WORLD_SIZE - 1, y, edge, BLOCK.CONCRETE);
+      }
+    }
+    for (let edge = 0; edge < WORLD_SIZE; edge++) {
+      this._setGeneratedBlock(edge, WORLD_BORDER_HEIGHT, 0, BLOCK.CAUTION);
+      this._setGeneratedBlock(edge, WORLD_BORDER_HEIGHT, WORLD_SIZE - 1, BLOCK.CAUTION);
+      this._setGeneratedBlock(0, WORLD_BORDER_HEIGHT, edge, BLOCK.CAUTION);
+      this._setGeneratedBlock(WORLD_SIZE - 1, WORLD_BORDER_HEIGHT, edge, BLOCK.CAUTION);
+    }
+  }
+
+  isMapBorder(x, y, z) {
+    x = Math.floor(x);
+    y = Math.floor(y);
+    z = Math.floor(z);
+    return (
+      y >= 0 &&
+      y <= WORLD_BORDER_HEIGHT &&
+      (x === 0 || x === WORLD_SIZE - 1 || z === 0 || z === WORLD_SIZE - 1)
+    );
   }
 
   // Blueprint-driven maps: levels declare a site to level out and a list of
@@ -642,8 +721,8 @@ export class World {
       // before it piled up there.
       topAt: (x, z) => {
         if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) return 0;
-        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-          const block = this.blocks[idx(x, y, z)];
+        for (let y = this.columnMaxY[z * WORLD_SIZE + x]; y >= 0; y--) {
+          const block = this._getStoredBlock(x, y, z);
           if (block !== BLOCK.AIR && block !== BLOCK.WATER) return Math.max(0, y + 1 - floorY);
         }
         return 0;
@@ -815,7 +894,7 @@ export class World {
       if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return;
       if (insideSite(x, z)) return;
       const current = this.heightMap[z * WORLD_SIZE + x];
-      this._fillColumn(x, z, Math.min(WORLD_HEIGHT - 2, current + add), block);
+      this._fillColumn(x, z, current + add, block);
     };
     // The fracture wall is only white if the snow above it is deep: give the
     // untouched slab a thick cap so the cut face shows snow, not bedrock.
@@ -948,7 +1027,7 @@ export class World {
   _standingSurface(x, z, floorY) {
     if (x < 1 || x >= WORLD_SIZE - 1 || z < 1 || z >= WORLD_SIZE - 1) return null;
     const from = Math.max(1, floorY);
-    for (let y = from; y < Math.min(WORLD_HEIGHT - 2, floorY + 10); y++) {
+    for (let y = from; y < floorY + 10; y++) {
       const below = this.getBlock(x, y - 1, z);
       if (below === BLOCK.AIR || below === BLOCK.WATER || below === BLOCK.FIRE) continue;
       if (this.getBlock(x, y, z) !== BLOCK.AIR) continue;
@@ -973,8 +1052,8 @@ export class World {
         this._fillColumn(x, z, plazaHeight, BLOCK.PATH);
       }
     }
-    this.blocks[idx(cx, plazaHeight, cz)] = BLOCK.REDCROSS;
-    this.blocks[idx(cx, plazaHeight + 1, cz)] = BLOCK.REDCROSS;
+    this._writeBlock(cx, plazaHeight, cz, BLOCK.REDCROSS);
+    this._writeBlock(cx, plazaHeight + 1, cz, BLOCK.REDCROSS);
   }
 
   _plantTrees() {
@@ -994,8 +1073,8 @@ export class World {
       if (!site && dxClinic * dxClinic + dzClinic * dzClinic < 20 * 20) continue;
       if (this.getBlock(x, g, z) !== BLOCK.AIR) continue;
       const trunkHeight = 3 + Math.floor(rng() * 3);
-      for (let y = g; y < g + trunkHeight && y < WORLD_HEIGHT; y++) {
-        this.blocks[idx(x, y, z)] = BLOCK.WOOD;
+      for (let y = g; y < g + trunkHeight; y++) {
+        this._writeBlock(x, y, z, BLOCK.WOOD);
       }
       const topY = g + trunkHeight - 1;
       for (let ly = topY - 1; ly <= topY + 2; ly++) {
@@ -1006,8 +1085,8 @@ export class World {
             const bx = x + lx;
             const by = ly;
             const bz = z + lz;
-            if (bx < 0 || bx >= WORLD_SIZE || bz < 0 || bz >= WORLD_SIZE || by >= WORLD_HEIGHT) continue;
-            if (this.blocks[idx(bx, by, bz)] === BLOCK.AIR) this.blocks[idx(bx, by, bz)] = leaves;
+            if (bx < 0 || bx >= WORLD_SIZE || by < 0 || bz < 0 || bz >= WORLD_SIZE) continue;
+            if (this._getStoredBlock(bx, by, bz) === BLOCK.AIR) this._writeBlock(bx, by, bz, leaves);
           }
         }
       }
@@ -1015,8 +1094,8 @@ export class World {
   }
 
   _setGeneratedBlock(x, y, z, block) {
-    if (x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= WORLD_SIZE) return;
-    this.blocks[idx(x, y, z)] = block;
+    if (x < 0 || x >= WORLD_SIZE || y < 0 || z < 0 || z >= WORLD_SIZE) return;
+    this._writeBlock(x, y, z, block);
   }
 
   _buildDisasterScene() {
@@ -1316,7 +1395,7 @@ export class World {
 
   _incidentSurface(x, z) {
     const floorY = this.disasterScene ? this.disasterScene.floorY : this.getHeight(x, z);
-    const from = Math.min(WORLD_HEIGHT - 2, floorY + 4);
+    const from = Math.min(this.columnMaxY[z * WORLD_SIZE + x] || 0, floorY + 4);
     for (let y = from; y >= 0; y--) {
       const block = this.getBlock(x, y, z);
       if (block === BLOCK.AIR) continue;
@@ -1335,8 +1414,8 @@ export class World {
 
   _updateHeightAt(x, z) {
     const column = z * WORLD_SIZE + x;
-    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-      if (HEIGHT_BLOCKS.has(this.blocks[idx(x, y, z)])) {
+    for (let y = this.columnMaxY[column]; y >= 0; y--) {
+      if (HEIGHT_BLOCKS.has(this._getStoredBlock(x, y, z))) {
         this.heightMap[column] = y + 1;
         return;
       }
@@ -1349,8 +1428,8 @@ export class World {
     y = Math.floor(y);
     z = Math.floor(z);
     if (y < 0) return BLOCK.STONE;
-    if (x < 0 || x >= WORLD_SIZE || y >= WORLD_HEIGHT || z < 0 || z >= WORLD_SIZE) return BLOCK.AIR;
-    return this.blocks[idx(x, y, z)];
+    if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) return BLOCK.AIR;
+    return this._getStoredBlock(x, y, z);
   }
 
   isSolid(x, y, z) {
@@ -1362,9 +1441,9 @@ export class World {
     x = Math.floor(x);
     y = Math.floor(y);
     z = Math.floor(z);
-    if (x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= WORLD_SIZE) return;
-    const previous = this.blocks[idx(x, y, z)];
-    this.blocks[idx(x, y, z)] = id;
+    if (x < 0 || x >= WORLD_SIZE || y < 0 || z < 0 || z >= WORLD_SIZE) return;
+    const previous = this._getStoredBlock(x, y, z);
+    this._writeBlock(x, y, z, id);
     this._updateHeightAt(x, z);
     const ci = Math.floor(x / CHUNK);
     const cj = Math.floor(z / CHUNK);
@@ -1639,8 +1718,8 @@ export class World {
       for (let lx = 0; lx < CHUNK; lx++) {
         const x = x0 + lx;
         const z = z0 + lz;
-        for (let y = 0; y < WORLD_HEIGHT; y++) {
-          const block = this.blocks[idx(x, y, z)];
+        for (let y = 0; y <= this.chunkMaxY[index]; y++) {
+          const block = this._getStoredBlock(x, y, z);
           if (block === BLOCK.AIR) continue;
           const isWater = block === BLOCK.WATER;
           const isBlanket = block === BLOCK.EMERGENCY_BLANKET;

@@ -19,48 +19,44 @@
       <div class="start-box">
       <h1 class="game-title">MEDICRAFT</h1>
       <div class="start-message">
-        <span class="start-focus"><b>NEU:</b> Jeder Patient reagiert auf fünf kurze Sprachschritte — von der Leitstelle bis zur Übergabe.</span>
-        <p class="start-description">Eine kurze Schicht dauert etwa 8–12 Minuten und sammelt 20 verwertbare Sprachbeiträge. Die Aufnahmen trainieren ein deutsches Sprachmodell für Rettungskräfte.</p>
+        <span class="start-focus"><b>NEU:</b> Sprich pro Patient genau einen vollständigen medizinischen Bericht.</span>
+        <p class="start-description">Ein vollständiger Durchlauf führt durch fünf Level mit 19 Patienten und sammelt bis zu 19 verwertbare Sprachberichte. Deine Aufnahmen helfen dabei, Sprachmodelle zu entwickeln, die Rettungskräfte unterstützen und Menschenleben schützen.</p>
       </div>
-      <section class="start-identity" aria-label="Dein Einsatzprofil">
+      <section class="start-identity" aria-label="Dein Spielerprofil">
         <div class="identity-profile-head">
           <span id="identity-avatar" class="identity-avatar" aria-hidden="true">?</span>
           <span class="identity-preview">
-            <span class="identity-kicker">DEIN EINSATZPROFIL</span>
-            <strong id="identity-preview-name">Spielername wählen</strong>
-            <small id="identity-preview-crew">Wache oder Team optional</small>
+            <span class="identity-kicker">DEIN SPIELERPROFIL</span>
+            <strong id="identity-preview-name">Anonym teilnehmen</strong>
+            <small id="identity-preview-crew">Team wird nach dem Namen eingeblendet</small>
           </span>
-          <span id="identity-state" class="identity-state missing" aria-live="polite">NAME FEHLT</span>
+          <span id="identity-state" class="identity-state anonymous" aria-live="polite">OPTIONAL</span>
         </div>
         <div class="identity-fields">
           <label class="identity-field" for="player-name">
-            <span class="identity-field-label"><span>Spielername <b>Pflichtfeld</b></span><span id="player-name-count">0 / 28</span></span>
+            <span class="identity-field-label"><span>Spielername <em>optional</em></span><span id="player-name-count">0 / 28</span></span>
             <span class="identity-input-shell">
               <span class="identity-input-icon" aria-hidden="true">#</span>
-              <input id="player-name" type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="next" spellcheck="false" placeholder="z. B. Schicht Nord" aria-describedby="identity-hint player-name-count player-name-error" />
+              <input id="player-name" type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="next" spellcheck="false" placeholder="z. B. Alex" aria-describedby="identity-hint player-name-count" />
             </span>
           </label>
-          <label class="identity-field" for="player-crew">
-            <span class="identity-field-label"><span>Wache / Team <em>optional</em></span><span id="player-crew-count">0 / 28</span></span>
+          <label id="player-crew-field" class="identity-field identity-team-field hidden" for="player-crew" aria-hidden="true">
+            <span class="identity-field-label"><span>Team <em>optional</em></span><span id="player-crew-count">0 / 28</span></span>
             <span class="identity-input-shell">
               <span class="identity-input-icon" aria-hidden="true">+</span>
-              <input id="player-crew" type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="go" spellcheck="false" placeholder="z. B. BRK Garmisch" aria-describedby="identity-hint player-crew-count" />
+              <input id="player-crew" type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="go" spellcheck="false" placeholder="z. B. Rettungsteam" aria-describedby="identity-hint player-crew-count" disabled />
             </span>
           </label>
         </div>
         <div class="identity-foot">
-          <p id="identity-hint">Erscheint in der Bestenliste und wird nur auf diesem Gerät gespeichert.</p>
-          <p id="player-name-error" class="identity-error hidden" role="alert">Bitte gib zuerst einen Spielernamen ein.</p>
+          <p id="identity-hint">Der Spielername ist optional. Wenn du einen eingibst, kannst du zusätzlich ein Team nennen.</p>
+          <p id="player-name-error" class="identity-error hidden" role="alert"></p>
         </div>
       </section>
-      <div class="play-mode" role="group" aria-label="Spielmodus">
-        <label><input type="radio" name="play-mode" value="shift" checked /> Kurze Schicht · 4 Patienten · 20 Sprachschritte</label>
-        <label id="story-mode-option" class="locked"><input id="story-mode" type="radio" name="play-mode" value="story" disabled /> Story-Kampagne · Freischaltung bei 8.000 Beitrags­punkten</label>
-      </div>
-      <button id="btn-start" class="btn big">▶ Einsatz starten</button>
+      <button id="btn-start" class="btn big">▶ 5-Level-Datensammlung starten</button>
       <div class="start-footer">
         <div class="start-help">
-          <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Shift</b> sprinten<br />
+          <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Umschalttaste</b> sprinten<br />
           <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
           <b>Linksklick halten</b> Block abbauen · <b>E</b> Patientenkarte öffnen · Sprachaufgabe aufnehmen<br />
           <b>M</b> Ton an/aus — die Musik verstummt automatisch, solange du sprichst</span>
@@ -74,8 +70,8 @@
 
   <div id="briefing-screen" class="fullscreen hidden" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
     <div class="briefing-box">
-      <h1 id="briefing-title" class="briefing-title">Rette alle Patienten</h1>
-      <p class="briefing-intro">Schließe bei jedem Patienten fünf kurze Sprachaufgaben ab.</p>
+      <h1 id="briefing-title" class="briefing-title">Hilf Menschenleben zu retten</h1>
+      <p class="briefing-intro">Sprich bei jedem Patienten einen vollständigen Bericht für bessere digitale Rettungshilfen.</p>
 
       <div class="briefing-steps">
         <article class="briefing-step">
@@ -84,21 +80,21 @@
         </article>
         <article class="briefing-step focus-step">
           <div class="step-number">02</div>
-          <h2>Fünf Sprachschritte</h2>
-          <p>Bestätige die Leitstelle, frage nach, melde Befund und Maßnahme und funke die Übergabe.</p>
+          <h2>Ein Sprachbericht</h2>
+          <p>Öffne die Karte und sprich den angezeigten medizinischen Bericht genau einmal.</p>
         </article>
         <article class="briefing-step">
           <div class="step-number">03</div>
-          <h2>20 Beiträge pro Schicht</h2>
-          <p>Qualität, Vielfalt und neue Formulierungen bringen Beitrags­punkte und schalten Karten frei.</p>
+          <h2>19 Beiträge für die Forschung</h2>
+          <p>Fünf Level liefern bis zu 19 Sprachberichte. Die Genauigkeit jedes Berichts wird bewertet und hilft, Rettungskräfte besser zu unterstützen.</p>
         </article>
       </div>
 
       <div class="training-consent">
         <div class="consent-copy">
           <span class="consent-label">DATENZUSTIMMUNG</span>
-          <span>Ich stimme zu, dass meine Daten für das Training von KI verwendet werden dürfen.</span>
-          <span>Die aufgenommenen Sprachdaten werden für ein Sprachmodell verwendet, das Rettungskräfte in Krisensituationen unterstützt.</span>
+          <span>Ich stimme zu, dass meine Sprachdaten zur Entwicklung von KI verwendet werden dürfen, die Rettungskräfte unterstützt und Menschenleben schützen kann.</span>
+          <span>Die aufgenommenen Sprachdaten helfen dabei, digitale Rettungshilfen für Krisensituationen zu verbessern.</span>
           <span>Gespeichert werden Audioaufnahme, Aufgabe, Transkript, Qualitätswerte und Modellinformationen für höchstens 24 Monate. IP-Adressen werden nicht Teil des Trainingsdatensatzes.</span>
           <label class="age-confirm"><input id="age-confirm" type="checkbox" /> Ich bestätige, dass ich mindestens 16 Jahre alt bin.</label>
           <span id="consent-error" class="identity-error hidden" role="alert">Die Teilnahme ist erst ab 16 Jahren möglich.</span>
@@ -106,19 +102,6 @@
         </div>
         <button id="btn-consent" class="btn small consent-btn" type="button">Ich stimme zu &amp; weiter</button>
       </div>
-    </div>
-  </div>
-
-  <div id="calibration-screen" class="fullscreen hidden" role="dialog" aria-modal="true" aria-labelledby="calibration-title">
-    <div class="briefing-box calibration-box">
-      <span class="consent-label">MIKROFON-KALIBRIERUNG</span>
-      <h1 id="calibration-title" class="briefing-title">Drei kurze Testaufnahmen</h1>
-      <p>Sprich den Satz deutlich. Nach der unmittelbaren Qualitätsprüfung folgt automatisch der nächste.</p>
-      <div id="calibration-progress" class="voice-step-progress">Schritt 1/3</div>
-      <div id="calibration-prompt" class="report-script"></div>
-      <button id="calibration-record" class="btn big voice-record" type="button" aria-pressed="false">🎤 Aufnahme starten</button>
-      <p id="calibration-status" class="settings-note" aria-live="polite">Bereit für die erste Aufnahme.</p>
-      <code id="recovery-code" class="recovery-code hidden"></code>
     </div>
   </div>
 
@@ -138,16 +121,18 @@
 
   <div id="end-screen" class="fullscreen hidden">
     <div class="start-box">
-      <h1 id="end-title" class="game-title" style="font-size:2.4rem;">EINSATZ ABGESCHLOSSEN</h1>
+      <h1 id="end-title" class="game-title" style="font-size:2.4rem;">DATENSAMMLUNG ABGESCHLOSSEN</h1>
       <p id="end-rank" class="subtitle">—</p>
       <div id="end-stats"></div>
       <div id="end-medals" class="medals" aria-label="Auszeichnungen"></div>
       <div id="end-best" class="personal-best"></div>
       <div class="identity-row">
-        <label for="crew-name">Schicht</label>
-        <input id="crew-name" type="text" maxlength="28" autocomplete="off" placeholder="Deine Schicht" />
-        <label for="crew-station">Wache</label>
-        <input id="crew-station" type="text" maxlength="28" autocomplete="off" placeholder="Wache / Team" />
+        <label for="crew-name">Spielername</label>
+        <input id="crew-name" type="text" maxlength="28" autocomplete="off" placeholder="Optionaler Spielername" />
+        <span id="end-team-field" class="identity-inline-field hidden" aria-hidden="true">
+          <label for="crew-station">Team</label>
+          <input id="crew-station" type="text" maxlength="28" autocomplete="off" placeholder="Optionales Team" disabled />
+        </span>
         <button id="btn-save-name" class="btn small" type="button">Eintragen</button>
       </div>
       <div class="lb-tabs" role="tablist" aria-label="Bestenlisten">
@@ -196,7 +181,7 @@
       <div id="mission-timer">00:00</div>
       <div>Punkte <span id="score-value">0</span></div>
       <div>Genauigkeit <span id="accuracy-value">—</span></div>
-      <div>Sprachschritte <span id="voice-clips-value">0/20</span></div>
+      <div>Audioaufnahmen <span id="voice-clips-value">0/19</span></div>
       <div>Training-ready <span id="training-ready-value">0</span></div>
       <div id="hidden-hint" class="hidden"></div>
       <div id="proximity-meter" class="hidden" aria-hidden="true"><i id="proximity-fill"></i></div>
@@ -241,7 +226,7 @@
             <div id="chart-actions" class="chart-actions"></div>
           </div>
           <div class="chart-col chart-report">
-            <div class="voice-stage-head"><span id="voice-stage-label">SPRACHAUFGABE</span><b id="voice-stage-progress">1/5</b></div>
+            <div class="voice-stage-head"><span id="voice-stage-label">BERICHT SPRECHEN</span><b id="voice-stage-progress">1/1</b></div>
             <div id="chart-hint" class="report-script" aria-live="polite"></div>
             <button id="chart-record" class="btn big voice-record" type="button" aria-pressed="false">🎤 Aufnahme starten</button>
             <div id="transcript-area" class="transcript hidden" aria-live="polite"></div>
@@ -307,8 +292,10 @@
           <div class="identity-row settings-identity">
             <label for="set-player-name">Spielername</label>
             <input id="set-player-name" type="text" maxlength="28" autocomplete="off" placeholder="Dein Name" />
-            <label for="set-player-crew">Wache</label>
-            <input id="set-player-crew" type="text" maxlength="28" autocomplete="off" placeholder="Wache / Team" />
+            <span id="settings-team-field" class="identity-inline-field hidden" aria-hidden="true">
+              <label for="set-player-crew">Team</label>
+              <input id="set-player-crew" type="text" maxlength="28" autocomplete="off" placeholder="Optionales Team" disabled />
+            </span>
             <button id="set-save-name" class="btn small" type="button">Speichern</button>
           </div>
           <div class="lb-tabs settings-lb-tabs" role="tablist" aria-label="Bestenlisten">
@@ -359,6 +346,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js"></script>
-  <script type="module" src="./js/main.js?v=20260823-u1"></script>
+  <script type="module" src="./js/main.js?v=20260823-glass1"></script>
 </body>
 </html>

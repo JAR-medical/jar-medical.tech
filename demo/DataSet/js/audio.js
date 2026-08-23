@@ -19,6 +19,7 @@
 const MUSIC_BASE = 0.085;
 const AMBIENCE_BASE = 0.1;
 const SFX_BASE = 0.55;
+const MUSIC_REVERB_SEND = 0.35;
 const STORAGE_KEY = "medicraft.audio";
 
 const SCHEDULE_INTERVAL_MS = 180;
@@ -195,6 +196,16 @@ export class GameAudio {
       this.reverb.connect(this.reverbGain);
       this.reverbGain.connect(this.master);
 
+      // Reverb must stay behind the same buses as the dry signal. Directly
+      // sending music or effects to the shared reverb would bypass their
+      // volume controls and keep tails audible while recording.
+      this.musicReverbGain = ctx.createGain();
+      this.musicReverbGain.gain.value = 0;
+      this.musicReverbGain.connect(this.reverb);
+      this.sfxReverbGain = ctx.createGain();
+      this.sfxReverbGain.gain.value = this.sfxVolume;
+      this.sfxReverbGain.connect(this.reverb);
+
       this.musicGain = ctx.createGain();
       this.musicGain.gain.value = 0;
       this.musicGain.connect(this.master);
@@ -262,13 +273,17 @@ export class GameAudio {
   setMusicVolume(value) {
     this.musicVolume = clamp01(value);
     this._persist();
-    this._applyMusicLevel();
+    this._applyMusicLevel(true);
   }
 
   setSfxVolume(value) {
     this.sfxVolume = clamp01(value);
     this._persist();
-    if (this.ready) this.sfxGain.gain.setTargetAtTime(SFX_BASE * this.sfxVolume, this.ctx.currentTime, 0.05);
+    if (this.ready) {
+      const now = this.ctx.currentTime;
+      this.sfxGain.gain.setTargetAtTime(SFX_BASE * this.sfxVolume, now, 0.05);
+      this.sfxReverbGain?.gain.setTargetAtTime(this.sfxVolume, now, 0.05);
+    }
   }
 
   _persist() {
@@ -279,10 +294,16 @@ export class GameAudio {
   // independent reasons to pull the bed down, and releasing one must not undo
   // the other.
   duck(reason, active) {
+    const wasVoiceLocked = this._voiceLock;
     if (active) this._ducks.add(reason);
     else this._ducks.delete(reason);
     if (reason === "recording") this._voiceLock = Boolean(active);
-    this._applyMusicLevel();
+    if (reason === "recording" && !active && wasVoiceLocked && this.ready) {
+      // Do not replay every beat that accumulated while the microphone was
+      // live; restart the bed just ahead of the next fresh beat.
+      this._nextBeat = this.ctx.currentTime + 0.25;
+    }
+    this._applyMusicLevel(reason === "recording");
   }
 
   isDucked(reason) {
@@ -300,17 +321,20 @@ export class GameAudio {
     return factor;
   }
 
-  _applyMusicLevel() {
+  _applyMusicLevel(immediate = false) {
     if (!this.ready) return;
     const now = this.ctx.currentTime;
     const factor = this._duckFactor();
     const music = this._mood ? MUSIC_BASE * this.musicVolume * factor : 0;
     const ambience = this._ambience ? AMBIENCE_BASE * this.musicVolume * factor : 0;
+    const musicReverb = music * MUSIC_REVERB_SEND;
     // Fading out has to be quick enough that the first spoken word is already
     // clean; fading back in is slow so it never announces itself.
-    const attack = factor === 0 ? 0.05 : 0.9;
+    const attack = immediate || factor === 0 ? 0.01 : 0.9;
     this.musicGain.gain.cancelScheduledValues(now);
     this.musicGain.gain.setTargetAtTime(music, now, attack);
+    this.musicReverbGain?.gain.cancelScheduledValues(now);
+    this.musicReverbGain?.gain.setTargetAtTime(musicReverb, now, attack);
     this.ambienceGain.gain.cancelScheduledValues(now);
     this.ambienceGain.gain.setTargetAtTime(ambience, now, attack);
   }
@@ -339,12 +363,13 @@ export class GameAudio {
       clearInterval(this._scheduler);
       this._scheduler = null;
     }
-    this._applyMusicLevel();
+    this._applyMusicLevel(true);
   }
 
   _scheduleMusic() {
     const mood = this._mood;
     if (!mood || !this.ready) return;
+    if (this._voiceLock || this._ducks.has("hidden-tab") || this.musicVolume <= 0) return;
     if (this.ctx.state === "suspended") return;
     const horizon = this.ctx.currentTime + SCHEDULE_LOOKAHEAD;
     let guard = 0;
@@ -388,7 +413,7 @@ export class GameAudio {
 
     bus.connect(filter);
     filter.connect(this.musicGain);
-    filter.connect(this.reverb);
+    filter.connect(this.musicReverbGain);
 
     const stops = [];
     for (const semitone of chord) {
@@ -433,7 +458,7 @@ export class GameAudio {
     gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
     osc.connect(gain);
     gain.connect(this.musicGain);
-    gain.connect(this.reverb);
+    gain.connect(this.musicReverbGain);
     osc.start(when);
     osc.stop(when + duration + 0.05);
     osc.onended = () => gain.disconnect();
@@ -573,7 +598,7 @@ export class GameAudio {
       const send = ctx.createGain();
       send.gain.value = reverb;
       amp.connect(send);
-      send.connect(this.reverb);
+      send.connect(this.sfxReverbGain);
     }
     osc.start(when);
     osc.stop(when + dur + 0.02);

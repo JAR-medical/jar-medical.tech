@@ -32,7 +32,7 @@ export class UI {
     this.handlers = {};
     this._vDown = false;
     this._recording = false;
-    this._calibrationRecording = false;
+    this._voiceSubmissionPending = false;
     this._sttState = "idle";
     this._playerNameTouched = false;
     this._audioCtx = null;
@@ -86,12 +86,6 @@ export class UI {
       btnConsent: $("btn-consent"),
       ageConfirm: $("age-confirm"),
       consentError: $("consent-error"),
-      calibrationScreen: $("calibration-screen"),
-      calibrationProgress: $("calibration-progress"),
-      calibrationPrompt: $("calibration-prompt"),
-      calibrationRecord: $("calibration-record"),
-      calibrationStatus: $("calibration-status"),
-      recoveryCode: $("recovery-code"),
       sttBadge: $("stt-badge"),
       endScreen: $("end-screen"),
       endTitle: $("end-title"),
@@ -167,10 +161,12 @@ export class UI {
       endBest: $("end-best"),
       crewName: $("crew-name"),
       crewStation: $("crew-station"),
+      endTeamField: $("end-team-field"),
       btnSaveName: $("btn-save-name"),
       lbTabs: Array.from(document.querySelectorAll("#end-screen .lb-tab")),
       playerName: $("player-name"),
       playerCrew: $("player-crew"),
+      playerCrewField: $("player-crew-field"),
       playerNameError: $("player-name-error"),
       playerNameCount: $("player-name-count"),
       playerCrewCount: $("player-crew-count"),
@@ -178,9 +174,6 @@ export class UI {
       identityPreviewName: $("identity-preview-name"),
       identityPreviewCrew: $("identity-preview-crew"),
       identityState: $("identity-state"),
-      playModes: Array.from(document.querySelectorAll('input[name="play-mode"]')),
-      storyMode: $("story-mode"),
-      storyModeOption: $("story-mode-option"),
       settingsToggle: $("settings-toggle"),
       settingsPanel: $("settings-panel"),
       settingsClose: $("settings-close"),
@@ -195,6 +188,7 @@ export class UI {
       settingsLevels: $("settings-levels"),
       setPlayerName: $("set-player-name"),
       setPlayerCrew: $("set-player-crew"),
+      settingsTeamField: $("settings-team-field"),
       setSaveName: $("set-save-name"),
       settingsLbTabs: Array.from(document.querySelectorAll("#settings-panel .lb-tab")),
       settingsLeaderboard: $("settings-leaderboard"),
@@ -270,9 +264,9 @@ export class UI {
   _hideMenus() {
     const activeElement = document.activeElement;
     if (["INPUT", "TEXTAREA"].includes(activeElement?.tagName)) activeElement.blur();
+    this.setConsentBusy(false);
     this.el.startScreen.classList.add("hidden");
     this.el.briefingScreen.classList.add("hidden");
-    this.el.calibrationScreen?.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.hideLevelComplete();
   }
@@ -287,13 +281,11 @@ export class UI {
     this.handlers = h;
     this.prefillPlayerName();
     this.el.btnStart.addEventListener("click", () => {
-      // No run starts nameless: the board other people read is the whole point
-      // of asking, and "Deine Schicht" on it is worth nothing to them.
-      const identity = this._commitPlayerName();
-      if (!identity) return;
+      // A public name is optional. Anonymous runs are shown as "Anonym" on the
+      // board, so opting out of the name never blocks data collection.
+      this._commitPlayerName();
       this._hideMenus();
-      const mode = this.el.playModes.find((input) => input.checked)?.value || "shift";
-      h.onStart({ mode });
+      h.onStart();
     });
     this.el.playerName?.addEventListener("input", () => {
       this._playerNameTouched = true;
@@ -304,7 +296,7 @@ export class UI {
       if (event.key !== "Enter") return;
       event.preventDefault();
       if (!(this.el.playerName.value || "").trim()) {
-        this._commitPlayerName();
+        this.el.btnStart.click();
         return;
       }
       this.el.playerCrew?.focus({ preventScroll: true });
@@ -316,13 +308,34 @@ export class UI {
     });
     this.el.btnConsent.addEventListener("click", () => {
       if (!this.el.ageConfirm?.checked) {
+        if (this.el.consentError) this.el.consentError.textContent = "Die Teilnahme ist erst ab 16 Jahren möglich.";
         this.el.consentError?.classList.remove("hidden");
         this.el.ageConfirm?.focus({ preventScroll: true });
         return;
       }
       this.el.consentError?.classList.add("hidden");
-      this.el.briefingScreen.classList.add("hidden");
-      h.onConsentAccepted();
+      this.setConsentBusy(true);
+      // Give immediate visual feedback while the consent/session request and
+      // microphone preparation are in flight. The main controller restores the
+      // briefing if the backend rejects the request.
+      try {
+        const pending = h.onConsentAccepted();
+        pending?.catch?.((error) => {
+          this.setConsentBusy(false);
+          if (this.el.consentError) {
+            this.el.consentError.textContent = String(error?.message || "Die Sitzung konnte nicht gestartet werden.");
+            this.el.consentError.classList.remove("hidden");
+          }
+          this.showBriefing();
+        });
+      } catch (error) {
+        this.setConsentBusy(false);
+        if (this.el.consentError) {
+          this.el.consentError.textContent = String(error?.message || "Die Sitzung konnte nicht gestartet werden.");
+          this.el.consentError.classList.remove("hidden");
+        }
+        this.showBriefing();
+      }
     });
     this.el.ageConfirm?.addEventListener("change", () => this.el.consentError?.classList.add("hidden"));
     this.el.btnRestart.addEventListener("click", () => {
@@ -358,11 +371,6 @@ export class UI {
       if (this._recording) this._requestRecordStop();
       else this._requestRecordStart();
     });
-    this.el.calibrationRecord?.addEventListener("click", () => {
-      this._calibrationRecording = !this._calibrationRecording;
-      this.setCalibrationRecording(this._calibrationRecording, false);
-      emit(this._calibrationRecording ? "ui:calibration-record-start" : "ui:calibration-record-stop", {});
-    });
     this.el.btnSaveName?.addEventListener("click", () => this._commitIdentity());
     for (const field of [this.el.crewName, this.el.crewStation]) {
       field?.addEventListener("keydown", (event) => {
@@ -371,6 +379,7 @@ export class UI {
         this._commitIdentity();
       });
     }
+    this.el.crewName?.addEventListener("input", () => this._syncIdentityTeamVisibility(this.el.crewName.value));
     for (const tab of this.el.lbTabs) {
       tab.addEventListener("click", () => {
         this.audio?.play("ui-click");
@@ -430,7 +439,8 @@ export class UI {
     if (this.el.crewName) this.el.crewName.value = identity.name;
     if (this.el.crewStation) this.el.crewStation.value = identity.crew;
     if (this.el.playerName) this.el.playerName.value = identity.name;
-    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew || "";
+    this._syncIdentityTeamVisibility(identity.name);
     this.syncSettingsIdentity(identity);
     this.updateStartIdentity({ saved: true });
     this._lbIdentity = identity;
@@ -444,24 +454,46 @@ export class UI {
   // Player name (start screen)
   // ---------------------------------------------------------------------
 
+  _syncIdentityTeamVisibility(name) {
+    const visible = Boolean(String(name || "").trim());
+    const fields = [
+      [this.el.playerCrewField, this.el.playerCrew],
+      [this.el.endTeamField, this.el.crewStation],
+      [this.el.settingsTeamField, this.el.setPlayerCrew],
+    ];
+    for (const [field, input] of fields) {
+      field?.classList.toggle("hidden", !visible);
+      field?.setAttribute("aria-hidden", String(!visible));
+      if (input) input.disabled = !visible;
+    }
+    return visible;
+  }
+
   prefillPlayerName() {
     const stored = hasStoredIdentity() ? loadIdentity() : null;
     if (this.el.playerName) this.el.playerName.value = stored?.name || "";
-    if (this.el.playerCrew) this.el.playerCrew.value = stored?.crew && stored.crew !== "J.A.R. Medical Demo" ? stored.crew : "";
+    if (this.el.playerCrew) this.el.playerCrew.value = stored?.crew || "";
+    this.syncSettingsIdentity(stored || { name: "", crew: "" });
     this._playerNameTouched = false;
     this.updateStartIdentity();
   }
 
   updateStartIdentity({ saved = false } = {}) {
     const name = (this.el.playerName?.value || "").trim();
-    const crew = (this.el.playerCrew?.value || "").trim();
+    let crew = (this.el.playerCrew?.value || "").trim();
+    if (!name && crew) {
+      crew = "";
+      if (this.el.playerCrew) this.el.playerCrew.value = "";
+    }
     const stored = hasStoredIdentity() ? loadIdentity() : null;
-    const storedCrew = stored?.crew === "J.A.R. Medical Demo" ? "" : (stored?.crew || "").trim();
+    const storedCrew = (stored?.crew || "").trim();
     const unchanged = Boolean(name) && stored?.name === name && storedCrew === crew;
-    const invalid = this._playerNameTouched && !name;
+    const hasName = Boolean(name);
+    const invalid = false;
 
     if (this.el.playerNameCount) this.el.playerNameCount.textContent = `${this.el.playerName?.value.length || 0} / 28`;
     if (this.el.playerCrewCount) this.el.playerCrewCount.textContent = `${this.el.playerCrew?.value.length || 0} / 28`;
+    this._syncIdentityTeamVisibility(name);
     if (this.el.identityAvatar) {
       const initials = name
         .split(/\s+/)
@@ -471,34 +503,29 @@ export class UI {
         .join("")
         .toLocaleUpperCase("de-DE");
       this.el.identityAvatar.textContent = initials || "?";
-      this.el.identityAvatar.classList.toggle("ready", Boolean(name));
+      this.el.identityAvatar.classList.toggle("ready", hasName);
     }
-    if (this.el.identityPreviewName) this.el.identityPreviewName.textContent = name || "Spielername wählen";
-    if (this.el.identityPreviewCrew) this.el.identityPreviewCrew.textContent = crew || "Wache oder Team optional";
+    if (this.el.identityPreviewName) this.el.identityPreviewName.textContent = name || "Anonym teilnehmen";
+    if (this.el.identityPreviewCrew) {
+      this.el.identityPreviewCrew.textContent = hasName ? (crew || "Team optional") : "Team wird nach dem Namen eingeblendet";
+    }
     if (this.el.identityState) {
-      const state = saved || unchanged ? "saved" : name ? "ready" : "missing";
+      const state = !hasName ? "anonymous" : saved || unchanged ? "saved" : "ready";
       this.el.identityState.className = `identity-state ${state}`;
-      this.el.identityState.textContent = state === "saved" ? "GESPEICHERT" : state === "ready" ? "BEREIT" : "NAME FEHLT";
+      this.el.identityState.textContent = state === "saved" ? "GESPEICHERT" : state === "ready" ? "BEREIT" : "OPTIONAL";
     }
     this.el.playerName?.classList.toggle("invalid", invalid);
     this.el.playerName?.setAttribute("aria-invalid", String(invalid));
-    this.el.playerNameError?.classList.toggle("hidden", !invalid);
+    this.el.playerNameError?.classList.add("hidden");
   }
 
-  // Returns the saved identity, or null when the field is still empty — in
-  // which case the field itself says why nothing happened.
+  // Save the optional public identity. An empty name deliberately remains a
+  // valid choice and is published as "Anonym" when the run is submitted.
   _commitPlayerName() {
     const raw = (this.el.playerName?.value || "").trim();
-    if (!raw) {
-      this._playerNameTouched = true;
-      this.updateStartIdentity();
-      this.el.playerName?.focus({ preventScroll: true });
-      this.audio?.play("warn");
-      return null;
-    }
-    const identity = saveIdentity({ name: raw, crew: this.el.playerCrew?.value });
+    const identity = saveIdentity({ name: raw, crew: raw ? this.el.playerCrew?.value : "" });
     if (this.el.playerName) this.el.playerName.value = identity.name;
-    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew || "";
     this._lbIdentity = identity;
     this.prefillIdentity(identity);
     this.syncSettingsIdentity(identity);
@@ -510,6 +537,7 @@ export class UI {
   syncSettingsIdentity(identity = loadIdentity()) {
     if (this.el.setPlayerName) this.el.setPlayerName.value = identity?.name || "";
     if (this.el.setPlayerCrew) this.el.setPlayerCrew.value = identity?.crew || "";
+    this._syncIdentityTeamVisibility(identity?.name);
   }
 
   // ---------------------------------------------------------------------
@@ -556,6 +584,7 @@ export class UI {
         this._commitSettingsIdentity();
       });
     }
+    this.el.setPlayerName?.addEventListener("input", () => this._syncIdentityTeamVisibility(this.el.setPlayerName.value));
     for (const tab of this.el.settingsLbTabs) {
       tab.addEventListener("click", () => {
         this.audio?.play("ui-click");
@@ -646,11 +675,11 @@ export class UI {
     this.syncSettingsIdentity(identity);
     this.prefillIdentity(identity);
     if (this.el.playerName) this.el.playerName.value = identity.name;
-    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew === "J.A.R. Medical Demo" ? "" : identity.crew;
+    if (this.el.playerCrew) this.el.playerCrew.value = identity.crew || "";
     this._lbIdentity = identity;
     this.updateStartIdentity({ saved: true });
     this.audio?.play("ui-confirm");
-    this.toast(`Name gespeichert: ${identity.name}`, "good");
+    this.toast(identity.name ? `Spielername gespeichert: ${identity.name}` : "Spielerprofil anonym gespeichert", "good");
     this.renderSettingsBoard();
     this.renderLeaderboard(this._lbSummary);
     this.handlers.onIdentityChanged?.(identity);
@@ -731,8 +760,8 @@ export class UI {
         ["Training-ready", data.training_ready_clips || 0],
         ["In Prüfung", data.review_required_clips || 0],
         ["Beitragspunkte", data.contribution_units || 0],
-        ["Schichten", data.completed_shifts || 0],
-        ["Rang", data.rank || "Einsatzhelfer"],
+        ["Durchläufe", data.completed_shifts || 0],
+        ["Rang", data.rank || "Datenhelfer"],
       ];
       this.el.contributionSummary.innerHTML = tiles
         .map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`)
@@ -742,9 +771,6 @@ export class UI {
       this.el.contributionRecovery.textContent = `Löschcode: ${recoveryCode}`;
       this.el.contributionRecovery.classList.remove("hidden");
     }
-    const unlocked = Boolean(data.unlocks?.story_campaign);
-    if (this.el.storyMode) this.el.storyMode.disabled = !unlocked;
-    this.el.storyModeOption?.classList.toggle("locked", !unlocked);
   }
 
   renderSettingsBoard() {
@@ -752,7 +778,7 @@ export class UI {
     if (!host) return;
     const summary = this._settingsSnapshot?.summary || this._lbSummary;
     if (!summary) {
-      host.innerHTML = `<p class="lb-note">Die Bestenliste zeigt deinen Lauf, sobald der erste Einsatz läuft.</p>`;
+      host.innerHTML = `<p class="lb-note">Die Bestenliste zeigt deinen Beitrag, sobald die erste Datensammlung läuft.</p>`;
       return;
     }
     this.renderLeaderboard(summary, {
@@ -825,11 +851,13 @@ export class UI {
   }
 
   _requestRecordStart() {
-    if (!this._chartOpen || this._recording) return;
+    if (!this._chartOpen || this._recording || this.el.chartRecord?.disabled) return;
     this._recording = true;
     this.setRecordingUI(true, false);
-    // The cue plays before the duck, so the player hears "go" and then silence.
+    // The cue plays before the microphone opens; the music is already silent
+    // by the time the controller asks getUserMedia for the input stream.
     this.audio?.play("record-start");
+    this.audio?.duck("recording", true);
     emit("ui:record-start", {});
   }
 
@@ -837,8 +865,10 @@ export class UI {
     if (!this._recording) return;
     this._recording = false;
     this.setRecordingUI(false, true);
-    this.audio?.play("record-stop");
     emit("ui:record-stop", {});
+    // stopRecording tears the stream down synchronously before its upload
+    // promise is returned, so the cue is audible but never recorded.
+    this.audio?.play("record-stop");
   }
 
   _bindTouchControls() {
@@ -980,7 +1010,6 @@ export class UI {
   showStart(sttReady = null) {
     this.el.startScreen.classList.remove("hidden");
     this.el.briefingScreen.classList.add("hidden");
-    this.el.calibrationScreen?.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.hud.classList.add("hidden");
     this.prefillPlayerName();
@@ -988,50 +1017,20 @@ export class UI {
   }
 
   showBriefing() {
+    this.setConsentBusy(false);
     this.el.startScreen.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.briefingScreen.classList.remove("hidden");
-    this.el.calibrationScreen?.classList.add("hidden");
     this.el.btnConsent.focus({ preventScroll: true });
   }
 
-  showCalibration(prompt, { index = 0, count = 3, recoveryCode = null } = {}) {
-    this.el.startScreen.classList.add("hidden");
-    this.el.briefingScreen.classList.add("hidden");
-    this.el.endScreen.classList.add("hidden");
-    this.el.calibrationScreen?.classList.remove("hidden");
-    if (recoveryCode && this.el.recoveryCode) {
-      this.el.recoveryCode.textContent = `Löschcode: ${recoveryCode}`;
-      this.el.recoveryCode.classList.remove("hidden");
-    }
-    this.setCalibrationPrompt(prompt, index, count);
-  }
-
-  setCalibrationPrompt(prompt, index = 0, count = 3) {
-    if (this.el.calibrationProgress) this.el.calibrationProgress.textContent = `Schritt ${index + 1}/${count}`;
-    if (this.el.calibrationPrompt) {
-      this.el.calibrationPrompt.innerHTML = `<span class="script-label">SPRICH DAS</span><span class="script-copy">${escapeHtml(prompt?.text || "")}</span>`;
-    }
-    if (this.el.calibrationStatus) this.el.calibrationStatus.textContent = "Bereit für die Aufnahme.";
-    this._calibrationRecording = false;
-    this.setCalibrationRecording(false, false);
-  }
-
-  setCalibrationRecording(recording, busy = false) {
-    const button = this.el.calibrationRecord;
+  setConsentBusy(busy) {
+    const button = this.el.btnConsent;
     if (!button) return;
-    button.disabled = Boolean(busy);
-    button.classList.toggle("recording", Boolean(recording));
-    button.setAttribute("aria-pressed", String(Boolean(recording)));
-    button.textContent = busy ? "⏳ Qualitätsprüfung …" : recording ? "■ Aufnahme beenden" : "🎤 Aufnahme starten";
-    if (this.el.calibrationStatus) {
-      this.el.calibrationStatus.textContent = busy ? "Aufnahme wird gespeichert und geprüft …" : recording ? "Sprich jetzt deutlich." : "Bereit für die Aufnahme.";
-    }
-  }
-
-  hideCalibration() {
-    this.el.calibrationScreen?.classList.add("hidden");
-    this._calibrationRecording = false;
+    const waiting = Boolean(busy);
+    button.disabled = waiting;
+    button.setAttribute("aria-busy", String(waiting));
+    button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Ich stimme zu & weiter";
   }
 
   _setBadge(sttReady) {
@@ -1058,29 +1057,33 @@ export class UI {
     if (state === "recording") {
       this._recording = true;
       this.setRecordingUI(true, false);
-      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(true, false);
     } else if (state === "transcribing") {
       this._recording = false;
       this.setRecordingUI(false, true);
-      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(false, true);
     } else if (state === "idle" || state === "ready" || state === "error" || state === "unavailable") {
       this._recording = false;
       this.setRecordingUI(false, false);
-      if (!this.el.calibrationScreen?.classList.contains("hidden")) this.setCalibrationRecording(false, false);
     }
   }
 
   setRecordingUI(isRecording, busy = false) {
     const button = this.el.chartRecord;
     if (!button) return;
-    button.disabled = Boolean(busy);
+    button.disabled = Boolean(busy || this._voiceSubmissionPending);
     button.classList.toggle("recording", Boolean(isRecording));
     button.setAttribute("aria-pressed", String(Boolean(isRecording)));
     button.textContent = busy
       ? "⏳ Text wird verarbeitet …"
+      : this._voiceSubmissionPending
+        ? "✔ Aufnahme gespeichert"
       : isRecording
         ? "■ Aufnahme stoppen"
         : "🎤 Aufnahme starten";
+  }
+
+  setVoiceSubmissionPending(pending) {
+    this._voiceSubmissionPending = Boolean(pending);
+    this.setRecordingUI(this._recording, false);
   }
 
   // Toasts used to replace each other, so a rescue message could be erased by
@@ -1348,6 +1351,7 @@ export class UI {
     }
     this.transcriptPlaceholder();
     this._recording = false;
+    this._voiceSubmissionPending = Boolean(view.contributionMode && view.acceptedVoiceClips > 0 && !view.resolved);
     this.setRecordingUI(false, this._sttState === "transcribing");
     this.clearVoiceOutput();
     this.clearVerdict();
@@ -1360,18 +1364,21 @@ export class UI {
     if (this.el.voiceStageLabel) this.el.voiceStageLabel.textContent = String(prompt.label || "Sprachaufgabe").toUpperCase();
     if (this.el.voiceStageProgress) this.el.voiceStageProgress.textContent = `${prompt.stageNumber || 1}/${prompt.stageCount || 1}`;
     if (this.el.chartHint) {
-      const instruction = prompt.taskType === "spontaneous_handoff" ? "IN EIGENEN WORTEN" : "SPRICH DAS";
-      this.el.chartHint.innerHTML = `<span class="script-label">${instruction}</span><span class="script-copy">${escapeHtml(prompt.text || "")}</span>`;
+      this.el.chartHint.innerHTML = `<span class="script-label">SPRICH DEN BERICHT VOR</span><span class="script-copy">${escapeHtml(prompt.text || "")}</span>`;
     }
     this.clearVerdict();
     this.transcriptPlaceholder();
   }
 
-  showVoiceAccepted({ stage = 1, total = 5, completed = false } = {}) {
+  showVoiceAccepted({ uploaded = false, completed = false } = {}) {
     this.clearVerdict();
     const line = document.createElement("div");
     line.className = "feedback-line good";
-    line.textContent = completed ? "PATIENTENDIALOG ABGESCHLOSSEN ✔" : `SPRACHSCHRITT ${stage}/${total} GESPEICHERT ✔`;
+    line.textContent = uploaded
+      ? "AUFNAHME GESPEICHERT — GENAUIGKEIT WIRD BERECHNET"
+      : completed
+        ? "BERICHT ABGESCHLOSSEN ✔"
+        : "AUFNAHME GESPEICHERT ✔";
     this.el.verdictBox.appendChild(line);
   }
 
@@ -1517,7 +1524,7 @@ export class UI {
       `<div>Gerettet: <b>${summary.saved}/${summary.total}</b></div>` +
       `<div>Punkte: <b>${summary.score}</b></div>` +
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
-      `<div>Gespeicherte Sprachschritte: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
+      `<div>Gespeicherte Audioaufnahmen: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
       `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>` +
       `<div class="end-levels">${levelRows}</div>`;
 
@@ -1536,7 +1543,7 @@ export class UI {
     this._lbStatus = extras.remoteStatus || "";
     this.setLeaderboardScope(this._lbData.global ? "global" : "local", { silent: true });
 
-    this.el.btnRestart.textContent = summary.playMode === "shift" ? "↻ Nächste Kurzschicht" : "↻ Neuer Durchlauf ab Level 1";
+    this.el.btnRestart.textContent = "↻ Neue 5-Level-Datensammlung";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
     this.setCombo({ streak: 0 });
@@ -1556,9 +1563,9 @@ export class UI {
       medals.push({ cls: "gold", icon: "🎖", label: "Kampagne abgeschlossen" });
     }
     if (summary.accuracySamples > 0 && summary.accuracy >= 90) {
-      medals.push({ cls: "green", icon: "🎙", label: "Funkdisziplin", detail: `${summary.accuracy}% Genauigkeit` });
+      medals.push({ cls: "green", icon: "🎙", label: "Berichtsgenauigkeit", detail: `${summary.accuracy}% Genauigkeit` });
     } else if (summary.accuracySamples > 0 && summary.accuracy >= 75) {
-      medals.push({ cls: "green", icon: "🎙", label: "Klare Übergabe", detail: `${summary.accuracy}%` });
+      medals.push({ cls: "green", icon: "🎙", label: "Klarer Bericht", detail: `${summary.accuracy}%` });
     }
     if (extras.hiddenTotal > 0 && extras.hiddenFound >= extras.hiddenTotal) {
       medals.push({ cls: "blue", icon: "🔎", label: "Alle Versteckten gefunden", detail: `${extras.hiddenFound}/${extras.hiddenTotal}` });
@@ -1567,7 +1574,7 @@ export class UI {
     }
     if (extras.bestStreak >= 5) medals.push({ cls: "green", icon: "🔥", label: "Serie", detail: `${extras.bestStreak} in Folge` });
     if (savedAll && summary.elapsed > 0 && summary.elapsed < 900) {
-      medals.push({ cls: "gold", icon: "⚡", label: "Schnelle Schicht", detail: mmss(summary.elapsed) });
+      medals.push({ cls: "gold", icon: "⚡", label: "Schneller Durchlauf", detail: mmss(summary.elapsed) });
     }
     if (extras.personalBest?.beatenScore) medals.push({ cls: "gold", icon: "📈", label: "Neuer Punkterekord" });
 
@@ -1597,6 +1604,7 @@ export class UI {
   prefillIdentity(identity = loadIdentity()) {
     if (this.el.crewName) this.el.crewName.value = identity?.name || "";
     if (this.el.crewStation) this.el.crewStation.value = identity?.crew || "";
+    this._syncIdentityTeamVisibility(identity?.name);
   }
 
   // The scope decides which rows the board is built from; the renderer below
@@ -1650,7 +1658,7 @@ export class UI {
 
     host.innerHTML =
       `<div class="lb-head"><b>${heading}</b><span>Platz ${board.yourRank} von ${board.count}</span></div>` +
-      `<div class="lb-legend"><span class="lb-rank">#</span><span class="lb-name">Schicht</span>` +
+      `<div class="lb-legend"><span class="lb-rank">#</span><span class="lb-name">Spieler</span>` +
       `<span class="lb-saved">Gerettet</span><span class="lb-acc">Genau.</span>` +
       `<span class="lb-time">Zeit</span><span class="lb-score">Punkte</span></div>` +
       `<div class="lb-rows">${rows}</div>` +
@@ -1670,6 +1678,7 @@ export class UI {
   closeChart() {
     this.el.chartPanel.classList.add("hidden");
     this._recording = false;
+    this._voiceSubmissionPending = false;
     this.setRecordingUI(false, false);
     this.clearVoiceOutput();
     if (this.el.fallbackInput === document.activeElement) this.el.fallbackInput.blur();

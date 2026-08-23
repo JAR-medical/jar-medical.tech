@@ -218,33 +218,9 @@ canvas { display: block; image-rendering: pixelated; }
   .consent-btn { align-self: flex-start; }
 }
 
-.play-mode {
-  display: grid;
-  gap: 0.4rem;
-  margin: 0.75rem 0;
-  padding: 0.65rem;
-  border: 1px solid #b8c7ce;
-  background: #eef4f6;
-  color: #2b3a41;
-  font-size: 0.72rem;
-}
-.play-mode label { display: flex; align-items: center; gap: 0.55rem; cursor: pointer; }
-.play-mode label.locked { opacity: 0.52; cursor: not-allowed; }
-.play-mode input { accent-color: #0073aa; }
 .age-confirm { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.35rem; font-weight: 700; }
 .age-confirm input { width: 1.15rem; height: 1.15rem; accent-color: var(--green); }
 
-#calibration-screen { z-index: 72; }
-.calibration-box { width: min(620px, 94vw); }
-.calibration-box .report-script { margin: 1rem 0; }
-.voice-step-progress {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.25rem 0.55rem;
-  border: 2px solid var(--green);
-  color: var(--green);
-  font: 800 0.75rem/1 "Courier New", monospace;
-}
 .recovery-code {
   display: block;
   margin-top: 0.8rem;
@@ -1993,6 +1969,7 @@ body.touch-device .desktop-only { display: none; }
   width: 10rem;
   max-width: 38vw;
 }
+.identity-inline-field { display: inline-flex; align-items: center; gap: 0.4rem; }
 .identity-row input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
 
 .lb-tabs { display: flex; justify-content: center; gap: 0.3rem; margin-bottom: 0.5rem; }
@@ -2025,10 +2002,9 @@ body.touch-device .desktop-only { display: none; }
 /* ---------------------------------------------------------------------------
    Start-screen identity, settings panel.
 
-   The name is asked for once, on the start screen, because a leaderboard row
-   that says "Deine Schicht" is worth nothing to the person reading the board.
-   Everything else lives behind the gear: volumes, the level map with what this
-   run has already done, the boards, and the dev tools.
+   The public name is optional. An unnamed run is shown as anonymous, while a
+   team field appears only after a player name has been entered. Everything
+   else lives behind the gear: volumes, progress, the boards, and dev tools.
    --------------------------------------------------------------------------- */
 
 .start-identity {
@@ -2093,6 +2069,7 @@ body.touch-device .desktop-only { display: none; }
 .identity-state.missing { color: #8a5a20; background: #fff9ec; }
 .identity-state.ready { color: #0073aa; background: #eaf6fb; }
 .identity-state.saved { color: #287346; background: #eff9f2; }
+.identity-state.anonymous { color: #6c7a81; background: #f3f6f7; }
 .identity-fields {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);

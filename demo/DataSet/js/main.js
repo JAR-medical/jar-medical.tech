@@ -1,21 +1,19 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
-import { World } from "./world.js";
+import { World } from "./world.js?v=20260823-glass1";
 import { Player } from "./player.js";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js";
 import { SpeechClient } from "./stt.js";
-import { UI } from "./ui.js?v=20260823-u1";
+import { UI } from "./ui.js?v=20260823-glass1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js";
-import { shortenVoicePrompt } from "./voice_prompts.js";
 import {
   fetchRemoteRuns,
-  hasStoredIdentity,
   loadIdentity,
   runFromSummary,
   saveLocalRun,
@@ -57,13 +55,8 @@ export class App {
     this.lastFrameAt = 0;
     this.runKey = null;
     this._resumeAfterSettings = false;
-    this.playMode = "shift";
-    this.requestedPlayMode = "shift";
-    this.calibrationIndex = 0;
-    this.calibrationPrompt = null;
+    this.playMode = "campaign";
     this.trainingReadyClips = 0;
-    this.voiceRetryCounts = new Map();
-    this.voicePromptOverrides = new Map();
 
     const touchDevice =
       navigator.maxTouchPoints > 0 ||
@@ -229,12 +222,12 @@ export class App {
   }
   wireUi() {
     this.ui.bindMain({
-      onStart: ({ mode } = {}) => this.showBriefing(mode),
+      onStart: () => this.showBriefing(),
       onConsentAccepted: () => this.startMission(),
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
-      onRestart: () => this.showBriefing(this.playMode),
+      onRestart: () => this.showBriefing(),
       onNextLevel: () => this.teleportToNextLevel(),
       onIdentityChanged: (identity) => this.publishRun(identity),
       onSettingsOpen: () => this.settingsSnapshot(),
@@ -313,8 +306,7 @@ export class App {
       if (this.mode !== "chart") return;
       this.audio.duck("recording", true);
       const view = this.game.getView(this.currentPatientId);
-      const basePrompt = view?.voicePrompt;
-      const prompt = basePrompt ? this.voicePromptOverrides.get(basePrompt.promptId) || basePrompt : null;
+      const prompt = view?.voicePrompt;
       let context = {
         expectedText: this.currentReportScript,
         scenarioId: this.game.scenarioId,
@@ -325,35 +317,15 @@ export class App {
         this.contributions.track("record_started", { patient_id: this.currentPatientId, prompt_id: prompt.promptId });
       }
       this.speech.startRecording(context).catch((err) => {
+        const message = String(err?.message || "Aufnahme konnte nicht gestartet werden.");
         this.audio.duck("recording", false);
-        this.ui.toast(String(err?.message || "Aufnahme konnte nicht gestartet werden."), "bad");
+        this.ui.setSttStatus("error", message);
+        this.ui.toast(message, "bad");
       });
     });
 
     on("ui:record-stop", () => {
       if (this.mode !== "chart") return;
-      this.speech.stopRecording().catch(() => {});
-    });
-
-    on("ui:calibration-record-start", () => {
-      if (this.mode !== "calibration" || !this.calibrationPrompt) return;
-      const prompt = {
-        promptId: this.calibrationPrompt.prompt_id,
-        taskType: this.calibrationPrompt.task_type,
-        expectedText: this.calibrationPrompt.text,
-        requiredConcepts: this.calibrationPrompt.required_concepts || [],
-      };
-      this.contributions.track("record_started", { prompt_id: prompt.promptId, calibration: true });
-      this.audio.duck("recording", true);
-      this.speech.startRecording(this.contributions.recordingContext(prompt, {
-        calibration: true,
-        scenarioId: "calibration",
-        patientId: `calibration-${this.calibrationIndex + 1}`,
-      })).catch((error) => this.ui.toast(String(error?.message || error), "bad"));
-    });
-
-    on("ui:calibration-record-stop", () => {
-      if (this.mode !== "calibration") return;
       this.speech.stopRecording().catch(() => {});
     });
 
@@ -365,58 +337,22 @@ export class App {
         prompt_id: detail.promptId,
         patient_id: context.patientId,
       });
-      if (context.calibration) {
-        this.advanceCalibration(detail);
-        return;
-      }
       const result = this.game.acceptVoiceClip(context.patientId, detail);
       if (!result.accepted) {
-        this.ui.toast(result.reason || "Sprachschritt konnte nicht gezählt werden.", "warn");
+        this.ui.toast(result.reason || "Aufnahme konnte nicht gespeichert werden.", "warn");
         return;
       }
-      this.voiceRetryCounts.delete(context.promptId);
-      this.voicePromptOverrides.delete(context.promptId);
       const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
       if (sameChart) {
         this.ui.showVoiceRawData({ audioBlob: detail.audioBlob, audioInfo: detail.audioInfo });
         this.ui.showVoiceAccepted(result);
-        this.ui.setRecordingUI(false, true);
+        this.ui.setVoiceSubmissionPending(true);
       }
-      this.ui.scorePop("+1 SPRACHSCHRITT", "good");
-      if (result.completed) {
-        if (sameChart) setTimeout(() => this.closeChart(), 900);
-      } else if (sameChart) {
-        setTimeout(() => {
-          if (this.mode !== "chart" || this.currentPatientId !== context.patientId) return;
-          const view = this.game.getView(context.patientId);
-          this.currentReportScript = view?.voicePrompt?.expectedText || "";
-          this.ui.setVoicePrompt(view?.voicePrompt);
-          this.ui.setRecordingUI(false, false);
-          this.contributions.track("prompt_shown", {
-            patient_id: context.patientId,
-            prompt_id: view?.voicePrompt?.promptId,
-          });
-        }, 650);
-      }
+      this.ui.scorePop("AUFNAHME GESPEICHERT", "good");
     });
 
     on("stt:clip-rejected", ({ context = {}, reason }) => {
       this.contributions.track("retry_requested", { prompt_id: context.promptId, reason });
-      if (context.calibration && this.ui.el.calibrationStatus) this.ui.el.calibrationStatus.textContent = reason;
-      if (!context.calibration && context.promptId) {
-        const retries = (this.voiceRetryCounts.get(context.promptId) || 0) + 1;
-        this.voiceRetryCounts.set(context.promptId, retries);
-        const view = this.game.getView(context.patientId);
-        if (retries >= 2 && view?.voicePrompt?.promptId === context.promptId) {
-          const shorter = shortenVoicePrompt(view.voicePrompt);
-          this.voicePromptOverrides.set(context.promptId, shorter);
-          if (this.mode === "chart" && this.currentPatientId === context.patientId) {
-            this.currentReportScript = shorter.expectedText || "";
-            this.ui.setVoicePrompt(shorter);
-            this.ui.toast("Die Sprachaufgabe wurde nach zwei Versuchen verkürzt.", "info");
-          }
-        }
-      }
     });
 
     on("stt:clip-status", ({ validationState, contributionUnits, context = {} }) => {
@@ -436,8 +372,29 @@ export class App {
 
     on("stt:result", ({ text, seconds, audioBlob, audioInfo, context = {} }) => {
       if (context.contributionMode) {
+        const patientId = context.patientId || null;
         const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
         if (sameChart && text) this.ui.appendTranscript(text);
+        if (!text || !text.trim()) {
+          const result = this.submitReport("", {
+            source: "audio",
+            keepChart: true,
+            background: !sameChart,
+            patientId,
+            scenarioId: context.scenarioId || null,
+            allowEmpty: true,
+          });
+          if (sameChart && result?.saved) setTimeout(() => this.closeChart(), 1100);
+          return;
+        }
+        const result = this.submitReport(text, {
+          source: "audio",
+          keepChart: true,
+          background: !sameChart,
+          patientId,
+          scenarioId: context.scenarioId || null,
+        });
+        if (sameChart && result?.saved) setTimeout(() => this.closeChart(), 1100);
         return;
       }
       const patientId = context.patientId || null;
@@ -479,8 +436,6 @@ export class App {
           ? "sofort geheilt"
           : completionMode === "audio"
             ? "Audiobericht"
-            : completionMode === "voice-sequence"
-              ? "fünf Sprachschritten"
             : completionMode === "kit"
               ? "Rettungsset"
               : "Bericht";
@@ -712,9 +667,8 @@ export class App {
 
   // Leaving the map for a menu must cancel a pending teleport, or the countdown
   // would drop the player into the next level from behind the briefing screen.
-  showBriefing(mode = "shift") {
+  showBriefing() {
     clearTimeout(this.levelTimer);
-    this.requestedPlayMode = mode === "story" ? "story" : "shift";
     this.mode = "start";
     this.player.enabled = false;
     this.audio.unlock();
@@ -729,97 +683,22 @@ export class App {
       const session = await this.contributions.startSession({
         ageBand: "16+",
         locale: "de-DE",
-        mode: this.requestedPlayMode,
+        mode: "campaign",
       });
       this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
       this.ui.renderContributionSummary(session.summary, session.recovery_code);
-      if (Number(session.summary?.completed_shifts) > 0) {
-        this.contributions.track("next_shift_started", { mode: this.requestedPlayMode });
-      }
     } catch (error) {
       this.ui.toast(`Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`, "bad");
-      this.ui.showBriefing();
-      return;
-    }
-    let calibrated = false;
-    try {
-      calibrated = localStorage.getItem("medicraft.voice-calibrated") === "1";
-    } catch (error) {
-      calibrated = false;
-    }
-    if (!calibrated) {
-      await this.startCalibration();
+      this.showBriefing();
       return;
     }
     this.beginMission();
   }
 
-  async startCalibration() {
-    this.mode = "calibration";
-    this.player.enabled = false;
-    this.calibrationIndex = 0;
-    try {
-      this.calibrationPrompt = await this.contributions.nextPrompt("calibration");
-      this.contributions.track("prompt_shown", { prompt_id: this.calibrationPrompt.prompt_id, calibration: true });
-      this.ui.showCalibration(this.calibrationPrompt, {
-        index: this.calibrationIndex,
-        count: 3,
-        recoveryCode: this.contributions.recoveryCode,
-      });
-    } catch (error) {
-      this.ui.toast(String(error?.message || "Kalibrierung konnte nicht geladen werden."), "bad");
-      this.ui.showBriefing();
-    }
-  }
-
-  async advanceCalibration() {
-    this.calibrationIndex += 1;
-    if (this.calibrationIndex >= 3) {
-      try {
-        localStorage.setItem("medicraft.voice-calibrated", "1");
-      } catch (error) {
-        // Calibration remains valid for this page even when storage is blocked.
-      }
-      this.ui.hideCalibration();
-      this.beginMission();
-      return;
-    }
-    try {
-      this.calibrationPrompt = await this.contributions.nextPrompt("calibration");
-      this.contributions.track("prompt_shown", { prompt_id: this.calibrationPrompt.prompt_id, calibration: true });
-      this.ui.setCalibrationPrompt(this.calibrationPrompt, this.calibrationIndex, 3);
-    } catch (error) {
-      this.ui.toast(String(error?.message || "Nächster Kalibrierungssatz fehlt."), "bad");
-    }
-  }
-
-  shiftLevel() {
-    const unlocks = this.contributions.summary?.unlocks || {};
-    const candidates = [LEVELS[2]];
-    if (unlocks.industrial_map) candidates.push(LEVELS[3]);
-    if (unlocks.alpine_map) candidates.push(LEVELS[4]);
-    let rotation = 0;
-    try {
-      rotation = Number(localStorage.getItem("medicraft.shift-rotation")) || 0;
-      localStorage.setItem("medicraft.shift-rotation", String(rotation + 1));
-    } catch (error) {
-      rotation = Math.floor(Math.random() * candidates.length);
-    }
-    const source = candidates[rotation % candidates.length];
-    return {
-      ...source,
-      id: `${source.id}_shift`,
-      title: `${source.title} — Kurzschicht`,
-      patientCount: 4,
-      anchors: source.anchors.slice(0, 4),
-    };
-  }
-
   beginMission() {
-    this.playMode = this.requestedPlayMode;
-    const storyUnlocked = Boolean(this.contributions.summary?.unlocks?.story_campaign);
-    if (this.playMode === "story" && !storyUnlocked) this.playMode = "shift";
-    this.campaign = new Campaign(this.playMode === "story" ? LEVELS : [this.shiftLevel()]);
+    this.ui.hideMenus();
+    this.playMode = "campaign";
+    this.campaign = new Campaign(LEVELS);
     this.campaign.reset();
     this.streak = 0;
     this.bestStreak = 0;
@@ -827,8 +706,6 @@ export class App {
     this.hiddenTotal = 0;
     this.runSubmitted = false;
     this.lastSummary = null;
-    this.voiceRetryCounts.clear();
-    this.voicePromptOverrides.clear();
     this.ui.setCombo({ streak: 0 });
     this.audio.play("mission-start");
     this.startLevel();
@@ -837,11 +714,6 @@ export class App {
   async withdrawContribution() {
     if (this.speech.recording) this.speech.abort();
     const result = await this.contributions.withdraw();
-    try {
-      localStorage.removeItem("medicraft.voice-calibrated");
-    } catch (error) {
-      // The server-side withdrawal is authoritative.
-    }
     this.trainingReadyClips = 0;
     this.ui.renderContributionSummary({});
     this.ui.closeSettings();
@@ -944,10 +816,9 @@ export class App {
     });
 
     this.runSubmitted = false;
-    // A browser that has never named its shift is asked to before its run goes
-    // on a board other people read; a returning player is entered straight in.
-    if (hasStoredIdentity()) this.publishRun();
-    else this.refreshRemoteBoard("Trage deine Schicht ein, um in die Server-Bestenliste zu kommen.");
+    // A public player name is optional. Anonymous runs are submitted as
+    // "Anonym" so choosing not to identify yourself never blocks the data.
+    this.publishRun();
   }
 
   // One run reaches the server once. Re-saving the name after that only
@@ -1004,7 +875,7 @@ export class App {
     const view = this.game.getView(patientId);
     if (!view) return;
     this.currentPatientId = patientId;
-    const prompt = view.voicePrompt ? this.voicePromptOverrides.get(view.voicePrompt.promptId) || view.voicePrompt : null;
+    const prompt = view.voicePrompt;
     this.currentReportScript = prompt?.expectedText || view.hint || "";
     this.ui.clearVerdict();
     this.ui.appendTranscript("");
@@ -1013,6 +884,7 @@ export class App {
       this.ui.setVoicePrompt(prompt);
       this.contributions.track("prompt_shown", { patient_id: patientId, prompt_id: prompt.promptId });
     }
+    this.ui.setVoiceSubmissionPending(Boolean(view.contributionMode && view.acceptedVoiceClips > 0 && !view.resolved));
     this.setMode("chart");
     // The chart is where speaking happens, so the bed drops before the player
     // has even reached for the record button.
@@ -1083,7 +955,7 @@ export class App {
     const sameChart = this.mode === "chart" && this.currentPatientId === patientId;
     if (!patientId || (!sameChart && !options.background)) return null;
     const trimmed = (text || "").trim();
-    if (!trimmed) {
+    if (!trimmed && !(options.allowEmpty && options.source === "audio")) {
       this.ui.toast("Kein Berichtinhalt.", "warn");
       return null;
     }

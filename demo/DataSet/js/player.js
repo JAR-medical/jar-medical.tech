@@ -317,6 +317,7 @@ export class Player {
   _getBreakTarget() {
     const hit = this.world.raycast(this.camera.position.clone(), this.camera.getWorldDirection(this._lookDir), 6);
     if (!hit || hit.block === BLOCK.WATER) return null;
+    if (this.world.isMapBorder?.(hit.x, hit.y, hit.z)) return null;
     return hit;
   }
 

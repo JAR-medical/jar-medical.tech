@@ -1,19 +1,33 @@
 import { apiUrl } from "./api.js";
 
 export const CONSENT_VERSION = "2026-08-23";
+const REQUEST_TIMEOUT_MS = 12_000;
 
 async function jsonRequest(path, options = {}) {
-  const response = await fetch(apiUrl(path), {
-    credentials: "include",
-    ...options,
-    headers: {
-      ...(options.body && typeof options.body === "string" ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.detail || `HTTP ${response.status}`);
-  return body;
+  const { timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const response = await fetch(apiUrl(path), {
+      credentials: "include",
+      ...fetchOptions,
+      signal: controller?.signal,
+      headers: {
+        ...(fetchOptions.body && typeof fetchOptions.body === "string" ? { "Content-Type": "application/json" } : {}),
+        ...(fetchOptions.headers || {}),
+      },
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.detail || `HTTP ${response.status}`);
+    return body;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Der Server antwortet nicht. Bitte prüfe die Verbindung und versuche es erneut.");
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export class ContributionClient {
@@ -23,7 +37,7 @@ export class ContributionClient {
     this.recoveryCode = null;
   }
 
-  async startSession({ ageBand = "16+", locale = "de-DE", mode = "shift" } = {}) {
+  async startSession({ ageBand = "16+", locale = "de-DE", mode = "campaign" } = {}) {
     const result = await jsonRequest("/api/contribution-sessions", {
       method: "POST",
       body: JSON.stringify({ consent_version: CONSENT_VERSION, age_band: ageBand, locale, mode }),
@@ -38,7 +52,7 @@ export class ContributionClient {
     return result;
   }
 
-  async nextPrompt(stage = "shift") {
+  async nextPrompt(stage = "campaign") {
     const result = await jsonRequest(`/api/prompts/next?stage=${encodeURIComponent(stage)}`);
     return result.prompt;
   }
