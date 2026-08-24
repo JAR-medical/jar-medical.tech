@@ -91,6 +91,11 @@ const INTRO = Object.freeze({
   // One photograph per chapter, placed so each lands in a different band of the
   // corridor: clinic, service corridor, rock cut, open bank.
   chapterZ: Object.freeze([108, 102, 96, 91]),
+  // Where each chapter's wall text hangs. Listed rather than derived because
+  // the last stretch is an open bank with a two-block parapet, and a panel
+  // placed a fixed distance ahead of the fourth photograph would float over it.
+  // Every entry here has to sit in a band that still has full-height walls.
+  panelZ: Object.freeze([111, 105, 99, 95]),
   arrowZ: 112,
   // Crossing this line is what ends the intro: sprint is released, the level
   // banner appears, and the sequence stops listening.

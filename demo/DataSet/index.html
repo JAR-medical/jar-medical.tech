@@ -189,6 +189,21 @@
       <div id="touch-actions">
         <button id="touch-interact" class="touch-action primary" type="button" aria-label="Patientenkarte in der Nähe öffnen">🩺<span>KARTE</span></button>
       </div>
+      <div id="other-touch-actions" class="hidden" aria-label="Other Other Sandbox-Steuerung">
+        <span id="other-touch-status">🧱 BAUEN</span>
+        <div class="other-touch-row">
+          <button id="other-touch-build" class="touch-action compact" type="button" aria-label="Block bauen">🧱<span>BAUEN</span></button>
+          <button id="other-touch-break" class="touch-action compact" type="button" aria-label="Block abbauen">⛏<span>ABBAU</span></button>
+          <button id="other-touch-blocks" class="touch-action compact" type="button" aria-label="Blockbibliothek öffnen">🎨<span>BLÖCKE</span></button>
+        </div>
+        <div class="other-touch-row">
+          <button id="other-touch-fly" class="touch-action compact" type="button" aria-label="Fliegen umschalten">✈<span>FLUG</span></button>
+          <button id="other-touch-up" class="touch-action compact" type="button" aria-label="Höher fliegen">⬆<span>HOCH</span></button>
+          <button id="other-touch-down" class="touch-action compact" type="button" aria-label="Tiefer fliegen">⬇<span>RUNTER</span></button>
+          <button id="other-touch-fun" class="touch-action compact" type="button" aria-label="Spaßmodus umschalten">🎉<span>SPASS</span></button>
+          <button id="other-touch-home" class="touch-action compact" type="button" aria-label="Zum Hub teleportieren">⌂<span>HUB</span></button>
+        </div>
+      </div>
     </div>
 
     <div id="mission-panel" class="panel">
@@ -200,6 +215,15 @@
       <div>Audioaufnahmen <span id="voice-clips-value">0/19</span></div>
       <div id="hidden-hint" class="hidden"></div>
       <div id="proximity-meter" class="hidden" aria-hidden="true"><i id="proximity-fill"></i></div>
+    </div>
+
+    <div id="other-pc-toolbar" class="hidden" aria-label="Other Other PC-Werkzeuge">
+      <span id="other-tool-status">🧱 BAUEN · 🌈 Regenbogen</span>
+      <button id="other-open-blocks" class="btn small" type="button">B Blöcke</button>
+      <button id="other-toggle-fly" class="btn small" type="button">F Fliegen</button>
+      <button id="other-toggle-fun" class="btn small" type="button">G Spaß</button>
+      <button id="other-teleport" class="btn small" type="button">T Hub</button>
+      <button id="other-party" class="btn small" type="button">R Konfetti</button>
     </div>
 
     <div id="hud-toggles">
@@ -281,6 +305,7 @@
         <button class="settings-tab" type="button" data-tab="progress" role="tab">🗺 Fortschritt</button>
         <button class="settings-tab" type="button" data-tab="board" role="tab">🏆 Bestenliste</button>
         <button class="settings-tab" type="button" data-tab="data" role="tab">🎙 Beiträge</button>
+        <button class="settings-tab" type="button" data-tab="other" role="tab">✨ Other</button>
         <button class="settings-tab" type="button" data-tab="admin" role="tab">🔧 Admin</button>
       </div>
 
@@ -341,6 +366,38 @@
           <p id="withdraw-status" class="settings-note" aria-live="polite"></p>
         </section>
 
+        <section class="settings-section hidden" data-panel="other" aria-hidden="true">
+          <div class="other-settings-intro">
+            <span class="other-settings-kicker">OPTIONALE SANDBOX</span>
+            <p>Der normale Medicraft-Lauf bleibt unverändert. Diese Werkzeuge erscheinen nur nach deiner aktiven Auswahl.</p>
+          </div>
+          <div class="settings-row other-setting-row">
+            <label for="set-other-enabled">Other</label>
+            <input id="set-other-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="other-enabled-note" />
+            <output id="set-other-enabled-value" for="set-other-enabled">Aus</output>
+          </div>
+          <p id="other-enabled-note" class="settings-note">Schaltet den optionalen Bereich frei.</p>
+          <div id="other-other-setting" class="hidden">
+            <div class="settings-row other-setting-row">
+              <label for="set-other-other-enabled">Other Other</label>
+              <input id="set-other-other-enabled" class="other-slider" type="checkbox" role="switch" disabled aria-describedby="other-other-note" />
+              <output id="set-other-other-enabled-value" for="set-other-other-enabled">Aus</output>
+            </div>
+            <p id="other-other-note" class="settings-note">Zeigt Bauen, Abbauen, Fliegen, die 40er-Blockbibliothek und Spaßfunktionen für PC und Touch.</p>
+          </div>
+          <div id="other-feature-options" class="other-feature-options hidden">
+            <h3>Sandbox-Werkzeuge</h3>
+            <div class="other-settings-actions">
+              <button id="other-open-blocks-setting" class="btn small" type="button">🧱 Blockbibliothek öffnen (40)</button>
+              <button id="other-toggle-fly-setting" class="btn small" type="button">✈ Fliegen</button>
+              <button id="other-toggle-fun-setting" class="btn small" type="button">🎉 Spaß</button>
+              <button id="other-teleport-setting" class="btn small" type="button">⌂ Zurück zum Hub</button>
+              <button id="other-party-setting" class="btn small" type="button">✨ Konfetti</button>
+            </div>
+            <p class="settings-note">PC: linke Maustaste abbauen · rechte Maustaste bauen · B Bibliothek · F Fliegen · X/C Werkzeug · [ ] Block wechseln · T Hub · R Konfetti. Touch: die zusätzlichen Baumenüs erscheinen direkt am Spielfeld.</p>
+          </div>
+        </section>
+
         <section class="settings-section hidden" data-panel="admin" aria-hidden="true">
           <div id="admin-lock">
             <p class="settings-note">Entwicklerwerkzeuge — Passwort eingeben, um Level zu überspringen und Testfunktionen freizuschalten.</p>
@@ -370,9 +427,20 @@
     </div>
   </div>
 
+  <div id="other-block-menu" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="other-block-title">
+    <div class="modal-box other-block-box">
+      <div class="other-block-header">
+        <div><span class="other-settings-kicker">OTHER OTHER</span><h2 id="other-block-title">40 neue Blöcke</h2></div>
+        <button id="other-block-close" class="btn small" type="button">Schließen</button>
+      </div>
+      <p class="settings-note">Wähle einen Block. Im Sandbox-Modus: rechte Maustaste bauen, linke Maustaste abbauen.</p>
+      <div id="other-block-grid" class="other-block-grid"></div>
+    </div>
+  </div>
+
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260825-sprint1"></script>
+  <script type="module" src="./js/main.js?v=20260825-worldfix3"></script>
 </body>
 </html>

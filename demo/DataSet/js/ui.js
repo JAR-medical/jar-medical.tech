@@ -361,8 +361,19 @@ export class UI {
     };
     // Delegate from the stable briefing container so a static-host refresh or
     // a browser restoring the dialog cannot leave the visible button without
-    // its consent handler.
-    this.el.btnConsent.addEventListener("click", handleConsentClick);
+    // its consent handler. Pointer-down covers touch and restored dialogs in
+    // browsers that fail to deliver the follow-up click after a checkbox
+    // change; the short guard prevents a normal pointer click from starting
+    // the contribution session twice.
+    let lastConsentAttempt = 0;
+    const handleConsentAttempt = (event) => {
+      const now = performance.now();
+      if (now - lastConsentAttempt < 350) return;
+      lastConsentAttempt = now;
+      handleConsentClick(event);
+    };
+    this.el.btnConsent.addEventListener("pointerdown", handleConsentAttempt);
+    this.el.btnConsent.addEventListener("click", handleConsentAttempt);
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (ready) this.el.consentError?.classList.add("hidden");

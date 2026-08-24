@@ -503,14 +503,25 @@ export class IntroSequence {
       const z = cfg.chapterZ[index];
       if (z === undefined) return;
 
-      const frame = this._mesh(
-        new THREE.PlaneGeometry(maxWidth + 0.22, maxHeight + 0.22),
-        new THREE.MeshBasicMaterial({ color: 0x0a0d08, toneMapped: false }),
+      // The backing spans the whole cross-section, not just the picture. Two of
+      // the four photographs are 4:3 and would otherwise leave a gap at each
+      // wall wide enough to walk past — and walking *through* the picture is
+      // the entire point of the corridor. Translucent rather than solid, so the
+      // way ahead is still legible through four of these in a row.
+      this._mesh(
+        new THREE.PlaneGeometry(cfg.halfWidth * 2 + 1, 4.9),
+        new THREE.MeshBasicMaterial({
+          color: 0x0a0d08,
+          transparent: true,
+          opacity: 0.75,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          toneMapped: false,
+        }),
         this.axis + 0.5,
-        y + 2.9,
-        z - 0.03,
+        y + 2.45,
+        z - 0.05,
       );
-      frame.visible = false;
 
       const photoMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -543,9 +554,6 @@ export class IntroSequence {
         photoMaterial.map = texture;
         photoMaterial.opacity = 1;
         photoMaterial.needsUpdate = true;
-        frame.geometry.dispose();
-        frame.geometry = new THREE.PlaneGeometry(width + 0.22, height + 0.22);
-        frame.visible = true;
       });
 
       // The caption sits in front of the photograph and low, where it does not
@@ -557,15 +565,17 @@ export class IntroSequence {
         height: maxWidth / 8,
       });
 
+      // Read on the approach, a few blocks before the picture it explains.
+      const panelZ = cfg.panelZ?.[index] ?? z + 3;
       this._sign(panelTexture(chapter), {
-        z: z + 2.6,
+        z: panelZ,
         y: y + 2.5,
         width: 4.2,
         height: 2.62,
         wall: "left",
       });
       this._sign(creditTexture(chapter), {
-        z: z + 2.6,
+        z: panelZ,
         y: y + 1.5,
         width: 3.6,
         height: 0.62,
