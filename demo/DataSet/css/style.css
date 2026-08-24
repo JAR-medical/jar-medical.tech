@@ -899,8 +899,9 @@ body.touch-device #hotbar-help { display: none; }
   position: absolute;
   right: calc(16px + var(--safe-right));
   bottom: calc(18px + var(--safe-bottom));
-  display: grid;
-  grid-template-columns: repeat(2, 68px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
   pointer-events: none;
 }
@@ -932,10 +933,11 @@ body.touch-device #hotbar-help { display: none; }
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 .touch-action.primary {
-  grid-column: 1 / -1;
-  width: 144px;
+  width: 180px;
+  min-height: 72px;
   border-color: var(--yellow);
   color: var(--yellow);
+  font-size: 1.65rem;
 }
 body.touch-device #touch-controls { display: block; }
 body.touch-device .touch-only { display: inline; }
@@ -1051,9 +1053,9 @@ body.touch-device .desktop-only { display: none; }
 @media (max-height: 520px) and (orientation: landscape) {
   #touch-joystick { width: 104px; height: 104px; }
   #touch-joystick-knob { width: 50px; height: 50px; }
-  #touch-actions { grid-template-columns: repeat(2, 58px); gap: 5px; }
+  #touch-actions { gap: 5px; }
   .touch-action { width: 58px; min-height: 46px; font-size: 1.15rem; }
-  .touch-action.primary { width: 121px; }
+  .touch-action.primary { width: 150px; min-height: 60px; font-size: 1.35rem; }
   #prompt { bottom: calc(125px + var(--safe-bottom)); }
 }
 
