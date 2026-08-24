@@ -361,7 +361,7 @@ export class UI {
     // Delegate from the stable briefing container so a static-host refresh or
     // a browser restoring the dialog cannot leave the visible button without
     // its consent handler.
-    document.addEventListener("medicraft-consent-start", handleConsentClick);
+    this.el.btnConsent.addEventListener("click", handleConsentClick);
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
