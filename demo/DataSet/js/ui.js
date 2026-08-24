@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent7";
+} from "./leaderboard.js?v=20260824-consent8";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -362,6 +362,7 @@ export class UI {
     // a browser restoring the dialog cannot leave the visible button without
     // its consent handler.
     globalThis.medicraftConsentStart = handleConsentClick;
+    document.documentElement.setAttribute("data-medicraft-consent-handler", "bound");
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
