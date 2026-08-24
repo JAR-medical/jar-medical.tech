@@ -103,11 +103,11 @@ const INTRO = Object.freeze({
   }),
   // One photograph per chapter. Five of them, spaced evenly enough that a
   // walking player meets one about every five seconds.
-  chapterZ: Object.freeze([108, 102, 97, 92, 87]),
+  chapterZ: Object.freeze([108, 102, 96, 90, 85]),
   // Where each chapter's wall text hangs, three blocks before its picture.
   // Listed rather than derived because the open nose ramp at the end has no
   // walls, and a panel placed by formula would float over it.
-  panelZ: Object.freeze([111, 105, 100, 95, 90]),
+  panelZ: Object.freeze([111, 105, 99, 93, 88]),
   arrowZ: 112,
   // Crossing this line is what ends the intro: sprint is released, the level
   // banner appears, and the sequence stops listening.

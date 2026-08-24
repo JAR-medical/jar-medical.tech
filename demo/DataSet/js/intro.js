@@ -37,7 +37,7 @@ export const INTRO_CHAPTERS = Object.freeze([
     src: "./images/01-sichtungskarte.jpg",
     accent: RED,
     kicker: "01 · SICHTUNG",
-    headline: "Vier Kategorien. Wenige Sekunden pro Person.",
+    headline: "Veraltete Papierkarten. Wenige Sekunden pro Person.",
     panelTitle: "Sichten heißt sortieren",
     body: [
       { text: "SK I · rot — sofort, akute Lebensgefahr", color: RED },
@@ -52,7 +52,8 @@ export const INTRO_CHAPTERS = Object.freeze([
     src: "./images/02-einsatz.jpg",
     accent: YELLOW,
     kicker: "02 · EINSATZ",
-    headline: "Mehr Patienten als Hände.",
+    headline: "AUDIO: Keine Hand ist frei für die Patientenkarte.",
+    headlineHighlight: "AUDIO",
     panelTitle: "MANV — Massenanfall von Verletzten",
     body: [
       { text: "Behandelt wird nicht der Reihe nach," },
@@ -68,7 +69,7 @@ export const INTRO_CHAPTERS = Object.freeze([
     src: "./images/03-ahrtal.jpg",
     accent: RED,
     kicker: "03 · WENN DIE LAGE KIPPT",
-    headline: "Juli 2021: über 130 Tote — und kein gemeinsames Lagebild.",
+    headline: "Juli 2021: über 130 Tote und kein gemeinsames Lagebild.",
     panelTitle: "Ahrtal, Juli 2021",
     body: [
       { text: "Türkis: die überflutete Fläche.", color: RED },
@@ -77,14 +78,14 @@ export const INTRO_CHAPTERS = Object.freeze([
       { text: "Wo die Menschen waren, stand" },
       { text: "in keiner Karte." },
     ],
-    note: "Funk, Strom und Meldewege fielen gleichzeitig aus. Die Informationen existierten — sie kamen nur nicht zusammen.",
+    note: "Funk, Strom und Meldewege fielen gleichzeitig aus. Die Informationen existierten. Sie kamen nur nicht zusammen.",
     credit: "Überflutungsfläche Ahrtal · eigene Rekonstruktion des Projektteams (KI-gestützt)",
   },
   {
     src: "./images/04-luftaufklaerung.jpg",
     accent: BLUE,
     kicker: "04 · AUGEN VON OBEN",
-    headline: "Satellit, Drohne, Mensch — drei Auflösungen derselben Lage.",
+    headline: "Satellit, Drohne, Mensch: drei Auflösungen derselben Lage.",
     panelTitle: "Aufklärung im Verbund",
     body: [
       { text: "Satellit: die Fläche, in Stunden.", color: BLUE },
@@ -94,14 +95,14 @@ export const INTRO_CHAPTERS = Object.freeze([
       { text: "Nur der Mensch am Boden kann sagen," },
       { text: "wie es diesem einen Menschen geht." },
     ],
-    note: "Der Aufklärungsteil entsteht in Zusammenarbeit mit dem DLR und Quantum Systems. Was von oben kommt, ist Fläche. Was zählt, spricht jemand ein.",
+    note: "Zusammenarbeit mit DLR und QS. Was von oben kommt, ist Fläche. Was zählt, spricht jemand ein.",
     credit: "Eigene Illustration des Projektteams (KI-gestützt) · DLR · Quantum Systems",
   },
   {
     src: "./images/05-lagebild.png",
     accent: GREEN,
     kicker: "05 · DARUM MEDICRAFT",
-    headline: "Aus gesprochener Meldung wird ein Lagebild.",
+    headline: "Aus vielfältigen Daten und 3D-Informationen wird ein Lagebild.",
     panelTitle: "Warum deine Stimme zählt",
     body: [
       { text: "Spracherkennung versteht vorgelesene Sätze." },
@@ -200,9 +201,23 @@ function captionTexture(chapter) {
     ctx.fillStyle = chapter.accent;
     ctx.font = `700 44px ${MONO}`;
     ctx.fillText(chapter.kicker, 46, h * 0.31);
-    ctx.fillStyle = TEXT;
     ctx.font = `700 60px ${SANS}`;
-    ctx.fillText(chapter.headline, 46, h * 0.7, w - 100);
+    const headlineY = h * 0.7;
+    const highlight = chapter.headlineHighlight;
+    if (highlight && chapter.headline.startsWith(highlight)) {
+      ctx.fillStyle = chapter.accent;
+      ctx.fillText(highlight, 46, headlineY);
+      ctx.fillStyle = TEXT;
+      ctx.fillText(
+        chapter.headline.slice(highlight.length),
+        46 + ctx.measureText(highlight).width,
+        headlineY,
+        w - 100,
+      );
+    } else {
+      ctx.fillStyle = TEXT;
+      ctx.fillText(chapter.headline, 46, headlineY, w - 100);
+    }
   });
 }
 

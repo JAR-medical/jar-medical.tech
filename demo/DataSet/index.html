@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#f7f7f7" />
 <title>MEDICRAFT</title>
-<link rel="stylesheet" href="./css/style.css?v=20260825-level1sprint1" />
+<link rel="stylesheet" href="./css/style.css?v=20260825-funny2" />
 <link rel="modulepreload" href="./vendor/three.module.js" />
 </head>
 <body>
@@ -202,6 +202,7 @@
           <button id="other-touch-down" class="touch-action compact" type="button" aria-label="Tiefer fliegen">⬇<span>RUNTER</span></button>
           <button id="other-touch-fun" class="touch-action compact" type="button" aria-label="Spaßmodus umschalten">🎉<span>SPASS</span></button>
           <button id="other-touch-home" class="touch-action compact" type="button" aria-label="Zum Hub teleportieren">⌂<span>HUB</span></button>
+          <button id="other-touch-lab" class="touch-action compact" type="button" aria-label="Gags öffnen">🎮<span>GAGS</span></button>
         </div>
       </div>
     </div>
@@ -224,6 +225,7 @@
       <button id="other-toggle-fun" class="btn small" type="button">G Spaß</button>
       <button id="other-teleport" class="btn small" type="button">T Hub</button>
       <button id="other-party" class="btn small" type="button">R Konfetti</button>
+      <button id="other-open-lab" class="btn small" type="button">H Gags</button>
     </div>
 
     <div id="hud-toggles">
@@ -242,6 +244,10 @@
     <div id="hotbar" aria-label="Med-Kit und Wolle"></div>
 
     <div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="other-fun-overlay" class="hidden" aria-hidden="true">
+      <div id="other-rain-layer" aria-hidden="true"></div>
+      <div id="other-fun-hud" class="hidden" aria-live="polite"></div>
+    </div>
 
     <div id="chart-panel" class="modal hidden">
       <div class="modal-box chart-box">
@@ -375,28 +381,28 @@
             <label for="set-other-enabled">Other</label>
             <input id="set-other-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="other-enabled-note" />
             <output id="set-other-enabled-value" for="set-other-enabled">Aus</output>
-           </div>
-           <p id="other-enabled-note" class="settings-note">Schaltet den optionalen Bereich frei.</p>
-           <h3>Ansicht</h3>
-           <div class="settings-row">
-             <label for="set-fov">Sichtfeld (FOV)</label>
-             <input id="set-fov" type="range" min="60" max="110" step="1" value="75" aria-describedby="fov-note" />
-             <output id="set-fov-value" for="set-fov">75°</output>
-           </div>
-           <p id="fov-note" class="settings-note">Minecraft-ähnlich bei 70°. Ein höherer Wert zeigt mehr Umgebung, kann aber stärker wirken.</p>
-           <div class="settings-row other-setting-row">
-             <label for="set-crosshair-enabled">Fadenkreuz</label>
-             <input id="set-crosshair-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="crosshair-note" checked />
-             <output id="set-crosshair-enabled-value" for="set-crosshair-enabled">An</output>
-           </div>
-           <p id="crosshair-note" class="settings-note">Zeigt die Zielhilfe in der Bildschirmmitte.</p>
-           <div class="settings-row other-setting-row">
-             <label for="set-reduced-motion">Bewegung reduzieren</label>
-             <input id="set-reduced-motion" class="other-slider" type="checkbox" role="switch" aria-describedby="reduced-motion-note" />
-             <output id="set-reduced-motion-value" for="set-reduced-motion">Aus</output>
-           </div>
-           <p id="reduced-motion-note" class="settings-note">Reduziert Animationen und Übergänge für eine ruhigere Darstellung.</p>
-           <div id="other-other-setting" class="hidden">
+          </div>
+          <p id="other-enabled-note" class="settings-note">Schaltet den optionalen Bereich frei.</p>
+          <h3>Ansicht</h3>
+          <div class="settings-row">
+            <label for="set-fov">Sichtfeld (FOV)</label>
+            <input id="set-fov" type="range" min="60" max="110" step="1" value="75" aria-describedby="fov-note" />
+            <output id="set-fov-value" for="set-fov">75°</output>
+          </div>
+          <p id="fov-note" class="settings-note">Minecraft-ähnlich bei 70°. Ein höherer Wert zeigt mehr Umgebung, kann aber stärker wirken.</p>
+          <div class="settings-row other-setting-row">
+            <label for="set-crosshair-enabled">Fadenkreuz</label>
+            <input id="set-crosshair-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="crosshair-note" checked />
+            <output id="set-crosshair-enabled-value" for="set-crosshair-enabled">An</output>
+          </div>
+          <p id="crosshair-note" class="settings-note">Zeigt die Zielhilfe in der Bildschirmmitte.</p>
+          <div class="settings-row other-setting-row">
+            <label for="set-reduced-motion">Bewegung reduzieren</label>
+            <input id="set-reduced-motion" class="other-slider" type="checkbox" role="switch" aria-describedby="reduced-motion-note" />
+            <output id="set-reduced-motion-value" for="set-reduced-motion">Aus</output>
+          </div>
+          <p id="reduced-motion-note" class="settings-note">Reduziert Animationen und Übergänge für eine ruhigere Darstellung.</p>
+          <div id="other-other-setting" class="hidden">
             <div class="settings-row other-setting-row">
               <label for="set-other-other-enabled">Other Other</label>
               <input id="set-other-other-enabled" class="other-slider" type="checkbox" role="switch" disabled aria-describedby="other-other-note" />
@@ -412,6 +418,7 @@
               <button id="other-toggle-fun-setting" class="btn small" type="button">🎉 Spaß</button>
               <button id="other-teleport-setting" class="btn small" type="button">⌂ Zurück zum Hub</button>
               <button id="other-party-setting" class="btn small" type="button">✨ Konfetti</button>
+              <button id="other-lab-setting" class="btn small" type="button">🎮 Spaßlabor öffnen</button>
             </div>
             <p class="settings-note">PC: linke Maustaste abbauen · rechte Maustaste bauen · B Bibliothek · F Fliegen · X/C Werkzeug · [ ] Block wechseln · T Hub · R Konfetti. Touch: die zusätzlichen Baumenüs erscheinen direkt am Spielfeld.</p>
           </div>
@@ -457,9 +464,28 @@
     </div>
   </div>
 
+  <div id="other-fun-menu" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="other-fun-title">
+    <div class="modal-box other-fun-box">
+      <div class="other-block-header">
+        <div><span class="other-settings-kicker">JOKECLIENT / OFFLINE</span><h2 id="other-fun-title">🎮 Spaßlabor</h2></div>
+        <button id="other-fun-close" class="btn small" type="button">Schließen</button>
+      </div>
+      <p class="settings-note">Nur lokale Gags: keine Punkte, keine Patienten-Infos, kein Netzwerk. PC-Hotkeys stehen auf jeder Kachel.</p>
+      <div id="other-fun-grid" class="other-fun-grid"></div>
+      <p id="other-fun-status" class="other-fun-status" aria-live="polite">Keine Effekte aktiv.</p>
+      <div id="other-reflex-game" class="other-reflex-game hidden">
+        <div class="other-reflex-head"><strong>🎯 Reflex-Runde</strong><span><b id="other-reflex-score">0</b> Treffer · <b id="other-reflex-time">15.00 s</b></span></div>
+        <div id="other-reflex-arena" class="other-reflex-arena">
+          <button id="other-reflex-target" class="other-reflex-target hidden" type="button" aria-label="Reflex-Ziel">BONK!</button>
+        </div>
+        <div class="other-reflex-foot"><span id="other-reflex-message">Bereit?</span><button id="other-reflex-start" class="btn small" type="button">Start</button></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260825-level1sprint1"></script>
+  <script type="module" src="./js/main.js?v=20260825-funny2"></script>
 </body>
 </html>

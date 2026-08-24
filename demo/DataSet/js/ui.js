@@ -207,6 +207,7 @@ export class UI {
       otherToggleFunSetting: $("other-toggle-fun-setting"),
       otherTeleportSetting: $("other-teleport-setting"),
       otherPartySetting: $("other-party-setting"),
+      otherLabSetting: $("other-lab-setting"),
       settingsRun: $("settings-run"),
       settingsLevels: $("settings-levels"),
       setPlayerName: $("set-player-name"),
@@ -698,6 +699,7 @@ export class UI {
     bindOtherAction(this.el.otherToggleFunSetting, "toggle-fun");
     bindOtherAction(this.el.otherTeleportSetting, "teleport");
     bindOtherAction(this.el.otherPartySetting, "burst");
+    bindOtherAction(this.el.otherLabSetting, "funny-lab");
 
     this.el.setSaveName?.addEventListener("click", () => this._commitSettingsIdentity());
     for (const field of [this.el.setPlayerName, this.el.setPlayerCrew]) {

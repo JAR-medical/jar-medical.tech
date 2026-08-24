@@ -11,7 +11,7 @@ import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
-import { IntroSequence } from "./intro.js?v=20260825-intro4";
+import { IntroSequence } from "./intro.js?v=20260825-intro5";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js?v=20260825-worldfix7";
 import {
@@ -124,8 +124,8 @@ export class App {
     // generated a second time when the player actually started the mission.
     // Keep the menu lightweight and build the world only when it is needed.
     this.world = null;
-    // Only the first level has one, and it owns the player's sprint until the
-    // corridor spits them out.
+    // Only the first level has an opening corridor; it also keeps automatic
+    // sprint disabled for the whole level.
     this.intro = null;
     this.player = new Player(this.camera, null, this.renderer.domElement);
     this.entities = new PatientManager(this.scene);
@@ -145,6 +145,8 @@ export class App {
       audio: this.audio,
       isPlaying: () => this.mode === "playing",
       isTouchDevice: this.touchDevice,
+      scene: this.scene,
+      getNearestPatient: () => this.entities.getNearest(this.player.position, 4.5, { activeOnly: true }),
     });
 
     this.clock = new THREE.Clock();
@@ -735,11 +737,13 @@ export class App {
     this.mode = mode;
     this.player.enabled = mode === "playing";
     $("hud").classList.toggle("hidden", !(mode === "playing" || mode === "chart"));
+    this.otherMode.syncLifecycle?.();
   }
 
   rebuildWorld(level) {
     this.intro?.dispose();
     this.intro = null;
+    this.otherMode.restoreSandboxEdits?.();
     this.world?.dispose();
     this.world = new World(this.scene, randomSeed(), level);
     this.player.world = this.world;
@@ -747,6 +751,7 @@ export class App {
     const sky = level?.sky ?? 0x87ceeb;
     this.scene.background = new THREE.Color(sky);
     this.scene.fog = new THREE.FogExp2(sky, level?.fog ?? 0.008);
+    this.otherMode.onWorldChanged?.();
   }
 
   // Leaving the map for a menu must cancel a pending teleport, or the countdown
@@ -1191,6 +1196,7 @@ export class App {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.world?.update(this.player.position, dt);
     this.audio.update(dt);
+    this.otherMode.syncLifecycle?.();
     if (running) {
       this.player.update(dt);
       this.otherMode.update(dt);

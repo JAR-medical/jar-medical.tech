@@ -1001,6 +1001,51 @@ body.touch-device #hotbar-help { display: none; }
 }
 .other-touch-row .touch-action.compact { min-height: 48px; }
 
+#other-fun-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 28;
+  pointer-events: none;
+  overflow: hidden;
+}
+#other-fun-overlay.hidden { display: none !important; }
+#other-fun-hud {
+  position: absolute;
+  top: calc(74px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  max-width: min(62vw, 560px);
+  padding: 0.38rem 0.55rem;
+  border: 2px solid #7cfc00;
+  background: rgba(0, 18, 5, 0.72);
+  color: #7cfc00;
+  font: 700 0.62rem/1.35 "Courier New", monospace;
+  box-shadow: 0 0 0 2px #000, 0 0 18px rgba(124, 252, 0, 0.22);
+}
+#other-fun-hud.hidden { display: none !important; }
+#other-rain-layer { position: absolute; inset: -20%; opacity: 0; }
+body.other-matrix-active #other-rain-layer {
+  opacity: 0.22;
+  background: repeating-linear-gradient(105deg, transparent 0 18px, rgba(70, 255, 100, 0.8) 19px 21px, transparent 22px 46px);
+  animation: other-matrix-fall 1.8s linear infinite;
+}
+body.other-rain-active #other-rain-layer {
+  opacity: 0.3;
+  background: repeating-linear-gradient(105deg, transparent 0 34px, rgba(142, 224, 255, 0.75) 35px 37px, transparent 38px 72px), repeating-linear-gradient(75deg, transparent 0 52px, rgba(255, 210, 63, 0.6) 53px 55px, transparent 56px 96px);
+  animation: other-rain-fall 1.2s linear infinite;
+}
+body.other-disco-active #other-fun-overlay {
+  background: radial-gradient(circle at 20% 25%, rgba(255, 0, 90, 0.20), transparent 35%), radial-gradient(circle at 80% 70%, rgba(0, 220, 255, 0.18), transparent 40%);
+  animation: other-disco-pulse 1.4s ease-in-out infinite alternate;
+}
+@keyframes other-matrix-fall { from { transform: translateY(-5%); } to { transform: translateY(5%); } }
+@keyframes other-rain-fall { from { transform: translateY(-4%) rotate(2deg); } to { transform: translateY(4%) rotate(2deg); } }
+@keyframes other-disco-pulse { from { filter: hue-rotate(0deg) saturate(1); } to { filter: hue-rotate(80deg) saturate(1.5); } }
+@media (prefers-reduced-motion: reduce) {
+  body.other-matrix-active #other-rain-layer,
+  body.other-rain-active #other-rain-layer,
+  body.other-disco-active #other-fun-overlay { animation: none; }
+}
+
 body.touch-device #touch-controls { display: block; }
 body.touch-device .touch-only { display: inline; }
 body.touch-device .desktop-only { display: none; }
@@ -2628,6 +2673,56 @@ body.user-reduced-motion *::after {
 }
 .other-block-icon { font-size: 1.35rem; line-height: 1; }
 
+.other-fun-box {
+  width: min(920px, 96vw);
+  max-height: min(90vh, 820px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#other-fun-menu { z-index: 85; }
+.other-fun-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.45rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.45rem 0.2rem;
+}
+.other-fun-card {
+  position: relative;
+  min-height: 118px;
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+  gap: 0.2rem 0.4rem;
+  padding: 0.55rem;
+  border: 2px solid var(--panel-border);
+  background: linear-gradient(135deg, rgba(25, 25, 25, 0.92), rgba(30, 60, 40, 0.85));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.other-fun-card:hover,
+.other-fun-card.active {
+  border-color: #c14cff;
+  box-shadow: 0 0 0 2px #c14cff, 0 0 18px rgba(193, 76, 255, 0.35);
+  transform: translateY(-1px);
+}
+.other-fun-icon { grid-row: 1 / span 2; font-size: 1.45rem; }
+.other-fun-card strong { font: 900 0.72rem/1.1 "Courier New", monospace; color: #ffd23f; }
+.other-fun-card small { grid-column: 2 / span 2; color: var(--muted); font-size: 0.68rem; line-height: 1.25; }
+.other-fun-card em { grid-column: 2; color: var(--green); font: 900 0.62rem/1 "Courier New", monospace; font-style: normal; }
+.other-fun-card kbd { grid-column: 3; justify-self: end; padding: 0.15rem 0.28rem; border: 1px solid #c14cff; color: #f2d6ff; font: 700 0.62rem/1 "Courier New", monospace; }
+.other-fun-status { margin: 0.35rem 0; padding: 0.35rem 0.5rem; border: 2px solid var(--panel-border); color: #c14cff; font: 700 0.68rem/1.35 "Courier New", monospace; }
+.other-reflex-game { border: 2px solid #ffd23f; padding: 0.5rem; background: rgba(255, 210, 63, 0.06); }
+.other-reflex-head,
+.other-reflex-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font: 700 0.7rem/1.2 "Courier New", monospace; }
+.other-reflex-head strong { color: #ffd23f; }
+.other-reflex-arena { position: relative; height: 180px; margin: 0.45rem 0; overflow: hidden; border: 2px dashed #c14cff; background: repeating-linear-gradient(45deg, rgba(193, 76, 255, 0.07) 0 8px, transparent 8px 16px); }
+.other-reflex-target { position: absolute; width: 62px; height: 62px; padding: 0; border: 3px solid #fff; border-radius: 50%; background: #c14cff; color: #fff; font: 900 0.66rem/1 "Courier New", monospace; cursor: pointer; box-shadow: 0 0 0 3px #000, 0 0 18px #c14cff; }
+
 /* Progress: the run's totals on top, then one card per level saying what it
    is and — once played — what this run actually managed there. */
 .settings-run {
@@ -2727,6 +2822,9 @@ body.user-reduced-motion *::after {
     border-width: 2px 0 0;
     border-radius: 14px 14px 0 0;
   }
+  .other-fun-box { width: 100%; max-height: 92vh; border-width: 2px 0 0; border-radius: 14px 14px 0 0; }
+  .other-fun-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .other-fun-card { min-height: 108px; }
   .other-block-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 

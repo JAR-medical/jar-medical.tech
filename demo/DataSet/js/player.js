@@ -32,6 +32,7 @@ export class Player {
     this.enabled = false;
     this.creativeFlight = false;
     this.creativeFlightVertical = 0;
+    this.otherPhysics = { gravityScale: 1, speedScale: 1, jumpScale: 1, invertControls: false };
     // Scripted scenes can take running away and hand it back as a reward. The
     // walk speed is unaffected, so a gated player is slowed, never stuck.
     this.sprintEnabled = true;
@@ -191,6 +192,10 @@ export class Player {
     }
     moveX += rightX * this.touchMove.x + forwardX * -this.touchMove.y;
     moveZ += rightZ * this.touchMove.x + forwardZ * -this.touchMove.y;
+    if (this.otherPhysics.invertControls) {
+      moveX *= -1;
+      moveZ *= -1;
+    }
     const length = Math.hypot(moveX, moveZ);
     if (length > 0) {
       moveX /= length;
@@ -205,13 +210,13 @@ export class Player {
         this.keys.has("ShiftLeft") ||
         this.keys.has("ShiftRight") ||
         autoSprinting);
-    const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1);
+    const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1) * this.otherPhysics.speedScale;
     this.velocity.x = moveX * speed;
     this.velocity.z = moveZ * speed;
 
     let jumpedThisFrame = false;
     if ((this.jumpQueued || this.keys.has("Space")) && this.grounded) {
-      this.velocity.y = JUMP_VELOCITY;
+      this.velocity.y = JUMP_VELOCITY * this.otherPhysics.jumpScale;
       this.jumpQueued = false;
       this.grounded = false;
       this._wasGrounded = false;
@@ -219,7 +224,7 @@ export class Player {
       emit("player:jump", { surface: this.surface });
     }
 
-    this.velocity.y = Math.max(TERMINAL_VELOCITY, this.velocity.y + GRAVITY * dt);
+    this.velocity.y = Math.max(TERMINAL_VELOCITY, this.velocity.y + GRAVITY * this.otherPhysics.gravityScale * dt);
 
     const p = this.position;
     let nx = p.x + this.velocity.x * dt;
@@ -238,7 +243,7 @@ export class Player {
       (blockedX || blockedZ) &&
       this._canAutoJump(p.x + this.velocity.x * dt, p.z + this.velocity.z * dt)
     ) {
-      this.velocity.y = JUMP_VELOCITY;
+      this.velocity.y = JUMP_VELOCITY * this.otherPhysics.jumpScale;
       this.jumpQueued = false;
       this.grounded = false;
       this._wasGrounded = false;
@@ -304,13 +309,17 @@ export class Player {
     }
     moveX += rightX * this.touchMove.x + forwardX * -this.touchMove.y;
     moveZ += rightZ * this.touchMove.x + forwardZ * -this.touchMove.y;
+    if (this.otherPhysics.invertControls) {
+      moveX *= -1;
+      moveZ *= -1;
+    }
     const length = Math.hypot(moveX, moveZ);
     if (length > 0) {
       moveX /= length;
       moveZ /= length;
     }
     const fast = this.keys.has("ControlLeft") || this.keys.has("ControlRight") || this.touchSprint;
-    const speed = WALK_SPEED * (fast ? 2.5 : 1.35);
+    const speed = WALK_SPEED * (fast ? 2.5 : 1.35) * this.otherPhysics.speedScale;
     const vertical =
       (this.keys.has("Space") ? 1 : 0) -
       (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight") ? 1 : 0) +
@@ -334,6 +343,15 @@ export class Player {
       this.velocity.set(0, 0, 0);
       this.grounded = false;
     }
+  }
+
+  setOtherPhysics({ gravityScale = 1, speedScale = 1, jumpScale = 1, invertControls = false } = {}) {
+    this.otherPhysics = {
+      gravityScale: Math.max(0.15, Math.min(1.5, Number(gravityScale) || 1)),
+      speedScale: Math.max(0.5, Math.min(2.5, Number(speedScale) || 1)),
+      jumpScale: Math.max(0.5, Math.min(2.5, Number(jumpScale) || 1)),
+      invertControls: Boolean(invertControls),
+    };
   }
 
   teleport(x, y, z) {
