@@ -86,6 +86,7 @@ export class SpeechClient {
       contributionMode: Boolean(context.contributionMode),
       contributionSessionId: String(context.contributionSessionId || "").trim(),
       contributorId: String(context.contributorId || "").trim(),
+      contributorToken: String(context.contributorToken || "").trim(),
       consentVersion: String(context.consentVersion || "").trim(),
       promptId: String(context.promptId || "").trim(),
       taskType: String(context.taskType || "").trim(),
@@ -237,6 +238,9 @@ export class SpeechClient {
     addEncodedHeader("X-Medicraft-Scenario-ID", recordingContext.scenarioId);
     addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
     addEncodedHeader("X-Medicraft-Session-ID", recordingContext.contributionSessionId);
+    if (recordingContext.contributorToken) {
+      headers["X-Medicraft-Contributor-Token"] = recordingContext.contributorToken;
+    }
     addEncodedHeader("X-Medicraft-Prompt-ID", recordingContext.promptId);
     addEncodedHeader("X-Medicraft-Task-Type", recordingContext.taskType);
     addEncodedHeader("X-Medicraft-Required-Concepts", JSON.stringify(recordingContext.requiredConcepts));

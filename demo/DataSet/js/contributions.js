@@ -2,6 +2,28 @@ import { apiUrl } from "./api.js";
 
 export const CONSENT_VERSION = "2026-08-23";
 const REQUEST_TIMEOUT_MS = 12_000;
+const STORED_SESSION_KEY = "medicraft.contribution.session";
+
+function readStoredSession() {
+  try {
+    const raw = sessionStorage.getItem(STORED_SESSION_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (!session || typeof session !== "object" || !session.sessionId || !session.contributorId) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function storeSession(session) {
+  try {
+    if (session) sessionStorage.setItem(STORED_SESSION_KEY, JSON.stringify(session));
+    else sessionStorage.removeItem(STORED_SESSION_KEY);
+  } catch {
+    // Private browsing can disable storage; the in-memory session still works.
+  }
+}
 
 async function jsonRequest(path, options = {}) {
   const { timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
@@ -32,13 +54,23 @@ async function jsonRequest(path, options = {}) {
 
 export class ContributionClient {
   constructor() {
-    this.session = null;
+    // Some mobile browsers block the backend's cross-site HttpOnly cookie even
+    // after a successful consent response. Keep the pseudonymous session in
+    // this tab as a header fallback; the cookie remains the normal path.
+    this.session = readStoredSession();
     this.summary = null;
     this.recoveryCode = null;
   }
 
+  _request(path, options = {}) {
+    const token = this.session?.contributorToken;
+    const headers = { ...(options.headers || {}) };
+    if (token) headers["X-Medicraft-Contributor-Token"] = token;
+    return jsonRequest(path, { ...options, headers });
+  }
+
   async startSession({ ageBand = "16+", locale = "de-DE", mode = "campaign" } = {}) {
-    const result = await jsonRequest("/api/contribution-sessions", {
+    const result = await this._request("/api/contribution-sessions", {
       method: "POST",
       body: JSON.stringify({ consent_version: CONSENT_VERSION, age_band: ageBand, locale, mode }),
     });
@@ -46,26 +78,28 @@ export class ContributionClient {
       contributorId: result.contributor_id,
       sessionId: result.session_id,
       consentVersion: result.consent_version,
+      contributorToken: result.contributor_token || this.session?.contributorToken || null,
     };
+    storeSession(this.session);
     this.summary = result.summary || null;
     this.recoveryCode = result.recovery_code || null;
     return result;
   }
 
   async nextPrompt(stage = "campaign") {
-    const result = await jsonRequest(`/api/prompts/next?stage=${encodeURIComponent(stage)}`);
+    const result = await this._request(`/api/prompts/next?stage=${encodeURIComponent(stage)}`);
     return result.prompt;
   }
 
   async refreshSummary() {
-    const result = await jsonRequest("/api/contributors/me/summary");
+    const result = await this._request("/api/contributors/me/summary");
     this.summary = result;
     return result;
   }
 
   track(eventName, payload = {}) {
     if (!this.session) return Promise.resolve(false);
-    return jsonRequest("/api/contribution-events", {
+    return this._request("/api/contribution-events", {
       method: "POST",
       keepalive: true,
       body: JSON.stringify({
@@ -78,7 +112,7 @@ export class ContributionClient {
 
   async completeShift() {
     if (!this.session) return null;
-    const result = await jsonRequest(`/api/contribution-sessions/${encodeURIComponent(this.session.sessionId)}/complete`, {
+    const result = await this._request(`/api/contribution-sessions/${encodeURIComponent(this.session.sessionId)}/complete`, {
       method: "POST",
       body: "{}",
     });
@@ -87,12 +121,13 @@ export class ContributionClient {
   }
 
   async withdraw() {
-    const result = await jsonRequest("/api/contributors/me/withdraw", {
+    const result = await this._request("/api/contributors/me/withdraw", {
       method: "POST",
       body: "{}",
     });
     this.session = null;
     this.summary = null;
+    storeSession(null);
     return result;
   }
 
@@ -102,6 +137,7 @@ export class ContributionClient {
       contributionMode: true,
       contributionSessionId: this.session.sessionId,
       contributorId: this.session.contributorId,
+      contributorToken: this.session.contributorToken || "",
       consentVersion: this.session.consentVersion,
       promptId: prompt.promptId,
       taskType: prompt.taskType,
