@@ -2,7 +2,7 @@ import { emit } from "./events.js";
 import { apiBase, apiBaseConfigured, apiOrigin, invalidateApiBase, resolveApiBase } from "./api.js";
 
 const TARGET_RATE = 16000;
-const MAX_SECONDS = 25;
+const MAX_SECONDS = 90;
 const MIN_SPEECH_SECONDS = 0.8;
 const SILENCE_RMS = 0.01;
 
