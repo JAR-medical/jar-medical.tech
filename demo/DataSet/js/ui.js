@@ -131,6 +131,9 @@ export class UI {
       voiceStageProgress: $("voice-stage-progress"),
       chartProfile: $("chart-profile"),
       chartActions: $("chart-actions"),
+      transcriptLoading: $("transcript-loading"),
+      transcriptLoadingLabel: $("transcript-loading-label"),
+      transcriptLabel: $("transcript-label"),
       transcriptArea: $("transcript-area"),
       chartRecord: $("chart-record"),
       voiceOutput: $("voice-output"),
@@ -1056,13 +1059,26 @@ export class UI {
     }
     if (state === "recording") {
       this._recording = true;
+      this.setTranscriptionLoading(false);
       this.setRecordingUI(true, false);
     } else if (state === "transcribing") {
       this._recording = false;
+      this.setTranscriptionLoading(true, detail || "Wird verarbeitet …");
       this.setRecordingUI(false, true);
     } else if (state === "idle" || state === "ready" || state === "error" || state === "unavailable") {
       this._recording = false;
+      if (!this._voiceSubmissionPending) this.setTranscriptionLoading(false);
       this.setRecordingUI(false, false);
+    }
+  }
+
+  setTranscriptionLoading(active, detail = "Wird verarbeitet …") {
+    const loading = this.el.transcriptLoading;
+    if (!loading) return;
+    loading.classList.toggle("hidden", !active);
+    loading.setAttribute("aria-busy", String(Boolean(active)));
+    if (active && this.el.transcriptLoadingLabel) {
+      this.el.transcriptLoadingLabel.textContent = String(detail || "Wird verarbeitet …");
     }
   }
 
@@ -1073,7 +1089,7 @@ export class UI {
     button.classList.toggle("recording", Boolean(isRecording));
     button.setAttribute("aria-pressed", String(Boolean(isRecording)));
     button.textContent = busy
-      ? "⏳ Text wird verarbeitet …"
+      ? "⏳ Transkription läuft …"
       : this._voiceSubmissionPending
         ? "✔ Aufnahme gespeichert"
       : isRecording
@@ -1083,6 +1099,8 @@ export class UI {
 
   setVoiceSubmissionPending(pending) {
     this._voiceSubmissionPending = Boolean(pending);
+    if (this._voiceSubmissionPending) this.setTranscriptionLoading(true, "Wird verarbeitet …");
+    else if (this._sttState !== "transcribing") this.setTranscriptionLoading(false);
     this.setRecordingUI(this._recording, false);
   }
 
@@ -1352,6 +1370,7 @@ export class UI {
     this.transcriptPlaceholder();
     this._recording = false;
     this._voiceSubmissionPending = Boolean(view.contributionMode && view.acceptedVoiceClips > 0 && !view.resolved);
+    this.setTranscriptionLoading(this._sttState === "transcribing" || this._voiceSubmissionPending);
     this.setRecordingUI(false, this._sttState === "transcribing");
     this.clearVoiceOutput();
     this.clearVerdict();
@@ -1390,6 +1409,7 @@ export class UI {
   transcriptPlaceholder() {
     this.el.transcriptArea.textContent = "";
     this.el.transcriptArea.classList.add("hidden");
+    this.el.transcriptLabel?.classList.add("hidden");
   }
 
   appendTranscript(text) {
@@ -1398,6 +1418,7 @@ export class UI {
     } else {
       this.el.transcriptArea.textContent = text;
       this.el.transcriptArea.classList.remove("hidden");
+      this.el.transcriptLabel?.classList.remove("hidden");
     }
   }
 
@@ -1679,6 +1700,7 @@ export class UI {
     this.el.chartPanel.classList.add("hidden");
     this._recording = false;
     this._voiceSubmissionPending = false;
+    this.setTranscriptionLoading(false);
     this.setRecordingUI(false, false);
     this.clearVoiceOutput();
     if (this.el.fallbackInput === document.activeElement) this.el.fallbackInput.blur();

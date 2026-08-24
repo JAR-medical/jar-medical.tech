@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
-import { World } from "./world.js?v=20260823-glass1";
+import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js";
 import { SpeechClient } from "./stt.js";
-import { UI } from "./ui.js?v=20260823-glass1";
+import { UI } from "./ui.js?v=20260824-transcript1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
@@ -286,11 +286,12 @@ export class App {
       // while the immutable take is uploaded and transcribed in the background.
       this.audio.duck("recording", state === "recording");
       if (state === "transcribing") {
-        this.ui.toast("Transkription läuft im Hintergrund — Fenster kann geschlossen werden.", "info");
+        this.ui.toast("Transkription läuft — das Fenster bleibt geöffnet.", "info");
       }
     });
 
     on("stt:error", ({ message, context = {}, handled = false }) => {
+      this.ui.setTranscriptionLoading(false);
       this.ui.toast(message, "bad");
       this.ui.flash("bad");
       if (!handled && this.contributions.session) {
@@ -347,11 +348,16 @@ export class App {
         this.ui.showVoiceRawData({ audioBlob: detail.audioBlob, audioInfo: detail.audioInfo });
         this.ui.showVoiceAccepted(result);
         this.ui.setVoiceSubmissionPending(true);
+        this.ui.setTranscriptionLoading(true, "Transkription wird berechnet …");
       }
       this.ui.scorePop("AUFNAHME GESPEICHERT", "good");
     });
 
     on("stt:clip-rejected", ({ context = {}, reason }) => {
+      if (this.mode === "chart" && this.currentPatientId === context.patientId) {
+        this.ui.setVoiceSubmissionPending(false);
+        this.ui.setTranscriptionLoading(false);
+      }
       this.contributions.track("retry_requested", { prompt_id: context.promptId, reason });
     });
 
@@ -374,6 +380,7 @@ export class App {
       if (context.contributionMode) {
         const patientId = context.patientId || null;
         const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
+        if (sameChart) this.ui.setTranscriptionLoading(false);
         if (sameChart && text) this.ui.appendTranscript(text);
         if (!text || !text.trim()) {
           const result = this.submitReport("", {
@@ -384,7 +391,6 @@ export class App {
             scenarioId: context.scenarioId || null,
             allowEmpty: true,
           });
-          if (sameChart && result?.saved) setTimeout(() => this.closeChart(), 1100);
           return;
         }
         const result = this.submitReport(text, {
@@ -394,11 +400,11 @@ export class App {
           patientId,
           scenarioId: context.scenarioId || null,
         });
-        if (sameChart && result?.saved) setTimeout(() => this.closeChart(), 1100);
         return;
       }
       const patientId = context.patientId || null;
       const sameChart = this.mode === "chart" && this.currentPatientId === patientId;
+      if (sameChart) this.ui.setTranscriptionLoading(false);
       if (sameChart) this.ui.showVoiceRawData({ audioBlob, audioInfo, processingSeconds: seconds });
       if (!text || !text.trim()) {
         this.ui.toast("Leere Aufnahme — nochmal sprechen.", "warn");
@@ -972,9 +978,6 @@ export class App {
     }
     if (result.accuracy?.scored) {
       this.ui.scorePop(`${result.accuracy.score}% ${result.accuracy.label}`, result.accuracy.score >= 80 ? "good" : "warn");
-    }
-    if (result.saved && !options.keepChart) {
-      setTimeout(() => this.closeChart(), 1100);
     }
     return result;
   }

@@ -229,6 +229,11 @@
             <div class="voice-stage-head"><span id="voice-stage-label">BERICHT SPRECHEN</span><b id="voice-stage-progress">1/1</b></div>
             <div id="chart-hint" class="report-script" aria-live="polite"></div>
             <button id="chart-record" class="btn big voice-record" type="button" aria-pressed="false">🎤 Aufnahme starten</button>
+            <div id="transcript-loading" class="transcript-loading hidden" role="status" aria-live="polite" aria-busy="true">
+              <div class="transcript-loading-head"><span>TRANSKRIPTION</span><span id="transcript-loading-label">Wird verarbeitet …</span></div>
+              <div class="transcript-loading-track" aria-hidden="true"><span></span></div>
+            </div>
+            <div id="transcript-label" class="transcript-label hidden">DEINE TRANSKRIPTION</div>
             <div id="transcript-area" class="transcript hidden" aria-live="polite"></div>
             <section id="voice-output" class="voice-output hidden" aria-live="polite">
               <div class="voice-output-header">
@@ -346,6 +351,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js"></script>
-  <script type="module" src="./js/main.js?v=20260823-glass1"></script>
+  <script type="module" src="./js/main.js?v=20260824-transcript1"></script>
 </body>
 </html>

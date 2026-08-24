@@ -48,6 +48,8 @@ export const WORLD_SIZE = 128;
 export const WORLD_HEIGHT = 56;
 // WORLD_HEIGHT remains the terrain-generation baseline. Player blocks are
 // stored sparsely, so it is no longer a placement or rendering ceiling.
+// Kept as a public compatibility value; the invisible boundary is no longer
+// limited to this height.
 export const WORLD_BORDER_HEIGHT = 18;
 const CHUNK = 16;
 const CHUNKS = WORLD_SIZE / CHUNK;
@@ -648,23 +650,9 @@ export class World {
   }
 
   _buildMapBorder() {
-    // Keep the perimeter inside the playable coordinates so it is both
-    // visible from the map and collidable from every direction. The caution
-    // cap makes the boundary readable at a distance without enclosing the sky.
-    for (let y = 0; y < WORLD_BORDER_HEIGHT; y++) {
-      for (let edge = 0; edge < WORLD_SIZE; edge++) {
-        this._setGeneratedBlock(edge, y, 0, BLOCK.CONCRETE);
-        this._setGeneratedBlock(edge, y, WORLD_SIZE - 1, BLOCK.CONCRETE);
-        this._setGeneratedBlock(0, y, edge, BLOCK.CONCRETE);
-        this._setGeneratedBlock(WORLD_SIZE - 1, y, edge, BLOCK.CONCRETE);
-      }
-    }
-    for (let edge = 0; edge < WORLD_SIZE; edge++) {
-      this._setGeneratedBlock(edge, WORLD_BORDER_HEIGHT, 0, BLOCK.CAUTION);
-      this._setGeneratedBlock(edge, WORLD_BORDER_HEIGHT, WORLD_SIZE - 1, BLOCK.CAUTION);
-      this._setGeneratedBlock(0, WORLD_BORDER_HEIGHT, edge, BLOCK.CAUTION);
-      this._setGeneratedBlock(WORLD_SIZE - 1, WORLD_BORDER_HEIGHT, edge, BLOCK.CAUTION);
-    }
+    // The boundary is intentionally not stored as blocks. isMapBorder() and
+    // isSolid() provide an invisible collision plane, leaving no wall mesh,
+    // faces, or artificial blocks for the renderer to display.
   }
 
   isMapBorder(x, y, z) {
@@ -673,7 +661,6 @@ export class World {
     z = Math.floor(z);
     return (
       y >= 0 &&
-      y <= WORLD_BORDER_HEIGHT &&
       (x === 0 || x === WORLD_SIZE - 1 || z === 0 || z === WORLD_SIZE - 1)
     );
   }
@@ -1433,6 +1420,7 @@ export class World {
   }
 
   isSolid(x, y, z) {
+    if (this.isMapBorder(x, y, z)) return true;
     const b = this.getBlock(x, y, z);
     return b !== BLOCK.AIR && b !== BLOCK.WATER;
   }
@@ -1442,6 +1430,7 @@ export class World {
     y = Math.floor(y);
     z = Math.floor(z);
     if (x < 0 || x >= WORLD_SIZE || y < 0 || z < 0 || z >= WORLD_SIZE) return;
+    if (this.isMapBorder(x, y, z)) return;
     const previous = this._getStoredBlock(x, y, z);
     this._writeBlock(x, y, z, id);
     this._updateHeightAt(x, z);
