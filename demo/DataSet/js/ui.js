@@ -374,6 +374,12 @@ export class UI {
     };
     this.el.btnConsent.addEventListener("pointerdown", handleConsentAttempt);
     this.el.btnConsent.addEventListener("click", handleConsentAttempt);
+    const handleConsentFromDocument = (event) => {
+      const target = event.target instanceof Element ? event.target.closest("#btn-consent") : null;
+      if (target === this.el.btnConsent) handleConsentAttempt(event);
+    };
+    document.addEventListener("pointerdown", handleConsentFromDocument, true);
+    document.addEventListener("click", handleConsentFromDocument, true);
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (ready) this.el.consentError?.classList.add("hidden");

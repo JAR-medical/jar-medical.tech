@@ -943,6 +943,64 @@ body.touch-device #hotbar-help { display: none; }
   color: var(--yellow);
   font-size: 1.65rem;
 }
+
+#other-pc-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: min(92vw, 900px);
+  padding: 0.4rem 0.55rem;
+  background: rgba(10, 14, 8, 0.82);
+  border: 2px solid #c14cff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 24px rgba(193, 76, 255, 0.25);
+  font: 700 0.7rem/1 "Courier New", monospace;
+  color: #f2d6ff;
+  pointer-events: auto;
+}
+#other-pc-toolbar.hidden { display: none !important; }
+#other-tool-status { color: #ffd23f; margin-right: 0.25rem; }
+#other-touch-actions {
+  position: absolute;
+  right: calc(16px + var(--safe-right));
+  bottom: calc(96px + var(--safe-bottom));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  max-width: calc(100vw - 180px);
+  pointer-events: none;
+}
+#other-touch-actions.hidden { display: none !important; }
+#other-touch-actions > span {
+  padding: 0.3rem 0.5rem;
+  border: 2px solid #c14cff;
+  background: rgba(10, 14, 8, 0.8);
+  color: #ffd23f;
+  font: 700 0.62rem/1 "Courier New", monospace;
+}
+.other-touch-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  pointer-events: none;
+}
+.other-touch-row .touch-action {
+  width: 58px;
+  min-height: 48px;
+  font-size: 1.05rem;
+  pointer-events: auto;
+}
+.other-touch-row .touch-action.compact { min-height: 48px; }
+
 body.touch-device #touch-controls { display: block; }
 body.touch-device .touch-only { display: inline; }
 body.touch-device .desktop-only { display: none; }
@@ -2461,6 +2519,106 @@ body.touch-device .desktop-only { display: none; }
   line-height: 1.45;
 }
 
+.settings-row .other-slider {
+  appearance: none;
+  width: 3.4rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 2px solid var(--panel-border);
+  border-radius: 999px;
+  background: #31362c;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+.settings-row .other-slider::after {
+  content: "";
+  display: block;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.1rem;
+  border-radius: 50%;
+  background: #9aa88e;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+.settings-row .other-slider:checked {
+  background: linear-gradient(90deg, #456c1a, #7cfc00);
+  border-color: var(--green);
+}
+.settings-row .other-slider:checked::after {
+  transform: translateX(1.7rem);
+  background: #fff;
+}
+.settings-row .other-slider:disabled { opacity: 0.4; cursor: not-allowed; }
+.other-settings-intro {
+  margin-bottom: 0.8rem;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid #c14cff;
+  background: rgba(193, 76, 255, 0.07);
+}
+.other-settings-intro p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.74rem; line-height: 1.45; }
+.other-settings-kicker {
+  color: #c14cff;
+  font: 900 0.62rem/1 "Courier New", monospace;
+  letter-spacing: 0.12em;
+}
+.other-feature-options {
+  margin-top: 0.8rem;
+  border: 2px solid var(--green);
+  padding: 0.7rem;
+  background: rgba(124, 252, 0, 0.06);
+}
+.other-settings-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.other-settings-actions .btn { font-size: 0.76rem; }
+
+.other-block-box {
+  width: min(900px, 96vw);
+  max-height: min(88vh, 760px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#other-block-menu { z-index: 80; }
+.other-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.other-block-header h2 {
+  margin: 0.2rem 0 0;
+  color: var(--green);
+  font-family: "Courier New", monospace;
+}
+.other-block-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.4rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.7rem 0.2rem 0.2rem;
+}
+.other-block-swatch {
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 2px solid var(--panel-border);
+  background: linear-gradient(135deg, var(--block-color), rgba(0, 0, 0, 0.4));
+  color: #fff;
+  text-shadow: 1px 1px #000;
+  cursor: pointer;
+  font: 700 0.62rem/1.15 "Courier New", monospace;
+}
+.other-block-swatch:hover, .other-block-swatch.selected {
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 2px var(--yellow), 0 0 16px var(--block-color);
+  transform: translateY(-1px);
+}
+.other-block-icon { font-size: 1.35rem; line-height: 1; }
+
 /* Progress: the run's totals on top, then one card per level saying what it
    is and — once played — what this run actually managed there. */
 .settings-run {
@@ -2545,6 +2703,22 @@ body.touch-device .desktop-only { display: none; }
   .settings-row output { text-align: left; }
   .level-card { grid-template-columns: 2rem minmax(0, 1fr); }
   .level-card .level-result { grid-column: 2; text-align: left; }
+}
+
+@media (max-width: 720px) {
+  #other-pc-toolbar { display: none; }
+  #other-touch-actions {
+    right: calc(8px + var(--safe-right));
+    bottom: calc(94px + var(--safe-bottom));
+    max-width: calc(100vw - 126px);
+  }
+  .other-block-box {
+    width: 100%;
+    max-height: 90vh;
+    border-width: 2px 0 0;
+    border-radius: 14px 14px 0 0;
+  }
+  .other-block-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---------------------------------------------------------------------------
