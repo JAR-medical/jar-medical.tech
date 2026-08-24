@@ -14,6 +14,22 @@ const elements = {
   refresh: document.querySelector("#refresh-board"),
 };
 
+const menuToggle = document.querySelector("#menu-toggle");
+const mainNav = document.querySelector("#main-nav");
+
+function closeMenu() {
+  mainNav?.classList.remove("open");
+  menuToggle?.setAttribute("aria-expanded", "false");
+}
+
+menuToggle?.addEventListener("click", () => {
+  const open = !mainNav?.classList.contains("open");
+  mainNav?.classList.toggle("open", open);
+  menuToggle.setAttribute("aria-expanded", String(open));
+});
+
+mainNav?.querySelectorAll("a").forEach((link) => link.addEventListener("click", closeMenu));
+
 const number = new Intl.NumberFormat("de-DE");
 const dateTime = new Intl.DateTimeFormat("de-DE", {
   dateStyle: "medium",
