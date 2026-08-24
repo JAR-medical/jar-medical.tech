@@ -302,8 +302,8 @@ function chevron(ctx, cx, cy, halfWidth, halfHeight, thickness, color) {
   ctx.stroke();
 }
 
-// Painted on the floor and repeated down the corridor, so the arrow is still
-// answering the question after the sign is behind the player.
+// Painted on the floor and repeated down the corridor, so the route remains
+// legible without putting a large directional icon into the spawn view.
 function floorChevronTexture() {
   return canvasTexture(256, 320, (ctx, w, h) => {
     ctx.clearRect(0, 0, w, h);
@@ -480,7 +480,6 @@ export class IntroSequence {
     this.group = new THREE.Group();
     this.group.name = "medicraft-intro";
     this.observers = [];
-    this.bobbers = [];
     this.lights = [];
     this.aircraft = [];
     this.photoTextures = [];
@@ -797,9 +796,6 @@ export class IntroSequence {
     // there is a drop they cannot climb back up between them and it.
     if (this.done) return;
 
-    for (const bob of this.bobbers) {
-      bob.mesh.position.y = bob.baseY + Math.sin(this.clock * bob.speed) * bob.amplitude;
-    }
     if (this.glow) this.glow.material.opacity = 0.13 + 0.05 * Math.sin(this.clock * 1.1);
 
     // They are watching the player, not the room. Close enough, and one of them
@@ -843,7 +839,6 @@ export class IntroSequence {
     for (const texture of this.photoTextures) texture.dispose();
     this.photoTextures = [];
     this.observers = [];
-    this.bobbers = [];
     this.lights = [];
     this.aircraft = [];
   }

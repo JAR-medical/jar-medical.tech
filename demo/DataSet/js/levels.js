@@ -126,9 +126,9 @@ const INTRO_VTOL = Object.freeze({
   halfWidth: 7,
   // Height of the fuselage centre line over the apron, and the semi-axes of the
   // oval section. The hold sits low inside it; the rest is avionics and belly.
-  centre: 7,
+  centre: 9,
   radiusY: 6,
-  wing: Object.freeze({ from: 90, to: 96, span: 17, y: 10 }),
+  wing: Object.freeze({ from: 90, to: 96, span: 17, y: 12 }),
   fin: Object.freeze({ from: 95, to: 103, height: 9 }),
 });
 

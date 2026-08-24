@@ -593,6 +593,7 @@ export const STRUCTURE_BUILDERS = {
       return Math.max(3, Math.round(halfWidth * scale));
     };
     const inOval = (dx, dy, a) => (dx / a) ** 2 + (dy / radiusY) ** 2 <= 1;
+    const crossZ = Math.round(((wing.from ?? 90) + (wing.to ?? 96)) / 2);
 
     for (let z = zRamp; z <= zTail; z++) {
       const a = halfAt(z);
@@ -608,26 +609,28 @@ export const STRUCTURE_BUILDERS = {
           // A red cross on each flank, big enough to read from the apron, plus
           // the cheatline that runs the length of the hull.
           if (flank && dy === 1) block = "REDCROSS";
-          if (flank && ((Math.abs(z - 93) <= 3 && dy === -1) || (z === 93 && Math.abs(dy + 1) <= 3))) {
+          if (flank && ((Math.abs(z - crossZ) <= 3 && dy === -1) || (z === crossZ && dy >= -3 && dy <= 3))) {
             block = "REDCROSS";
           }
-          if (flank && dy === 3 && z % 2 === 0) block = "GLASS";
+          if (flank && dy === 4 && z % 2 === 0) block = "GLASS";
+          // Flight deck: glazed over the top of the nose, on the skin itself.
+          // Anything hung inside the hull at this height is carved away again
+          // when `intro_tunnel` hollows the hold out of it.
+          if (z <= zRamp + 4 && dy >= 2) block = "GLASS";
           api.put(axis + dx, cy + dy, z, block);
         }
       }
     }
 
-    // Flight deck over the nose door, and the door frame itself in hazard
-    // stripes so the opening reads as a way out rather than as damage.
-    for (let z = zRamp + 1; z <= zRamp + 3; z++) {
-      for (let x = axis - 4; x <= axis + 4; x++) api.put(x, cy + 3, z, "GLASS");
-    }
-    for (let y = cy - 5; y <= cy + 2; y++) {
+    // The door frame in hazard stripes, so the opening reads as a way out
+    // rather than as damage. Both columns sit outside the hold, which is the
+    // only reason they survive the carve that follows.
+    for (let y = cy - radiusY; y <= cy + 2; y++) {
       api.put(axis - 5, y, zRamp, "CAUTION");
       api.put(axis + 5, y, zRamp, "CAUTION");
     }
-    api.put(axis - 3, cy - 5, zRamp, "LAMP");
-    api.put(axis + 3, cy - 5, zRamp, "LAMP");
+    api.put(axis - 6, cy - 3, zRamp, "LAMP");
+    api.put(axis + 6, cy - 3, zRamp, "LAMP");
 
     // Shoulder wing: a tapered slab per side, with the trailing edge cut back
     // harder than the leading edge so it reads as swept from underneath.
@@ -645,17 +648,16 @@ export const STRUCTURE_BUILDERS = {
       }
       // Two lift-fan ducts per side. A ring three blocks tall is unmistakable
       // as a fan from the ground, where a flat disc would be edge-on.
-      for (const out of [4, 9]) {
+      for (const out of [4, reach]) {
         const cx = axis + side * (halfWidth + out);
-        const cz = Math.round(((wing.from ?? 90) + (wing.to ?? 96)) / 2);
         for (let dz = -3; dz <= 3; dz++) {
           for (let dx = -3; dx <= 3; dx++) {
             const r = Math.hypot(dx, dz);
-            if (r > 3.4 || r < 2.4) continue;
-            for (let y = wingY - 1; y <= wingY + 1; y++) api.put(cx + dx, y, cz + dz, "STEEL");
+            if (r > 2.7 || r < 1.9) continue;
+            for (let y = wingY - 1; y <= wingY + 1; y++) api.put(cx + dx, y, crossZ + dz, "STEEL");
           }
         }
-        api.put(cx, wingY, cz, "NEON");
+        api.put(cx, wingY, crossZ, "NEON");
       }
       api.put(axis + side * span, wingY + 1, wing.to ?? 96, "NEON");
     }
@@ -672,12 +674,17 @@ export const STRUCTURE_BUILDERS = {
       for (let z = (fin.to ?? 103) - 3; z <= (fin.to ?? 103); z++) api.put(x, cy + radiusY + 1, z, "CONCRETE");
     }
 
-    // Gear: four legs and a nose leg, so the hull is standing rather than lying
-    // on the apron. The belly clears the ground by a block, which is what makes
-    // the aircraft look heavy instead of parked in a hole.
-    for (const [gx, gz] of [[-5, 89], [5, 89], [-5, 98], [5, 98], [0, 86]]) {
-      for (let y = api.surfaceY; y < cy - radiusY + 1; y++) api.put(axis + gx, y, gz, "STEEL");
-      api.put(axis + gx, api.surfaceY, gz, "DARKSTONE");
+    // Gear on outboard sponsons, so the hull stands off the apron instead of
+    // lying on it. They have to be outboard: the hold runs the full width of
+    // the belly, and anything under it is overwritten by the deck structure
+    // `intro_tunnel` lays down afterwards.
+    for (const side of [-1, 1]) {
+      for (const gz of [88, 97]) {
+        const gx = axis + side * 6;
+        for (let y = api.surfaceY + 1; y <= cy - 3; y++) api.put(gx, y, gz, "STEEL");
+        api.put(gx, api.surfaceY, gz, "DARKSTONE");
+        api.put(gx + side, api.surfaceY, gz, "DARKSTONE");
+      }
     }
   },
 
@@ -811,7 +818,10 @@ export const STRUCTURE_BUILDERS = {
       // Corridor.
       const x0 = axis - half - 1;
       const x1 = axis + half + 1;
-      hollow(x0, x1, z, fy, band.ceiling ? ceilY + 1 : ceilY + 9);
+      // Always stop one above the ceiling line. A band with no ceiling of its
+      // own opens into whatever is above it — inside the aircraft that is the
+      // full height of the hull, which is exactly the view the hold wants.
+      hollow(x0, x1, z, fy, ceilY + 1);
       for (let x = x0; x <= x1; x++) api.put(x, fy, z, band.floor);
       plinth(x0, x1, z, fy, band.support, band.plinth);
 
