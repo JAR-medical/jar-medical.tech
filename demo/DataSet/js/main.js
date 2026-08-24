@@ -5,7 +5,7 @@ import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-worldfix4";
+import { UI } from "./ui.js?v=20260825-worldfix5";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";

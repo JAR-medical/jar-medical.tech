@@ -190,6 +190,17 @@ export class UI {
       setMusicValue: $("set-music-value"),
       setSfxVolume: $("set-sfx-volume"),
       setSfxValue: $("set-sfx-value"),
+      otherEnabled: $("set-other-enabled"),
+      otherEnabledValue: $("set-other-enabled-value"),
+      otherOtherEnabled: $("set-other-other-enabled"),
+      otherOtherEnabledValue: $("set-other-other-enabled-value"),
+      otherOtherSetting: $("other-other-setting"),
+      otherFeatureOptions: $("other-feature-options"),
+      otherOpenBlocksSetting: $("other-open-blocks-setting"),
+      otherToggleFlySetting: $("other-toggle-fly-setting"),
+      otherToggleFunSetting: $("other-toggle-fun-setting"),
+      otherTeleportSetting: $("other-teleport-setting"),
+      otherPartySetting: $("other-party-setting"),
       settingsRun: $("settings-run"),
       settingsLevels: $("settings-levels"),
       setPlayerName: $("set-player-name"),
@@ -370,6 +381,11 @@ export class UI {
       const now = performance.now();
       if (now - lastConsentAttempt < 350) return;
       lastConsentAttempt = now;
+      console.info("[medicraft] consent attempt", {
+        source: event?.type || "unknown",
+        consent: Boolean(this.el.dataConsentConfirm?.checked),
+        age: Boolean(this.el.ageConfirm?.checked),
+      });
       handleConsentClick(event);
     };
     this.el.btnConsent.addEventListener("pointerdown", handleConsentAttempt);
@@ -643,6 +659,31 @@ export class UI {
     // test tones but still tells the player what they just set.
     this.el.setSfxVolume?.addEventListener("change", () => this.audio?.play("ui-confirm"));
 
+    const bindOtherSwitch = (input) => {
+      input?.addEventListener("change", () => {
+        const next = {
+          otherEnabled: Boolean(this.el.otherEnabled?.checked),
+          otherOtherEnabled: Boolean(this.el.otherOtherEnabled?.checked),
+        };
+        if (!next.otherEnabled && this.el.otherOtherEnabled) {
+          this.el.otherOtherEnabled.checked = false;
+          next.otherOtherEnabled = false;
+        }
+        this.syncOtherControls(next);
+        this.handlers.onOtherModeChanged?.(next);
+      });
+    };
+    bindOtherSwitch(this.el.otherEnabled);
+    bindOtherSwitch(this.el.otherOtherEnabled);
+    const bindOtherAction = (button, action) => {
+      button?.addEventListener("click", () => this.handlers.onOtherAction?.(action));
+    };
+    bindOtherAction(this.el.otherOpenBlocksSetting, "open-blocks");
+    bindOtherAction(this.el.otherToggleFlySetting, "toggle-flight");
+    bindOtherAction(this.el.otherToggleFunSetting, "toggle-fun");
+    bindOtherAction(this.el.otherTeleportSetting, "teleport");
+    bindOtherAction(this.el.otherPartySetting, "burst");
+
     this.el.setSaveName?.addEventListener("click", () => this._commitSettingsIdentity());
     for (const field of [this.el.setPlayerName, this.el.setPlayerCrew]) {
       field?.addEventListener("keydown", (event) => {
@@ -717,6 +758,7 @@ export class UI {
     if (name === "board") this.renderSettingsBoard();
     if (name === "progress") this.renderProgress();
     if (name === "data") this.renderContributionSummary(this.handlers.onContributionSummary?.() || null);
+    if (name === "other") this.syncOtherControls(this._settingsSnapshot || {});
     if (!silent) this.audio?.play("ui-click");
   }
 
@@ -732,6 +774,20 @@ export class UI {
     if (this.el.setSfxVolume) this.el.setSfxVolume.value = String(sfx);
     if (this.el.setMusicValue) this.el.setMusicValue.textContent = `${music} %`;
     if (this.el.setSfxValue) this.el.setSfxValue.textContent = `${sfx} %`;
+  }
+
+  syncOtherControls(snapshot = this._settingsSnapshot || {}) {
+    const enabled = Boolean(snapshot.otherEnabled);
+    const extra = enabled && Boolean(snapshot.otherOtherEnabled);
+    if (this.el.otherEnabled) this.el.otherEnabled.checked = enabled;
+    if (this.el.otherEnabledValue) this.el.otherEnabledValue.textContent = enabled ? "An" : "Aus";
+    if (this.el.otherOtherSetting) this.el.otherOtherSetting.classList.toggle("hidden", !enabled);
+    if (this.el.otherOtherEnabled) {
+      this.el.otherOtherEnabled.checked = extra;
+      this.el.otherOtherEnabled.disabled = !enabled;
+    }
+    if (this.el.otherOtherEnabledValue) this.el.otherOtherEnabledValue.textContent = extra ? "An" : "Aus";
+    if (this.el.otherFeatureOptions) this.el.otherFeatureOptions.classList.toggle("hidden", !extra);
   }
 
   _commitSettingsIdentity() {
@@ -757,6 +813,7 @@ export class UI {
   // never reaches into the game itself, so opening it cannot change anything.
   applySettingsSnapshot(snapshot) {
     this._settingsSnapshot = snapshot;
+    this.syncOtherControls(snapshot || {});
     this.renderProgress();
     this.renderSettingsBoard();
     this._renderAdminLevels();
