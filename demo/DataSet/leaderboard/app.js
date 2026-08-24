@@ -8,6 +8,7 @@ const SORTS = {
   accuracy: { defaultDirection: "desc" },
   elapsed: { defaultDirection: "asc" },
   runs: { defaultDirection: "desc" },
+  name: { defaultDirection: "asc" },
 };
 
 const VIEW_COPY = {
@@ -116,6 +117,11 @@ function formatDuration(seconds) {
     : `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
+function formatRuns(count) {
+  const value = number.format(count);
+  return `${value} ${numeric(count) === 1 ? "Einsatz" : "Einsätze"}`;
+}
+
 function normalizeKey(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -173,7 +179,7 @@ function aggregatePlayers(runs) {
     return {
       kind: "player",
       name: group.name,
-      secondary: teamNames.length > 1 ? `${teamNames.join(" · ")} · ${group.runs.length} Einsätze` : `${teamNames[0]}${group.runs.length > 1 ? ` · ${group.runs.length} Einsätze` : ""}`,
+      secondary: teamNames.length > 1 ? `${teamNames.join(" · ")} · ${formatRuns(group.runs.length)}` : `${teamNames[0]}${group.runs.length > 1 ? ` · ${formatRuns(group.runs.length)}` : ""}`,
       score: best.score,
       saved: best.saved,
       total: best.total,
@@ -225,7 +231,7 @@ function aggregateTeams(runs) {
     return {
       kind: "team",
       name: group.name,
-      secondary: `${memberSummary || "Anonym"} · ${group.runs} Einsätze`,
+      secondary: `${memberSummary || "Anonym"} · ${formatRuns(group.runs)}`,
       score: group.score,
       saved: group.saved,
       total: group.total,
@@ -244,6 +250,10 @@ function valueForSort(entry) {
 function sortedEntries(entries) {
   const direction = state.direction === "asc" ? 1 : -1;
   return [...entries].sort((a, b) => {
+    if (state.sort === "name") {
+      const nameResult = a.name.localeCompare(b.name, "de-DE", { sensitivity: "base" }) * direction;
+      if (nameResult) return nameResult;
+    }
     const primary = (valueForSort(a) - valueForSort(b)) * direction;
     if (primary) return primary;
     const scoreTie = b.score - a.score;
@@ -311,8 +321,10 @@ function renderTable(entries) {
 function syncSortOptions() {
   const progressOption = elements.sort?.querySelector('option[value="progress"]');
   const runsOption = elements.sort?.querySelector('option[value="runs"]');
+  const nameOption = elements.sort?.querySelector('option[value="name"]');
   if (progressOption) progressOption.textContent = state.mode === "teams" ? "Bestes Level" : "Level";
-  if (runsOption) runsOption.textContent = state.mode === "teams" ? "Einsätze" : "Einsätze";
+  if (runsOption) runsOption.textContent = "Einsätze";
+  if (nameOption) nameOption.textContent = state.mode === "teams" ? "Team (A–Z)" : "Spieler (A–Z)";
 }
 
 function syncControls() {
