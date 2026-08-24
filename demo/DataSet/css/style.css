@@ -431,9 +431,15 @@ canvas { display: block; image-rendering: pixelated; }
   font-family: "Courier New", monospace;
 }
 
-#mission-panel { top: 14px; left: 14px; min-width: 190px; }
+#mission-panel {
+  top: 14px;
+  left: 14px;
+  min-width: 176px;
+  padding: 0.5rem 0.75rem;
+  background: rgba(16, 20, 14, 0.78);
+}
 #mission-line { font-weight: 700; }
-#mission-timer { font-size: 1.5rem; color: var(--yellow); }
+#mission-timer { font-size: 1.35rem; color: var(--yellow); }
 #mission-timer.critical { color: var(--red); animation: blink 1s steps(2) infinite; }
 #score-value { color: var(--green); }
 
@@ -931,15 +937,6 @@ body.touch-device #hotbar-help { display: none; }
   border-color: var(--yellow);
   color: var(--yellow);
 }
-.touch-block-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  pointer-events: none;
-}
-.touch-action.compact { min-height: 48px; }
-
 body.touch-device #touch-controls { display: block; }
 body.touch-device .touch-only { display: inline; }
 body.touch-device .desktop-only { display: none; }
@@ -1057,7 +1054,6 @@ body.touch-device .desktop-only { display: none; }
   #touch-actions { grid-template-columns: repeat(2, 58px); gap: 5px; }
   .touch-action { width: 58px; min-height: 46px; font-size: 1.15rem; }
   .touch-action.primary { width: 121px; }
-  .touch-action.compact { min-height: 40px; }
   #prompt { bottom: calc(125px + var(--safe-bottom)); }
 }
 
@@ -1855,8 +1851,8 @@ body.touch-device .desktop-only { display: none; }
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  max-width: min(680px, 92vw);
-  padding: 0.6rem 1.2rem;
+  max-width: min(520px, 86vw);
+  padding: 0.42rem 0.78rem;
   text-align: center;
   background: var(--panel-bg);
   border: 2px solid var(--panel-border);
@@ -1865,9 +1861,9 @@ body.touch-device .desktop-only { display: none; }
   pointer-events: none;
   animation: banner-in 0.35s ease-out;
 }
-#level-banner-kicker { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--yellow); }
-#level-banner-title { font-size: 1.25rem; color: var(--green); letter-spacing: 0.04em; }
-#level-banner-text { font-size: 0.78rem; color: #cdd8bf; line-height: 1.35; }
+#level-banner-kicker { font-size: 0.62rem; letter-spacing: 0.15em; color: var(--yellow); }
+#level-banner-title { font-size: 1.05rem; color: var(--green); letter-spacing: 0.03em; }
+#level-banner-text { font-size: 0.68rem; color: #cdd8bf; line-height: 1.2; }
 
 @keyframes banner-in {
   from { opacity: 0; transform: translate(-50%, -12px); }
@@ -2062,8 +2058,8 @@ body.touch-device .desktop-only { display: none; }
 }
 
 #proximity-meter {
-  margin-top: 4px;
-  height: 6px;
+  margin-top: 3px;
+  height: 5px;
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--panel-border);
   overflow: hidden;
@@ -2106,7 +2102,7 @@ body.touch-device .desktop-only { display: none; }
 
 .hud-toggle.mini {
   padding: 0.2rem 0.32rem;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   opacity: 0.8;
 }
 .hud-toggle.mini span { font-size: 0.42rem; letter-spacing: 0.1em; }

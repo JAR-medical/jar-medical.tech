@@ -56,12 +56,12 @@
       </label>
       <div class="start-footer">
         <div class="start-help">
-          <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Umschalttaste</b> sprinten<br />
+          <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · nach 2&nbsp;Sekunden automatisch sprinten<br />
           <b>1–2 / Mausrad</b> Med-Kit oder Wolle wählen · <b>Rechtsklick</b> Med-Kit einsetzen / Wolle platzieren<br />
-          <b>Linksklick halten</b> Block abbauen · <b>E</b> Patientenkarte öffnen · Sprachaufgabe aufnehmen<br />
+          <b>Linksklick</b> Patientenkarte öffnen · <b>E</b> Patientenkarte öffnen · Sprachaufgabe aufnehmen<br />
           <b>M</b> Ton an/aus — die Musik verstummt automatisch, solange du sprichst</span>
           <span class="touch-only"><b>Linker Stick</b> bewegen · <b>Rechte Seite wischen</b> umsehen · <b>🩺</b> Patientenkarte öffnen<br />
-          <b>⛏ gedrückt halten</b> Block abbauen · in der Karte sprechen</span>
+          automatisch springen und nach 2&nbsp;Sekunden sprinten · in der Karte sprechen</span>
         </div>
         <span id="stt-badge" class="badge unknown">STT: wird geprüft …</span>
       </div>
@@ -179,12 +179,7 @@
       </div>
       <div id="touch-actions">
         <button id="touch-interact" class="touch-action primary" type="button" aria-label="Patientenkarte in der Nähe öffnen">🩺<span>KARTE</span></button>
-        <button id="touch-jump" class="touch-action" type="button" aria-label="Springen">↟<span>SPRINGEN</span></button>
-        <button id="touch-sprint" class="touch-action" type="button" aria-label="Sprinten">➜<span>LAUFEN</span></button>
-        <div class="touch-block-actions">
-          <button id="touch-break" class="touch-action compact" type="button" aria-label="Block abbauen">⛏</button>
-          <button id="touch-use" class="touch-action compact" type="button" aria-label="Med-Kit bei Patienten in der Nähe einsetzen">🩺<span>MED-KIT</span></button>
-        </div>
+        <button id="touch-use" class="touch-action" type="button" aria-label="Med-Kit bei Patienten in der Nähe einsetzen">🩺<span>MED-KIT</span></button>
       </div>
     </div>
 
@@ -195,13 +190,12 @@
       <div>Punkte <span id="score-value">0</span></div>
       <div>Genauigkeit <span id="accuracy-value">—</span></div>
       <div>Audioaufnahmen <span id="voice-clips-value">0/19</span></div>
-      <div>Training-ready <span id="training-ready-value">0</span></div>
       <div id="hidden-hint" class="hidden"></div>
       <div id="proximity-meter" class="hidden" aria-hidden="true"><i id="proximity-fill"></i></div>
     </div>
 
     <div id="hud-toggles">
-      <button id="settings-toggle" class="hud-toggle mini" type="button" aria-haspopup="dialog" aria-expanded="false" title="Einstellungen, Fortschritt und Bestenliste">⚙<span>MENÜ<span class="desktop-only"> · U</span></span></button>
+      <button id="settings-toggle" class="hud-toggle mini" type="button" aria-haspopup="dialog" aria-expanded="false" title="Einstellungen, Fortschritt und Bestenliste">⚙<span>MENÜ</span></button>
     </div>
 
     <div id="level-banner" class="hidden" aria-live="polite">

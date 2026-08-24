@@ -15,28 +15,8 @@ const BODY_HEIGHT = 1.8;
 const EYE_HEIGHT = 1.62;
 const MOUSE_SENSITIVITY = 0.0022;
 const TOUCH_LOOK_SENSITIVITY = 0.005;
-const DEFAULT_BREAK_TIME = 0.8;
-
-export const BLOCK_BREAK_TIMES = Object.freeze({
-  [BLOCK.GRASS]: 0.75,
-  [BLOCK.DIRT]: 0.75,
-  [BLOCK.SAND]: 0.65,
-  [BLOCK.PATH]: 0.8,
-  [BLOCK.LEAVES]: 0.25,
-  [BLOCK.WOOD]: 2.5,
-  [BLOCK.STONE]: 4.0,
-  [BLOCK.REDCROSS]: 1.0,
-  [BLOCK.LAMP]: 0.35,
-  [BLOCK.EMERGENCY_BLANKET]: 1.0,
-  [BLOCK.METAL]: 4.5,
-  [BLOCK.RUBBLE]: 1.6,
-  [BLOCK.ASPHALT]: 3.0,
-  [BLOCK.CONCRETE]: 3.6,
-  [BLOCK.BRICK]: 3.0,
-  [BLOCK.GLASS]: 0.4,
-  [BLOCK.FIRE]: 0.3,
-  [BLOCK.CAUTION]: 0.5,
-});
+const AUTO_JUMP_HEIGHT = 1.05;
+const AUTO_SPRINT_DELAY = 2;
 
 export class Player {
   constructor(camera, world, canvas) {
@@ -58,16 +38,12 @@ export class Player {
     this.touchMove = { x: 0, y: 0 };
     this.touchSprint = false;
     this.jumpQueued = false;
+    this._movementTime = 0;
     this._lookDir = new THREE.Vector3();
-    this._breaking = null;
-    this._breakHeld = false;
-    this.breakProgress = 0;
-    this.breakPhase = 0;
     this.moving = false;
     this.sprinting = false;
     this.surface = "default";
     this._wasGrounded = true;
-    this._lastBreakPhase = 0;
 
     on("input:touch-move", ({ x = 0, y = 0 }) => {
       this.touchMove.x = Math.max(-1, Math.min(1, Number(x) || 0));
@@ -87,8 +63,6 @@ export class Player {
     on("input:jump", () => {
       if (this.enabled) this.jumpQueued = true;
     });
-    on("input:break-start", () => this._startBreaking());
-    on("input:break-stop", () => this._stopBreaking());
     on("input:place", () => {
       if (this.enabled) this._useSelectedItem();
     });
@@ -121,14 +95,16 @@ export class Player {
     };
 
     this._onMouseDown = (e) => {
-      if (!this.enabled || document.pointerLockElement !== this.canvas) return;
-      if (e.button === 0) this._startBreaking();
-      else if (e.button === 2) this._useSelectedItem();
+      if (!this.enabled) return;
+      // Left-click is the direct patient-card action. It also works before
+      // pointer lock is acquired, so the first click near a patient is useful.
+      if (e.button === 0) {
+        emit("input:interact", {});
+        return;
+      }
+      if (document.pointerLockElement !== this.canvas) return;
+      if (e.button === 2) this._useSelectedItem();
     };
-    this._onMouseUp = (e) => {
-      if (e.button === 0) this._stopBreaking();
-    };
-    this._onWindowBlur = () => this._stopBreaking();
 
     this._onWheel = (e) => {
       if (!this.enabled || document.pointerLockElement !== this.canvas) return;
@@ -143,8 +119,6 @@ export class Player {
     window.addEventListener("keyup", this._onKeyUp);
     document.addEventListener("mousemove", this._onMouseMove);
     canvas.addEventListener("mousedown", this._onMouseDown);
-    window.addEventListener("mouseup", this._onMouseUp);
-    window.addEventListener("blur", this._onWindowBlur);
     canvas.addEventListener("wheel", this._onWheel, { passive: false });
     canvas.addEventListener("contextmenu", this._onContextMenu);
   }
@@ -168,17 +142,14 @@ export class Player {
 
   update(dt) {
     if (!this.enabled) {
-      this._breakHeld = false;
-      this._cancelBreaking();
       this.velocity.set(0, 0, 0);
       this.touchMove.x = 0;
       this.touchMove.y = 0;
       this.touchSprint = false;
       this.jumpQueued = false;
+      this._movementTime = 0;
       return;
     }
-
-    this._updateBreaking(dt);
 
     const forwardX = -Math.sin(this.yaw);
     const forwardZ = -Math.cos(this.yaw);
@@ -210,16 +181,24 @@ export class Player {
       moveX /= length;
       moveZ /= length;
     }
-    const sprinting = this.touchSprint || this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    const movingInput = length > 0.08;
+    this._movementTime = movingInput ? this._movementTime + dt : 0;
+    const sprinting =
+      this.touchSprint ||
+      this.keys.has("ShiftLeft") ||
+      this.keys.has("ShiftRight") ||
+      (movingInput && this._movementTime >= AUTO_SPRINT_DELAY);
     const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1);
     this.velocity.x = moveX * speed;
     this.velocity.z = moveZ * speed;
 
+    let jumpedThisFrame = false;
     if ((this.jumpQueued || this.keys.has("Space")) && this.grounded) {
       this.velocity.y = JUMP_VELOCITY;
       this.jumpQueued = false;
       this.grounded = false;
       this._wasGrounded = false;
+      jumpedThisFrame = true;
       emit("player:jump", { surface: this.surface });
     }
 
@@ -227,9 +206,27 @@ export class Player {
 
     const p = this.position;
     let nx = p.x + this.velocity.x * dt;
-    if (this._collides(nx, p.y, p.z)) nx = p.x;
+    const blockedX = this._collides(nx, p.y, p.z);
+    if (blockedX) nx = p.x;
     let nz = p.z + this.velocity.z * dt;
-    if (this._collides(nx, p.y, nz)) nz = p.z;
+    const blockedZ = this._collides(nx, p.y, nz);
+    if (blockedZ) nz = p.z;
+    // A one-block obstacle should not stop a player who is already moving.
+    // The jump starts here and the normal vertical collision step carries the
+    // player over it; two-block walls still fail the clearance check.
+    if (
+      !jumpedThisFrame &&
+      this.grounded &&
+      movingInput &&
+      (blockedX || blockedZ) &&
+      this._canAutoJump(p.x + this.velocity.x * dt, p.z + this.velocity.z * dt)
+    ) {
+      this.velocity.y = JUMP_VELOCITY;
+      this.jumpQueued = false;
+      this.grounded = false;
+      this._wasGrounded = false;
+      emit("player:jump", { surface: this.surface, automatic: true });
+    }
     const impactSpeed = -this.velocity.y;
     let ny = p.y + this.velocity.y * dt;
     if (this._collides(nx, ny, nz)) {
@@ -261,8 +258,11 @@ export class Player {
     this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
 
+  _canAutoJump(x, z) {
+    return !this._collides(x, this.position.y + AUTO_JUMP_HEIGHT, z);
+  }
+
   teleport(x, y, z) {
-    this._cancelBreaking();
     this.position.set(x, y, z);
     this.velocity.set(0, 0, 0);
   }

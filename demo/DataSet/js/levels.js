@@ -83,7 +83,7 @@ function guardrailRun(z, fromX, toX, rotation = 0) {
 export const LEVELS = Object.freeze([
   {
     id: "tutorial_clinic",
-    title: "Übungsplatz Klinik",
+    title: "Klinik",
     subtitle: "Einweisung",
     patientCount: 1,
     briefing:
@@ -115,7 +115,7 @@ export const LEVELS = Object.freeze([
 
   {
     id: "street_collapse",
-    title: "Einsturz Hauptstrasse",
+    title: "Hauptstrasse",
     subtitle: "Wohnhaus auf die Fahrbahn",
     patientCount: 2,
     briefing:
@@ -133,7 +133,7 @@ export const LEVELS = Object.freeze([
 
   {
     id: "highway_pileup",
-    title: "Massenkarambolage B27",
+    title: "Crash B27",
     subtitle: "Auffahrunfall im Nebel",
     patientCount: 4,
     briefing:
@@ -183,7 +183,7 @@ export const LEVELS = Object.freeze([
 
   {
     id: "industrial_fire",
-    title: "Werkhalle Nordhafen",
+    title: "Nordhafen",
     subtitle: "Brand in der Lagerhalle",
     patientCount: 6,
     briefing:
@@ -260,7 +260,7 @@ export const LEVELS = Object.freeze([
 
   {
     id: "alpine_avalanche",
-    title: "Lawinenabgang Bergstation",
+    title: "Bergstation",
     subtitle: "Verschüttete im Lawinenkegel",
     patientCount: 6,
     briefing:

@@ -117,7 +117,6 @@ export class App {
     // player mute the game permanently.
     document.addEventListener("visibilitychange", () => {
       this.audio.duck("hidden-tab", document.hidden);
-      if (document.hidden) this.player._stopBreaking?.();
     });
 
     this.loop = this.loop.bind(this);
@@ -247,7 +246,6 @@ export class App {
       this._resumeAfterSettings = this.mode === "playing";
       if (!this._resumeAfterSettings) return;
       this.player.enabled = false;
-      this.player._stopBreaking?.();
       document.exitPointerLock?.();
     });
 
@@ -281,8 +279,6 @@ export class App {
 
     on("player:jump", ({ surface }) => this.audio.play("jump", { material: surface }));
     on("player:land", ({ surface, strength }) => this.audio.play("land", { material: surface, strength }));
-    on("player:break-tick", ({ material }) => this.audio.play("break-tick", { material }));
-    on("player:block-broken", ({ material }) => this.audio.play("break", { material }));
     on("player:block-placed", ({ material }) => this.audio.play("place", { material }));
 
     on("stt:status", ({ state, detail }) => {
@@ -1056,12 +1052,9 @@ export class App {
     });
 
     if (this.mode === "playing") {
-      const near = this.entities.getNearest(this.player.position, 4, { activeOnly: true });
-      if (near) {
-        this.ui.showPrompt(this.ui.isTouchDevice ? `Versorgen: ${near.name} · tippe 🩺` : `Versorgen: ${near.name}`);
-      } else {
-        this.ui.showPrompt(null);
-      }
+      // Patients are opened directly with a left click (or the touch card
+      // button); no distracting "heal with E" prompt is shown in the HUD.
+      this.ui.showPrompt(null);
     } else if (this.mode !== "chart") {
       this.ui.showPrompt(null);
     }

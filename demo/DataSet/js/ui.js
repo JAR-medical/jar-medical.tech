@@ -151,9 +151,6 @@ export class UI {
       touchJoystick: $("touch-joystick"),
       touchJoystickKnob: $("touch-joystick-knob"),
       touchInteract: $("touch-interact"),
-      touchJump: $("touch-jump"),
-      touchSprint: $("touch-sprint"),
-      touchBreak: $("touch-break"),
       touchUse: $("touch-use"),
       screenFlash: $("screen-flash"),
       screenVignette: $("screen-vignette"),
@@ -1018,46 +1015,7 @@ export class UI {
       });
     };
     bindTap(this.el.touchInteract, "input:interact");
-    bindTap(this.el.touchJump, "input:jump");
     bindTap(this.el.touchUse, "input:medicate");
-
-    let breakPointerId = null;
-    const stopBreaking = (event) => {
-      if (breakPointerId === null || (event.pointerId !== undefined && event.pointerId !== breakPointerId)) return;
-      stopPointer(this.el.touchBreak, event);
-      breakPointerId = null;
-      emit("input:break-stop", {});
-    };
-    this.el.touchBreak.addEventListener("pointerdown", (event) => {
-      if (!isTouchPointer(event) || breakPointerId !== null) return;
-      event.preventDefault();
-      breakPointerId = event.pointerId;
-      this.el.touchBreak.setPointerCapture?.(event.pointerId);
-      emit("input:break-start", {});
-    });
-    for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
-      this.el.touchBreak.addEventListener(eventName, stopBreaking);
-    }
-
-    let sprintPointerId = null;
-    const stopSprint = (event) => {
-      if (sprintPointerId === null || (event.pointerId !== undefined && event.pointerId !== sprintPointerId)) return;
-      stopPointer(this.el.touchSprint, event);
-      sprintPointerId = null;
-      this.el.touchSprint.classList.remove("active");
-      emit("input:touch-sprint", { active: false });
-    };
-    this.el.touchSprint.addEventListener("pointerdown", (event) => {
-      if (!isTouchPointer(event) || sprintPointerId !== null) return;
-      event.preventDefault();
-      sprintPointerId = event.pointerId;
-      this.el.touchSprint.setPointerCapture?.(event.pointerId);
-      this.el.touchSprint.classList.add("active");
-      emit("input:touch-sprint", { active: true });
-    });
-    for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
-      this.el.touchSprint.addEventListener(eventName, stopSprint);
-    }
 
   }
 
