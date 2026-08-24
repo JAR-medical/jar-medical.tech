@@ -265,6 +265,7 @@ export class Player {
   teleport(x, y, z) {
     this.position.set(x, y, z);
     this.velocity.set(0, 0, 0);
+    this._movementTime = 0;
   }
 
   faceTowards(x, z) {
@@ -281,102 +282,6 @@ export class Player {
     if (!Number.isInteger(next) || next < 0 || next >= HOTBAR_ITEMS.length) return;
     this.hotbarIndex = next;
     if (notify) emit("input:hotbar", { index: next });
-  }
-
-  _breakBlock() {
-    const hit = this._getBreakTarget();
-    if (!hit) {
-      this._cancelBreaking();
-      return;
-    }
-    const key = this._blockKey(hit);
-    if (this._breaking?.key === key) return;
-    this._breaking = {
-      key,
-      x: hit.x,
-      y: hit.y,
-      z: hit.z,
-      block: hit.block,
-      elapsed: 0,
-      duration: BLOCK_BREAK_TIMES[hit.block] || DEFAULT_BREAK_TIME,
-    };
-    this._updateBreakProgress();
-  }
-
-  _startBreaking() {
-    if (!this.enabled) return;
-    this._breakHeld = true;
-    this._breakBlock();
-  }
-
-  _stopBreaking() {
-    this._breakHeld = false;
-    this._cancelBreaking();
-  }
-
-  _getBreakTarget() {
-    const hit = this.world.raycast(this.camera.position.clone(), this.camera.getWorldDirection(this._lookDir), 6);
-    if (!hit || hit.block === BLOCK.WATER) return null;
-    if (this.world.isMapBorder?.(hit.x, hit.y, hit.z)) return null;
-    return hit;
-  }
-
-  _blockKey(hit) {
-    return `${hit.x}:${hit.y}:${hit.z}`;
-  }
-
-  _updateBreaking(dt) {
-    if (!this._breakHeld) {
-      this._cancelBreaking();
-      return;
-    }
-    const hit = this._getBreakTarget();
-    if (!hit) {
-      this._cancelBreaking();
-      return;
-    }
-    const target = this._breaking;
-    if (!target || this._blockKey(hit) !== target.key || this.world.getBlock(target.x, target.y, target.z) !== target.block) {
-      this._breakBlock();
-      if (!this._breaking) return;
-    }
-    const activeTarget = this._breaking;
-    activeTarget.elapsed += Math.max(0, dt);
-    this._updateBreakProgress();
-    if (activeTarget.elapsed < activeTarget.duration) return;
-    this.world.setBlock(activeTarget.x, activeTarget.y, activeTarget.z, BLOCK.AIR);
-    this.world.spawnBlockDebris?.(activeTarget.x, activeTarget.y, activeTarget.z, activeTarget.block);
-    emit("player:block-broken", {
-      x: activeTarget.x,
-      y: activeTarget.y,
-      z: activeTarget.z,
-      block: activeTarget.block,
-      material: blockMaterial(activeTarget.block),
-    });
-    this._cancelBreaking();
-  }
-
-  _updateBreakProgress() {
-    if (!this._breaking) {
-      this.breakProgress = 0;
-      this.breakPhase = 0;
-      this.world.setBreakEffect?.(0, 0, null);
-      return;
-    }
-    this.breakProgress = Math.min(1, this._breaking.elapsed / this._breaking.duration);
-    this.breakPhase = this.breakProgress > 0 ? Math.min(10, Math.ceil(this.breakProgress * 10)) : 0;
-    if (this.breakPhase !== this._lastBreakPhase) {
-      this._lastBreakPhase = this.breakPhase;
-      if (this.breakPhase > 0) emit("player:break-tick", { material: blockMaterial(this._breaking.block), phase: this.breakPhase });
-    }
-    this.world.setBreakEffect?.(this.breakProgress, this.breakPhase, this._breaking);
-  }
-
-  _cancelBreaking() {
-    if (!this._breaking) return;
-    this._breaking = null;
-    this._lastBreakPhase = 0;
-    this._updateBreakProgress();
   }
 
   _useSelectedItem() {
