@@ -5,7 +5,7 @@ import { Player } from "./player.js?v=20260825-funny3";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-funny3";
+import { UI } from "./ui.js?v=20260825-practice2";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
@@ -375,8 +375,6 @@ export class App {
 
     on("ui:record-start", () => {
       // The microphone is reachable only from an active, consented campaign.
-      // Practice mode has a typed field and must never fall through to the
-      // generic transcription endpoint.
       if (this.mode !== "chart" || this.playMode !== "campaign" || !this.contributions.session) return;
       this.audio.duck("recording", true);
       const view = this.game.getView(this.currentPatientId);
@@ -782,12 +780,12 @@ export class App {
       );
       return;
     }
-    this.beginMission({ contributionMode: true });
+    this.beginMission();
   }
 
-  beginMission({ contributionMode = true } = {}) {
+  beginMission() {
     this.ui.hideMenus();
-    this.playMode = contributionMode ? "campaign" : "practice";
+    this.playMode = "campaign";
     this.campaign = new Campaign(LEVELS);
     this.campaign.reset();
     this.streak = 0;
