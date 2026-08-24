@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent3";
+} from "./leaderboard.js?v=20260824-consent4";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -321,7 +321,7 @@ export class UI {
       this.syncLeaderboardOptIn(enabled);
       this.handlers.onLeaderboardOptInChanged?.(enabled);
     });
-    this.el.btnConsent.addEventListener("click", () => {
+    const handleConsentClick = () => {
       const consentChecked = Boolean(this.el.dataConsentConfirm?.checked);
       const ageChecked = Boolean(this.el.ageConfirm?.checked);
       if (!consentChecked || !ageChecked) {
@@ -357,7 +357,15 @@ export class UI {
         }
         this.showBriefing();
       }
-    });
+    };
+    // Delegate from the stable briefing container so a static-host refresh or
+    // a browser restoring the dialog cannot leave the visible button without
+    // its consent handler.
+    this.el.briefingScreen?.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target.closest("#btn-consent") : null;
+      if (!target) return;
+      handleConsentClick();
+    }, true);
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
