@@ -3,15 +3,15 @@ import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js?v=20260824-consent8";
+import { Game } from "./gameplay.js?v=20260824-consent9";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260824-consent8";
+import { UI } from "./ui.js?v=20260824-consent9";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260824-consent8";
+import { ContributionClient } from "./contributions.js?v=20260824-consent9";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
@@ -20,7 +20,7 @@ import {
   saveLocalRun,
   submitRun,
   updatePersonalBest,
-} from "./leaderboard.js?v=20260824-consent8";
+} from "./leaderboard.js?v=20260824-consent9";
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
@@ -690,6 +690,7 @@ export class App {
   }
 
   async startMission() {
+    document.documentElement.setAttribute("data-medicraft-start-called", "1");
     try {
       const session = await this.contributions.startSession({
         ageBand: "16+",
@@ -699,6 +700,10 @@ export class App {
       this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
       this.ui.renderContributionSummary(session.summary, session.recovery_code);
     } catch (error) {
+      document.documentElement.setAttribute(
+        "data-medicraft-start-error",
+        String(error?.message || error).slice(0, 180),
+      );
       this.ui.toast(`Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`, "bad");
       this.showBriefing();
       return;
