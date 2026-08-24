@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent2";
+} from "./leaderboard.js?v=20260824-consent3";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
