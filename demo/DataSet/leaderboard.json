@@ -1,7 +1,34 @@
 {
  "ok": true,
- "count": 0,
- "published_at": "2026-08-23T11:57:29Z",
+ "count": 2,
+ "published_at": "2026-08-24T14:50:05Z",
  "source": "workstation",
- "entries": []
+ "entries": [
+  {
+   "name": "Anonym",
+   "crew": "—",
+   "score": 1162,
+   "saved": 6,
+   "total": 6,
+   "accuracy": 0.0,
+   "elapsed": 3,
+   "levels": 1,
+   "hidden_found": 0,
+   "recorded_at": "2026-08-24T14:31:38Z",
+   "id": "68b962ee74d44551a054ff963936b3e2"
+  },
+  {
+   "name": "test",
+   "crew": "test",
+   "score": 150,
+   "saved": 1,
+   "total": 3,
+   "accuracy": 0.0,
+   "elapsed": 5,
+   "levels": 2,
+   "hidden_found": 0,
+   "recorded_at": "2026-08-24T14:32:29Z",
+   "id": "8e9e022ff1ec41eca6bac521344ae7bc"
+  }
+ ]
 }
