@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
-import { Player } from "./player.js?v=20260824-controls1";
+import { Player } from "./player.js?v=20260825-level1sprint1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-worldfix7";
+import { UI } from "./ui.js?v=20260825-level1sprint1";
 import { OtherMode } from "./other_mode.js?v=20260825-other1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
@@ -836,6 +836,7 @@ export class App {
       this.finishCampaign();
       return;
     }
+    this.player.autoSprintEnabled = this.campaign.index > 0;
     this.entities.reset();
     this.rebuildWorld(level);
     const scenarioSeed = randomSeed();
@@ -891,9 +892,8 @@ export class App {
     });
   }
 
-  // The opening corridor. Sprinting is the thing it takes away and the thing it
-  // gives back, so keep the normal two-second auto-sprint available while the
-  // corridor is playing.
+  // The opening corridor keeps Level 1's automatic sprint disabled; later
+  // levels use the normal two-second auto-sprint threshold.
   startIntro(level, spots) {
     this.player.sprintEnabled = true;
     if (!level?.intro) return;
@@ -903,7 +903,8 @@ export class App {
       onExit: () => {
         this.player.sprintEnabled = true;
         this.audio.play("medal");
-        this.ui.toast("Korridor abgeschlossen — weiterlaufen, um automatisch zu sprinten.", "good");
+        const sprintHint = this.player.autoSprintEnabled ? " — weiterlaufen, um automatisch zu sprinten" : "";
+        this.ui.toast(`Korridor abgeschlossen${sprintHint}.`, "good");
         this.showLevelBannerFor(level, spots);
       },
     });
