@@ -3,25 +3,24 @@ import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js?v=20260824-consent1";
+import { Game } from "./gameplay.js?v=20260824-consent2";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260824-consent1";
+import { UI } from "./ui.js?v=20260824-consent2";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260824-consent1";
+import { ContributionClient } from "./contributions.js?v=20260824-consent2";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
   loadIdentity,
-  loadLeaderboardOptIn,
   runFromSummary,
   saveLocalRun,
   submitRun,
   updatePersonalBest,
-} from "./leaderboard.js?v=20260824-consent1";
+} from "./leaderboard.js?v=20260824-consent2";
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
@@ -58,6 +57,7 @@ export class App {
     this.runKey = null;
     this._resumeAfterSettings = false;
     this.playMode = "campaign";
+    this.leaderboardOptIn = false;
     this.trainingReadyClips = 0;
 
     const touchDevice =
@@ -233,6 +233,7 @@ export class App {
       onRestart: () => this.showBriefing(),
       onNextLevel: () => this.teleportToNextLevel(),
       onIdentityChanged: (identity) => this.publishRun(identity),
+      onLeaderboardOptInChanged: (enabled) => { this.leaderboardOptIn = Boolean(enabled); },
       onSettingsOpen: () => this.settingsSnapshot(),
       onContributionSummary: () => this.contributions.summary,
       onWithdrawContribution: () => this.withdrawContribution(),
@@ -710,6 +711,8 @@ export class App {
   }
 
   startPracticeMission() {
+    this.leaderboardOptIn = false;
+    this.ui.syncLeaderboardOptIn(false);
     this.playMode = "practice";
     this.beginMission({ contributionMode: false });
   }
@@ -844,20 +847,20 @@ export class App {
       hiddenFound: this.hiddenFound,
       hiddenTotal: this.hiddenTotal,
       runKey: this.runKey,
-      publicLeaderboardOptIn: this.playMode === "campaign" && loadLeaderboardOptIn(),
-      remoteStatus: this.playMode === "campaign" && loadLeaderboardOptIn()
+      publicLeaderboardOptIn: this.playMode === "campaign" && this.leaderboardOptIn,
+      remoteStatus: this.playMode === "campaign" && this.leaderboardOptIn
         ? "Bestenliste wird geladen …"
         : "Keine öffentliche Serververöffentlichung — der Lauf bleibt auf diesem Gerät.",
     });
 
     this.runSubmitted = false;
-    if (this.playMode === "campaign" && loadLeaderboardOptIn()) this.publishRun();
+    if (this.playMode === "campaign" && this.leaderboardOptIn) this.publishRun();
   }
 
   // One run reaches the server once. Re-saving the name after that only
   // refreshes the board rather than adding a duplicate row.
   async publishRun(identity = loadIdentity()) {
-    if (!this.lastSummary || this.playMode !== "campaign" || !loadLeaderboardOptIn()) return;
+    if (!this.lastSummary || this.playMode !== "campaign" || !this.leaderboardOptIn) return;
     if (this.runSubmitted) {
       this.refreshRemoteBoard();
       return;

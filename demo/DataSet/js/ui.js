@@ -6,12 +6,10 @@ import {
   LEADERBOARD_NOTES,
   hasStoredIdentity,
   leaderboardView,
-  loadLeaderboardOptIn,
   loadIdentity,
   loadLocalRuns,
-  saveLeaderboardOptIn,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent1";
+} from "./leaderboard.js?v=20260824-consent2";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -318,9 +316,11 @@ export class UI {
       event.preventDefault();
       this.el.btnStart.click();
     });
-    this.syncLeaderboardOptIn(loadLeaderboardOptIn());
+    // This is deliberately not restored from local storage: a public
+    // publication choice must be an active selection for the current run.
+    this.syncLeaderboardOptIn(false);
     this.el.leaderboardOptInStart?.addEventListener("change", () => {
-      const enabled = saveLeaderboardOptIn(this.el.leaderboardOptInStart.checked);
+      const enabled = Boolean(this.el.leaderboardOptInStart.checked);
       this.syncLeaderboardOptIn(enabled);
       this.handlers.onLeaderboardOptInChanged?.(enabled);
     });
@@ -1066,6 +1066,8 @@ export class UI {
     this.el.briefingScreen.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.hud.classList.add("hidden");
+    this.syncLeaderboardOptIn(false);
+    this.handlers.onLeaderboardOptInChanged?.(false);
     this.prefillPlayerName();
     this._setBadge(sttReady);
   }
@@ -1091,7 +1093,7 @@ export class UI {
     button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Einwilligen & Datensammlung starten";
   }
 
-  syncLeaderboardOptIn(value = loadLeaderboardOptIn()) {
+  syncLeaderboardOptIn(value = false) {
     const enabled = Boolean(value);
     if (this.el.leaderboardOptInStart) this.el.leaderboardOptInStart.checked = enabled;
     return enabled;
