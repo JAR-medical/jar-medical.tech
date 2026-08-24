@@ -35,6 +35,9 @@ export class Player {
     // Scripted scenes can take running away and hand it back as a reward. The
     // walk speed is unaffected, so a gated player is slowed, never stuck.
     this.sprintEnabled = true;
+    // Level 1 is deliberately walk-only for automatic sprinting; later levels
+    // opt in when the campaign controller loads them.
+    this.autoSprintEnabled = true;
     this.eyeHeight = EYE_HEIGHT;
     this.hotbarIndex = 0;
     this.grounded = false;
@@ -195,12 +198,13 @@ export class Player {
     }
     const movingInput = length > 0.08;
     this._movementTime = movingInput ? this._movementTime + dt : 0;
+    const autoSprinting = this.autoSprintEnabled && movingInput && this._movementTime >= AUTO_SPRINT_DELAY;
     const sprinting =
       this.sprintEnabled &&
       (this.touchSprint ||
         this.keys.has("ShiftLeft") ||
         this.keys.has("ShiftRight") ||
-        (movingInput && this._movementTime >= AUTO_SPRINT_DELAY));
+        autoSprinting);
     const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1);
     this.velocity.x = moveX * speed;
     this.velocity.z = moveZ * speed;
