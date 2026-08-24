@@ -85,6 +85,23 @@ const BUILT_IN_BLUEPRINTS = {
     ["L.......L", ".........", ".........", "L.......L"],
   ]),
 
+  // A helicopter, nose at the low-z end. Nine wide so it fits the helipad
+  // blueprint, eleven long so the tail boom has somewhere to go, and the rotor
+  // is a symmetric four-arm cross that reads from the ground and from above.
+  //
+  // Every livery is this one blueprint with a `palette` override: `C` is the
+  // airframe, `T` the rotor and skids, `X` the marking on the cabin door — set
+  // `X` to the body colour and the red cross disappears, which is the whole
+  // difference between the medical ones and the military ones.
+  helicopter: blueprint([9, 6, 11], [
+    [".........", ".........", "..T...T..", "..T...T..", "..T...T..", "..T...T..", "..T...T..", "..T...T..", ".........", ".........", "........."],
+    [".........", "...CCC...", "..CCCCC..", "..CCCCC..", "..CCCCC..", "..CCCCC..", "..CCCCC..", "...CCC...", ".........", ".........", "........."],
+    [".........", "...GGG...", "..GGGGG..", "..GCCCG..", "..XCCCX..", "..CCCCC..", "..CCCCC..", "....C....", "....C....", "....C....", "....C...."],
+    [".........", ".........", "...CCC...", "..CCCCC..", "..CCCCC..", "..CCCCC..", "...CCC...", "....C....", "....C....", "...CCC...", "....C...."],
+    [".........", ".........", ".........", ".........", "....T....", ".........", ".........", ".........", ".........", ".........", "...TCT..."],
+    ["....T....", "....T....", "....T....", "....T....", "TTTTTTTTT", "....T....", "....T....", "....T....", "....T....", ".........", "....C...."],
+  ]),
+
   bus: blueprint([11, 4, 4], [
     ["MMMMMMMMMMM", "MMMMMMMMMMM", "MMMMMMMMMMM", "MMMMMMMMMMM"],
     ["YYYYYYYYYYY", "Y_________Y", "Y_________Y", "YYYYYYYYYYY"],

@@ -84,9 +84,12 @@ const INTRO = Object.freeze({
   halfWidth: 3,
   height: 5,
   lift: 3,
-  from: 125,
+  // Push the sealed end two blocks north, up to the last usable z slice of
+  // the 128-block map. The extra room gives the image run space to open out
+  // away from the map centre without shortening the approach to the plaza.
+  from: 127,
   to: 84,
-  windowZ: 120,
+  windowZ: 122,
   chamberHalfWidth: 4,
   // The corridor changes material five times on the way out. Each entry is the
   // band's *lowest* z, listed rather than derived so the last three can line up
@@ -101,13 +104,14 @@ const INTRO = Object.freeze({
     hold: 87,
     ramp: 84,
   }),
-  // One photograph per chapter. Five of them, spaced evenly enough that a
-  // walking player meets one about every five seconds.
-  chapterZ: Object.freeze([108, 102, 96, 90, 85]),
+  // One photograph per chapter. Their centres are seven blocks apart, leaving
+  // one additional block between images; the image nearest the plaza stays at
+  // z=85 while the others move back from the centre to make room.
+  chapterZ: Object.freeze([113, 106, 99, 92, 85]),
   // Where each chapter's wall text hangs, three blocks before its picture.
   // Listed rather than derived because the open nose ramp at the end has no
   // walls, and a panel placed by formula would float over it.
-  panelZ: Object.freeze([111, 105, 99, 93, 88]),
+  panelZ: Object.freeze([116, 109, 102, 95, 88]),
   arrowZ: 112,
   // Crossing this line is what ends the intro: sprint is released, the level
   // banner appears, and the sequence stops listening.
@@ -131,6 +135,11 @@ const INTRO_VTOL = Object.freeze({
   wing: Object.freeze({ from: 90, to: 96, span: 17, y: 12 }),
   fin: Object.freeze({ from: 95, to: 103, height: 9 }),
 });
+
+// `X` is the red cross on the cabin door. Painting it in the body colour is
+// what turns a medical helicopter into a military one.
+const MILITARY_OLIVE = Object.freeze({ C: "MOSS", T: "DARKSTONE", X: "MOSS" });
+const MILITARY_DARK = Object.freeze({ C: "DARKSTONE", T: "METAL", X: "DARKSTONE" });
 
 function guardrailRun(z, fromX, toX, rotation = 0) {
   const entries = [];
@@ -177,11 +186,22 @@ export const LEVELS = Object.freeze([
       { type: "ground", area: [46, 84, 82, 104], block: "CONCRETE" },
       { type: "medical_vtol", ...INTRO_VTOL },
       { type: "intro_tunnel", ...INTRO },
+      // The rest of the air operation, built out of blocks and placed last so
+      // the airframe's clearing box cannot take any of it away again. Two are
+      // parked and three are in the air — `lift` on a blueprint is just a y
+      // offset, so a flight is a landing with a bigger number.
+      { type: "blueprint", id: "helicopter", at: [48, 71] },
+      { type: "blueprint", id: "helicopter", at: [73, 92], rotation: 2, palette: MILITARY_OLIVE },
+      { type: "blueprint", id: "helicopter", at: [32, 64], rotation: 1, lift: 17, palette: { C: "CAUTION" } },
+      { type: "blueprint", id: "helicopter", at: [86, 88], rotation: 3, lift: 24, palette: MILITARY_DARK },
+      { type: "blueprint", id: "helicopter", at: [58, 72], lift: 30, palette: MILITARY_OLIVE },
     ],
     // The first thing a player ever sees is the inside of the corridor, four
     // blocks above the plaza. `lift` is the player's feet over the site floor,
     // because the height map still reports the terrain under the gallery.
-    spawn: { at: [64.5, 115.5], face: [64.5, 100], lift: 4 },
+    // Moved back with the longer approach so the first panel is still ahead
+    // of the player when the intro veil lifts.
+    spawn: { at: [64.5, 117.5], face: [64.5, 102], lift: 4 },
     // Where a player who falls out of the world is put back. That has to stay
     // the plaza: the corridor is a one-way scene and cannot be re-entered.
     hub: [64.5, 79.5],

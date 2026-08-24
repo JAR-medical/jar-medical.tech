@@ -130,26 +130,19 @@ const OBSERVERS = Object.freeze([
 
 const WAVE_RANGE = 13;
 
-// The air over the training site. Two liveries: medical, which is what the
-// player is joining, and military, which is what actually moves mass in a real
-// German disaster deployment. They orbit rather than hover, because a
-// helicopter standing still in the sky reads as a bug, and they sit out to the
-// sides and high up so the view back at the aircraft has depth to it.
+// The one aircraft that is not built out of blocks.
 //
-// `at` is the centre of the orbit and `radius` how wide, `speed` is radians a
-// second and negative goes the other way round, `lift` is height over the apron.
-// Orbits are kept tight and centred near the aircraft on purpose. A wide circle
-// carries a helicopter out over the edge of a 128-block map, where it is both
-// too far to read and flying over nothing.
-const AIRCRAFT = Object.freeze([
-  { kind: "medic", at: [42, 76], lift: 22, radius: 12, speed: 0.1, scale: 1, body: 0xf2f4ef, trim: 0xd23b30 },
-  { kind: "medic", at: [88, 72], lift: 18, radius: 11, speed: -0.13, scale: 0.95, body: 0xf6c945, trim: 0xd23b30 },
-  { kind: "medic", at: [64, 58], lift: 15, radius: 9, speed: 0.16, scale: 0.9, body: 0xf2f4ef, trim: 0xe2622a },
-  { kind: "military", at: [34, 96], lift: 28, radius: 14, speed: -0.07, scale: 1.35, body: 0x4a5340, trim: 0x353c2e },
-  { kind: "military", at: [96, 92], lift: 32, radius: 15, speed: 0.06, scale: 1.5, body: 0x3f4738, trim: 0x2c3227 },
-  // Straight over the top of the aircraft, which is where the player is looking
-  // when they turn round at the bottom of the drop.
-  { kind: "military", at: [64, 92], lift: 34, radius: 12, speed: -0.05, scale: 1.2, body: 0x51594a, trim: 0x363c31 },
+// Everything else in the sky over the site is a `helicopter` blueprint stamped
+// into the world, which is right for them: they are scenery, and blocks light,
+// occlude and mesh like the rest of the map. But a sky full of stopped rotors
+// reads as a freeze-frame, so exactly one machine stays a real object with a
+// turning rotor and an orbit — enough motion to make the still ones look parked
+// and holding rather than broken.
+//
+// Its orbit is deliberately low and close: this is the one whose rotor the
+// player can actually see turning.
+export const AIRCRAFT = Object.freeze([
+  { kind: "medic", at: [58, 74], lift: 20, radius: 13, speed: 0.11, scale: 1, body: 0xf2f4ef, trim: 0xd23b30 },
 ]);
 
 function canvasTexture(width, height, draw) {
