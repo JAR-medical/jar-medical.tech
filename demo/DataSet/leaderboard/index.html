@@ -9,7 +9,7 @@
   <meta property="og:description" content="Öffentliche Rangliste der MEDICRAFT-Datensammlung." />
   <meta property="og:type" content="website" />
   <title>MEDICRAFT · Öffentliche Bestenliste</title>
-  <link rel="stylesheet" href="./style.css?v=20260824-3" />
+  <link rel="stylesheet" href="./style.css?v=20260824-4" />
 </head>
 <body>
   <header class="site-header">
@@ -44,9 +44,9 @@
           <strong id="connection-state" class="connection loading">WIRD GELADEN</strong>
         </div>
         <dl class="summary-stats">
-          <div><dt>Teilnehmende</dt><dd id="total-runs">—</dd></div>
-          <div><dt>Gerettet</dt><dd id="total-saved">—</dd></div>
-          <div><dt>Bestwert</dt><dd id="best-score">—</dd></div>
+          <div><dt id="total-runs-label">Spieler</dt><dd id="total-runs">—</dd></div>
+          <div><dt id="total-saved-label">Gerettet</dt><dd id="total-saved">—</dd></div>
+          <div><dt id="best-score-label">Bestwert</dt><dd id="best-score">—</dd></div>
         </dl>
         <p id="published-time" class="published-time">Daten werden abgerufen …</p>
       </div>
@@ -61,19 +61,38 @@
         <button id="refresh-board" class="refresh-button" type="button">Aktualisieren</button>
       </div>
 
-      <div id="podium" class="podium" aria-label="Die besten drei Einsätze"></div>
+      <div class="board-controls" role="toolbar" aria-label="Bestenliste filtern und sortieren">
+        <div class="board-tabs" role="tablist" aria-label="Ranglistenansicht">
+          <button id="view-players" class="board-tab active" type="button" role="tab" aria-selected="true">Spieler</button>
+          <button id="view-teams" class="board-tab" type="button" role="tab" aria-selected="false">Teams</button>
+        </div>
+        <label class="sort-control" for="sort-board">
+          <span>Sortieren nach</span>
+          <select id="sort-board">
+            <option value="score">Punkte / Bestwert</option>
+            <option value="saved">Gerettete</option>
+            <option value="progress">Level</option>
+            <option value="accuracy">Genauigkeit</option>
+            <option value="elapsed">Zeit</option>
+            <option value="runs">Einsätze</option>
+          </select>
+        </label>
+        <button id="sort-direction" class="sort-direction" type="button" aria-label="Sortierreihenfolge umkehren" aria-pressed="false">Absteigend ↓</button>
+      </div>
+
+      <div id="podium" class="podium" aria-label="Die besten drei Spieler"></div>
 
       <div class="table-shell">
         <table>
           <thead>
             <tr>
               <th scope="col">Rang</th>
-              <th scope="col">Spieler / Team</th>
-              <th scope="col">Punkte</th>
+              <th id="identity-heading" scope="col">Spieler</th>
+              <th id="score-heading" scope="col">Punkte</th>
               <th scope="col">Gerettet</th>
-              <th scope="col">Level</th>
-              <th scope="col">Genauigkeit</th>
-              <th scope="col">Zeit</th>
+              <th id="progress-heading" scope="col">Level</th>
+              <th id="accuracy-heading" scope="col">Genauigkeit</th>
+              <th id="elapsed-heading" scope="col">Zeit</th>
             </tr>
           </thead>
           <tbody id="leaderboard-body">
@@ -81,8 +100,8 @@
           </tbody>
         </table>
         <div id="empty-state" class="empty-state" hidden>
-          <strong>Noch kein abgeschlossener Einsatz.</strong>
-          <p>Sei die erste Person auf der öffentlichen MEDICRAFT-Bestenliste.</p>
+          <strong id="empty-title">Noch kein Spielergebnis.</strong>
+          <p id="empty-copy">Sei die erste Person auf der öffentlichen MEDICRAFT-Bestenliste.</p>
           <a href="../">Einsatz starten →</a>
         </div>
       </div>
@@ -110,6 +129,6 @@
     </div>
   </footer>
 
-  <script type="module" src="./app.js?v=20260824-2"></script>
+  <script type="module" src="./app.js?v=20260824-3"></script>
 </body>
 </html>
