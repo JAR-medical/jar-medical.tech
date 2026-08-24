@@ -189,7 +189,7 @@
     </div>
 
     <div id="hud-toggles">
-      <button id="settings-toggle" class="hud-toggle mini" type="button" aria-haspopup="dialog" aria-expanded="false" title="Einstellungen, Fortschritt und Bestenliste (U)">⚙<span>MENÜ · U</span></button>
+      <button id="settings-toggle" class="hud-toggle mini" type="button" aria-haspopup="dialog" aria-expanded="false" title="Einstellungen, Fortschritt und Bestenliste (U)">⚙<span>MENÜ<span class="desktop-only"> · U</span></span></button>
     </div>
 
     <div id="level-banner" class="hidden" aria-live="polite">
@@ -259,7 +259,7 @@
     <div class="modal-box settings-box">
       <div class="settings-header">
         <h2 id="settings-title">Einstellungen</h2>
-        <button id="settings-close" class="btn small" type="button">✕ <span class="desktop-only">ESC</span><span class="touch-only">Schließen</span></button>
+        <button id="settings-close" class="btn small" type="button"><span class="desktop-only" aria-hidden="true">✕ </span><span class="desktop-only">ESC</span><span class="touch-only">Schließen</span></button>
       </div>
 
       <div class="settings-tabs" role="tablist" aria-label="Einstellungsbereiche">

@@ -2057,7 +2057,7 @@ body.touch-device .desktop-only { display: none; }
 
 @media (max-width: 720px) {
   #combo-panel { top: auto; bottom: 92px; }
-  #hud-toggles { top: auto; bottom: calc(14px + var(--safe-bottom)); right: calc(14px + var(--safe-right)); }
+  #hud-toggles { top: calc(14px + var(--safe-top)); bottom: auto; right: calc(14px + var(--safe-right)); }
   .identity-row input { width: 8rem; }
 }
 
