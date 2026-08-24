@@ -11,7 +11,7 @@ import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js";
+import { ContributionClient } from "./contributions.js?v=20260824-mobile-session1";
 import {
   fetchRemoteRuns,
   loadIdentity,
