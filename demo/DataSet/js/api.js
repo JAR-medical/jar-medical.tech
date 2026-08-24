@@ -15,7 +15,8 @@
 // it. A Cloudflare quick-tunnel hostname in particular is regenerated on every
 // restart, and a single pinned base makes that an outage.
 //
-// The backend sends Access-Control-Allow-Origin: *, so cross-origin works.
+// The backend explicitly allows the published site's origin, so cross-origin
+// API probes and requests remain safe and predictable.
 
 const HEALTH_TIMEOUT_MS = 6000;
 

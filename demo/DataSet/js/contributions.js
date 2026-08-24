@@ -25,13 +25,26 @@ function storeSession(session) {
   }
 }
 
+function requestCredentials(url) {
+  try {
+    const pageOrigin = globalThis.location?.origin;
+    return pageOrigin && new URL(url, globalThis.location.href).origin === pageOrigin ? "include" : "omit";
+  } catch {
+    return "omit";
+  }
+}
+
 async function jsonRequest(path, options = {}) {
   const { timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options;
   const controller = typeof AbortController === "function" ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
-    const response = await fetch(apiUrl(path), {
-      credentials: "include",
+    const url = apiUrl(path);
+    const response = await fetch(url, {
+      // The public GitHub Pages copy is a different origin. Its pseudonymous
+      // contributor token is sent in a header, so it must not depend on a
+      // third-party cookie being accepted by the browser.
+      credentials: requestCredentials(url),
       ...fetchOptions,
       signal: controller?.signal,
       headers: {
