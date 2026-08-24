@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit } from "./events.js";
-import { BLOCK, blockMaterial } from "./world.js";
+import { BLOCK, blockMaterial } from "./world.js?v=20260824-transcript1";
 import { OTHER_BLOCKS } from "./other_blocks.js";
 
 const STORAGE_KEY = "medicraft.other-tools.v1";

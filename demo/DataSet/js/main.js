@@ -5,7 +5,8 @@ import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-worldfix5";
+import { UI } from "./ui.js?v=20260825-worldfix6";
+import { OtherMode } from "./other_mode.js?v=20260825-other1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
@@ -106,6 +107,16 @@ export class App {
     this.ui = new UI();
     this.audio = new GameAudio();
     this.ui.setAudio(this.audio);
+    this.otherMode = new OtherMode({
+      player: this.player,
+      getWorld: () => this.world,
+      camera: this.camera,
+      canvas: this.renderer.domElement,
+      ui: this.ui,
+      audio: this.audio,
+      isPlaying: () => this.mode === "playing",
+      isTouchDevice: this.touchDevice,
+    });
 
     this.clock = new THREE.Clock();
 
@@ -238,6 +249,14 @@ export class App {
       onIdentityChanged: (identity) => this.publishRun(identity),
       onLeaderboardOptInChanged: (enabled) => { this.leaderboardOptIn = Boolean(enabled); },
       onSettingsOpen: () => this.settingsSnapshot(),
+      onOtherModeChanged: (state) => this.otherMode.setState({
+        enabled: state.otherEnabled,
+        extra: state.otherOtherEnabled,
+      }),
+      onOtherAction: (action) => {
+        if (this.ui._settingsOpen) this.ui.closeSettings();
+        return this.otherMode.action(action);
+      },
       onContributionSummary: () => this.contributions.summary,
       onWithdrawContribution: () => this.withdrawContribution(),
       onWithdrawByCode: (code) => this.withdrawContributionByCode(code),
@@ -559,6 +578,7 @@ export class App {
       hiddenTotal: this.hiddenTotal,
       current: state,
       summary,
+      ...this.otherMode.snapshot(),
       runKey: this.runKey || null,
     };
   }
@@ -677,6 +697,7 @@ export class App {
     this.world?.dispose();
     this.world = new World(this.scene, randomSeed(), level);
     this.player.world = this.world;
+    this.otherMode.setWorld(this.world);
     const sky = level?.sky ?? 0x87ceeb;
     this.scene.background = new THREE.Color(sky);
     this.scene.fog = new THREE.FogExp2(sky, level?.fog ?? 0.008);
@@ -705,8 +726,10 @@ export class App {
       this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
       this.ui.renderContributionSummary(session.summary, session.recovery_code);
     } catch (error) {
-      this.ui.toast(`Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`, "bad");
       this.showBriefing();
+      this.ui.showConsentError?.(
+        `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
+      );
       return;
     }
     this.beginMission({ contributionMode: true });
@@ -1123,6 +1146,7 @@ export class App {
     this.audio.update(dt);
     if (running) {
       this.player.update(dt);
+      this.otherMode.update(dt);
       this.intro?.update(dt, this.player.position);
       this.entities.update(dt, this.game.state().elapsed, this.player.position);
       this.game.update(dt);

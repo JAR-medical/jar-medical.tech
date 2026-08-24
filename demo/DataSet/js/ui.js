@@ -381,11 +381,6 @@ export class UI {
       const now = performance.now();
       if (now - lastConsentAttempt < 350) return;
       lastConsentAttempt = now;
-      console.info("[medicraft] consent attempt", {
-        source: event?.type || "unknown",
-        consent: Boolean(this.el.dataConsentConfirm?.checked),
-        age: Boolean(this.el.ageConfirm?.checked),
-      });
       handleConsentClick(event);
     };
     this.el.btnConsent.addEventListener("pointerdown", handleConsentAttempt);
@@ -1128,6 +1123,12 @@ export class UI {
     button.disabled = waiting;
     button.setAttribute("aria-busy", String(waiting));
     button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Einwilligen & Datensammlung starten";
+  }
+
+  showConsentError(message) {
+    if (!this.el.consentError) return;
+    this.el.consentError.textContent = String(message || "Die Sitzung konnte nicht gestartet werden.");
+    this.el.consentError.classList.remove("hidden");
   }
 
   syncLeaderboardOptIn(value = false) {
