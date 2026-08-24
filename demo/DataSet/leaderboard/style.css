@@ -256,6 +256,57 @@ h2 {
 
 .refresh-button:disabled { cursor: wait; opacity: 0.6; }
 
+.board-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 30px;
+  padding: 14px;
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+}
+
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.board-tab,
+.sort-direction {
+  padding: 9px 16px;
+  color: #555;
+  background: #fff;
+  border: 1px solid #ccc;
+  font: 700 14px/1.25 "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.board-tab + .board-tab { border-left: 0; }
+.board-tab:hover,
+.sort-direction:hover { color: #0073aa; border-color: #0073aa; }
+.board-tab.active { color: #fff; background: #0073aa; border-color: #0073aa; }
+
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: #555;
+  font: 600 14px/1.25 "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.sort-control select {
+  min-width: 160px;
+  padding: 8px 28px 8px 10px;
+  color: #333;
+  background: #fff;
+  border: 1px solid #bbb;
+  font: inherit;
+}
+
+.sort-direction { white-space: nowrap; }
+
 .podium {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -437,6 +488,7 @@ tbody tr:hover { background: #f7fbfd; }
   .podium { grid-template-columns: 1fr; }
   .podium-card { min-height: 0; }
   .footer-widgets { flex-direction: column; gap: 28px; }
+  .sort-control { margin-left: 0; }
 }
 
 @media (max-width: 560px) {
@@ -455,6 +507,12 @@ tbody tr:hover { background: #f7fbfd; }
   .section-heading { align-items: center; }
   .refresh-button { padding: 9px 13px; font-size: 13px; }
   .board-section { padding-top: 52px; }
+  .board-controls { align-items: stretch; flex-direction: column; }
+  .board-tabs { width: 100%; }
+  .board-tab { flex: 1; }
+  .sort-control { align-items: stretch; flex-direction: column; gap: 4px; }
+  .sort-control select,
+  .sort-direction { width: 100%; }
   .footer-bottom .wrap { align-items: flex-start; flex-direction: column; }
   .footer-bottom a:first-child { margin-left: 0; }
 }
