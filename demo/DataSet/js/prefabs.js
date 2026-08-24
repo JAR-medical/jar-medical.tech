@@ -549,6 +549,138 @@ export const STRUCTURE_BUILDERS = {
     }
   },
 
+
+  // The aircraft the end of the intro corridor runs through.
+  //
+  // It exists for one moment: the player drops off the nose door, turns round,
+  // and instead of a hole in a bank they are looking up at a medevac VTOL the
+  // size of the clinic. So it is built the way that moment reads — a fat oval
+  // fuselage, a shoulder wing carrying four lift-fan ducts, a fin, red crosses
+  // on the flanks — and nothing is modelled that the player cannot see. The
+  // tail sits in the hillside the corridor comes out of, so there is no back.
+  //
+  // Stamped *before* `intro_tunnel`, which hollows the cargo hold out of it.
+  // The frontmost ring is deliberately left uncapped: that opening is the door.
+  medical_vtol(api, entry) {
+    const axis = entry.axis ?? 64;
+    const zRamp = entry.ramp ?? 84;
+    const zTail = entry.tail ?? 103;
+    const halfWidth = entry.halfWidth ?? 7;
+    const cy = api.surfaceY + (entry.centre ?? 7);
+    const radiusY = entry.radiusY ?? 6;
+    const wing = entry.wing || {};
+    const fin = entry.fin || {};
+    const wingY = api.surfaceY + (wing.y ?? 10);
+    const span = wing.span ?? 17;
+
+    // Terrain is levelled under the apron but not above it, so anything that
+    // would grow through a wing or the fin is cleared first.
+    for (let z = zRamp; z <= zTail + 2; z++) {
+      for (let x = axis - span - 3; x <= axis + span + 3; x++) {
+        for (let y = api.surfaceY; y <= cy + radiusY + (fin.height ?? 9) + 2; y++) {
+          api.put(x, y, z, "AIR");
+        }
+      }
+    }
+
+    // Fuselage: an oval section per slice, drawn as a one-block shell so the
+    // hold can be carved out of the inside without leaving a solid block.
+    const halfAt = (z) => {
+      const fromNose = z - zRamp;
+      let scale = 1;
+      if (fromNose < 4) scale = 0.84 + fromNose * 0.04;
+      if (z > zTail - 5) scale = Math.max(0.42, 1 - (z - (zTail - 5)) * 0.12);
+      return Math.max(3, Math.round(halfWidth * scale));
+    };
+    const inOval = (dx, dy, a) => (dx / a) ** 2 + (dy / radiusY) ** 2 <= 1;
+
+    for (let z = zRamp; z <= zTail; z++) {
+      const a = halfAt(z);
+      for (let dy = -radiusY; dy <= radiusY; dy++) {
+        for (let dx = -a; dx <= a; dx++) {
+          if (!inOval(dx, dy, a)) continue;
+          const skin =
+            !inOval(dx - 1, dy, a) || !inOval(dx + 1, dy, a) ||
+            !inOval(dx, dy - 1, a) || !inOval(dx, dy + 1, a);
+          if (!skin) continue;
+          const flank = Math.abs(dx) >= a - 1;
+          let block = dy < -1 ? "STEEL" : "CONCRETE";
+          // A red cross on each flank, big enough to read from the apron, plus
+          // the cheatline that runs the length of the hull.
+          if (flank && dy === 1) block = "REDCROSS";
+          if (flank && ((Math.abs(z - 93) <= 3 && dy === -1) || (z === 93 && Math.abs(dy + 1) <= 3))) {
+            block = "REDCROSS";
+          }
+          if (flank && dy === 3 && z % 2 === 0) block = "GLASS";
+          api.put(axis + dx, cy + dy, z, block);
+        }
+      }
+    }
+
+    // Flight deck over the nose door, and the door frame itself in hazard
+    // stripes so the opening reads as a way out rather than as damage.
+    for (let z = zRamp + 1; z <= zRamp + 3; z++) {
+      for (let x = axis - 4; x <= axis + 4; x++) api.put(x, cy + 3, z, "GLASS");
+    }
+    for (let y = cy - 5; y <= cy + 2; y++) {
+      api.put(axis - 5, y, zRamp, "CAUTION");
+      api.put(axis + 5, y, zRamp, "CAUTION");
+    }
+    api.put(axis - 3, cy - 5, zRamp, "LAMP");
+    api.put(axis + 3, cy - 5, zRamp, "LAMP");
+
+    // Shoulder wing: a tapered slab per side, with the trailing edge cut back
+    // harder than the leading edge so it reads as swept from underneath.
+    const reach = Math.max(1, span - halfWidth);
+    for (const side of [-1, 1]) {
+      for (let out = 0; out <= reach; out++) {
+        const t = out / reach;
+        const z0 = (wing.from ?? 90) + Math.round(t * 2);
+        const z1 = (wing.to ?? 96) - Math.round(t * 3);
+        const x = axis + side * (halfWidth + out);
+        for (let z = z0; z <= z1; z++) {
+          api.put(x, wingY, z, out > reach - 2 ? "CAUTION" : "CONCRETE");
+          api.put(x, wingY - 1, z, "STEEL");
+        }
+      }
+      // Two lift-fan ducts per side. A ring three blocks tall is unmistakable
+      // as a fan from the ground, where a flat disc would be edge-on.
+      for (const out of [4, 9]) {
+        const cx = axis + side * (halfWidth + out);
+        const cz = Math.round(((wing.from ?? 90) + (wing.to ?? 96)) / 2);
+        for (let dz = -3; dz <= 3; dz++) {
+          for (let dx = -3; dx <= 3; dx++) {
+            const r = Math.hypot(dx, dz);
+            if (r > 3.4 || r < 2.4) continue;
+            for (let y = wingY - 1; y <= wingY + 1; y++) api.put(cx + dx, y, cz + dz, "STEEL");
+          }
+        }
+        api.put(cx, wingY, cz, "NEON");
+      }
+      api.put(axis + side * span, wingY + 1, wing.to ?? 96, "NEON");
+    }
+
+    // Fin and tailplane, over the part of the hull the corridor docks into.
+    const finTop = cy + radiusY + (fin.height ?? 9);
+    for (let z = fin.from ?? 95; z <= (fin.to ?? 103); z++) {
+      const lean = (z - (fin.from ?? 95)) / Math.max(1, (fin.to ?? 103) - (fin.from ?? 95));
+      const top = Math.round(cy + radiusY + lean * (fin.height ?? 9));
+      for (let y = cy + radiusY; y <= top; y++) api.put(axis, y, z, y >= finTop - 1 ? "REDCROSS" : "CONCRETE");
+    }
+    api.put(axis, finTop, fin.to ?? 103, "NEON");
+    for (let x = axis - 6; x <= axis + 6; x++) {
+      for (let z = (fin.to ?? 103) - 3; z <= (fin.to ?? 103); z++) api.put(x, cy + radiusY + 1, z, "CONCRETE");
+    }
+
+    // Gear: four legs and a nose leg, so the hull is standing rather than lying
+    // on the apron. The belly clears the ground by a block, which is what makes
+    // the aircraft look heavy instead of parked in a hole.
+    for (const [gx, gz] of [[-5, 89], [5, 89], [-5, 98], [5, 98], [0, 86]]) {
+      for (let y = api.surfaceY; y < cy - radiusY + 1; y++) api.put(axis + gx, y, gz, "STEEL");
+      api.put(axis + gx, api.surfaceY, gz, "DARKSTONE");
+    }
+  },
+
   // The shell of the campaign's opening corridor. It is one builder rather than
   // a hand-placed scene because every part of it follows from the direction of
   // travel: a raised gallery that starts as a clinic wing behind an observation
@@ -572,21 +704,34 @@ export const STRUCTURE_BUILDERS = {
     const span = Math.max(1, zBack - zMouth);
     const plinthTo = Math.max(1, api.surfaceY - 3);
 
-    // Four bands read as one slow dissolve: sterile wing, service corridor,
-    // rock cut, open bank. `t` is 1 at the observation window and 0 at the
-    // drop, so a band is a range and not a hard-coded z.
+    // Six bands read as one slow handover: sterile wing, service corridor, rock
+    // cut through the hillside, the steel collar where the corridor meets the
+    // aircraft, the cargo hold itself, and the open nose ramp. Each entry in
+    // `bands` is the highest z of that band, so the corridor can be lengthened
+    // by editing one table instead of retuning ratios.
+    const bands = entry.bands || {};
+    const BAND = {
+      clinic: { wall: "CONCRETE", alt: "CONCRETE", altChance: 0, floor: "CONCRETE", ceiling: "CONCRETE", support: "CONCRETE", wallTop: clear, glass: { every: 3, from: 3, to: 3 }, line: "REDCROSS" },
+      service: { wall: "CONCRETE", alt: "STONE", altChance: 0.34, floor: "PATH", ceiling: "CONCRETE", support: "STONE", wallTop: clear, glass: { every: 4, from: 2, to: 4 }, line: null },
+      rock: { wall: "STONE", alt: "DIRT", altChance: 0.42, floor: "PATH", ceiling: "STONE", support: "STONE", wallTop: clear, glass: null, line: "CAUTION" },
+      // The seam. Hazard stripes all the way round say "you are leaving the
+      // building" without a word of text.
+      collar: { wall: "STEEL", alt: "CAUTION", altChance: 0.3, floor: "CAUTION", ceiling: "STEEL", support: "STEEL", wallTop: clear, glass: null, line: null },
+      hold: { plinth: 2, wall: "STEEL", alt: "METAL", altChance: 0.35, floor: "METAL", ceiling: "METAL", support: "METAL", wallTop: clear, glass: null, line: "REDCROSS" },
+      // Ramp down, roof open: the last three blocks are the only place in the
+      // corridor where the player can see straight up into the sky.
+      ramp: { plinth: 2, wall: "STEEL", alt: "CAUTION", altChance: 0.25, floor: "METAL", ceiling: null, support: "METAL", wallTop: 2, glass: null, line: "CAUTION" },
+    };
+    const ORDER = ["clinic", "service", "rock", "collar", "hold", "ramp"];
+    // Each entry in `bands` is that band's lowest z, and the list runs from the
+    // back of the corridor forwards, so the first match walking down the list is
+    // the band this slice belongs to.
     const bandAt = (z) => {
-      const t = (z - zMouth) / span;
-      if (t >= 0.5) {
-        return { wall: "CONCRETE", alt: "CONCRETE", altChance: 0, floor: "CONCRETE", ceiling: "CONCRETE", support: "CONCRETE", wallTop: clear, glass: { every: 3, from: 3, to: 3 }, clinical: true };
+      for (const name of ORDER) {
+        const from = bands[name];
+        if (from !== undefined && z >= from) return { ...BAND[name], name };
       }
-      if (t >= 0.3) {
-        return { wall: "CONCRETE", alt: "STONE", altChance: 0.34, floor: "PATH", ceiling: "CONCRETE", support: "STONE", wallTop: clear, glass: { every: 4, from: 2, to: 4 }, clinical: false };
-      }
-      if (t >= 0.14) {
-        return { wall: "STONE", alt: "DIRT", altChance: 0.42, floor: "PATH", ceiling: "STONE", support: "STONE", wallTop: clear, glass: null, clinical: false };
-      }
-      return { wall: "DIRT", alt: "GRASS", altChance: 0.45, floor: "GRASS", ceiling: null, support: "DIRT", wallTop: 2, glass: null, clinical: false };
+      return { ...BAND.ramp, name: "ramp" };
     };
 
     // Terrain outside the site is never guaranteed to be below the gallery, so
@@ -600,8 +745,11 @@ export const STRUCTURE_BUILDERS = {
 
     // Without a plinth the gallery floats wherever the meadow dips away. Filling
     // down to just under the plaza reads as the embankment it is standing on.
-    const plinth = (x0, x1, z, floorY, block) => {
-      for (let y = floorY - 1; y >= plinthTo; y--) {
+    // Inside the aircraft there is a hull doing that job already, so those bands
+    // ask for a shallow deck structure instead of a column to the ground.
+    const plinth = (x0, x1, z, floorY, block, depth) => {
+      const stopAt = depth ? floorY - depth : plinthTo;
+      for (let y = floorY - 1; y >= stopAt; y--) {
         for (let x = x0; x <= x1; x++) api.put(x, y, z, block);
       }
     };
@@ -665,13 +813,13 @@ export const STRUCTURE_BUILDERS = {
       const x1 = axis + half + 1;
       hollow(x0, x1, z, fy, band.ceiling ? ceilY + 1 : ceilY + 9);
       for (let x = x0; x <= x1; x++) api.put(x, fy, z, band.floor);
-      plinth(x0, x1, z, fy, band.support);
+      plinth(x0, x1, z, fy, band.support, band.plinth);
 
-      // A painted guide line down the middle: the hospital red line first, then
-      // hazard tape once the cladding is gone. It is the same instruction the
-      // arrow gives, written into the floor.
-      if (band.clinical) api.put(axis, fy, z, "REDCROSS");
-      else if (band.ceiling && z % 2 === 0) api.put(axis, fy, z, "CAUTION");
+      // A painted guide line down the middle: the hospital red line, hazard tape
+      // through the rock cut, a red cross again on the aircraft's deck. It is
+      // the same instruction the arrow gives, written into the floor.
+      if (band.line === "REDCROSS") api.put(axis, fy, z, "REDCROSS");
+      else if (band.line === "CAUTION" && z % 2 === 0) api.put(axis, fy, z, "CAUTION");
 
       // The lip is left bare so the drop reads as an opening, not a doorway.
       const lip = z <= zMouth + 1;
@@ -689,9 +837,12 @@ export const STRUCTURE_BUILDERS = {
 
       if (band.ceiling && !lip) {
         for (let x = x0; x <= x1; x++) api.put(x, ceilY, z, band.ceiling);
-        if (band.clinical && z % 4 === 0) {
+        if (band.name === "clinic" && z % 4 === 0) {
           api.put(axis - 1, ceilY, z, "LAMP");
           api.put(axis + 1, ceilY, z, "LAMP");
+        } else if (band.name === "hold" && z % 3 === 0) {
+          api.put(axis - 2, ceilY, z, "LAMP");
+          api.put(axis + 2, ceilY, z, "LAMP");
         } else if (z % 6 === 0) {
           api.put(axis, ceilY, z, "LAMP");
         }

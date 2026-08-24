@@ -65,25 +65,42 @@ export const INTRO_CHAPTERS = Object.freeze([
     credit: "Russell Square, London, 7. Juli 2005 · Francis Tyers · CC BY-SA 3.0",
   },
   {
-    src: "./images/03-ahrtal.png",
+    src: "./images/03-ahrtal.jpg",
     accent: RED,
     kicker: "03 · WENN DIE LAGE KIPPT",
-    headline: "Juli 2021: Funk, Strom und Meldewege fallen gleichzeitig aus.",
+    headline: "Juli 2021: über 130 Tote — und kein gemeinsames Lagebild.",
     panelTitle: "Ahrtal, Juli 2021",
     body: [
-      { text: "Über 130 Menschen sterben allein", color: RED },
-      { text: "im Kreis Ahrweiler.", color: RED },
+      { text: "Türkis: die überflutete Fläche.", color: RED },
+      { text: "Von oben war sie rekonstruierbar.", color: RED },
       { text: "" },
-      { text: "Die Informationen waren da." },
-      { text: "Sie kamen nur nicht zusammen." },
+      { text: "Wo die Menschen waren, stand" },
+      { text: "in keiner Karte." },
     ],
-    note: "Ohne gemeinsames Lagebild entscheidet jede Einheit für sich — und keine für die Gesamtlage.",
-    credit: "Ahrtal nach der Flut · Süddeutsche Zeitung · redaktionelle Verwendung",
+    note: "Funk, Strom und Meldewege fielen gleichzeitig aus. Die Informationen existierten — sie kamen nur nicht zusammen.",
+    credit: "Überflutungsfläche Ahrtal · eigene Rekonstruktion des Projektteams (KI-gestützt)",
   },
   {
-    src: "./images/04-lagebild.png",
+    src: "./images/04-luftaufklaerung.jpg",
+    accent: BLUE,
+    kicker: "04 · AUGEN VON OBEN",
+    headline: "Satellit, Drohne, Mensch — drei Auflösungen derselben Lage.",
+    panelTitle: "Aufklärung im Verbund",
+    body: [
+      { text: "Satellit: die Fläche, in Stunden.", color: BLUE },
+      { text: "Drohne: der Straßenzug, in Minuten.", color: BLUE },
+      { text: "Mensch: der Patient, in Sekunden.", color: GREEN },
+      { text: "" },
+      { text: "Nur der Mensch am Boden kann sagen," },
+      { text: "wie es diesem einen Menschen geht." },
+    ],
+    note: "Der Aufklärungsteil entsteht in Zusammenarbeit mit dem DLR und Quantum Systems. Was von oben kommt, ist Fläche. Was zählt, spricht jemand ein.",
+    credit: "Eigene Illustration des Projektteams (KI-gestützt) · DLR · Quantum Systems",
+  },
+  {
+    src: "./images/05-lagebild.png",
     accent: GREEN,
-    kicker: "04 · DARUM MEDICRAFT",
+    kicker: "05 · DARUM MEDICRAFT",
     headline: "Aus gesprochener Meldung wird ein Lagebild.",
     panelTitle: "Warum deine Stimme zählt",
     body: [
@@ -111,6 +128,23 @@ const OBSERVERS = Object.freeze([
 ]);
 
 const WAVE_RANGE = 13;
+
+// The air over the training site. Two liveries: medical, which is what the
+// player is joining, and military, which is what actually moves mass in a real
+// German disaster deployment. They orbit rather than hover, because a
+// helicopter standing still in the sky reads as a bug, and they sit out to the
+// sides and high up so the view back at the aircraft has depth to it.
+//
+// `at` is the centre of the orbit and `radius` how wide, `speed` is radians a
+// second and negative goes the other way round, `lift` is height over the apron.
+const AIRCRAFT = Object.freeze([
+  { kind: "medic", at: [40, 78], lift: 24, radius: 14, speed: 0.1, scale: 1, body: 0xf2f4ef, trim: 0xd23b30 },
+  { kind: "medic", at: [92, 74], lift: 20, radius: 12, speed: -0.13, scale: 0.95, body: 0xf6c945, trim: 0xd23b30 },
+  { kind: "medic", at: [64, 60], lift: 17, radius: 10, speed: 0.16, scale: 0.9, body: 0xf2f4ef, trim: 0xe2622a },
+  { kind: "military", at: [30, 100], lift: 31, radius: 18, speed: -0.07, scale: 1.35, body: 0x4a5340, trim: 0x353c2e },
+  { kind: "military", at: [100, 104], lift: 35, radius: 20, speed: 0.06, scale: 1.5, body: 0x3f4738, trim: 0x2c3227 },
+  { kind: "military", at: [64, 98], lift: 39, radius: 22, speed: -0.05, scale: 1.2, body: 0x51594a, trim: 0x363c31 },
+]);
 
 function canvasTexture(width, height, draw) {
   const canvas = document.createElement("canvas");
@@ -268,32 +302,6 @@ function chevron(ctx, cx, cy, halfWidth, halfHeight, thickness, color) {
   ctx.stroke();
 }
 
-// The hero sign, hanging in the corridor a few blocks ahead of the spawn. One
-// arrow, one instruction, nothing else to decide.
-function arrowSignTexture() {
-  return canvasTexture(1024, 384, (ctx, w, h) => {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(14,19,13,0.88)";
-    ctx.beginPath();
-    ctx.roundRect(8, 8, w - 16, h - 16, 26);
-    ctx.fill();
-    ctx.strokeStyle = GREEN;
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    chevron(ctx, 176, h / 2, 74, 66, 26, GREEN);
-    chevron(ctx, 104, h / 2, 74, 66, 26, "rgba(124,252,0,0.42)");
-
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = TEXT;
-    ctx.font = `700 88px ${SANS}`;
-    ctx.fillText("HIER ENTLANG", 300, h / 2 - 36, w - 340);
-    ctx.fillStyle = MUTED;
-    ctx.font = `400 38px ${SANS}`;
-    ctx.fillText("W = vorwärts · vier Bilder bis zum Einsatz", 300, h / 2 + 46, w - 340);
-  });
-}
-
 // Painted on the floor and repeated down the corridor, so the arrow is still
 // answering the question after the sign is behind the player.
 function floorChevronTexture() {
@@ -384,6 +392,80 @@ function buildObserver(spec) {
   return { group, head, shoulders, waves: Boolean(spec.waves), phase: Math.random() * Math.PI * 2 };
 }
 
+// A helicopter, built nose-along -z so the orbit code can aim it with yaw
+// alone. Deliberately coarse: at twenty blocks out and forty up, a silhouette
+// and a spinning disc are the whole read, and every extra box is another draw
+// call over a level that already has a world to render.
+function buildHelicopter(spec) {
+  const group = new THREE.Group();
+  const body = new THREE.MeshLambertMaterial({ color: spec.body });
+  const trim = new THREE.MeshLambertMaterial({ color: spec.trim });
+  const glass = new THREE.MeshLambertMaterial({ color: 0x2b3b46 });
+  const metal = new THREE.MeshLambertMaterial({ color: 0x5b6169 });
+
+  const add = (geometry, material, x, y, z, parent = group) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    parent.add(mesh);
+    return mesh;
+  };
+
+  add(new THREE.BoxGeometry(1.5, 1.4, 3.4), body, 0, 0, 0);
+  add(new THREE.BoxGeometry(1.2, 0.9, 0.7), glass, 0, 0.05, -1.9);
+  add(new THREE.BoxGeometry(0.42, 0.5, 3.2), body, 0, 0.25, 2.4);
+  add(new THREE.BoxGeometry(0.2, 1.5, 0.9), body, 0, 0.9, 3.7);
+  add(new THREE.BoxGeometry(2.2, 0.16, 0.6), body, 0, 0.5, 3.6);
+  // Skids on struts, so it does not read as sitting on its belly in mid-air.
+  for (const side of [-1, 1]) {
+    add(new THREE.BoxGeometry(0.16, 0.16, 3), metal, side * 0.7, -1.05, -0.1);
+    add(new THREE.BoxGeometry(0.14, 0.5, 0.14), metal, side * 0.7, -0.85, -1);
+    add(new THREE.BoxGeometry(0.14, 0.5, 0.14), metal, side * 0.7, -0.85, 0.9);
+  }
+
+  if (spec.kind === "medic") {
+    // A cross on each flank and a lit belly beacon. This is the service the
+    // player is joining, so it has to be legible from the apron.
+    for (const side of [-1, 1]) {
+      add(new THREE.BoxGeometry(0.06, 0.9, 0.3), trim, side * 0.78, 0, 0.2);
+      add(new THREE.BoxGeometry(0.06, 0.3, 0.9), trim, side * 0.78, 0, 0.2);
+    }
+    add(new THREE.BoxGeometry(0.3, 0.16, 0.3), new THREE.MeshBasicMaterial({ color: 0xff5a4a }), 0, -0.78, 0.4);
+  } else {
+    // Stub wings and a nose sensor turret: the quickest way to read "military"
+    // in a silhouette without modelling anything anyone has to think about.
+    for (const side of [-1, 1]) {
+      add(new THREE.BoxGeometry(1.8, 0.2, 1.1), trim, side * 1.5, 0.1, 0.1);
+      add(new THREE.BoxGeometry(0.5, 0.5, 1.6), metal, side * 2, -0.2, 0.1);
+    }
+    add(new THREE.BoxGeometry(0.6, 0.5, 0.5), metal, 0, -0.6, -1.9);
+  }
+
+  add(new THREE.BoxGeometry(0.34, 0.5, 0.34), metal, 0, 0.9, -0.2);
+  const mainRotor = new THREE.Group();
+  mainRotor.position.set(0, 1.2, -0.2);
+  group.add(mainRotor);
+  const bladeCount = spec.kind === "military" ? 5 : 4;
+  const bladeGeometry = new THREE.BoxGeometry(8.4, 0.09, 0.34);
+  for (let i = 0; i < bladeCount; i++) {
+    const blade = new THREE.Mesh(bladeGeometry, metal);
+    blade.rotation.y = (i / bladeCount) * Math.PI * 2;
+    mainRotor.add(blade);
+  }
+
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(0.2, 0.9, 3.7);
+  group.add(tailRotor);
+  const tailBladeGeometry = new THREE.BoxGeometry(0.06, 1.9, 0.2);
+  for (let i = 0; i < 2; i++) {
+    const blade = new THREE.Mesh(tailBladeGeometry, metal);
+    blade.rotation.x = (i / 2) * Math.PI;
+    tailRotor.add(blade);
+  }
+
+  group.scale.setScalar(spec.scale ?? 1);
+  return { group, mainRotor, tailRotor, phase: Math.random() * Math.PI * 2 };
+}
+
 export class IntroSequence {
   // `onExit` fires once, on the frame the player leaves the corridor. Anything
   // that belongs to the level rather than the intro — the banner, the audio
@@ -400,6 +482,7 @@ export class IntroSequence {
     this.observers = [];
     this.bobbers = [];
     this.lights = [];
+    this.aircraft = [];
     this.photoTextures = [];
 
     const cfg = this.config;
@@ -417,6 +500,7 @@ export class IntroSequence {
     this._buildChapters();
     this._buildObservationRoom();
     this._buildAtmosphere();
+    this._buildAirTraffic(world);
 
     scene.add(this.group);
   }
@@ -465,16 +549,8 @@ export class IntroSequence {
       { z: cfg.arrowZ + 2, y: y + 2.7, width: 4.4, height: 2.2, wall: "left" },
     );
 
-    const arrow = this._sign(arrowSignTexture(), {
-      z: cfg.arrowZ,
-      y: y + 3.5,
-      width: 3.6,
-      height: 1.35,
-    });
-    this.bobbers.push({ mesh: arrow, baseY: arrow.position.y, amplitude: 0.09, speed: 1.5 });
-
-    // Repeated on the floor all the way to the mouth, so the arrow is still
-    // answering the question after the sign is behind the player.
+    // Keep the low floor markers as quiet orientation help, but do not place
+    // the large "HIER ENTLANG" icon in the player's first view at spawn.
     const chevronTexture = floorChevronTexture();
     const chevronGeometry = new THREE.PlaneGeometry(1.7, 2.1);
     for (let z = cfg.arrowZ - 2; z > cfg.to + 1; z -= 4) {
@@ -601,12 +677,15 @@ export class IntroSequence {
     }
 
     // Above the pane, on the solid band between the glass and the ceiling.
-    this._sign(plaqueTexture(), {
+    const plaque = this._sign(plaqueTexture(), {
       z: cfg.windowZ - 0.06,
       y: this.floorY + 4.5,
       width: 2.8,
       height: 0.7,
     });
+    // The plaque is mounted on the observation-room side of the glass. Turn it
+    // around so its message is readable from the corridor/spawn side.
+    plaque.rotation.y = Math.PI;
 
     const lamp = new THREE.PointLight(0xdfe9ff, 14, 17, 2);
     lamp.position.set(cfg.axis + 0.5, roomFloor + 3, cfg.windowZ + 2.5);
@@ -669,11 +748,54 @@ export class IntroSequence {
     );
   }
 
+  // Helicopters over the site. Unlike everything else in here they outlive the
+  // corridor: the point of them is the view back at the aircraft once the
+  // player has dropped onto the apron, so they keep flying until the level ends.
+  _buildAirTraffic(world) {
+    for (const spec of AIRCRAFT) {
+      const heli = buildHelicopter(spec);
+      heli.orbit = {
+        x: spec.at[0],
+        z: spec.at[1],
+        y: world.plazaY + spec.lift,
+        radius: spec.radius,
+        speed: spec.speed,
+        bob: 0.5 + Math.random() * 0.6,
+      };
+      heli.spin = spec.kind === "military" ? 15 : 21;
+      this.group.add(heli.group);
+      this.aircraft.push(heli);
+      this._flyAircraft(heli, 0);
+    }
+  }
+
+  _flyAircraft(heli, elapsed) {
+    const orbit = heli.orbit;
+    const angle = elapsed * orbit.speed + heli.phase;
+    heli.group.position.set(
+      orbit.x + Math.cos(angle) * orbit.radius,
+      orbit.y + Math.sin(elapsed * 0.5 + heli.phase) * orbit.bob,
+      orbit.z + Math.sin(angle) * orbit.radius,
+    );
+    // Nose along the tangent and banked into the turn, which way depending only
+    // on which way round it is going.
+    heli.group.rotation.y = -angle + (orbit.speed > 0 ? -Math.PI / 2 : Math.PI / 2);
+    heli.group.rotation.z = orbit.speed > 0 ? -0.13 : 0.13;
+  }
+
   update(dt, playerPos) {
-    // Once the player is out, the corridor is scenery behind a drop they cannot
-    // climb back up. Nothing in here needs another frame of work.
-    if (this.done || !playerPos) return;
+    if (!playerPos) return;
     this.clock += dt;
+
+    for (const heli of this.aircraft) {
+      this._flyAircraft(heli, this.clock);
+      heli.mainRotor.rotation.y += dt * heli.spin;
+      heli.tailRotor.rotation.x += dt * heli.spin * 2.4;
+    }
+
+    // Everything below belongs to the corridor, and once the player is out
+    // there is a drop they cannot climb back up between them and it.
+    if (this.done) return;
 
     for (const bob of this.bobbers) {
       bob.mesh.position.y = bob.baseY + Math.sin(this.clock * bob.speed) * bob.amplitude;
@@ -723,5 +845,6 @@ export class IntroSequence {
     this.observers = [];
     this.bobbers = [];
     this.lights = [];
+    this.aircraft = [];
   }
 }

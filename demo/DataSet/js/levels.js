@@ -85,21 +85,51 @@ const INTRO = Object.freeze({
   height: 5,
   lift: 3,
   from: 125,
-  to: 89,
+  to: 84,
   windowZ: 120,
   chamberHalfWidth: 4,
-  // One photograph per chapter, placed so each lands in a different band of the
-  // corridor: clinic, service corridor, rock cut, open bank.
-  chapterZ: Object.freeze([108, 102, 96, 91]),
-  // Where each chapter's wall text hangs. Listed rather than derived because
-  // the last stretch is an open bank with a two-block parapet, and a panel
-  // placed a fixed distance ahead of the fourth photograph would float over it.
-  // Every entry here has to sit in a band that still has full-height walls.
-  panelZ: Object.freeze([111, 105, 99, 95]),
+  // The corridor changes material five times on the way out. Each entry is the
+  // band's *lowest* z, listed rather than derived so the last three can line up
+  // with the aircraft parked at the end of it: the collar is the tail section
+  // the corridor docks into, the hold is the cargo bay, the ramp is the open
+  // nose door. Move the aircraft and these three move with it.
+  bands: Object.freeze({
+    clinic: 111,
+    service: 107,
+    rock: 104,
+    collar: 100,
+    hold: 87,
+    ramp: 84,
+  }),
+  // One photograph per chapter. Five of them, spaced evenly enough that a
+  // walking player meets one about every five seconds.
+  chapterZ: Object.freeze([108, 102, 97, 92, 87]),
+  // Where each chapter's wall text hangs, three blocks before its picture.
+  // Listed rather than derived because the open nose ramp at the end has no
+  // walls, and a panel placed by formula would float over it.
+  panelZ: Object.freeze([111, 105, 100, 95, 90]),
   arrowZ: 112,
   // Crossing this line is what ends the intro: sprint is released, the level
   // banner appears, and the sequence stops listening.
-  exitZ: 88.4,
+  exitZ: 83.4,
+});
+
+// The aircraft the last third of the corridor runs through. Its hold *is* the
+// corridor, so the two share an axis and the hull is stamped first and carved
+// through second. Nose ramp at the low-z end, facing the training site; the
+// tail is buried in the hillside the corridor comes out of, which is why the
+// player never sees a back end that would have to be modelled.
+const INTRO_VTOL = Object.freeze({
+  axis: 64,
+  ramp: 84,
+  tail: 103,
+  halfWidth: 7,
+  // Height of the fuselage centre line over the apron, and the semi-axes of the
+  // oval section. The hold sits low inside it; the rest is avionics and belly.
+  centre: 7,
+  radiusY: 6,
+  wing: Object.freeze({ from: 90, to: 96, span: 17, y: 10 }),
+  fin: Object.freeze({ from: 95, to: 103, height: 9 }),
 });
 
 function guardrailRun(z, fromX, toX, rotation = 0) {
@@ -120,7 +150,9 @@ export const LEVELS = Object.freeze([
       "Ein einzelner Patient liegt auf dem Klinikvorplatz. Geh hin, drücke E und sprich den Text aus der Karte laut vor.",
     sky: 0x9fd8f2,
     terrain: MEADOW,
-    site: { area: [44, 48, 86, 90], feather: 4 },
+    // Extended north to z=104 so the apron the aircraft stands on is levelled
+    // and feathered by the same pass that levels the clinic forecourt.
+    site: { area: [44, 48, 86, 104], feather: 4 },
     structures: [
       { type: "ground", area: [46, 50, 84, 88], block: "PATH" },
       { type: "ground", area: [56, 52, 72, 68], block: "CONCRETE" },
@@ -136,7 +168,10 @@ export const LEVELS = Object.freeze([
       { type: "tree", at: [44, 88] },
       { type: "tree", at: [88, 88] },
       { type: "pad", area: [62, 76, 66, 78] },
-      // Built last so it is stamped over the plaza paving rather than under it.
+      // The apron, then the airframe, then the corridor that is carved through
+      // it. Order matters: `intro_tunnel` hollows its own hold out of the hull.
+      { type: "ground", area: [46, 84, 82, 104], block: "CONCRETE" },
+      { type: "medical_vtol", ...INTRO_VTOL },
       { type: "intro_tunnel", ...INTRO },
     ],
     // The first thing a player ever sees is the inside of the corridor, four
@@ -145,7 +180,7 @@ export const LEVELS = Object.freeze([
     spawn: { at: [64.5, 115.5], face: [64.5, 100], lift: 4 },
     // Where a player who falls out of the world is put back. That has to stay
     // the plaza: the corridor is a one-way scene and cannot be re-entered.
-    hub: [64.5, 85.5],
+    hub: [64.5, 79.5],
     intro: INTRO,
     anchors: [
       { id: "A", spots: [[64, 72], [58, 71], [71, 72], [64, 80]] },
