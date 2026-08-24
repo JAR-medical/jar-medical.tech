@@ -6,10 +6,12 @@ import {
   LEADERBOARD_NOTES,
   hasStoredIdentity,
   leaderboardView,
+  loadLeaderboardOptIn,
   loadIdentity,
   loadLocalRuns,
+  saveLeaderboardOptIn,
   saveIdentity,
-} from "./leaderboard.js";
+} from "./leaderboard.js?v=20260824-consent1";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -49,6 +51,7 @@ export class UI {
     this._lbSummary = null;
     this._lbStatus = "";
     this._setLbScope = "global";
+    this._publicLeaderboardOptIn = false;
     this._settingsTab = "sound";
     this._settingsSnapshot = null;
     this._admin = false;
@@ -84,6 +87,8 @@ export class UI {
       btnStart: $("btn-start"),
       briefingScreen: $("briefing-screen"),
       btnConsent: $("btn-consent"),
+      btnPractice: $("btn-practice"),
+      dataConsentConfirm: $("data-consent-confirm"),
       ageConfirm: $("age-confirm"),
       consentError: $("consent-error"),
       sttBadge: $("stt-badge"),
@@ -142,6 +147,7 @@ export class UI {
       verdictBox: $("verdict-box"),
       fallbackInput: $("fallback-input"),
       fallbackSend: $("fallback-send"),
+      fallbackRow: document.querySelector("#chart-panel .fallback-row"),
       chartClose: $("chart-close"),
       touchLook: $("touch-look"),
       touchJoystick: $("touch-joystick"),
@@ -173,6 +179,7 @@ export class UI {
       playerNameError: $("player-name-error"),
       playerNameCount: $("player-name-count"),
       playerCrewCount: $("player-crew-count"),
+      leaderboardOptInStart: $("leaderboard-opt-in-start"),
       identityAvatar: $("identity-avatar"),
       identityPreviewName: $("identity-preview-name"),
       identityPreviewCrew: $("identity-preview-crew"),
@@ -198,6 +205,8 @@ export class UI {
       contributionSummary: $("contribution-summary"),
       contributionRecovery: $("contribution-recovery"),
       withdrawContribution: $("withdraw-contribution"),
+      withdrawRecoveryCode: $("withdraw-recovery-code"),
+      withdrawByCode: $("withdraw-by-code"),
       withdrawStatus: $("withdraw-status"),
       adminLock: $("admin-lock"),
       adminPassword: $("admin-password"),
@@ -309,11 +318,23 @@ export class UI {
       event.preventDefault();
       this.el.btnStart.click();
     });
+    this.syncLeaderboardOptIn(loadLeaderboardOptIn());
+    this.el.leaderboardOptInStart?.addEventListener("change", () => {
+      const enabled = saveLeaderboardOptIn(this.el.leaderboardOptInStart.checked);
+      this.syncLeaderboardOptIn(enabled);
+      this.handlers.onLeaderboardOptInChanged?.(enabled);
+    });
     this.el.btnConsent.addEventListener("click", () => {
-      if (!this.el.ageConfirm?.checked) {
-        if (this.el.consentError) this.el.consentError.textContent = "Die Teilnahme ist erst ab 16 Jahren möglich.";
+      const consentChecked = Boolean(this.el.dataConsentConfirm?.checked);
+      const ageChecked = Boolean(this.el.ageConfirm?.checked);
+      if (!consentChecked || !ageChecked) {
+        if (this.el.consentError) {
+          this.el.consentError.textContent = !ageChecked
+            ? "Die Teilnahme ist erst ab 16 Jahren möglich."
+            : "Bitte bestätige die Datenvereinbarung.";
+        }
         this.el.consentError?.classList.remove("hidden");
-        this.el.ageConfirm?.focus({ preventScroll: true });
+        (ageChecked ? this.el.dataConsentConfirm : this.el.ageConfirm)?.focus({ preventScroll: true });
         return;
       }
       this.el.consentError?.classList.add("hidden");
@@ -340,7 +361,19 @@ export class UI {
         this.showBriefing();
       }
     });
-    this.el.ageConfirm?.addEventListener("change", () => this.el.consentError?.classList.add("hidden"));
+    const updateConsentButton = () => {
+      const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
+      if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
+      if (ready) this.el.consentError?.classList.add("hidden");
+    };
+    this.el.dataConsentConfirm?.addEventListener("change", updateConsentButton);
+    this.el.ageConfirm?.addEventListener("change", updateConsentButton);
+    updateConsentButton();
+    this.el.btnPractice?.addEventListener("click", () => {
+      this.el.consentError?.classList.add("hidden");
+      this._hideMenus();
+      h.onPracticeStart?.();
+    });
     this.el.btnRestart.addEventListener("click", () => {
       this._hideMenus();
       h.onRestart();
@@ -400,6 +433,24 @@ export class UI {
       } catch (error) {
         if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = String(error?.message || "Löschung fehlgeschlagen.");
         this.el.withdrawContribution.disabled = false;
+      }
+    });
+    this.el.withdrawByCode?.addEventListener("click", async () => {
+      const code = String(this.el.withdrawRecoveryCode?.value || "").trim();
+      if (!code) {
+        if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = "Bitte gib den Löschcode ein.";
+        this.el.withdrawRecoveryCode?.focus({ preventScroll: true });
+        return;
+      }
+      if (!window.confirm("Mit diesem Löschcode die gespeicherten Sprachaufnahmen widerrufen und löschen?")) return;
+      this.el.withdrawByCode.disabled = true;
+      if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = "Löschung wird ausgeführt …";
+      try {
+        const result = await this.handlers.onWithdrawByCode?.(code);
+        if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = `${result?.deleted_clips || 0} Aufnahmen wurden gelöscht.`;
+      } catch (error) {
+        if (this.el.withdrawStatus) this.el.withdrawStatus.textContent = String(error?.message || "Löschung fehlgeschlagen.");
+        this.el.withdrawByCode.disabled = false;
       }
     });
     // Every button in the game makes the same click, so the audio wiring lives
@@ -1024,16 +1075,26 @@ export class UI {
     this.el.startScreen.classList.add("hidden");
     this.el.endScreen.classList.add("hidden");
     this.el.briefingScreen.classList.remove("hidden");
-    this.el.btnConsent.focus({ preventScroll: true });
+    const target = this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked
+      ? this.el.btnConsent
+      : this.el.dataConsentConfirm || this.el.ageConfirm || this.el.btnConsent;
+    target?.focus({ preventScroll: true });
   }
 
   setConsentBusy(busy) {
     const button = this.el.btnConsent;
     if (!button) return;
     const waiting = Boolean(busy);
-    button.disabled = waiting;
+    const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
+    button.disabled = waiting || !ready;
     button.setAttribute("aria-busy", String(waiting));
-    button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Ich stimme zu & weiter";
+    button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Einwilligen & Datensammlung starten";
+  }
+
+  syncLeaderboardOptIn(value = loadLeaderboardOptIn()) {
+    const enabled = Boolean(value);
+    if (this.el.leaderboardOptInStart) this.el.leaderboardOptInStart.checked = enabled;
+    return enabled;
   }
 
   _setBadge(sttReady) {
@@ -1333,12 +1394,24 @@ export class UI {
       tr.innerHTML = `<td>${label}</td><td>${value}</td>`;
       this.el.chartVitalsBody.appendChild(tr);
     }
-    this.setVoicePrompt(view.voicePrompt || {
-      label: "Bericht sprechen",
-      stageNumber: 1,
-      stageCount: 1,
-      text: view.hint,
-    });
+    const contributionMode = Boolean(view.contributionMode);
+    if (contributionMode) {
+      this.setVoicePrompt(view.voicePrompt || {
+        label: "Bericht sprechen",
+        stageNumber: 1,
+        stageCount: 1,
+        text: view.hint,
+      });
+    } else {
+      if (this.el.voiceStageLabel) this.el.voiceStageLabel.textContent = "ÜBUNGSMODUS · GETIPPTER BERICHT";
+      if (this.el.voiceStageProgress) this.el.voiceStageProgress.textContent = "—";
+      if (this.el.chartHint) {
+        this.el.chartHint.innerHTML = `<span class="script-label">OHNE DATENSPENDE ÜBEN</span><span class="script-copy">Gib deinen Bericht unten ein. Es wird kein Mikrofon geöffnet und kein Beitrag gesendet.</span>`;
+      }
+    }
+    this.el.chartRecord?.classList.toggle("hidden", !contributionMode);
+    this.el.fallbackRow?.classList.toggle("hidden", contributionMode);
+    if (!contributionMode && this.el.fallbackInput) this.el.fallbackInput.value = "";
     this.el.chartActions.innerHTML = "";
     if (view.usedItems?.length) {
       const itemsById = new Map(HOTBAR_ITEMS.map((item) => [item.id, item]));
@@ -1369,9 +1442,9 @@ export class UI {
     }
     this.transcriptPlaceholder();
     this._recording = false;
-    this._voiceSubmissionPending = Boolean(view.contributionMode && view.acceptedVoiceClips > 0 && !view.resolved);
-    this.setTranscriptionLoading(this._sttState === "transcribing" || this._voiceSubmissionPending);
-    this.setRecordingUI(false, this._sttState === "transcribing");
+    this._voiceSubmissionPending = Boolean(contributionMode && view.acceptedVoiceClips > 0 && !view.resolved);
+    this.setTranscriptionLoading(contributionMode && (this._sttState === "transcribing" || this._voiceSubmissionPending));
+    this.setRecordingUI(false, contributionMode && this._sttState === "transcribing");
     this.clearVoiceOutput();
     this.clearVerdict();
     this.updateChartTimer(view.elapsed);
@@ -1528,7 +1601,10 @@ export class UI {
     const cleared = summary.levelsCleared ?? 0;
     const total = summary.levelCount ?? cleared;
     const complete = cleared >= total && total > 0;
-    this.el.endTitle.textContent = complete ? "ALLE LEVEL ABGESCHLOSSEN" : "DURCHLAUF BEENDET";
+    const practice = summary.playMode === "practice";
+    this.el.endTitle.textContent = practice
+      ? (complete ? "ÜBUNG ABGESCHLOSSEN" : "ÜBUNG BEENDET")
+      : (complete ? "ALLE LEVEL ABGESCHLOSSEN" : "DURCHLAUF BEENDET");
     this.el.endRank.textContent = summary.accuracySamples
       ? `${summary.accuracy}% Sprachgenauigkeit · ${summary.accuracyLabel}`
       : "Keine Sprachaufnahme gewertet";
@@ -1545,8 +1621,10 @@ export class UI {
       `<div>Gerettet: <b>${summary.saved}/${summary.total}</b></div>` +
       `<div>Punkte: <b>${summary.score}</b></div>` +
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
-      `<div>Gespeicherte Audioaufnahmen: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
-      `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>` +
+      (practice
+        ? `<div>Sprachdatenspende: <b>nicht aktiviert</b></div>`
+        : `<div>Gespeicherte Audioaufnahmen: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
+          `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>`) +
       `<div class="end-levels">${levelRows}</div>`;
 
     this.renderMedals(summary, extras);
@@ -1562,9 +1640,10 @@ export class UI {
     this._lbYouKey = { global: null, local: extras.runKey || null, demo: null };
     this._lbIdentity = extras.identity || loadIdentity();
     this._lbStatus = extras.remoteStatus || "";
+    this._publicLeaderboardOptIn = Boolean(extras.publicLeaderboardOptIn);
     this.setLeaderboardScope(this._lbData.global ? "global" : "local", { silent: true });
 
-    this.el.btnRestart.textContent = "↻ Neue 5-Level-Datensammlung";
+    this.el.btnRestart.textContent = practice ? "↻ Neue Übung starten" : "↻ Neue 5-Level-Datensammlung";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
     this.setCombo({ streak: 0 });
@@ -1652,6 +1731,7 @@ export class UI {
       entries: entries || undefined,
       identity: options.identity || this._lbIdentity,
       youKey: options.youKey ?? this._lbYouKey[scope],
+      includeYou: scope !== "global" || this._publicLeaderboardOptIn,
     });
 
     const rows = board.shown
@@ -1677,8 +1757,11 @@ export class UI {
       : LEADERBOARD_NOTES[scope] || LEADERBOARD_NOTE;
     const status = this._lbStatus && scope === "global" ? `<p class="lb-status">${escapeHtml(this._lbStatus)}</p>` : "";
 
+    const place = scope === "global" && !this._publicLeaderboardOptIn
+      ? "Lauf nicht veröffentlicht"
+      : `Platz ${board.yourRank} von ${board.count}`;
     host.innerHTML =
-      `<div class="lb-head"><b>${heading}</b><span>Platz ${board.yourRank} von ${board.count}</span></div>` +
+      `<div class="lb-head"><b>${heading}</b><span>${place}</span></div>` +
       `<div class="lb-legend"><span class="lb-rank">#</span><span class="lb-name">Spieler</span>` +
       `<span class="lb-saved">Gerettet</span><span class="lb-acc">Genau.</span>` +
       `<span class="lb-time">Zeit</span><span class="lb-score">Punkte</span></div>` +

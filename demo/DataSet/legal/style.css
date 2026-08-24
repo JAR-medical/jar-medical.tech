@@ -1,0 +1,189 @@
+:root {
+  color-scheme: light;
+  --ink: #1e2b32;
+  --muted: #5d6c73;
+  --blue: #005b83;
+  --blue-soft: #eaf5fa;
+  --line: #d6e0e5;
+  --paper: #ffffff;
+  --page: #f4f7f8;
+  --warn: #8a4a16;
+  --warn-soft: #fff4e8;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.62;
+}
+
+a { color: var(--blue); }
+a:hover, a:focus-visible { color: #003e5a; }
+
+.legal-shell {
+  width: min(980px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.doc-header {
+  margin-bottom: 1.25rem;
+  padding: 1.4rem 1.6rem;
+  background: linear-gradient(135deg, #063d58, #08779e);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 62, 90, 0.18);
+}
+
+.doc-kicker {
+  margin: 0 0 0.35rem;
+  color: #c8f0ff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.doc-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1.1;
+}
+
+.doc-header p { margin: 0.65rem 0 0; max-width: 72ch; color: #e9f9ff; }
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 1.2rem;
+}
+
+.legal-nav a {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.legal-nav a[aria-current="page"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+.paper {
+  padding: clamp(1.2rem, 3vw, 2rem);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 26px rgba(28, 51, 62, 0.06);
+}
+
+.paper > :first-child { margin-top: 0; }
+.paper > :last-child { margin-bottom: 0; }
+
+h2 {
+  margin: 1.7rem 0 0.55rem;
+  color: #063d58;
+  font-size: 1.3rem;
+  line-height: 1.25;
+}
+
+h3 {
+  margin: 1.15rem 0 0.35rem;
+  color: #164e67;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+p { margin: 0.55rem 0; }
+
+ul, ol { padding-left: 1.35rem; }
+li + li { margin-top: 0.35rem; }
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+}
+
+.meta div {
+  padding: 0.65rem 0.75rem;
+  background: #f8fbfc;
+  border-left: 3px solid var(--blue);
+}
+
+.meta dt { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+.meta dd { margin: 0.1rem 0 0; font-size: 0.9rem; font-weight: 700; }
+
+.notice {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  background: var(--blue-soft);
+  border-left: 4px solid var(--blue);
+}
+
+.notice.warning { background: var(--warn-soft); border-left-color: #b96822; color: #5d3518; }
+
+.scope-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.65rem;
+  padding: 0;
+  list-style: none;
+}
+
+.scope-list li {
+  margin: 0;
+  padding: 0.75rem;
+  background: #f8fbfc;
+  border: 1px solid var(--line);
+}
+
+.scope-list strong { display: block; color: #063d58; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+th, td {
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+}
+
+th { background: #edf5f8; color: #063d58; }
+
+.doc-footer {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.back-link { display: inline-block; margin-top: 1rem; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .legal-shell { width: min(100% - 1rem, 980px); padding-top: 0.5rem; }
+  .doc-header { padding: 1.15rem 1rem; }
+  .paper { padding: 1rem; }
+  table { display: block; overflow-x: auto; white-space: normal; }
+  th, td { min-width: 10rem; }
+}
+
+@media print {
+  body { background: #fff; }
+  .legal-shell { width: 100%; padding: 0; }
+  .doc-header { color: #000; background: #fff; box-shadow: none; border-bottom: 2px solid #000; }
+  .doc-header p, .doc-kicker { color: #000; }
+  .legal-nav, .back-link { display: none; }
+  .paper { border: 0; box-shadow: none; }
+}

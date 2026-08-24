@@ -29,7 +29,17 @@
   text-decoration: underline;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
 
 html, body {
   margin: 0;
@@ -59,6 +69,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
    inline width/height — so it covers the viewport whatever the drawing
    buffer underneath it currently is. */
 #app, #app canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+#app { overflow: hidden; }
 canvas { display: block; image-rendering: pixelated; }
 
 .hidden { display: none !important; }
@@ -227,11 +238,97 @@ canvas { display: block; image-rendering: pixelated; }
   white-space: nowrap;
 }
 
+.consent-actions {
+  display: flex;
+  flex: 0 0 min(18rem, 34%);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.consent-actions small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.consent-copy strong { color: var(--text); }
+.consent-warning {
+  padding: 0.4rem 0.5rem;
+  border-left: 3px solid var(--red);
+  background: rgba(255, 65, 54, 0.08);
+}
+
+.consent-check,
+.age-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+  font-weight: 700;
+}
+
+.consent-check input,
+.age-confirm input {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.05rem;
+  accent-color: var(--green);
+}
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+}
+
+.secondary-btn {
+  background: transparent;
+  border-color: var(--panel-border);
+  color: var(--text);
+}
+
+.secondary-btn:hover,
+.secondary-btn:focus-visible {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.consent-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.leaderboard-consent {
+  display: flex;
+  width: min(100%, 38rem);
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.8rem auto 0;
+  color: #64747c;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.leaderboard-consent input {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.05rem;
+  accent-color: #0073aa;
+}
+
+.leaderboard-consent b { color: #005177; }
+
 @media (max-width: 720px) {
   .briefing-steps { grid-template-columns: 1fr; }
   .briefing-step { min-height: 0; }
   .training-consent { align-items: stretch; flex-direction: column; }
   .consent-btn { align-self: flex-start; }
+  .consent-actions { flex-basis: auto; }
 }
 
 .age-confirm { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.35rem; font-weight: 700; }
@@ -245,6 +342,33 @@ canvas { display: block; image-rendering: pixelated; }
   color: var(--yellow);
   overflow-wrap: anywhere;
 }
+
+.recovery-actions {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.recovery-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.recovery-actions input {
+  min-width: 15rem;
+  flex: 1 1 15rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--panel-border);
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.04em;
+}
+
+.recovery-actions input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
 
 .voice-stage-head {
   display: flex;
@@ -1127,6 +1251,22 @@ body.touch-device .desktop-only { display: none; }
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   letter-spacing: 0.1em;
 }
+
+#briefing-screen .consent-copy strong { color: #26343b; }
+#briefing-screen .consent-warning { background: #fff5f4; }
+#briefing-screen .consent-actions small { color: #718087; }
+#briefing-screen .secondary-btn {
+  background: #fff;
+  border-color: #9aadb7;
+  color: #26343b;
+}
+#briefing-screen .secondary-btn:hover,
+#briefing-screen .secondary-btn:focus-visible {
+  background: #f2f8fb;
+  border-color: #0073aa;
+  color: #005177;
+}
+#briefing-screen .consent-btn:disabled { background: #9fb6c1; border-color: #9fb6c1; }
 
 #start-screen .btn,
 #briefing-screen .btn,

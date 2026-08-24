@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#f7f7f7" />
 <title>MEDICRAFT</title>
-<link rel="stylesheet" href="./css/style.css" />
+<link rel="stylesheet" href="./css/style.css?v=20260824-no-scroll1" />
 <link rel="modulepreload" href="./vendor/three.module.js" />
 </head>
 <body>
@@ -18,10 +18,6 @@
   <div id="start-screen" class="fullscreen hidden">
       <div class="start-box">
       <h1 class="game-title">MEDICRAFT</h1>
-      <div class="start-message">
-        <span class="start-focus"><b>NEU:</b> Sprich pro Patient genau einen vollständigen medizinischen Bericht.</span>
-        <p class="start-description">Ein vollständiger Durchlauf führt durch fünf Level mit 19 Patienten und sammelt bis zu 19 verwertbare Sprachberichte. Deine Aufnahmen helfen dabei, Sprachmodelle zu entwickeln, die Rettungskräfte unterstützen und Menschenleben schützen.</p>
-      </div>
       <section class="start-identity" aria-label="Dein Spielerprofil">
         <div class="identity-profile-head">
           <span id="identity-avatar" class="identity-avatar" aria-hidden="true">?</span>
@@ -54,6 +50,10 @@
         </div>
       </section>
       <button id="btn-start" class="btn big">▶ 5-Level-Datensammlung starten</button>
+      <label class="leaderboard-consent" for="leaderboard-opt-in-start">
+        <input id="leaderboard-opt-in-start" type="checkbox" />
+        <span><b>Optional:</b> Ich möchte, dass mein Spieler-/Teamname und mein Ergebnis öffentlich in der Server-Bestenliste erscheinen. Ohne Häkchen bleibt der Lauf auf diesem Gerät.</span>
+      </label>
       <div class="start-footer">
         <div class="start-help">
           <span class="desktop-only"><b>WASD</b> bewegen · <b>Maus</b> umsehen · <b>Leertaste</b> springen · <b>Umschalttaste</b> sprinten<br />
@@ -93,15 +93,27 @@
 
       <div class="training-consent">
         <div class="consent-copy">
-          <span class="consent-label">DATENZUSTIMMUNG</span>
-          <span>Ich stimme zu, dass meine Sprachdaten zur Entwicklung von KI verwendet werden dürfen, die Rettungskräfte unterstützt und Menschenleben schützen kann.</span>
-          <span>Die aufgenommenen Sprachdaten helfen dabei, digitale Rettungshilfen für Krisensituationen zu verbessern.</span>
-          <span>Gespeichert werden Audioaufnahme, Aufgabe, Transkript, Qualitätswerte und Modellinformationen für höchstens 24 Monate. IP-Adressen werden nicht Teil des Trainingsdatensatzes.</span>
-          <label class="age-confirm"><input id="age-confirm" type="checkbox" /> Ich bestätige, dass ich mindestens 16 Jahre alt bin.</label>
-          <span id="consent-error" class="identity-error hidden" role="alert">Die Teilnahme ist erst ab 16 Jahren möglich.</span>
-          <a class="legal-link" href="https://jar-medical.tech/privacy.html" target="_blank" rel="noopener noreferrer">Datenschutz und Widerruf</a>
+          <span class="consent-label">FREIWILLIGE SPRACHDATENSPENDE · VERSION 2026-08-24-V1</span>
+          <strong>Nur mit zwei aktiven Bestätigungen startet die Datensammlung.</strong>
+          <span>Ich willige ausdrücklich ein, dass J.A.R. – Projektteam meine in Medicraft gesprochenen Sprachaufnahmen, die daraus erzeugten Transkripte sowie Aufgaben-, Qualitäts- und Modellinformationen für die Entwicklung und Prüfung von Sprachmodellen und digitalen Rettungshilfen verarbeitet.</span>
+          <span>Die Daten dienen Forschung, Qualitätssicherung, Duplikatprüfung und dem Aufbau eines pseudonymen Sprachdatensatzes. Es werden keine Entscheidungen über mich getroffen und Medicraft ist kein medizinischer Rat.</span>
+          <span>Die Aufbewahrung beträgt höchstens 24 Monate. Ich kann meine Einwilligung jederzeit ohne Nachteile über „Einstellungen → Beiträge“, mit dem angezeigten Löschcode oder per Kontakt widerrufen.</span>
+          <span class="consent-warning"><b>Bitte keine echten Patientendaten, Namen, Adressen oder sonstigen privaten Inhalte sprechen.</b> Die Szenarien sind fiktiv.</span>
+          <label class="consent-check"><input id="data-consent-confirm" type="checkbox" required /> Ich habe die Datenvereinbarung und Datenschutzhinweise gelesen und willige für diesen Zweck ein.</label>
+          <label class="age-confirm"><input id="age-confirm" type="checkbox" required /> Ich bestätige, dass ich mindestens 16 Jahre alt bin.</label>
+          <span id="consent-error" class="identity-error hidden" role="alert">Bitte bestätige beide Pflichtangaben.</span>
+          <span class="legal-links" aria-label="Rechtliche Informationen">
+            <a class="legal-link" href="./legal/datenvereinbarung.html" target="_blank" rel="noopener noreferrer">Datenvereinbarung</a>
+            <a class="legal-link" href="./legal/datenschutz.html" target="_blank" rel="noopener noreferrer">Datenschutz</a>
+            <a class="legal-link" href="./legal/impressum.html" target="_blank" rel="noopener noreferrer">Impressum</a>
+            <a class="legal-link" href="./legal/nutzungsbedingungen.html" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a>
+          </span>
         </div>
-        <button id="btn-consent" class="btn small consent-btn" type="button">Ich stimme zu &amp; weiter</button>
+        <div class="consent-actions">
+          <button id="btn-consent" class="btn small consent-btn" type="button" disabled>Einwilligen &amp; Datensammlung starten</button>
+          <button id="btn-practice" class="btn small secondary-btn" type="button">Ohne Sprachdatenspende üben</button>
+          <small>Der Übungsmodus greift nicht auf Mikrofon oder Beitragsserver zu.</small>
+        </div>
       </div>
     </div>
   </div>
@@ -317,6 +329,13 @@
           <p class="settings-note">Deine öffentliche Bestenlisten-Identität bleibt von der pseudonymen Beitrags-ID getrennt.</p>
           <div id="contribution-recovery" class="recovery-code hidden"></div>
           <button id="withdraw-contribution" class="btn small danger" type="button">Zustimmung widerrufen und Aufnahmen löschen</button>
+          <div class="recovery-actions">
+            <label for="withdraw-recovery-code">Löschcode aus einer früheren Sitzung</label>
+            <div>
+              <input id="withdraw-recovery-code" type="text" inputmode="text" autocomplete="off" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX" />
+              <button id="withdraw-by-code" class="btn small" type="button">Mit Löschcode widerrufen</button>
+            </div>
+          </div>
           <p id="withdraw-status" class="settings-note" aria-live="polite"></p>
         </section>
 
@@ -352,6 +371,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js"></script>
-  <script type="module" src="./js/main.js?v=20260824-transcript1"></script>
+  <script type="module" src="./js/main.js?v=20260824-consent1"></script>
 </body>
 </html>

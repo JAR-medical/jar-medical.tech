@@ -49,10 +49,13 @@ const PUBLISHED_BOARD_URL = "./leaderboard.json";
 const IDENTITY_KEY = "medicraft.identity";
 const RUNS_KEY = "medicraft.runs";
 const BEST_KEY = "medicraft.best";
+const LEADERBOARD_OPT_IN_KEY = "medicraft.leaderboard.optin";
 const ANONYMOUS_NAME = "Anonym";
 const EMPTY_TEAM = "";
 const LOCAL_RUN_LIMIT = 40;
 const REMOTE_TIMEOUT_MS = 4000;
+
+export const LEADERBOARD_CONSENT_VERSION = "2026-08-24-v1";
 
 function storage() {
   try {
@@ -117,6 +120,16 @@ export function saveIdentity({ name = "", crew = "" } = {}) {
   };
   writeJson(IDENTITY_KEY, identity);
   return identity;
+}
+
+export function loadLeaderboardOptIn() {
+  return readJson(LEADERBOARD_OPT_IN_KEY, false) === true;
+}
+
+export function saveLeaderboardOptIn(value) {
+  const enabled = Boolean(value);
+  writeJson(LEADERBOARD_OPT_IN_KEY, enabled);
+  return enabled;
 }
 
 // One finished run, in the shape both boards and the server agree on.

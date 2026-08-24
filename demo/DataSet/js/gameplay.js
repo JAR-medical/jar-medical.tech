@@ -171,7 +171,9 @@ export class Game {
       loaded_at: new Date().toISOString(),
       patients: this.runs.map((run) => this.serializeRun(run)),
     };
-    this.scenarioSync = this.syncScenario();
+    // Practice mode is intentionally local: no scenario, action, or report
+    // payload is sent when the player has declined the voice contribution.
+    this.scenarioSync = this.contributionMode ? this.syncScenario() : Promise.resolve(false);
     this.started = true;
     emit("game:started", { count: total });
   }
@@ -221,7 +223,7 @@ export class Game {
   }
 
   recordActionUse(run, item, result) {
-    if (!this.scenarioId) return;
+    if (!this.contributionMode || !this.scenarioId) return;
     const payload = {
       scenario_id: this.scenarioId,
       patient_id: run.patientId,
@@ -237,7 +239,7 @@ export class Game {
   }
 
   recordReport(run, transcript, result, submissionSource = "report") {
-    if (!this.scenarioId) return;
+    if (!this.contributionMode || !this.scenarioId) return;
     const payload = {
       scenario_id: this.scenarioId,
       patient_id: run.patientId,

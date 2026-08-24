@@ -3,23 +3,25 @@ import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js";
+import { Game } from "./gameplay.js?v=20260824-consent1";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260824-transcript1";
+import { UI } from "./ui.js?v=20260824-consent1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js";
+import { ContributionClient } from "./contributions.js?v=20260824-consent1";
 import {
   fetchRemoteRuns,
+  LEADERBOARD_CONSENT_VERSION,
   loadIdentity,
+  loadLeaderboardOptIn,
   runFromSummary,
   saveLocalRun,
   submitRun,
   updatePersonalBest,
-} from "./leaderboard.js";
+} from "./leaderboard.js?v=20260824-consent1";
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
@@ -224,6 +226,7 @@ export class App {
     this.ui.bindMain({
       onStart: () => this.showBriefing(),
       onConsentAccepted: () => this.startMission(),
+      onPracticeStart: () => this.startPracticeMission(),
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
@@ -233,6 +236,7 @@ export class App {
       onSettingsOpen: () => this.settingsSnapshot(),
       onContributionSummary: () => this.contributions.summary,
       onWithdrawContribution: () => this.withdrawContribution(),
+      onWithdrawByCode: (code) => this.withdrawContributionByCode(code),
       onAdminAction: (action, payload) => this.runAdminAction(action, payload),
     });
 
@@ -304,7 +308,10 @@ export class App {
     });
 
     on("ui:record-start", () => {
-      if (this.mode !== "chart") return;
+      // The microphone is reachable only from an active, consented campaign.
+      // Practice mode has a typed field and must never fall through to the
+      // generic transcription endpoint.
+      if (this.mode !== "chart" || this.playMode !== "campaign" || !this.contributions.session) return;
       this.audio.duck("recording", true);
       const view = this.game.getView(this.currentPatientId);
       const prompt = view?.voicePrompt;
@@ -326,7 +333,7 @@ export class App {
     });
 
     on("ui:record-stop", () => {
-      if (this.mode !== "chart") return;
+      if (this.mode !== "chart" || this.playMode !== "campaign") return;
       this.speech.stopRecording().catch(() => {});
     });
 
@@ -378,6 +385,7 @@ export class App {
 
     on("stt:result", ({ text, seconds, audioBlob, audioInfo, context = {} }) => {
       if (context.contributionMode) {
+        if (this.playMode !== "campaign") return;
         const patientId = context.patientId || null;
         const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
         if (sameChart) this.ui.setTranscriptionLoading(false);
@@ -698,12 +706,17 @@ export class App {
       this.showBriefing();
       return;
     }
-    this.beginMission();
+    this.beginMission({ contributionMode: true });
   }
 
-  beginMission() {
+  startPracticeMission() {
+    this.playMode = "practice";
+    this.beginMission({ contributionMode: false });
+  }
+
+  beginMission({ contributionMode = true } = {}) {
     this.ui.hideMenus();
-    this.playMode = "campaign";
+    this.playMode = contributionMode ? "campaign" : "practice";
     this.campaign = new Campaign(LEVELS);
     this.campaign.reset();
     this.streak = 0;
@@ -720,6 +733,17 @@ export class App {
   async withdrawContribution() {
     if (this.speech.recording) this.speech.abort();
     const result = await this.contributions.withdraw();
+    this.trainingReadyClips = 0;
+    this.ui.renderContributionSummary({});
+    this.ui.closeSettings();
+    this.ui.showStart(null);
+    this.mode = "start";
+    return result;
+  }
+
+  async withdrawContributionByCode(code) {
+    if (this.speech.recording) this.speech.abort();
+    const result = await this.contributions.withdrawByCode(code);
     this.trainingReadyClips = 0;
     this.ui.renderContributionSummary({});
     this.ui.closeSettings();
@@ -749,7 +773,7 @@ export class App {
       startScore: this.campaign.carriedScore,
       usedHints: this.campaign.usedHints,
       caseUsage: this.campaign.caseUsage,
-      contributionMode: true,
+      contributionMode: this.playMode === "campaign",
     });
     this.currentReportScript = "";
 
@@ -791,11 +815,13 @@ export class App {
     this.audio.duck("menu", true);
     this.audio.playMusic("menu");
     this.audio.play("campaign-complete");
-    this.contributions.completeShift().then((contributionSummary) => {
-      if (!contributionSummary) return;
-      this.trainingReadyClips = Number(contributionSummary.training_ready_clips) || 0;
-      this.ui.renderContributionSummary(contributionSummary, this.contributions.recoveryCode);
-    }).catch(() => {});
+    if (this.playMode === "campaign") {
+      this.contributions.completeShift().then((contributionSummary) => {
+        if (!contributionSummary) return;
+        this.trainingReadyClips = Number(contributionSummary.training_ready_clips) || 0;
+        this.ui.renderContributionSummary(contributionSummary, this.contributions.recoveryCode);
+      }).catch(() => {});
+    }
 
     const summary = {
       ...this.campaign.summary(),
@@ -818,25 +844,30 @@ export class App {
       hiddenFound: this.hiddenFound,
       hiddenTotal: this.hiddenTotal,
       runKey: this.runKey,
-      remoteStatus: "Bestenliste wird geladen …",
+      publicLeaderboardOptIn: this.playMode === "campaign" && loadLeaderboardOptIn(),
+      remoteStatus: this.playMode === "campaign" && loadLeaderboardOptIn()
+        ? "Bestenliste wird geladen …"
+        : "Keine öffentliche Serververöffentlichung — der Lauf bleibt auf diesem Gerät.",
     });
 
     this.runSubmitted = false;
-    // A public player name is optional. Anonymous runs are submitted as
-    // "Anonym" so choosing not to identify yourself never blocks the data.
-    this.publishRun();
+    if (this.playMode === "campaign" && loadLeaderboardOptIn()) this.publishRun();
   }
 
   // One run reaches the server once. Re-saving the name after that only
   // refreshes the board rather than adding a duplicate row.
   async publishRun(identity = loadIdentity()) {
-    if (!this.lastSummary) return;
+    if (!this.lastSummary || this.playMode !== "campaign" || !loadLeaderboardOptIn()) return;
     if (this.runSubmitted) {
       this.refreshRemoteBoard();
       return;
     }
     this.runSubmitted = true;
-    const run = runFromSummary(this.lastSummary, identity);
+    const run = {
+      ...runFromSummary(this.lastSummary, identity),
+      public_leaderboard_opt_in: true,
+      leaderboard_consent_version: LEADERBOARD_CONSENT_VERSION,
+    };
     const result = await submitRun(run);
     if (!result) {
       this.runSubmitted = false;
