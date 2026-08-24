@@ -375,9 +375,28 @@
             <label for="set-other-enabled">Other</label>
             <input id="set-other-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="other-enabled-note" />
             <output id="set-other-enabled-value" for="set-other-enabled">Aus</output>
-          </div>
-          <p id="other-enabled-note" class="settings-note">Schaltet den optionalen Bereich frei.</p>
-          <div id="other-other-setting" class="hidden">
+           </div>
+           <p id="other-enabled-note" class="settings-note">Schaltet den optionalen Bereich frei.</p>
+           <h3>Ansicht</h3>
+           <div class="settings-row">
+             <label for="set-fov">Sichtfeld (FOV)</label>
+             <input id="set-fov" type="range" min="60" max="110" step="1" value="75" aria-describedby="fov-note" />
+             <output id="set-fov-value" for="set-fov">75°</output>
+           </div>
+           <p id="fov-note" class="settings-note">Minecraft-ähnlich bei 70°. Ein höherer Wert zeigt mehr Umgebung, kann aber stärker wirken.</p>
+           <div class="settings-row other-setting-row">
+             <label for="set-crosshair-enabled">Fadenkreuz</label>
+             <input id="set-crosshair-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="crosshair-note" checked />
+             <output id="set-crosshair-enabled-value" for="set-crosshair-enabled">An</output>
+           </div>
+           <p id="crosshair-note" class="settings-note">Zeigt die Zielhilfe in der Bildschirmmitte.</p>
+           <div class="settings-row other-setting-row">
+             <label for="set-reduced-motion">Bewegung reduzieren</label>
+             <input id="set-reduced-motion" class="other-slider" type="checkbox" role="switch" aria-describedby="reduced-motion-note" />
+             <output id="set-reduced-motion-value" for="set-reduced-motion">Aus</output>
+           </div>
+           <p id="reduced-motion-note" class="settings-note">Reduziert Animationen und Übergänge für eine ruhigere Darstellung.</p>
+           <div id="other-other-setting" class="hidden">
             <div class="settings-row other-setting-row">
               <label for="set-other-other-enabled">Other Other</label>
               <input id="set-other-other-enabled" class="other-slider" type="checkbox" role="switch" disabled aria-describedby="other-other-note" />
@@ -441,6 +460,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260825-worldfix9"></script>
+  <script type="module" src="./js/main.js?v=20260825-worldfix10"></script>
 </body>
 </html>

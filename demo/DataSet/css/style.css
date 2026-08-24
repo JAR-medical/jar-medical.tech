@@ -2519,6 +2519,15 @@ body.touch-device .desktop-only { display: none; }
   line-height: 1.45;
 }
 
+body.user-reduced-motion *,
+body.user-reduced-motion *::before,
+body.user-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
 .settings-row .other-slider {
   appearance: none;
   width: 3.4rem;

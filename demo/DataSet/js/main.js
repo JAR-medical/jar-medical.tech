@@ -11,7 +11,7 @@ import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
-import { IntroSequence } from "./intro.js?v=20260825-intro3";
+import { IntroSequence } from "./intro.js?v=20260825-intro4";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js?v=20260825-worldfix7";
 import {
@@ -26,6 +26,33 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
+const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v1";
+const DISPLAY_SETTINGS_DEFAULTS = Object.freeze({ fov: 75, crosshair: true, reducedMotion: false });
+
+function clampDisplayFov(value) {
+  return Math.max(60, Math.min(110, Math.round(Number(value) || DISPLAY_SETTINGS_DEFAULTS.fov)));
+}
+
+function loadDisplaySettings() {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(DISPLAY_SETTINGS_KEY) || "{}");
+    return {
+      fov: clampDisplayFov(parsed.fov),
+      crosshair: parsed.crosshair !== false,
+      reducedMotion: Boolean(parsed.reducedMotion),
+    };
+  } catch (error) {
+    return { ...DISPLAY_SETTINGS_DEFAULTS };
+  }
+}
+
+function saveDisplaySettings(settings) {
+  try {
+    globalThis.localStorage?.setItem(DISPLAY_SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    // Blocked or private storage must never stop the game.
+  }
+}
 
 // A streak is consecutive patients saved without losing one. It is worth real
 // points, which is what makes "read the next chart properly" the interesting
@@ -61,6 +88,7 @@ export class App {
     this.playMode = "campaign";
     this.leaderboardOptIn = false;
     this.trainingReadyClips = 0;
+    this.displaySettings = loadDisplaySettings();
 
     const touchDevice =
       navigator.maxTouchPoints > 0 ||
@@ -81,7 +109,7 @@ export class App {
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
 
-    this.camera = new THREE.PerspectiveCamera(75, view.width / view.height, 0.1, 420);
+    this.camera = new THREE.PerspectiveCamera(this.displaySettings.fov, view.width / view.height, 0.1, 420);
 
     this.hemiLight = new THREE.HemisphereLight(0xcfe8ff, 0x54442e, 0.9);
     this.scene.add(this.hemiLight);
@@ -107,6 +135,7 @@ export class App {
     this.ui = new UI();
     this.audio = new GameAudio();
     this.ui.setAudio(this.audio);
+    this.applyDisplaySettings(this.displaySettings, { persist: false });
     this.otherMode = new OtherMode({
       player: this.player,
       getWorld: () => this.world,
@@ -183,6 +212,21 @@ export class App {
     this.camera.updateProjectionMatrix();
   }
 
+  applyDisplaySettings(settings = {}, { persist = true } = {}) {
+    const next = {
+      fov: clampDisplayFov(settings.fov),
+      crosshair: settings.crosshair !== false,
+      reducedMotion: Boolean(settings.reducedMotion),
+    };
+    this.displaySettings = next;
+    this.camera.fov = next.fov;
+    this.camera.updateProjectionMatrix();
+    $("crosshair")?.classList.toggle("hidden", !next.crosshair);
+    document.body.classList.toggle("user-reduced-motion", next.reducedMotion);
+    if (persist) saveDisplaySettings(next);
+    return next;
+  }
+
   // Everything that can change the box — a rotation, the URL bar sliding away,
   // the soft keyboard, a window drag — funnels into one rAF-coalesced pass.
   bindViewport() {
@@ -249,6 +293,7 @@ export class App {
       onIdentityChanged: (identity) => this.publishRun(identity),
       onLeaderboardOptInChanged: (enabled) => { this.leaderboardOptIn = Boolean(enabled); },
       onSettingsOpen: () => this.settingsSnapshot(),
+      onDisplaySettingsChanged: (settings) => this.applyDisplaySettings(settings),
       onOtherModeChanged: (state) => this.otherMode.setState({
         enabled: state.otherEnabled,
         extra: state.otherOtherEnabled,
@@ -578,6 +623,7 @@ export class App {
       hiddenTotal: this.hiddenTotal,
       current: state,
       summary,
+      ...this.displaySettings,
       ...this.otherMode.snapshot(),
       runKey: this.runKey || null,
     };

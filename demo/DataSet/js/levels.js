@@ -161,11 +161,15 @@ export const LEVELS = Object.freeze([
       { type: "blueprint", id: "ambulance", at: [74, 74] },
       { type: "lamppost", at: [50, 70] },
       { type: "lamppost", at: [80, 70] },
-      { type: "lamppost", at: [50, 84] },
-      { type: "lamppost", at: [80, 84] },
+      // Pulled in front of z=84: from there north is apron, and the pave that
+      // levels it would take any post standing on it back out again.
+      { type: "lamppost", at: [50, 82] },
+      { type: "lamppost", at: [80, 82] },
       { type: "tree", at: [44, 62] },
       { type: "tree", at: [88, 62] },
-      { type: "tree", at: [44, 88] },
+      // Not at z=88 any more: that is inside the box the airframe clears for its
+      // wings, and a tree standing there is removed without a trace.
+      { type: "tree", at: [44, 78] },
       { type: "tree", at: [88, 88] },
       { type: "pad", area: [62, 76, 66, 78] },
       // The apron, then the airframe, then the corridor that is carved through

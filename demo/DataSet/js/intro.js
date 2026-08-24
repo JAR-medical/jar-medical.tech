@@ -137,13 +137,18 @@ const WAVE_RANGE = 13;
 //
 // `at` is the centre of the orbit and `radius` how wide, `speed` is radians a
 // second and negative goes the other way round, `lift` is height over the apron.
+// Orbits are kept tight and centred near the aircraft on purpose. A wide circle
+// carries a helicopter out over the edge of a 128-block map, where it is both
+// too far to read and flying over nothing.
 const AIRCRAFT = Object.freeze([
-  { kind: "medic", at: [40, 78], lift: 24, radius: 14, speed: 0.1, scale: 1, body: 0xf2f4ef, trim: 0xd23b30 },
-  { kind: "medic", at: [92, 74], lift: 20, radius: 12, speed: -0.13, scale: 0.95, body: 0xf6c945, trim: 0xd23b30 },
-  { kind: "medic", at: [64, 60], lift: 17, radius: 10, speed: 0.16, scale: 0.9, body: 0xf2f4ef, trim: 0xe2622a },
-  { kind: "military", at: [30, 100], lift: 31, radius: 18, speed: -0.07, scale: 1.35, body: 0x4a5340, trim: 0x353c2e },
-  { kind: "military", at: [100, 104], lift: 35, radius: 20, speed: 0.06, scale: 1.5, body: 0x3f4738, trim: 0x2c3227 },
-  { kind: "military", at: [64, 98], lift: 39, radius: 22, speed: -0.05, scale: 1.2, body: 0x51594a, trim: 0x363c31 },
+  { kind: "medic", at: [42, 76], lift: 22, radius: 12, speed: 0.1, scale: 1, body: 0xf2f4ef, trim: 0xd23b30 },
+  { kind: "medic", at: [88, 72], lift: 18, radius: 11, speed: -0.13, scale: 0.95, body: 0xf6c945, trim: 0xd23b30 },
+  { kind: "medic", at: [64, 58], lift: 15, radius: 9, speed: 0.16, scale: 0.9, body: 0xf2f4ef, trim: 0xe2622a },
+  { kind: "military", at: [34, 96], lift: 28, radius: 14, speed: -0.07, scale: 1.35, body: 0x4a5340, trim: 0x353c2e },
+  { kind: "military", at: [96, 92], lift: 32, radius: 15, speed: 0.06, scale: 1.5, body: 0x3f4738, trim: 0x2c3227 },
+  // Straight over the top of the aircraft, which is where the player is looking
+  // when they turn round at the bottom of the drop.
+  { kind: "military", at: [64, 92], lift: 34, radius: 12, speed: -0.05, scale: 1.2, body: 0x51594a, trim: 0x363c31 },
 ]);
 
 function canvasTexture(width, height, draw) {
@@ -569,34 +574,17 @@ export class IntroSequence {
   _buildChapters() {
     const cfg = this.config;
     const y = this.floorY;
-    // The corridor is five blocks of air. A photograph has to clear the caption
-    // strip under it and still leave head room under the ceiling.
-    const maxWidth = cfg.halfWidth * 2 + 0.6;
-    const maxHeight = 3.2;
+      // The corridor is five blocks of air. A photograph has to clear the caption
+      // strip under it and still leave head room under the ceiling. Every source
+      // image gets this same frame; the texture is cropped to cover it, rather
+      // than contained with empty space around narrow/portrait source files.
+      const maxWidth = cfg.halfWidth * 2 + 0.6;
+      const maxHeight = 3.2;
+      const frameAspect = maxWidth / maxHeight;
 
     INTRO_CHAPTERS.forEach((chapter, index) => {
       const z = cfg.chapterZ[index];
       if (z === undefined) return;
-
-      // The backing spans the whole cross-section, not just the picture. Two of
-      // the four photographs are 4:3 and would otherwise leave a gap at each
-      // wall wide enough to walk past — and walking *through* the picture is
-      // the entire point of the corridor. Translucent rather than solid, so the
-      // way ahead is still legible through four of these in a row.
-      this._mesh(
-        new THREE.PlaneGeometry(cfg.halfWidth * 2 + 1, 4.9),
-        new THREE.MeshBasicMaterial({
-          color: 0x0a0d08,
-          transparent: true,
-          opacity: 0.75,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-        this.axis + 0.5,
-        y + 2.45,
-        z - 0.05,
-      );
 
       const photoMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -605,10 +593,16 @@ export class IntroSequence {
         transparent: true,
         opacity: 0,
       });
-      const photo = this._mesh(new THREE.PlaneGeometry(1, 1), photoMaterial, this.axis + 0.5, y + 2.9, z);
+      const photo = this._mesh(
+        new THREE.PlaneGeometry(maxWidth, maxHeight),
+        photoMaterial,
+        this.axis + 0.5,
+        y + 2.9,
+        z,
+      );
 
-      // The originals are full resolution and are sized to the corridor once
-      // the real aspect ratio is known, rather than guessed per file.
+      // The originals keep their proportions. The central crop makes every
+      // image fill the frame without stretching, including the wide PNG.
       this.loader.load(chapter.src, (texture) => {
         if (this.disposed) {
           texture.dispose();
@@ -616,16 +610,20 @@ export class IntroSequence {
         }
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = this.anisotropy;
-        this.photoTextures.push(texture);
-        const aspect = (texture.image?.width || 4) / (texture.image?.height || 3);
-        let width = maxHeight * aspect;
-        let height = maxHeight;
-        if (width > maxWidth) {
-          width = maxWidth;
-          height = maxWidth / aspect;
+        const imageAspect = (texture.image?.width || 4) / (texture.image?.height || 3);
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        if (imageAspect > frameAspect) {
+          const visibleWidth = frameAspect / imageAspect;
+          texture.repeat.set(visibleWidth, 1);
+          texture.offset.set((1 - visibleWidth) / 2, 0);
+        } else {
+          const visibleHeight = imageAspect / frameAspect;
+          texture.repeat.set(1, visibleHeight);
+          texture.offset.set(0, (1 - visibleHeight) / 2);
         }
-        photo.geometry.dispose();
-        photo.geometry = new THREE.PlaneGeometry(width, height);
+        texture.needsUpdate = true;
+        this.photoTextures.push(texture);
         photoMaterial.map = texture;
         photoMaterial.opacity = 1;
         photoMaterial.needsUpdate = true;

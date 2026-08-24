@@ -190,6 +190,12 @@ export class UI {
       setMusicValue: $("set-music-value"),
       setSfxVolume: $("set-sfx-volume"),
       setSfxValue: $("set-sfx-value"),
+      setFov: $("set-fov"),
+      setFovValue: $("set-fov-value"),
+      setCrosshairEnabled: $("set-crosshair-enabled"),
+      setCrosshairEnabledValue: $("set-crosshair-enabled-value"),
+      setReducedMotion: $("set-reduced-motion"),
+      setReducedMotionValue: $("set-reduced-motion-value"),
       otherEnabled: $("set-other-enabled"),
       otherEnabledValue: $("set-other-enabled-value"),
       otherOtherEnabled: $("set-other-other-enabled"),
@@ -654,6 +660,20 @@ export class UI {
     // test tones but still tells the player what they just set.
     this.el.setSfxVolume?.addEventListener("change", () => this.audio?.play("ui-confirm"));
 
+    const bindDisplaySettings = () => {
+      const next = {
+        fov: Number(this.el.setFov?.value) || 75,
+        crosshair: Boolean(this.el.setCrosshairEnabled?.checked),
+        reducedMotion: Boolean(this.el.setReducedMotion?.checked),
+      };
+      this.syncOtherControls({ ...this._settingsSnapshot, ...next });
+      this.handlers.onDisplaySettingsChanged?.(next);
+    };
+    this.el.setFov?.addEventListener("input", bindDisplaySettings);
+    this.el.setFov?.addEventListener("change", bindDisplaySettings);
+    this.el.setCrosshairEnabled?.addEventListener("change", bindDisplaySettings);
+    this.el.setReducedMotion?.addEventListener("change", bindDisplaySettings);
+
     const bindOtherSwitch = (input) => {
       input?.addEventListener("change", () => {
         const next = {
@@ -772,8 +792,19 @@ export class UI {
   }
 
   syncOtherControls(snapshot = this._settingsSnapshot || {}) {
-    const enabled = Boolean(snapshot.otherEnabled);
-    const extra = enabled && Boolean(snapshot.otherOtherEnabled);
+    const merged = { ...(this._settingsSnapshot || {}), ...(snapshot || {}) };
+    this._settingsSnapshot = merged;
+    const fov = Math.max(60, Math.min(110, Number(merged.fov) || 75));
+    const crosshair = merged.crosshair !== false;
+    const reducedMotion = Boolean(merged.reducedMotion);
+    if (this.el.setFov) this.el.setFov.value = String(fov);
+    if (this.el.setFovValue) this.el.setFovValue.textContent = `${fov}°`;
+    if (this.el.setCrosshairEnabled) this.el.setCrosshairEnabled.checked = crosshair;
+    if (this.el.setCrosshairEnabledValue) this.el.setCrosshairEnabledValue.textContent = crosshair ? "An" : "Aus";
+    if (this.el.setReducedMotion) this.el.setReducedMotion.checked = reducedMotion;
+    if (this.el.setReducedMotionValue) this.el.setReducedMotionValue.textContent = reducedMotion ? "An" : "Aus";
+    const enabled = Boolean(merged.otherEnabled);
+    const extra = enabled && Boolean(merged.otherOtherEnabled);
     if (this.el.otherEnabled) this.el.otherEnabled.checked = enabled;
     if (this.el.otherEnabledValue) this.el.otherEnabledValue.textContent = enabled ? "An" : "Aus";
     if (this.el.otherOtherSetting) this.el.otherOtherSetting.classList.toggle("hidden", !enabled);
