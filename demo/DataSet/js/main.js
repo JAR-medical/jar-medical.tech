@@ -3,15 +3,15 @@ import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js?v=20260824-consent4";
+import { Game } from "./gameplay.js?v=20260824-consent5";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260824-consent4";
+import { UI } from "./ui.js?v=20260824-consent5";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260824-consent4";
+import { ContributionClient } from "./contributions.js?v=20260824-consent5";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
@@ -20,7 +20,7 @@ import {
   saveLocalRun,
   submitRun,
   updatePersonalBest,
-} from "./leaderboard.js?v=20260824-consent4";
+} from "./leaderboard.js?v=20260824-consent5";
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;

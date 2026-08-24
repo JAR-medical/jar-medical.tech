@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent4";
+} from "./leaderboard.js?v=20260824-consent5";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -361,9 +361,10 @@ export class UI {
     // Delegate from the stable briefing container so a static-host refresh or
     // a browser restoring the dialog cannot leave the visible button without
     // its consent handler.
-    this.el.briefingScreen?.addEventListener("click", (event) => {
-      const target = event.target instanceof Element ? event.target.closest("#btn-consent") : null;
-      if (!target) return;
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      const consentButton = target?.id === "btn-consent" || target?.closest?.("#btn-consent");
+      if (!consentButton) return;
       handleConsentClick();
     }, true);
     const updateConsentButton = () => {
