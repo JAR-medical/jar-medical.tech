@@ -110,7 +110,7 @@
           </span>
         </div>
         <div class="consent-actions">
-          <button id="btn-consent" class="btn small consent-btn" type="button" disabled>Einwilligen &amp; Datensammlung starten</button>
+          <button id="btn-consent" class="btn small consent-btn" type="button" disabled onclick="window.medicraftConsentStart?.()">Einwilligen &amp; Datensammlung starten</button>
           <button id="btn-practice" class="btn small secondary-btn" type="button">Ohne Sprachdatenspende üben</button>
           <small>Der Übungsmodus greift nicht auf Mikrofon oder Beitragsserver zu.</small>
         </div>
@@ -365,6 +365,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260824-consent6"></script>
+  <script type="module" src="./js/main.js?v=20260824-consent7"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent6";
+} from "./leaderboard.js?v=20260824-consent7";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -361,14 +361,7 @@ export class UI {
     // Delegate from the stable briefing container so a static-host refresh or
     // a browser restoring the dialog cannot leave the visible button without
     // its consent handler.
-    document.addEventListener("click", (event) => {
-      const target = event.target;
-      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-      const consentButton = target?.id === "btn-consent" || target?.closest?.("#btn-consent") ||
-        path.some((node) => node?.id === "btn-consent");
-      if (!consentButton) return;
-      handleConsentClick();
-    }, true);
+    globalThis.medicraftConsentStart = handleConsentClick;
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
       if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
