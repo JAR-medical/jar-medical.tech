@@ -9,7 +9,7 @@ import {
   loadIdentity,
   loadLocalRuns,
   saveIdentity,
-} from "./leaderboard.js?v=20260824-consent5";
+} from "./leaderboard.js?v=20260824-consent6";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"]/g, (char) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[char]};`);
@@ -363,7 +363,9 @@ export class UI {
     // its consent handler.
     document.addEventListener("click", (event) => {
       const target = event.target;
-      const consentButton = target?.id === "btn-consent" || target?.closest?.("#btn-consent");
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      const consentButton = target?.id === "btn-consent" || target?.closest?.("#btn-consent") ||
+        path.some((node) => node?.id === "btn-consent");
       if (!consentButton) return;
       handleConsentClick();
     }, true);
