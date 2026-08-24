@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#08110d" />
+  <meta name="description" content="Die öffentliche MEDICRAFT-Bestenliste – aktuelle Einsätze, Punkte und gerettete Patienten." />
+  <meta property="og:title" content="MEDICRAFT Bestenliste" />
+  <meta property="og:description" content="Öffentliche Rangliste der MEDICRAFT-Datensammlung." />
+  <meta property="og:type" content="website" />
+  <title>MEDICRAFT · Öffentliche Bestenliste</title>
+  <link rel="stylesheet" href="./style.css?v=20260824-1" />
+</head>
+<body>
+  <div class="page-grid" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="../" aria-label="Zurück zu MEDICRAFT">
+      <span class="brand-mark" aria-hidden="true"><i></i><b></b></span>
+      <span>
+        <strong>MEDICRAFT</strong>
+        <small>JAR Medical · DataSet</small>
+      </span>
+    </a>
+    <a class="play-link" href="../">Datensammlung starten <span aria-hidden="true">→</span></a>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Öffentliche Rangliste</p>
+        <h1 id="page-title">Einsätze, die<br /><em>Menschen helfen.</em></h1>
+        <p class="hero-text">Jeder abgeschlossene MEDICRAFT-Einsatz liefert Sprachdaten für bessere digitale Rettungshilfen. Hier sind die stärksten Durchläufe.</p>
+      </div>
+
+      <div class="summary-card" aria-label="Zusammenfassung der Bestenliste">
+        <div class="summary-top">
+          <span>SERVER STATUS</span>
+          <strong id="connection-state" class="connection loading">WIRD GELADEN</strong>
+        </div>
+        <dl class="summary-stats">
+          <div><dt>Teilnehmende</dt><dd id="total-runs">—</dd></div>
+          <div><dt>Gerettet</dt><dd id="total-saved">—</dd></div>
+          <div><dt>Bestwert</dt><dd id="best-score">—</dd></div>
+        </dl>
+        <p id="published-time" class="published-time">Daten werden abgerufen …</p>
+      </div>
+    </section>
+
+    <section class="board-section" aria-labelledby="board-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Aktuelle Saison</p>
+          <h2 id="board-title">Bestenliste</h2>
+        </div>
+        <button id="refresh-board" class="refresh-button" type="button">↻ Aktualisieren</button>
+      </div>
+
+      <div id="podium" class="podium" aria-label="Die besten drei Einsätze"></div>
+
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Rang</th>
+              <th scope="col">Spieler / Team</th>
+              <th scope="col">Punkte</th>
+              <th scope="col">Gerettet</th>
+              <th scope="col">Level</th>
+              <th scope="col">Genauigkeit</th>
+              <th scope="col">Zeit</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr class="loading-row"><td colspan="7">Bestenliste wird geladen …</td></tr>
+          </tbody>
+        </table>
+        <div id="empty-state" class="empty-state" hidden>
+          <strong>Noch kein abgeschlossener Einsatz.</strong>
+          <p>Sei die erste Person auf der öffentlichen MEDICRAFT-Bestenliste.</p>
+          <a href="../">Einsatz starten →</a>
+        </div>
+      </div>
+
+      <p id="board-error" class="board-error" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer>
+    <span>MEDICRAFT · JAR Medical</span>
+    <span>Die Rangliste enthält nur freiwillig gewählte Spielernamen und Einsatzwerte.</span>
+  </footer>
+
+  <script type="module" src="./app.js?v=20260824-1"></script>
+</body>
+</html>
