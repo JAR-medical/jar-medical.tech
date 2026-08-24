@@ -30,6 +30,9 @@ export class Player {
     this.yaw = Math.PI;
     this.pitch = -0.12;
     this.enabled = false;
+    // Scripted scenes can take running away and hand it back as a reward. The
+    // walk speed is unaffected, so a gated player is slowed, never stuck.
+    this.sprintEnabled = true;
     this.eyeHeight = EYE_HEIGHT;
     this.hotbarIndex = 0;
     this.grounded = false;
@@ -184,10 +187,11 @@ export class Player {
     const movingInput = length > 0.08;
     this._movementTime = movingInput ? this._movementTime + dt : 0;
     const sprinting =
-      this.touchSprint ||
-      this.keys.has("ShiftLeft") ||
-      this.keys.has("ShiftRight") ||
-      (movingInput && this._movementTime >= AUTO_SPRINT_DELAY);
+      this.sprintEnabled &&
+      (this.touchSprint ||
+        this.keys.has("ShiftLeft") ||
+        this.keys.has("ShiftRight") ||
+        (movingInput && this._movementTime >= AUTO_SPRINT_DELAY));
     const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1);
     this.velocity.x = moveX * speed;
     this.velocity.z = moveZ * speed;

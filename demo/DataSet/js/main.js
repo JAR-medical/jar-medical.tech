@@ -5,11 +5,12 @@ import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-touchcard1";
+import { UI } from "./ui.js?v=20260825-worldfix1";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
+import { IntroSequence } from "./intro.js?v=20260825-intro1";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js?v=20260824-consent10";
 import {
@@ -94,6 +95,9 @@ export class App {
     // generated a second time when the player actually started the mission.
     // Keep the menu lightweight and build the world only when it is needed.
     this.world = null;
+    // Only the first level has one, and it owns the player's sprint until the
+    // corridor spits them out.
+    this.intro = null;
     this.player = new Player(this.camera, null, this.renderer.domElement);
     this.entities = new PatientManager(this.scene);
     this.game = new Game(this.entities);
@@ -668,6 +672,8 @@ export class App {
   }
 
   rebuildWorld(level) {
+    this.intro?.dispose();
+    this.intro = null;
     this.world?.dispose();
     this.world = new World(this.scene, randomSeed(), level);
     this.player.world = this.world;
@@ -777,7 +783,12 @@ export class App {
     this.currentReportScript = "";
 
     const spawn = level.spawn?.at || [this.world.clinic.x, this.world.clinic.z];
-    const spawnY = this.world.getHeight(spawn[0], spawn[1]) + 0.2;
+    // A scripted spawn can sit inside a structure, where the height map still
+    // reports the terrain underneath it. `lift` is that spawn's feet measured
+    // from the site floor, and it wins over the ground.
+    const spawnY = level.spawn?.lift != null
+      ? this.world.plazaY + level.spawn.lift
+      : this.world.getHeight(spawn[0], spawn[1]) + 0.2;
     this.player.teleport(spawn[0], spawnY, spawn[1]);
     const face = level.spawn?.face || (this.world.disasterScene ? [this.world.disasterScene.x, this.world.disasterScene.z] : null);
     if (face) this.player.faceTowards(face[0], face[1]);
@@ -787,11 +798,19 @@ export class App {
     this.ui.clearVerdict();
     this.ui.appendTranscript("");
     this.setMode("playing");
+    this.startIntro(level, spots);
     // Each map gets its own mood and its own weather bed, so a teleport is
     // audible before the banner is read.
     this.audio.duck("menu", false);
     this.audio.playMusic(level.id);
     this.audio.playAmbience(level.id);
+    // A level with an intro shows its banner when the player reaches the map,
+    // not while they are still reading the corridor.
+    if (!this.intro) this.showLevelBannerFor(level, spots);
+    this.requestLock();
+  }
+
+  showLevelBannerFor(level, spots) {
     this.ui.showLevelBanner({
       index: this.campaign.index,
       count: this.campaign.levelCount,
@@ -801,7 +820,24 @@ export class App {
       patients: spots.length,
       hidden: spots.filter((spot) => spot.hidden).length,
     });
-    this.requestLock();
+  }
+
+  // The opening corridor. Sprinting is the thing it takes away and the thing it
+  // gives back, so both ends of that trade live here rather than in intro.js.
+  startIntro(level, spots) {
+    this.player.sprintEnabled = true;
+    if (!level?.intro) return;
+    this.player.sprintEnabled = false;
+    this.ui.showIntroVeil();
+    this.intro = new IntroSequence(this.scene, level, this.world, {
+      anisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+      onExit: () => {
+        this.player.sprintEnabled = true;
+        this.audio.play("medal");
+        this.ui.toast("Sprinten frei — Shift oder einfach weiterlaufen.", "good");
+        this.showLevelBannerFor(level, spots);
+      },
+    });
   }
 
   finishCampaign() {
@@ -1087,6 +1123,7 @@ export class App {
     this.audio.update(dt);
     if (running) {
       this.player.update(dt);
+      this.intro?.update(dt, this.player.position);
       this.entities.update(dt, this.game.state().elapsed, this.player.position);
       this.game.update(dt);
       if (this.mode === "playing") {

@@ -72,6 +72,31 @@ const ALPINE = {
   },
 };
 
+// The opening corridor is described once and read twice: `intro_tunnel` stamps
+// the block shell, and intro.js hangs the photographs, the signage and the
+// observation room on the same coordinates. Both come from this object, so the
+// corridor cannot be moved in one place and left behind in the other.
+//
+// The player walks from `from` down to `to`; the floor sits `lift` blocks over
+// the plaza, which is the four-block drop that ends the sequence.
+const INTRO = Object.freeze({
+  axis: 64,
+  halfWidth: 3,
+  height: 5,
+  lift: 3,
+  from: 125,
+  to: 89,
+  windowZ: 120,
+  chamberHalfWidth: 4,
+  // One photograph per chapter, placed so each lands in a different band of the
+  // corridor: clinic, service corridor, rock cut, open bank.
+  chapterZ: Object.freeze([108, 102, 96, 91]),
+  arrowZ: 112,
+  // Crossing this line is what ends the intro: sprint is released, the level
+  // banner appears, and the sequence stops listening.
+  exitZ: 88.4,
+});
+
 function guardrailRun(z, fromX, toX, rotation = 0) {
   const entries = [];
   for (let x = fromX; x + 7 <= toX; x += 8) {
@@ -106,8 +131,17 @@ export const LEVELS = Object.freeze([
       { type: "tree", at: [44, 88] },
       { type: "tree", at: [88, 88] },
       { type: "pad", area: [62, 76, 66, 78] },
+      // Built last so it is stamped over the plaza paving rather than under it.
+      { type: "intro_tunnel", ...INTRO },
     ],
-    spawn: { at: [64.5, 85.5], face: [64, 70] },
+    // The first thing a player ever sees is the inside of the corridor, four
+    // blocks above the plaza. `lift` is the player's feet over the site floor,
+    // because the height map still reports the terrain under the gallery.
+    spawn: { at: [64.5, 115.5], face: [64.5, 100], lift: 4 },
+    // Where a player who falls out of the world is put back. That has to stay
+    // the plaza: the corridor is a one-way scene and cannot be re-entered.
+    hub: [64.5, 85.5],
+    intro: INTRO,
     anchors: [
       { id: "A", spots: [[64, 72], [58, 71], [71, 72], [64, 80]] },
     ],

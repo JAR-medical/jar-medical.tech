@@ -2542,3 +2542,67 @@ body.touch-device .desktop-only { display: none; }
   .level-card { grid-template-columns: 2rem minmax(0, 1fr); }
   .level-card .level-result { grid-column: 2; text-align: left; }
 }
+
+/* ---------------------------------------------------------------------------
+   Intro veil
+
+   The campaign's first frame is the inside of a corridor whose chunks are still
+   being meshed. Rather than let that pop in, the veil holds black over it for a
+   moment, names the game, and lifts. It sits above the HUD and below the menus,
+   and never takes pointer events — a player who clicks through it still gets
+   pointer lock.
+   --------------------------------------------------------------------------- */
+#intro-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: #05070a;
+  pointer-events: none;
+  animation: intro-veil-lift 2.4s ease-out forwards;
+}
+
+#intro-veil .intro-veil-title {
+  font-family: "Courier New", monospace;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 8vw, 4.6rem);
+  letter-spacing: 0.22em;
+  color: var(--green);
+  text-shadow: 0 0 32px rgba(124, 252, 0, 0.35);
+  animation: intro-veil-text 2s ease-out forwards;
+}
+
+#intro-veil .intro-veil-sub {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: clamp(0.7rem, 2.2vw, 0.95rem);
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--muted);
+  animation: intro-veil-text 2s ease-out forwards;
+}
+
+@keyframes intro-veil-lift {
+  0% { opacity: 1; }
+  45% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes intro-veil-text {
+  0% { opacity: 0; transform: translateY(0.4rem); }
+  25% { opacity: 1; transform: translateY(0); }
+  60% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #intro-veil,
+  #intro-veil .intro-veil-title,
+  #intro-veil .intro-veil-sub {
+    animation: none;
+    opacity: 0;
+  }
+}

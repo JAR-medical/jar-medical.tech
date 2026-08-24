@@ -548,6 +548,156 @@ export const STRUCTURE_BUILDERS = {
       for (let x = x0; x <= x1; x++) api.put(x, api.surfaceY, z, "RAIL");
     }
   },
+
+  // The shell of the campaign's opening corridor. It is one builder rather than
+  // a hand-placed scene because every part of it follows from the direction of
+  // travel: a raised gallery that starts as a clinic wing behind an observation
+  // window, sheds its cladding band by band, and ends as a hole in a grass bank
+  // four blocks above the first patient's plaza.
+  //
+  // The player always walks from `from` (the sealed back wall) towards `to`
+  // (the last floor block before the drop), so z falls as the corridor turns
+  // from building into landscape. intro.js hangs the photographs and the
+  // observation room on the same numbers; both read them from one level entry.
+  intro_tunnel(api, entry) {
+    const axis = entry.axis ?? 64;
+    const half = entry.halfWidth ?? 3;
+    const clear = entry.height ?? 5;
+    const fy = api.surfaceY + (entry.lift ?? 3);
+    const ceilY = fy + clear + 1;
+    const zBack = entry.from ?? 125;
+    const zMouth = entry.to ?? 89;
+    const windowZ = entry.windowZ ?? zBack - 5;
+    const chamberHalf = entry.chamberHalfWidth ?? half + 1;
+    const span = Math.max(1, zBack - zMouth);
+    const plinthTo = Math.max(1, api.surfaceY - 3);
+
+    // Four bands read as one slow dissolve: sterile wing, service corridor,
+    // rock cut, open bank. `t` is 1 at the observation window and 0 at the
+    // drop, so a band is a range and not a hard-coded z.
+    const bandAt = (z) => {
+      const t = (z - zMouth) / span;
+      if (t >= 0.5) {
+        return { wall: "CONCRETE", alt: "CONCRETE", altChance: 0, floor: "CONCRETE", ceiling: "CONCRETE", support: "CONCRETE", wallTop: clear, glass: { every: 3, from: 3, to: 3 }, clinical: true };
+      }
+      if (t >= 0.3) {
+        return { wall: "CONCRETE", alt: "STONE", altChance: 0.34, floor: "PATH", ceiling: "CONCRETE", support: "STONE", wallTop: clear, glass: { every: 4, from: 2, to: 4 }, clinical: false };
+      }
+      if (t >= 0.14) {
+        return { wall: "STONE", alt: "DIRT", altChance: 0.42, floor: "PATH", ceiling: "STONE", support: "STONE", wallTop: clear, glass: null, clinical: false };
+      }
+      return { wall: "DIRT", alt: "GRASS", altChance: 0.45, floor: "GRASS", ceiling: null, support: "DIRT", wallTop: 2, glass: null, clinical: false };
+    };
+
+    // Terrain outside the site is never guaranteed to be below the gallery, so
+    // every slice is emptied before it is built. That turns a hill in the way
+    // into a genuine tunnel instead of a corridor buried in dirt.
+    const hollow = (x0, x1, z, floorY, roofY) => {
+      for (let x = x0; x <= x1; x++) {
+        for (let y = floorY; y <= roofY; y++) api.put(x, y, z, "AIR");
+      }
+    };
+
+    // Without a plinth the gallery floats wherever the meadow dips away. Filling
+    // down to just under the plaza reads as the embankment it is standing on.
+    const plinth = (x0, x1, z, floorY, block) => {
+      for (let y = floorY - 1; y >= plinthTo; y--) {
+        for (let x = x0; x <= x1; x++) api.put(x, y, z, block);
+      }
+    };
+
+    for (let z = zBack; z >= zMouth; z--) {
+      const band = bandAt(z);
+
+      if (z >= windowZ) {
+        // Observation room: one step up from the corridor, so the four people
+        // behind the glass are looking down at the player rather than across.
+        const x0 = axis - chamberHalf - 1;
+        const x1 = axis + chamberHalf + 1;
+        const floorY = fy + 1;
+        hollow(x0, x1, z, floorY, ceilY + 2);
+        for (let x = x0; x <= x1; x++) api.put(x, floorY, z, "DARKSTONE");
+        plinth(x0, x1, z, floorY, "CONCRETE");
+
+        if (z === zBack) {
+          // Back wall, with a bank of screens at head height. Nothing behind it
+          // is ever reachable, so it is solid all the way up.
+          for (let y = floorY + 1; y <= ceilY; y++) {
+            for (let x = x0; x <= x1; x++) api.put(x, y, z, "CONCRETE");
+          }
+          for (let y = floorY + 2; y <= floorY + 3; y++) {
+            for (let x = axis - 3; x <= axis + 3; x++) api.put(x, y, z, x % 2 === 0 ? "NEON" : "DARKSTONE");
+          }
+          continue;
+        }
+
+        for (let y = floorY + 1; y <= ceilY; y++) {
+          api.put(x0, y, z, "CONCRETE");
+          api.put(x1, y, z, "CONCRETE");
+        }
+        for (let x = x0; x <= x1; x++) api.put(x, ceilY, z, "CONCRETE");
+
+        if (z === windowZ) {
+          // The window itself: a solid wall with one pane at the eye height of
+          // someone standing in the corridor a step below.
+          for (let y = floorY + 1; y <= ceilY - 1; y++) {
+            for (let x = x0; x <= x1; x++) api.put(x, y, z, "CONCRETE");
+          }
+          // Three courses of glass, leaving the band above it solid: that is
+          // where intro.js hangs the plaque, and a pane there would put the
+          // lettering across the faces behind it.
+          for (let y = fy + 2; y <= fy + 4; y++) {
+            for (let x = axis - 3; x <= axis + 3; x++) api.put(x, y, z, "GLASS");
+          }
+          for (let x = axis - 4; x <= axis + 4; x += 2) api.put(x, ceilY - 1, z, "LAMP");
+          continue;
+        }
+
+        if ((zBack - z) % 2 === 1) {
+          api.put(axis - 2, ceilY - 1, z, "LAMP");
+          api.put(axis + 2, ceilY - 1, z, "LAMP");
+        }
+        continue;
+      }
+
+      // Corridor.
+      const x0 = axis - half - 1;
+      const x1 = axis + half + 1;
+      hollow(x0, x1, z, fy, band.ceiling ? ceilY + 1 : ceilY + 9);
+      for (let x = x0; x <= x1; x++) api.put(x, fy, z, band.floor);
+      plinth(x0, x1, z, fy, band.support);
+
+      // A painted guide line down the middle: the hospital red line first, then
+      // hazard tape once the cladding is gone. It is the same instruction the
+      // arrow gives, written into the floor.
+      if (band.clinical) api.put(axis, fy, z, "REDCROSS");
+      else if (band.ceiling && z % 2 === 0) api.put(axis, fy, z, "CAUTION");
+
+      // The lip is left bare so the drop reads as an opening, not a doorway.
+      const lip = z <= zMouth + 1;
+      if (!lip) {
+        for (let y = fy + 1; y <= fy + band.wallTop; y++) {
+          const glazed =
+            band.glass && z % band.glass.every === 0 &&
+            y >= fy + band.glass.from && y <= fy + band.glass.to;
+          const left = glazed ? "GLASS" : (api.rng() < band.altChance ? band.alt : band.wall);
+          const right = glazed ? "GLASS" : (api.rng() < band.altChance ? band.alt : band.wall);
+          api.put(x0, y, z, left);
+          api.put(x1, y, z, right);
+        }
+      }
+
+      if (band.ceiling && !lip) {
+        for (let x = x0; x <= x1; x++) api.put(x, ceilY, z, band.ceiling);
+        if (band.clinical && z % 4 === 0) {
+          api.put(axis - 1, ceilY, z, "LAMP");
+          api.put(axis + 1, ceilY, z, "LAMP");
+        } else if (z % 6 === 0) {
+          api.put(axis, ceilY, z, "LAMP");
+        }
+      }
+    }
+  },
 };
 
 export function buildStructure(api, entry) {

@@ -38,6 +38,7 @@ export class UI {
     this._audioCtx = null;
     this._voiceObjectUrl = null;
     this._bannerTimer = null;
+    this._veilTimer = null;
     this._countdownTimer = null;
     this._toasts = [];
     this._scoreShown = 0;
@@ -105,6 +106,7 @@ export class UI {
       levelNextBriefing: $("level-next-briefing"),
       btnNextLevel: $("btn-next-level"),
       levelCountdown: $("level-countdown"),
+      introVeil: $("intro-veil"),
       levelBanner: $("level-banner"),
       levelBannerKicker: $("level-banner-kicker"),
       levelBannerTitle: $("level-banner-title"),
@@ -1010,6 +1012,10 @@ export class UI {
     }
 
     const bindTap = (element, eventName) => {
+      // Older cached pages may not contain the optional touch action yet.
+      // Missing touch markup must never abort the whole app boot and leave the
+      // loading overlay covering the game forever.
+      if (!element) return;
       element.addEventListener("pointerdown", (event) => {
         if (!isTouchPointer(event)) return;
         event.preventDefault();
@@ -1258,6 +1264,22 @@ export class UI {
         : "";
       this.el.hiddenHint.classList.toggle("hidden", remaining === 0);
     }
+  }
+
+  // Held over the campaign's first frame while the corridor meshes, then
+  // removed outright — the element is purely decorative and must not sit on top
+  // of the canvas for the rest of the run.
+  showIntroVeil() {
+    const veil = this.el.introVeil;
+    if (!veil) return;
+    clearTimeout(this._veilTimer);
+    veil.classList.remove("hidden");
+    // Restarting the animation needs the element out of the flow for a frame,
+    // or a second run of the intro shows an already-finished veil.
+    veil.style.animation = "none";
+    void veil.offsetWidth;
+    veil.style.animation = "";
+    this._veilTimer = setTimeout(() => veil.classList.add("hidden"), 2500);
   }
 
   showLevelBanner({ index = 0, count = 1, title = "", subtitle = "", briefing = "", patients = 0, hidden = 0 } = {}) {

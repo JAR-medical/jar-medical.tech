@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#f7f7f7" />
 <title>MEDICRAFT</title>
-<link rel="stylesheet" href="./css/style.css?v=20260825-touchcard1" />
+<link rel="stylesheet" href="./css/style.css?v=20260825-intro1" />
 <link rel="modulepreload" href="./vendor/three.module.js" />
 </head>
 <body>
@@ -13,6 +13,14 @@
 
   <div id="loading-overlay" class="fullscreen">
     <div class="loading-text">WELT WIRD GENERIERT …</div>
+  </div>
+
+  <!-- Fades off the first frame of the campaign so the intro corridor resolves
+       out of black instead of popping in chunk by chunk. Pointer-events are off
+       throughout: it never intercepts a click. -->
+  <div id="intro-veil" class="hidden" aria-hidden="true">
+    <span class="intro-veil-title">MEDICRAFT</span>
+    <span class="intro-veil-sub">Sprachdaten für den Rettungsdienst</span>
   </div>
 
   <div id="start-screen" class="fullscreen hidden">
@@ -107,6 +115,7 @@
             <a class="legal-link" href="./legal/datenschutz.html" target="_blank" rel="noopener noreferrer">Datenschutz</a>
             <a class="legal-link" href="./legal/impressum.html" target="_blank" rel="noopener noreferrer">Impressum</a>
             <a class="legal-link" href="./legal/nutzungsbedingungen.html" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a>
+            <a class="legal-link" href="./legal/bildnachweise.html" target="_blank" rel="noopener noreferrer">Bildnachweise</a>
           </span>
         </div>
         <div class="consent-actions">
@@ -364,6 +373,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260824-consent10"></script>
+  <script type="module" src="./js/main.js?v=20260825-worldfix1"></script>
 </body>
 </html>

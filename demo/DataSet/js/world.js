@@ -737,8 +737,11 @@ export class World {
       title: this.level.title || "Einsatzstelle",
       victimSpots: [],
     };
-    const spawn = this.level.spawn?.at;
-    this.clinic = { x: spawn ? spawn[0] : cx, y: floorY, z: spawn ? spawn[1] : cz };
+    // `hub` exists for levels whose spawn is a scripted place the player can
+    // never get back to. It is the recovery point, so it must stay on the map
+    // proper rather than following the spawn into the intro corridor.
+    const anchor = this.level.hub || this.level.spawn?.at;
+    this.clinic = { x: anchor ? anchor[0] : cx, y: floorY, z: anchor ? anchor[1] : cz };
     this._addSmokePlumes();
     this._addDustClouds();
     this._addSnowfall();
