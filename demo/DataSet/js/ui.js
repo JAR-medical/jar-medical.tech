@@ -151,7 +151,6 @@ export class UI {
       touchJoystick: $("touch-joystick"),
       touchJoystickKnob: $("touch-joystick-knob"),
       touchInteract: $("touch-interact"),
-      touchUse: $("touch-use"),
       screenFlash: $("screen-flash"),
       screenVignette: $("screen-vignette"),
       scorePops: $("score-pops"),
@@ -1019,7 +1018,6 @@ export class UI {
       });
     };
     bindTap(this.el.touchInteract, "input:interact");
-    bindTap(this.el.touchUse, "input:medicate");
 
   }
 
