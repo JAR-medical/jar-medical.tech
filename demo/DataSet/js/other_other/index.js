@@ -133,6 +133,11 @@ export class OtherOtherFeatures {
 
   _bind() {
     this.el.close?.addEventListener("click", () => this.closeLab());
+    window.addEventListener("keydown", (event) => {
+      if (event.code !== "Escape" || !this.runtimeActive || this.el.menu?.classList.contains("hidden")) return;
+      event.preventDefault();
+      this.closeLab();
+    });
     this.el.menu?.addEventListener("click", (event) => {
       if (event.target === this.el.menu) this.closeLab();
       const button = event.target.closest("[data-funny-action]");
@@ -147,6 +152,12 @@ export class OtherOtherFeatures {
     this.el.touchLabButton?.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (this.runtimeActive) this.openLab();
+    });
+    this.el.labButton?.addEventListener("click", () => {
+      if (this.runtimeActive) this.openLab();
+    });
+    this.el.touchLabButton?.addEventListener("click", () => {
       if (this.runtimeActive) this.openLab();
     });
   }

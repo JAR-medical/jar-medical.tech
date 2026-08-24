@@ -86,7 +86,6 @@ export class UI {
       btnStart: $("btn-start"),
       briefingScreen: $("briefing-screen"),
       btnConsent: $("btn-consent"),
-      btnPractice: $("btn-practice"),
       dataConsentConfirm: $("data-consent-confirm"),
       ageConfirm: $("age-confirm"),
       consentError: $("consent-error"),
@@ -1484,20 +1483,12 @@ export class UI {
       this.el.chartVitalsBody.appendChild(tr);
     }
     const contributionMode = Boolean(view.contributionMode);
-    if (contributionMode) {
-      this.setVoicePrompt(view.voicePrompt || {
-        label: "Bericht sprechen",
-        stageNumber: 1,
-        stageCount: 1,
-        text: view.hint,
-      });
-    } else {
-      if (this.el.voiceStageLabel) this.el.voiceStageLabel.textContent = "ÜBUNGSMODUS · GETIPPTER BERICHT";
-      if (this.el.voiceStageProgress) this.el.voiceStageProgress.textContent = "—";
-      if (this.el.chartHint) {
-        this.el.chartHint.innerHTML = `<span class="script-label">OHNE DATENSPENDE ÜBEN</span><span class="script-copy">Gib deinen Bericht unten ein. Es wird kein Mikrofon geöffnet und kein Beitrag gesendet.</span>`;
-      }
-    }
+    this.setVoicePrompt(view.voicePrompt || {
+      label: "Bericht sprechen",
+      stageNumber: 1,
+      stageCount: 1,
+      text: view.hint,
+    });
     this.el.chartRecord?.classList.toggle("hidden", !contributionMode);
     this.el.fallbackRow?.classList.toggle("hidden", contributionMode);
     if (!contributionMode && this.el.fallbackInput) this.el.fallbackInput.value = "";
@@ -1690,10 +1681,7 @@ export class UI {
     const cleared = summary.levelsCleared ?? 0;
     const total = summary.levelCount ?? cleared;
     const complete = cleared >= total && total > 0;
-    const practice = summary.playMode === "practice";
-    this.el.endTitle.textContent = practice
-      ? (complete ? "ÜBUNG ABGESCHLOSSEN" : "ÜBUNG BEENDET")
-      : (complete ? "ALLE LEVEL ABGESCHLOSSEN" : "DURCHLAUF BEENDET");
+    this.el.endTitle.textContent = complete ? "ALLE LEVEL ABGESCHLOSSEN" : "DURCHLAUF BEENDET";
     this.el.endRank.textContent = summary.accuracySamples
       ? `${summary.accuracy}% Sprachgenauigkeit · ${summary.accuracyLabel}`
       : "Keine Sprachaufnahme gewertet";
@@ -1710,10 +1698,8 @@ export class UI {
       `<div>Gerettet: <b>${summary.saved}/${summary.total}</b></div>` +
       `<div>Punkte: <b>${summary.score}</b></div>` +
       `<div>Gesamtzeit: <b>${mmss(summary.elapsed)}</b></div>` +
-      (practice
-        ? `<div>Sprachdatenspende: <b>nicht aktiviert</b></div>`
-        : `<div>Gespeicherte Audioaufnahmen: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
-          `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>`) +
+      `<div>Gespeicherte Audioaufnahmen: <b>${summary.acceptedVoiceClips || 0}/${summary.requiredVoiceClips || 0}</b></div>` +
+      `<div>Training-ready bisher: <b>${summary.trainingReadyClips || 0}</b></div>` +
       `<div class="end-levels">${levelRows}</div>`;
 
     this.renderMedals(summary, extras);
@@ -1732,7 +1718,7 @@ export class UI {
     this._publicLeaderboardOptIn = Boolean(extras.publicLeaderboardOptIn);
     this.setLeaderboardScope(this._lbData.global ? "global" : "local", { silent: true });
 
-    this.el.btnRestart.textContent = practice ? "↻ Neue Übung starten" : "↻ Neue 5-Level-Datensammlung";
+    this.el.btnRestart.textContent = "↻ Neue 5-Level-Datensammlung";
     this.el.endScreen.classList.remove("hidden");
     this.el.hud.classList.add("hidden");
     this.setCombo({ streak: 0 });

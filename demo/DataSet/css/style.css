@@ -283,22 +283,6 @@ canvas { display: block; image-rendering: pixelated; }
   gap: 0.35rem 0.8rem;
 }
 
-.secondary-btn {
-  background: transparent;
-  border-color: var(--panel-border);
-  color: var(--text);
-}
-
-.secondary-btn:hover,
-.secondary-btn:focus-visible {
-  border-color: var(--green);
-  color: var(--green);
-}
-.secondary-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .consent-btn:disabled {
   cursor: not-allowed;
   opacity: 0.48;
@@ -1359,18 +1343,6 @@ body.touch-device .desktop-only { display: none; }
 
 #briefing-screen .consent-copy strong { color: #26343b; }
 #briefing-screen .consent-warning { background: #fff5f4; }
-#briefing-screen .consent-actions small { color: #718087; }
-#briefing-screen .secondary-btn {
-  background: #fff;
-  border-color: #9aadb7;
-  color: #26343b;
-}
-#briefing-screen .secondary-btn:hover,
-#briefing-screen .secondary-btn:focus-visible {
-  background: #f2f8fb;
-  border-color: #0073aa;
-  color: #005177;
-}
 #briefing-screen .consent-btn:disabled { background: #9fb6c1; border-color: #9fb6c1; }
 
 #start-screen .btn,

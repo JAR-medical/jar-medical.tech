@@ -176,7 +176,7 @@ export class OtherMode {
     if (!this.extraEnabled) return Promise.resolve(null);
     if (this.funny) return Promise.resolve(this.funny);
     if (this._funnyLoading) return this._funnyLoading;
-    this._funnyLoading = import("./other_other/index.js?v=20260825-funny1")
+    this._funnyLoading = import("./other_other/index.js?v=20260825-funny3")
       .then(({ OtherOtherFeatures }) => {
         if (!this.funny) {
           this.funny = new OtherOtherFeatures({

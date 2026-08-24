@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
-import { Player } from "./player.js?v=20260825-level1sprint1";
+import { Player } from "./player.js?v=20260825-funny3";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-level1sprint1";
-import { OtherMode } from "./other_mode.js?v=20260825-other1";
+import { UI } from "./ui.js?v=20260825-funny3";
+import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
@@ -286,7 +286,6 @@ export class App {
     this.ui.bindMain({
       onStart: () => this.showBriefing(),
       onConsentAccepted: () => this.startMission(),
-      onPracticeStart: () => this.startPracticeMission(),
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
@@ -784,13 +783,6 @@ export class App {
       return;
     }
     this.beginMission({ contributionMode: true });
-  }
-
-  startPracticeMission() {
-    this.leaderboardOptIn = false;
-    this.ui.syncLeaderboardOptIn(false);
-    this.playMode = "practice";
-    this.beginMission({ contributionMode: false });
   }
 
   beginMission({ contributionMode = true } = {}) {
