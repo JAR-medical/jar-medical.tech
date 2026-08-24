@@ -294,6 +294,10 @@ canvas { display: block; image-rendering: pixelated; }
   border-color: var(--green);
   color: var(--green);
 }
+.secondary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
 .consent-btn:disabled {
   cursor: not-allowed;

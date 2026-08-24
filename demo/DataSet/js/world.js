@@ -3,6 +3,7 @@ import { emit } from "./events.js";
 import { fbm2, hash3, mulberry32 } from "./noise.js";
 import { buildStructure } from "./prefabs.js";
 import { LEVELS } from "./levels.js";
+import { OTHER_BLOCKS } from "./other_blocks.js";
 
 export const BLOCK = {
   AIR: 0,
@@ -37,6 +38,7 @@ export const BLOCK = {
   SANDSTONE: 29,
   DARKSTONE: 30,
   NEON: 31,
+  ...Object.fromEntries(OTHER_BLOCKS.map(({ key, id }) => [key, id])),
 };
 
 export const BLOCK_BY_NAME = Object.freeze({ ...BLOCK });
@@ -81,6 +83,7 @@ const HEIGHT_BLOCKS = new Set([
   BLOCK.SANDSTONE,
   BLOCK.DARKSTONE,
   BLOCK.NEON,
+  ...OTHER_BLOCKS.map(({ id }) => id),
 ]);
 
 const PALETTE = {
@@ -116,6 +119,7 @@ const PALETTE = {
   [BLOCK.DARKSTONE]: [0.28, 0.29, 0.31],
   [BLOCK.NEON]: [0.35, 0.95, 0.85],
 };
+for (const block of OTHER_BLOCKS) PALETTE[block.id] = block.color;
 
 const FACE_SHADE = { py: 1.0, ny: 0.55, px: 0.7, nx: 0.7, pz: 0.8, nz: 0.8 };
 
@@ -154,6 +158,7 @@ const BLOCK_MATERIAL = {
   [BLOCK.EMERGENCY_BLANKET]: "snow",
   [BLOCK.WATER]: "water",
 };
+for (const block of OTHER_BLOCKS) BLOCK_MATERIAL[block.id] = block.material;
 
 export function blockMaterial(blockId) {
   return BLOCK_MATERIAL[blockId] || "default";

@@ -5,7 +5,7 @@ import { Player } from "./player.js?v=20260824-controls1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-worldfix1";
+import { UI } from "./ui.js?v=20260825-worldfix2";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
@@ -823,18 +823,18 @@ export class App {
   }
 
   // The opening corridor. Sprinting is the thing it takes away and the thing it
-  // gives back, so both ends of that trade live here rather than in intro.js.
+  // gives back, so keep the normal two-second auto-sprint available while the
+  // corridor is playing.
   startIntro(level, spots) {
     this.player.sprintEnabled = true;
     if (!level?.intro) return;
-    this.player.sprintEnabled = false;
     this.ui.showIntroVeil();
     this.intro = new IntroSequence(this.scene, level, this.world, {
       anisotropy: this.renderer.capabilities.getMaxAnisotropy(),
       onExit: () => {
         this.player.sprintEnabled = true;
         this.audio.play("medal");
-        this.ui.toast("Sprinten frei — Shift oder einfach weiterlaufen.", "good");
+        this.ui.toast("Korridor abgeschlossen — weiterlaufen, um automatisch zu sprinten.", "good");
         this.showLevelBannerFor(level, spots);
       },
     });

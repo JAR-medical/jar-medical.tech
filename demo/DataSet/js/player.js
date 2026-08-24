@@ -30,6 +30,8 @@ export class Player {
     this.yaw = Math.PI;
     this.pitch = -0.12;
     this.enabled = false;
+    this.creativeFlight = false;
+    this.creativeFlightVertical = 0;
     // Scripted scenes can take running away and hand it back as a reward. The
     // walk speed is unaffected, so a gated player is slowed, never stuck.
     this.sprintEnabled = true;
@@ -65,6 +67,9 @@ export class Player {
     on("input:hotbar", ({ index }) => this.setHotbar(index, false));
     on("input:jump", () => {
       if (this.enabled) this.jumpQueued = true;
+    });
+    on("input:other-flight-vertical", ({ value = 0 }) => {
+      this.creativeFlightVertical = Math.max(-1, Math.min(1, Number(value) || 0));
     });
     on("input:place", () => {
       if (this.enabled) this._useSelectedItem();
@@ -151,6 +156,10 @@ export class Player {
       this.touchSprint = false;
       this.jumpQueued = false;
       this._movementTime = 0;
+      return;
+    }
+    if (this.creativeFlight) {
+      this._updateCreativeFlight(dt);
       return;
     }
 
@@ -264,6 +273,63 @@ export class Player {
 
   _canAutoJump(x, z) {
     return !this._collides(x, this.position.y + AUTO_JUMP_HEIGHT, z);
+  }
+
+  _updateCreativeFlight(dt) {
+    const forwardX = -Math.sin(this.yaw);
+    const forwardZ = -Math.cos(this.yaw);
+    const rightX = Math.cos(this.yaw);
+    const rightZ = -Math.sin(this.yaw);
+    let moveX = 0;
+    let moveZ = 0;
+    if (this.keys.has("KeyW")) {
+      moveX += forwardX;
+      moveZ += forwardZ;
+    }
+    if (this.keys.has("KeyS")) {
+      moveX -= forwardX;
+      moveZ -= forwardZ;
+    }
+    if (this.keys.has("KeyD")) {
+      moveX += rightX;
+      moveZ += rightZ;
+    }
+    if (this.keys.has("KeyA")) {
+      moveX -= rightX;
+      moveZ -= rightZ;
+    }
+    moveX += rightX * this.touchMove.x + forwardX * -this.touchMove.y;
+    moveZ += rightZ * this.touchMove.x + forwardZ * -this.touchMove.y;
+    const length = Math.hypot(moveX, moveZ);
+    if (length > 0) {
+      moveX /= length;
+      moveZ /= length;
+    }
+    const fast = this.keys.has("ControlLeft") || this.keys.has("ControlRight") || this.touchSprint;
+    const speed = WALK_SPEED * (fast ? 2.5 : 1.35);
+    const vertical =
+      (this.keys.has("Space") ? 1 : 0) -
+      (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight") ? 1 : 0) +
+      this.creativeFlightVertical;
+    this.position.x = Math.max(1.35, Math.min(WORLD_SIZE - 1.35, this.position.x + moveX * speed * dt));
+    this.position.y = Math.max(1.0, this.position.y + Math.max(-1, Math.min(1, vertical)) * speed * dt);
+    this.position.z = Math.max(1.35, Math.min(WORLD_SIZE - 1.35, this.position.z + moveZ * speed * dt));
+    this.velocity.set(moveX * speed, vertical * speed, moveZ * speed);
+    this.grounded = false;
+    this.moving = length > 0.05 || Math.abs(vertical) > 0.05;
+    this.sprinting = fast;
+    this.surface = blockMaterial(this.world.getBlock(Math.floor(this.position.x), Math.floor(this.position.y - 0.12), Math.floor(this.position.z)));
+    this.camera.position.set(this.position.x, this.position.y + EYE_HEIGHT, this.position.z);
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  setCreativeFlight(enabled) {
+    this.creativeFlight = Boolean(enabled);
+    if (!this.creativeFlight) {
+      this.creativeFlightVertical = 0;
+      this.velocity.set(0, 0, 0);
+      this.grounded = false;
+    }
   }
 
   teleport(x, y, z) {

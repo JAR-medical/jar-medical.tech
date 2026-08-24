@@ -119,9 +119,9 @@
           </span>
         </div>
         <div class="consent-actions">
-          <button id="btn-consent" class="btn small consent-btn" type="button" disabled>Einwilligen &amp; Datensammlung starten</button>
-          <button id="btn-practice" class="btn small secondary-btn" type="button">Ohne Sprachdatenspende üben</button>
-          <small>Der Übungsmodus greift nicht auf Mikrofon oder Beitragsserver zu.</small>
+          <button id="btn-consent" class="btn small consent-btn" type="button">Einwilligen &amp; Datensammlung starten</button>
+          <button id="btn-practice" class="btn small secondary-btn" type="button" disabled aria-disabled="true">Ohne Sprachdatenspende üben (deaktiviert)</button>
+          <small>Der Übungsmodus ist derzeit deaktiviert.</small>
         </div>
       </div>
     </div>
@@ -373,6 +373,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260825-worldfix1"></script>
+  <script type="module" src="./js/main.js?v=20260825-worldfix2"></script>
 </body>
 </html>

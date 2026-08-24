@@ -365,17 +365,11 @@ export class UI {
     this.el.btnConsent.addEventListener("click", handleConsentClick);
     const updateConsentButton = () => {
       const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
-      if (this.el.btnConsent?.getAttribute("aria-busy") !== "true") this.el.btnConsent.disabled = !ready;
       if (ready) this.el.consentError?.classList.add("hidden");
     };
     this.el.dataConsentConfirm?.addEventListener("change", updateConsentButton);
     this.el.ageConfirm?.addEventListener("change", updateConsentButton);
     updateConsentButton();
-    this.el.btnPractice?.addEventListener("click", () => {
-      this.el.consentError?.classList.add("hidden");
-      this._hideMenus();
-      h.onPracticeStart?.();
-    });
     this.el.btnRestart.addEventListener("click", () => {
       this._hideMenus();
       h.onRestart();
@@ -1053,8 +1047,11 @@ export class UI {
     const button = this.el.btnConsent;
     if (!button) return;
     const waiting = Boolean(busy);
-    const ready = Boolean(this.el.dataConsentConfirm?.checked && this.el.ageConfirm?.checked);
-    button.disabled = waiting || !ready;
+    // Keep the button clickable before the checks are ticked. The handler then
+    // explains exactly which confirmation is missing. Relying on a disabled
+    // button made restored/cached dialogs look dead when the browser restored
+    // checkbox state without replaying the change event.
+    button.disabled = waiting;
     button.setAttribute("aria-busy", String(waiting));
     button.textContent = waiting ? "Datensammlung wird vorbereitet …" : "Einwilligen & Datensammlung starten";
   }
