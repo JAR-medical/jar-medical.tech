@@ -4,7 +4,7 @@ import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260825-break1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
-import { SpeechClient } from "./stt.js?v=20260824-recording90";
+import { SpeechClient } from "./stt.js?v=20260825-session-recovery1";
 import { UI } from "./ui.js?v=20260825-funny4";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
@@ -13,7 +13,7 @@ import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { IntroSequence } from "./intro.js?v=20260825-blue1";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260825-role2";
+import { ContributionClient } from "./contributions.js?v=20260825-session-recovery1";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
