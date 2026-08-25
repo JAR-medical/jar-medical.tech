@@ -55,7 +55,7 @@ export const INTRO_CHAPTERS = Object.freeze([
       { text: "SK I · rot — sofort, akute Lebensgefahr", color: RED },
       { text: "SK II · gelb — aufgeschoben behandelbar", color: YELLOW },
       { text: "SK III · grün — später, leicht verletzt", color: GREEN },
-      { text: "SK IV · blau — betreuende Behandlung", color: BLUE },
+      { text: "SK IV · blau — keine Ressourcen mehr, keine Überlebenschance", color: BLUE },
     ],
     note: "Die Karte hängt am Patienten. Die Einsatzleitung steht woanders — die Information muss gesprochen zu ihr.",
     credit: "Triagekarte Feuerwehr Hamburg · Wiki-observer · CC BY-SA 2.0 DE",
@@ -74,6 +74,7 @@ export const INTRO_CHAPTERS = Object.freeze([
       { text: "Jede Übergabe läuft gesprochen:" },
       { text: "Ort · Anzahl · Zustand · Bedarf.", color: YELLOW },
     ],
+    partner: "Partner: TUM HEXLAB",
     note: "Wer schreibt, behandelt nicht. Sprache ist der einzige Kanal, der beide Hände frei lässt.",
     credit: "Russell Square, London, 7. Juli 2005 · Francis Tyers · CC BY-SA 3.0",
   },
@@ -107,6 +108,7 @@ export const INTRO_CHAPTERS = Object.freeze([
       { text: "Nur der Mensch am Boden kann sagen," },
       { text: "wie es diesem einen Menschen geht." },
     ],
+    partner: "Partner: DLR + Quantum Systems",
     note: "Zusammenarbeit mit DLR und QS. Was von oben kommt, ist Fläche. Was zählt, spricht jemand ein.",
     credit: "Eigene Illustration des Projektteams (KI-gestützt) · DLR · Quantum Systems",
   },
@@ -161,7 +163,6 @@ const OBSERVERS = Object.freeze([
     prop: "mug",
     lean: 0.25,
     waves: true,
-
   },
   {
     offset: 3.2,
@@ -255,8 +256,12 @@ function captionTexture(chapter) {
     ctx.fillStyle = chapter.accent;
     ctx.font = `700 44px ${MONO}`;
     ctx.fillText(chapter.kicker, 46, h * 0.31);
+    if (chapter.partner) {
+      ctx.font = `700 30px ${MONO}`;
+      ctx.fillText(chapter.partner, 46, h * 0.49, w - 100);
+    }
     ctx.font = `700 60px ${SANS}`;
-    const headlineY = h * 0.7;
+    const headlineY = chapter.partner ? h * 0.78 : h * 0.7;
     const highlight = chapter.headlineHighlight;
     if (highlight && chapter.headline.startsWith(highlight)) {
       ctx.fillStyle = chapter.accent;
