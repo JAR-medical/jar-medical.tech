@@ -5,6 +5,46 @@ const TARGET_RATE = 16000;
 const MAX_SECONDS = 90;
 const MIN_SPEECH_SECONDS = 0.8;
 const SILENCE_RMS = 0.01;
+// A recorded take cannot be re-recorded from the player's side once the
+// microphone is closed, so a busy or restarting backend is worth waiting out
+// rather than throwing the WAV away. Every retry re-sends the same idempotency
+// key, so nothing here can turn one take into two clips.
+const UPLOAD_MAX_ATTEMPTS = 4;
+const UPLOAD_RETRY_BASE_MS = 800;
+const UPLOAD_MAX_DELAY_MS = 10_000;
+// Enough to cover a failover plus one genuinely dead session; past that the
+// problem is not the session and minting more would only shed the identity.
+const MAX_SESSION_RENEWALS = 2;
+// Validation runs on a GPU that is shared, queued, and occasionally offline.
+// The clip is already durable on the server by this point, so this deadline
+// only decides how long the chart waits before letting the player move on.
+const CLIP_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const CLIP_POLL_FAST_ATTEMPTS = 4;
+const CLIP_POLL_FAST_MS = 750;
+const CLIP_POLL_SLOW_MS = 1500;
+const TRANSIENT_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isTransientStatus(status) {
+  return TRANSIENT_STATUSES.has(Number(status));
+}
+
+function retryAfterMs(response) {
+  const header = response?.headers?.get?.("Retry-After");
+  if (!header) return 0;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.min(30, seconds)) * 1000;
+  const when = Date.parse(header);
+  return Number.isFinite(when) ? Math.max(0, Math.min(30_000, when - Date.now())) : 0;
+}
+
+function uploadBackoffMs(attempt, floorMs = 0) {
+  const exponential = Math.min(UPLOAD_MAX_DELAY_MS, UPLOAD_RETRY_BASE_MS * 2 ** attempt);
+  // Jitter, so a class that all stopped recording on the same server hiccup
+  // does not all come back in the same millisecond.
+  return Math.max(floorMs, exponential * (0.7 + Math.random() * 0.6));
+}
 
 function isContributionSessionFailure(status, detail) {
   if (status === 401) return true;
@@ -96,6 +136,9 @@ export class SpeechClient {
       scenarioId: String(context.scenarioId || "").trim(),
       patientId: String(context.patientId || "").trim(),
       contributionMode: Boolean(context.contributionMode),
+      // Which backend issued the session below. Kept so the upload can notice
+      // that failover moved the game since this take began.
+      ...(typeof context.apiBase === "string" ? { apiBase: context.apiBase } : {}),
       contributionSessionId: String(context.contributionSessionId || "").trim(),
       contributorId: String(context.contributorId || "").trim(),
       contributorToken: String(context.contributorToken || "").trim(),
@@ -263,9 +306,6 @@ export class SpeechClient {
     this.transcribing = true;
     emit("stt:status", { state: "transcribing", context: recordingContext });
     try {
-      // A take is expensive to redo, so if the selected backend has gone away
-      // between the health probe and now, fail over and send it once more
-      // rather than losing the recording.
       const endpoint = recordingContext.contributionMode ? "/api/clips" : "/api/transcribe";
       let headers = buildHeaders(recordingContext);
       const send = () => fetch(`${this._base()}${endpoint}`, {
@@ -274,47 +314,92 @@ export class SpeechClient {
         body: blob,
         credentials: "include",
       });
-      let res;
-      try {
-        res = await send();
-      } catch (transportError) {
-        if (this.baseUrl !== null) throw transportError;
-        invalidateApiBase();
-        const next = await resolveApiBase({ force: true });
-        if (!next && next !== "") throw transportError;
-        res = await send();
-      }
-      let data = await res.json().catch(() => null);
-      // A stale tab can keep a session id that no longer exists on the
-      // backend. Refresh consent-backed session state and retry this exact WAV
-      // once, preserving its idempotency key so a late first response cannot
-      // create a duplicate clip.
-      if (
-        recordingContext.contributionMode &&
-        isContributionSessionFailure(res.status, data?.detail) &&
-        this._refreshContributionSession
-      ) {
-        const refreshed = await this._refreshContributionSession(recordingContext);
-        if (refreshed?.sessionId && refreshed?.contributorToken) {
-          recordingContext = {
-            ...recordingContext,
-            contributionSessionId: refreshed.sessionId,
-            contributorId: refreshed.contributorId || recordingContext.contributorId,
-            contributorToken: refreshed.contributorToken,
-          };
-          headers = buildHeaders(recordingContext);
-          emit("stt:status", {
-            state: "transcribing",
-            detail: "Beitragssitzung wird erneuert …",
-            context: recordingContext,
-          });
-          res = await send();
-          data = await res.json().catch(() => null);
+
+      // Renew the consent-backed session and re-aim this exact WAV at it. The
+      // idempotency key is deliberately left alone, so a first response that
+      // arrives late cannot turn one take into two clips.
+      let renewals = 0;
+      const renewSession = async (detail) => {
+        if (!this._refreshContributionSession || renewals >= MAX_SESSION_RENEWALS) return false;
+        renewals += 1;
+        let refreshed = null;
+        try {
+          refreshed = await this._refreshContributionSession(recordingContext);
+        } catch {
+          return false;
         }
+        if (!refreshed?.sessionId) return false;
+        recordingContext = {
+          ...recordingContext,
+          contributionSessionId: refreshed.sessionId,
+          contributorId: refreshed.contributorId || recordingContext.contributorId,
+          contributorToken: refreshed.contributorToken || recordingContext.contributorToken,
+          apiBase: refreshed.apiBase ?? this._base(),
+        };
+        headers = buildHeaders(recordingContext);
+        emit("stt:status", {
+          state: "transcribing",
+          detail: detail || "Beitragssitzung wird erneuert …",
+          context: recordingContext,
+        });
+        return true;
+      };
+
+      let res = null;
+      let data = null;
+      for (let attempt = 0; attempt < UPLOAD_MAX_ATTEMPTS; attempt++) {
+        // A session id and its contributor token belong to one backend. If
+        // failover moved the game since this take started, mint a session on
+        // the host we are about to post to rather than sending an id it has
+        // never seen and collecting a guaranteed 403.
+        if (
+          recordingContext.contributionMode &&
+          typeof recordingContext.apiBase === "string" &&
+          recordingContext.apiBase !== this._base()
+        ) {
+          await renewSession("Backend gewechselt — Beitragssitzung wird erneuert …");
+        }
+        try {
+          res = await send();
+        } catch (transportError) {
+          // A take is expensive to redo, so if the selected backend has gone
+          // away between the health probe and now, re-probe and try again
+          // rather than losing the recording.
+          res = null;
+          // An earlier attempt's error body must not be reported as this one's.
+          data = null;
+          if (this.baseUrl === null) {
+            invalidateApiBase();
+            await resolveApiBase({ force: true }).catch(() => {});
+          }
+          if (attempt + 1 >= UPLOAD_MAX_ATTEMPTS) break;
+          await sleep(uploadBackoffMs(attempt));
+          continue;
+        }
+        data = await res.json().catch(() => null);
+        if (res.ok) break;
+        if (
+          recordingContext.contributionMode &&
+          isContributionSessionFailure(res.status, data?.detail) &&
+          await renewSession()
+        ) {
+          // Renewal does not count against the transport retry budget: the
+          // request was answered, it was just answered by a host that had
+          // forgotten us.
+          attempt -= 1;
+          continue;
+        }
+        if (!isTransientStatus(res.status) || attempt + 1 >= UPLOAD_MAX_ATTEMPTS) break;
+        await sleep(uploadBackoffMs(attempt, retryAfterMs(res)));
       }
-      if (res.ok && data && recordingContext.contributionMode) {
+
+      if (res && res.ok && data && recordingContext.contributionMode) {
+        // The backend mints a replacement shift when the one presented is
+        // unknown, and names it in the response. Pass it back so the rest of
+        // the mission stops presenting an id that no longer exists.
         const detail = {
           clipId: data.clip_id,
+          sessionId: data.session_id || recordingContext.contributionSessionId,
           promptId: data.prompt_id || recordingContext.promptId,
           taskType: data.task_type || recordingContext.taskType,
           validationState: data.validation_state,
@@ -324,6 +409,10 @@ export class SpeechClient {
           audioInfo: this.lastAudioInfo,
           context: recordingContext,
         };
+        if (data.session_id) {
+          recordingContext = { ...recordingContext, contributionSessionId: data.session_id };
+          detail.context = recordingContext;
+        }
         if (detail.basicAccepted) {
           emit("stt:clip-accepted", detail);
           this._pollContributionClip(detail.clipId, recordingContext).catch(() => {});
@@ -332,7 +421,7 @@ export class SpeechClient {
           emit("stt:clip-rejected", { ...detail, reason });
           emit("stt:error", { message: `${reason} Bitte erneut aufnehmen.`, context: recordingContext, handled: true });
         }
-      } else if (res.ok && data) {
+      } else if (res && res.ok && data) {
         emit("stt:result", {
           text: data.text || "",
           seconds: data.processing_seconds ?? null,
@@ -347,9 +436,11 @@ export class SpeechClient {
         });
       } else {
         // Without a JSON body this is not the backend answering — it is
-        // whatever host the request actually reached, so say which one.
+        // whatever host the request actually reached, so say which one. A run
+        // that never got a response at all is a transport failure, and the
+        // retries above have already exhausted themselves against it.
         emit("stt:error", {
-          message: (data && data.detail) || this._backendFailureDetail(res.status),
+          message: (data && data.detail) || this._backendFailureDetail(res?.status ?? null),
           context: recordingContext,
         });
       }
@@ -362,23 +453,68 @@ export class SpeechClient {
     }
   }
 
+  // Watch a durable clip until the backend has validated it.
+  //
+  // The clip is already stored and consented at this point, so nothing here can
+  // lose a take — but the chart is showing a spinner against this call, so it
+  // must always end in an event. It used to give up silently on the first
+  // non-OK response, which left the spinner on forever whenever the backend was
+  // briefly busy, and on every single poll wherever the browser refuses the
+  // cross-site cookie: the pseudonymous token that exists for exactly that case
+  // was not being sent.
   async _pollContributionClip(clipId, context) {
     if (!clipId) return;
     const terminal = new Set(["training_ready", "review_required", "rejected", "deleted"]);
-    for (let attempt = 0; attempt < 120; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, attempt < 4 ? 750 : 1500));
+    const deadline = Date.now() + CLIP_POLL_TIMEOUT_MS;
+    let poll = { ...context };
+    let attempt = 0;
+    let renewals = 0;
+    let lastState = null;
+    // A wall clock, not an attempt count: a backgrounded tab has its timers
+    // throttled to about one a minute, and counting attempts there would give
+    // up hours later instead of five minutes later.
+    while (Date.now() < deadline) {
+      await sleep(attempt < CLIP_POLL_FAST_ATTEMPTS ? CLIP_POLL_FAST_MS : CLIP_POLL_SLOW_MS);
+      attempt += 1;
       let response;
       try {
         response = await fetch(`${this._base()}/api/clips/${encodeURIComponent(clipId)}`, {
           credentials: "include",
           cache: "no-store",
+          headers: poll.contributorToken
+            ? { "X-Medicraft-Contributor-Token": poll.contributorToken }
+            : {},
         });
       } catch (error) {
         continue;
       }
-      if (!response.ok) return;
+      // The clip belongs to a contributor this backend does not have — almost
+      // always because failover moved us to the other host mid-validation.
+      // There is nothing to wait for here.
+      if (response.status === 404) break;
+      if (response.status === 401 || response.status === 403) {
+        if (renewals >= MAX_SESSION_RENEWALS || !this._refreshContributionSession) break;
+        renewals += 1;
+        let refreshed = null;
+        try {
+          refreshed = await this._refreshContributionSession(poll);
+        } catch {
+          break;
+        }
+        if (!refreshed?.contributorToken || refreshed.contributorToken === poll.contributorToken) break;
+        poll = {
+          ...poll,
+          contributorToken: refreshed.contributorToken,
+          contributorId: refreshed.contributorId || poll.contributorId,
+        };
+        continue;
+      }
+      // Anything else non-OK is the backend being busy or restarting. Keep
+      // waiting — the deadline is what ends this loop.
+      if (!response.ok) continue;
       const data = await response.json().catch(() => null);
       if (!data) continue;
+      lastState = data.validation_state || lastState;
       emit("stt:clip-status", {
         clipId,
         validationState: data.validation_state,
@@ -403,6 +539,9 @@ export class SpeechClient {
       });
       return;
     }
+    // No verdict inside the deadline. The recording is safe on the server and
+    // will still be validated; the chart just must not keep waiting on it.
+    emit("stt:clip-pending", { clipId, validationState: lastState, context });
   }
 
   abort() {

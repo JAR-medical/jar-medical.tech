@@ -1,10 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
+import { apiBase } from "./api.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260825-break1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
-import { SpeechClient } from "./stt.js?v=20260825-session-recovery1";
+import { SpeechClient } from "./stt.js?v=20260825-voice-resilience1";
 import { UI } from "./ui.js?v=20260825-funny4";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
@@ -13,7 +14,7 @@ import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { IntroSequence } from "./intro.js?v=20260825-blue1";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260825-session-recovery1";
+import { ContributionClient } from "./contributions.js?v=20260825-voice-resilience1";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
@@ -27,7 +28,11 @@ import {
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
 
+// Reached only after the contribution client has exhausted its own retries, so
+// this really is "the backend is not there", not "the backend blinked".
 function isContributionServiceUnavailable(error) {
+  const status = Number(error?.status) || 0;
+  if (status >= 500 || status === 408 || status === 429) return true;
   const message = String(error?.message || error || "").toLowerCase();
   return /failed to fetch|networkerror|load failed|server antwortet nicht|http 5\d\d/.test(message);
 }
@@ -120,6 +125,7 @@ export class App {
     this.leaderboardOptIn = false;
     this.medicContext = false;
     this.trainingReadyClips = 0;
+    this._recordStartToken = 0;
     this.displaySettings = loadDisplaySettings();
 
     const touchDevice =
@@ -169,10 +175,17 @@ export class App {
     this.ui = new UI();
     this.audio = new GameAudio();
     this.ui.setAudio(this.audio);
+    // Called by the audio client when a take is refused for its session, or
+    // when failover moved the game to the other backend mid-mission. The
+    // client itself decides whether that needs a new session or whether the
+    // one it just minted still counts, so this is safe to call per take.
     this.speech.setContributionSessionRefresher(async () => {
-      const result = await this.contributions.renewSession();
-      this.trainingReadyClips = Number(result.summary?.training_ready_clips) || 0;
-      this.ui.renderContributionSummary(result.summary, result.recovery_code);
+      const result = await this.contributions.ensureSession()
+        .then(() => this.contributions.renewSession());
+      if (result?.summary) {
+        this.trainingReadyClips = Number(result.summary.training_ready_clips) || 0;
+        this.ui.renderContributionSummary(result.summary, result.recovery_code ?? this.contributions.recoveryCode);
+      }
       return this.contributions.session;
     });
     this.applyDisplaySettings(this.displaySettings, { persist: false });
@@ -426,15 +439,33 @@ export class App {
       }
     });
 
-    on("ui:record-start", () => {
+    on("ui:record-start", async () => {
       // The microphone is reachable only from an active, consented campaign.
       if (this.mode !== "chart" || this.playMode !== "campaign") return;
+      // Repairing the session can take a network round trip, and the record
+      // button is a toggle: a stop that lands during it must cancel the start
+      // rather than leave a microphone nobody can close.
+      const startToken = ++this._recordStartToken;
+      if (!this.contributions.session || this.contributions.sessionBase !== apiBase()) {
+        // Consent is on file — this is a session that expired, or a failover
+        // onto a backend that has never seen this one. Neither is the player's
+        // problem, and neither is a reason to make them restart the mission.
+        try {
+          await this.contributions.ensureSession();
+        } catch {
+          // Fall through: the check below reports it once, in one place.
+        }
+        if (startToken !== this._recordStartToken) return;
+      }
       if (!this.contributions.session) {
         this.audio.duck("recording", false);
-        this.ui.setSttStatus("error", "Keine aktive Beitragssitzung. Bitte starte den Einsatz erneut.");
-        this.ui.toast("Keine aktive Beitragssitzung. Bitte starte den Einsatz erneut.", "bad");
+        const message = "Beitragssitzung nicht erreichbar — bitte kurz warten oder den Bericht tippen.";
+        this.ui.setSttStatus("error", message);
+        this.ui.toast(message, "bad");
         return;
       }
+      // The chart can close, or the mission end, while the session was minted.
+      if (this.mode !== "chart" || this.playMode !== "campaign") return;
       this.audio.duck("recording", true);
       const view = this.game.getView(this.currentPatientId);
       const prompt = view?.voicePrompt;
@@ -456,6 +487,7 @@ export class App {
     });
 
     on("ui:record-stop", () => {
+      this._recordStartToken++;
       if (this.mode !== "chart" || this.playMode !== "campaign") return;
       this.speech.stopRecording().catch(() => {});
     });
@@ -463,6 +495,10 @@ export class App {
     on("stt:clip-accepted", (detail) => {
       const { context = {} } = detail;
       this.audio.play("transcribed");
+      // The backend mints a replacement shift when the id a take carried is
+      // unknown to it, and names the one it used. Take it, so the next take and
+      // every event after this one stop quoting a session that is gone.
+      this.contributions.adoptSessionId(detail.sessionId);
       this.contributions.track("basic_accepted", {
         clip_id: detail.clipId,
         prompt_id: detail.promptId,
@@ -489,6 +525,21 @@ export class App {
         this.ui.setTranscriptionLoading(false);
       }
       this.contributions.track("retry_requested", { prompt_id: context.promptId, reason });
+    });
+
+    // The clip is stored and consented; only its transcript is still missing,
+    // because the GPU behind validation is busy, queued or offline. Release the
+    // chart so the player can type the report and carry on — nothing is lost,
+    // and the clip is still validated in the background.
+    on("stt:clip-pending", ({ context = {} }) => {
+      if (this.mode === "chart" && this.currentPatientId === context.patientId) {
+        this.ui.setVoiceSubmissionPending(false);
+        this.ui.setTranscriptionLoading(false);
+      }
+      this.ui.toast(
+        "Die Auswertung dauert gerade länger. Die Aufnahme ist gespeichert — schreibe den Bericht solange selbst.",
+        "warn",
+      );
     });
 
     on("stt:clip-status", ({ validationState, contributionUnits, context = {} }) => {

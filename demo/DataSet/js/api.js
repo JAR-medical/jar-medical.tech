@@ -42,9 +42,42 @@ export function apiBases() {
 
 let selected = null;
 let resolving = null;
+let staleBase = false;
+let baseEpoch = 0;
+const baseListeners = new Set();
 
 export function apiBase() {
   return selected ?? apiBases()[0];
+}
+
+// How many times the effective base has actually moved. Anything minted by one
+// backend — a contributor token, a contribution session id — is meaningless to
+// another, so holders of that state compare epochs instead of guessing.
+export function apiBaseEpoch() {
+  return baseEpoch;
+}
+
+// Notified only when the base the game really calls changes, never on a
+// re-probe that confirms the current one. Returns an unsubscribe function.
+export function onApiBaseChange(listener) {
+  if (typeof listener !== "function") return () => {};
+  baseListeners.add(listener);
+  return () => baseListeners.delete(listener);
+}
+
+function commitApiBase(base) {
+  const previous = apiBase();
+  selected = base;
+  if (base === previous) return base;
+  baseEpoch += 1;
+  for (const listener of [...baseListeners]) {
+    try {
+      listener(base, baseEpoch);
+    } catch {
+      // A listener that throws must not strand the resolution for everyone else.
+    }
+  }
+  return base;
 }
 
 export function apiUrl(path) {
@@ -71,20 +104,32 @@ async function probe(base) {
 
 // Pick the first configured base that answers. Concurrent callers share one
 // resolution; the result is cached until something invalidates it.
-export async function resolveApiBase({ force = false } = {}) {
-  if (!force && selected !== null) return selected;
+//
+// The pick is sticky. Each backend keeps its own contributor database, so
+// moving between them invalidates the contribution session in flight and mints
+// a second identity on the other host. Strict preference order made that happen
+// on every re-probe: the moment the preferred host came back, every tab jumped
+// to it, and the next hiccup jumped them back — the recurring "unbekannte oder
+// abgelaufene Beitragssitzung". Re-checking the current pick first means the
+// game only moves when the host it is actually using has gone away.
+export async function resolveApiBase({ force = false, sticky = true } = {}) {
+  if (!force && !staleBase && selected !== null) return selected;
   if (resolving) return resolving;
+  staleBase = false;
+  const current = selected;
   resolving = (async () => {
     const bases = apiBases();
-    for (const base of bases) {
+    const order = sticky && current !== null && bases.includes(current)
+      ? [current, ...bases.filter((base) => base !== current)]
+      : bases;
+    for (const base of order) {
       if (await probe(base)) return base;
     }
-    return bases[0];
+    // Nothing answered. Keep whatever we were using rather than shuffling the
+    // identity to a host that is equally dead.
+    return order[0];
   })()
-    .then((base) => {
-      selected = base;
-      return base;
-    })
+    .then((base) => commitApiBase(base))
     .finally(() => {
       resolving = null;
     });
@@ -93,8 +138,13 @@ export async function resolveApiBase({ force = false } = {}) {
 
 // Call when a request to the selected base fails at the transport level, so the
 // next resolve re-probes instead of retrying a host that has gone away.
+//
+// The current pick is kept rather than cleared: one failed POST is not proof
+// the host is gone, and dropping it here would make the next resolution ignore
+// stickiness and move the game — and its contribution identity — to a different
+// backend over a single blip. The re-probe decides, starting with this host.
 export function invalidateApiBase() {
-  selected = null;
+  staleBase = true;
 }
 
 // True only when config.js actually named a backend. An unset base is not the
