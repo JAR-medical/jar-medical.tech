@@ -855,7 +855,10 @@ export const STRUCTURE_BUILDERS = {
           const glazed =
             band.glass && z % band.glass.every === 0 &&
             y >= fy + band.glass.from && y <= fy + band.glass.to;
-          const left = glazed ? "GLASS" : (api.rng() < band.altChance ? band.alt : band.wall);
+          // Keep the beginning corridor's left wall solid. The right-hand
+          // glazing remains the deliberate observation-side detail, while a
+          // left pane makes the opening tunnel feel visually crowded.
+          const left = api.rng() < band.altChance ? band.alt : band.wall;
           const right = glazed ? "GLASS" : (api.rng() < band.altChance ? band.alt : band.wall);
           api.put(x0, y, z, left);
           api.put(x1, y, z, right);
