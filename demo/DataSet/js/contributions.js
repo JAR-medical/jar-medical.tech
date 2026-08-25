@@ -1,6 +1,6 @@
 import { apiUrl } from "./api.js";
 
-export const CONSENT_VERSION = "2026-08-25-v2";
+export const CONSENT_VERSION = "2026-08-25-v3";
 const REQUEST_TIMEOUT_MS = 12_000;
 const STORED_SESSION_KEY = "medicraft.contribution.session";
 
@@ -82,10 +82,16 @@ export class ContributionClient {
     return jsonRequest(path, { ...options, headers });
   }
 
-  async startSession({ ageBand = "16+", locale = "de-DE", mode = "campaign" } = {}) {
+  async startSession({ ageBand = "16+", locale = "de-DE", mode = "campaign", medicContext = false } = {}) {
     const result = await this._request("/api/contribution-sessions", {
       method: "POST",
-      body: JSON.stringify({ consent_version: CONSENT_VERSION, age_band: ageBand, locale, mode }),
+      body: JSON.stringify({
+        consent_version: CONSENT_VERSION,
+        age_band: ageBand,
+        locale,
+        mode,
+        medic_context: Boolean(medicContext),
+      }),
     });
     this.session = {
       contributorId: result.contributor_id,

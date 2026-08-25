@@ -13,7 +13,7 @@ import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { IntroSequence } from "./intro.js?v=20260825-stickers1";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260825-role1";
+import { ContributionClient } from "./contributions.js?v=20260825-role2";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
@@ -26,6 +26,13 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
+
+function isContributionServiceUnavailable(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return error?.name === "TypeError" ||
+    /failed to fetch|networkerror|load failed|server antwortet nicht|http 5\d\d/.test(message);
+}
+
 const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v2";
 const DISPLAY_FOV_DEFAULTS = Object.freeze({ phone: 85, ipad: 77, pc: 72 });
 const DISPLAY_SETTINGS_DEFAULTS = Object.freeze({ crosshair: true, reducedMotion: false });
@@ -791,33 +798,46 @@ export class App {
   }
 
   async startMission() {
+    let contributionMode = true;
     try {
       const session = await this.contributions.startSession({
         ageBand: "16+",
         locale: "de-DE",
         mode: "campaign",
+        medicContext: Boolean(this.medicContext),
       });
       this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
       this.ui.renderContributionSummary(session.summary, session.recovery_code);
     } catch (error) {
-      this.showBriefing();
-      this.ui.showConsentError?.(
-        `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
-      );
-      return;
+      if (isContributionServiceUnavailable(error)) {
+        // A static copy must remain playable when its remote API or tunnel is
+        // unreachable. The consent was still required to reach this point;
+        // only the upload/session part is unavailable, so use local typed
+        // reports and never attempt to send voice data in this mode.
+        contributionMode = false;
+        this.trainingReadyClips = 0;
+        this.ui.renderContributionSummary({});
+        this.ui.toast("Server nicht erreichbar — Offline-Spiel gestartet. Sprachdaten werden nicht übertragen.", "warn");
+      } else {
+        this.showBriefing();
+        this.ui.showConsentError?.(
+          `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
+        );
+        return;
+      }
     }
-    if (this.medicContext) {
+    if (contributionMode && this.medicContext) {
       void this.contributions.track("profile_context_selected", {
         medic: true,
         selection_source: "start_screen",
       });
     }
-    this.beginMission();
+    this.beginMission({ contributionMode });
   }
 
-  beginMission() {
+  beginMission({ contributionMode = true } = {}) {
     this.ui.hideMenus();
-    this.playMode = "campaign";
+    this.playMode = contributionMode ? "campaign" : "offline";
     this.campaign = new Campaign(LEVELS);
     this.campaign.reset();
     this.streak = 0;

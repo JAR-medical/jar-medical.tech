@@ -11,7 +11,7 @@
     <header class="doc-header">
       <p class="doc-kicker">MEDICRAFT · freiwillige Sprachdatenspende</p>
       <h1>Datenvereinbarung</h1>
-      <p>Version 2026-08-25-v2 · gültig ab 25. August 2026</p>
+      <p>Version 2026-08-25-v3 · gültig ab 25. August 2026</p>
     </header>
 
     <nav class="legal-nav" aria-label="Rechtliche Dokumente">
@@ -36,7 +36,7 @@
       </div>
 
       <h2>1. Gegenstand und freiwillige Zustimmung</h2>
-      <p>Mit dem freiwilligen Häkchen in der Spieloberfläche willigst du ausdrücklich ein, dass J.A.R. – Projektteam die von dir in Medicraft gesprochenen Sprachaufnahmen für die nachfolgend beschriebenen Zwecke aufnimmt, speichert und auswertet. Die Einwilligung wird mit der Einwilligungsversion <strong>2026-08-25-v2</strong>, dem Zeitpunkt, der Altersangabe und einer pseudonymen Beitragskennung dokumentiert.</p>
+      <p>Mit dem freiwilligen Häkchen in der Spieloberfläche willigst du ausdrücklich ein, dass J.A.R. – Projektteam die von dir in Medicraft gesprochenen Sprachaufnahmen für die nachfolgend beschriebenen Zwecke aufnimmt, speichert und auswertet. Die Einwilligung wird mit der Einwilligungsversion <strong>2026-08-25-v3</strong>, dem Zeitpunkt, der Altersangabe und einer pseudonymen Beitragskennung dokumentiert.</p>
       <p>Die bestätigte Einwilligung und Altersbestätigung sind Voraussetzung für den Start der Medicraft-Datensammlung. Ohne diese Bestätigungen wird keine Aufnahme gestartet und kein Beitrag an das Backend übermittelt.</p>
 
       <h2>2. Zwecke der Verarbeitung</h2>
@@ -58,7 +58,7 @@
           <tr><td>Transkript und Wortlaut</td><td>Automatisch erzeugter Text und gegebenenfalls wörtliche Transkriptionsdaten; Prüfung der Erkennungsqualität.</td></tr>
           <tr><td>Qualitäts- und Modellwerte</td><td>Dauer, Abtastrate, Lautstärke, Sprachanteil, Clipping, Konfidenz, Modellname, Validierungsstatus und Qualitätswert.</td></tr>
           <tr><td>Aufgaben- und Beitragskontext</td><td>Pseudonyme Beitrags- und Sitzungskennung, Aufgaben- und Promptkennung, Szenario- und Patientenschlüssel, erwarteter Beispieltext und erforderliche Konzepte.</td></tr>
-          <tr><td>Freiwilliger Rollen-Kontext</td><td>Nur wenn aktiv ausgewählt: die boolesche Selbstauswahl „Mediziner:in / Rettungskraft“ und das zugehörige technische Ereignis; ausschließlich für pseudonyme Auswertungen, nicht für die öffentliche Bestenliste.</td></tr>
+          <tr><td>Freiwilliger Rollen-Kontext</td><td>Nur wenn aktiv ausgewählt: das Metadatum <code>medic: true</code> an jedem zugehörigen Sprachbeitrag sowie ein technisches Auswahlereignis; ausschließlich für pseudonyme Auswertungen, nicht für die öffentliche Bestenliste.</td></tr>
           <tr><td>Einwilligungsnachweis</td><td>Einwilligungsversion, Zweckkennung, Altersband, Zeitpunkt, Widerrufszeitpunkt und technische Ereignisse zum Beitrag.</td></tr>
         </tbody>
       </table>
@@ -74,7 +74,7 @@
 
       <h2>6. Widerruf</h2>
       <p>Du kannst diese Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Öffne dazu während der Sitzung <strong>Einstellungen → Beiträge → Zustimmung widerrufen und Aufnahmen löschen</strong>. Der einmalig angezeigte Löschcode dient als zusätzlicher Nachweis für eine spätere Löschanforderung. Alternativ genügt eine Nachricht an <a href="mailto:al.kluge@campus.lmu">al.kluge@campus.lmu</a> mit möglichst vielen Angaben zur Beitragskennung, ohne neue private Sprachinhalte mitzuschicken.</p>
-      <p>Nach dem Widerruf werden noch vorhandene Aufnahmen, beitragsbezogene Transkripte und das optionale Rollen-Auswahlereignis gelöscht beziehungsweise für die weitere Nutzung gesperrt. Die bis zum Widerruf erfolgte Verarbeitung bleibt rechtmäßig. Der Widerruf ist so einfach wie die Erteilung der Einwilligung und führt zu keinem Nachteil außer dem Ende der Datenspende.</p>
+      <p>Nach dem Widerruf werden noch vorhandene Aufnahmen, beitragsbezogene Transkripte, die zugehörigen Metadaten und das optionale Rollen-Auswahlereignis gelöscht beziehungsweise für die weitere Nutzung gesperrt. Die bis zum Widerruf erfolgte Verarbeitung bleibt rechtmäßig. Der Widerruf ist so einfach wie die Erteilung der Einwilligung und führt zu keinem Nachteil außer dem Ende der Datenspende.</p>
 
       <h2>7. Keine öffentliche Veröffentlichung durch diese Einwilligung</h2>
       <p>Diese Datenvereinbarung veröffentlicht weder deinen Spieler- oder Teamnamen noch dein Ergebnis. Auch der freiwillige Rollen-Kontext wird nicht öffentlich angezeigt und nicht zur Identitäts- oder Berufsprüfung verwendet. Die öffentliche Server-Bestenliste ist ein eigener, optionaler Zweck und wird nur nach einer separaten aktiven Auswahl auf der Startseite bedient. Einzelheiten stehen in den <a href="./datenschutz.html">Datenschutzhinweisen</a> und den <a href="./nutzungsbedingungen.html">Nutzungsbedingungen</a>.</p>
