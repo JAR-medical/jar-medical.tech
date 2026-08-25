@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
 import { World } from "./world.js?v=20260824-transcript1";
-import { Player } from "./player.js?v=20260825-funny3";
+import { Player } from "./player.js?v=20260825-break1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
@@ -11,7 +11,7 @@ import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
-import { IntroSequence } from "./intro.js?v=20260825-stickers3";
+import { IntroSequence } from "./intro.js?v=20260825-blue1";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js?v=20260825-role2";
 import {
@@ -30,6 +30,10 @@ const TELEPORT_DELAY_MS = 6000;
 function isContributionServiceUnavailable(error) {
   const message = String(error?.message || error || "").toLowerCase();
   return /failed to fetch|networkerror|load failed|server antwortet nicht|http 5\d\d/.test(message);
+}
+
+function isContributionSessionFailureMessage(message) {
+  return /beitrag|sitzung|session|zustimmung|consent|auth/i.test(String(message || ""));
 }
 
 const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v2";
@@ -155,14 +159,22 @@ export class App {
     // Only the first level has an opening corridor; it also keeps automatic
     // sprint disabled for the whole level.
     this.intro = null;
-    this.player = new Player(this.camera, null, this.renderer.domElement);
     this.entities = new PatientManager(this.scene);
+    this.player = new Player(this.camera, null, this.renderer.domElement, {
+      getNearestPatient: () => this.entities.getNearest(this.player.position, 4.5, { activeOnly: true }),
+    });
     this.game = new Game(this.entities);
-    this.speech = new SpeechClient();  // base resolved from window.MEDICRAFT_API_BASE
     this.contributions = new ContributionClient();
+    this.speech = new SpeechClient();  // base resolved from window.MEDICRAFT_API_BASE
     this.ui = new UI();
     this.audio = new GameAudio();
     this.ui.setAudio(this.audio);
+    this.speech.setContributionSessionRefresher(async () => {
+      const result = await this.contributions.renewSession();
+      this.trainingReadyClips = Number(result.summary?.training_ready_clips) || 0;
+      this.ui.renderContributionSummary(result.summary, result.recovery_code);
+      return this.contributions.session;
+    });
     this.applyDisplaySettings(this.displaySettings, { persist: false });
     this.otherMode = new OtherMode({
       player: this.player,
@@ -191,6 +203,7 @@ export class App {
     // player mute the game permanently.
     document.addEventListener("visibilitychange", () => {
       this.audio.duck("hidden-tab", document.hidden);
+      if (document.hidden) this.player._stopBreaking?.();
     });
 
     this.loop = this.loop.bind(this);
@@ -347,6 +360,7 @@ export class App {
       this._resumeAfterSettings = this.mode === "playing";
       if (!this._resumeAfterSettings) return;
       this.player.enabled = false;
+      this.player._stopBreaking?.();
       document.exitPointerLock?.();
     });
 
@@ -380,6 +394,8 @@ export class App {
 
     on("player:jump", ({ surface }) => this.audio.play("jump", { material: surface }));
     on("player:land", ({ surface, strength }) => this.audio.play("land", { material: surface, strength }));
+    on("player:break-tick", ({ material }) => this.audio.play("break-tick", { material }));
+    on("player:block-broken", ({ material }) => this.audio.play("break", { material }));
     on("player:block-placed", ({ material }) => this.audio.play("place", { material }));
 
     on("stt:status", ({ state, detail }) => {
@@ -394,8 +410,13 @@ export class App {
 
     on("stt:error", ({ message, context = {}, handled = false }) => {
       this.ui.setTranscriptionLoading(false);
+      this.ui.setVoiceSubmissionPending(false);
+      this.audio.duck("recording", false);
       this.ui.toast(message, "bad");
       this.ui.flash("bad");
+      if (isContributionSessionFailureMessage(message)) {
+        this.ui.toast("Die Beitragssitzung ist abgelaufen. Sie wird beim nächsten Versuch automatisch erneuert.", "warn");
+      }
       if (!handled && this.contributions.session) {
         this.contributions.track("record_abandoned", {
           prompt_id: context.promptId || null,
@@ -407,7 +428,13 @@ export class App {
 
     on("ui:record-start", () => {
       // The microphone is reachable only from an active, consented campaign.
-      if (this.mode !== "chart" || this.playMode !== "campaign" || !this.contributions.session) return;
+      if (this.mode !== "chart" || this.playMode !== "campaign") return;
+      if (!this.contributions.session) {
+        this.audio.duck("recording", false);
+        this.ui.setSttStatus("error", "Keine aktive Beitragssitzung. Bitte starte den Einsatz erneut.");
+        this.ui.toast("Keine aktive Beitragssitzung. Bitte starte den Einsatz erneut.", "bad");
+        return;
+      }
       this.audio.duck("recording", true);
       const view = this.game.getView(this.currentPatientId);
       const prompt = view?.voicePrompt;

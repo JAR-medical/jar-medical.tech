@@ -15,14 +15,36 @@ const BODY_HEIGHT = 1.8;
 const EYE_HEIGHT = 1.62;
 const MOUSE_SENSITIVITY = 0.0022;
 const TOUCH_LOOK_SENSITIVITY = 0.005;
+const DEFAULT_BREAK_TIME = 0.8;
+export const BLOCK_BREAK_TIMES = Object.freeze({
+  [BLOCK.GRASS]: 0.75,
+  [BLOCK.DIRT]: 0.75,
+  [BLOCK.SAND]: 0.65,
+  [BLOCK.PATH]: 0.8,
+  [BLOCK.LEAVES]: 0.25,
+  [BLOCK.WOOD]: 2.5,
+  [BLOCK.STONE]: 4.0,
+  [BLOCK.REDCROSS]: 1.0,
+  [BLOCK.LAMP]: 0.35,
+  [BLOCK.EMERGENCY_BLANKET]: 1.0,
+  [BLOCK.METAL]: 4.5,
+  [BLOCK.RUBBLE]: 1.6,
+  [BLOCK.ASPHALT]: 3.0,
+  [BLOCK.CONCRETE]: 3.6,
+  [BLOCK.BRICK]: 3.0,
+  [BLOCK.GLASS]: 0.4,
+  [BLOCK.FIRE]: 0.3,
+  [BLOCK.CAUTION]: 0.5,
+});
 const AUTO_JUMP_HEIGHT = 1.05;
 const AUTO_SPRINT_DELAY = 2;
 
 export class Player {
-  constructor(camera, world, canvas) {
+  constructor(camera, world, canvas, { getNearestPatient = null } = {}) {
     this.camera = camera;
     this.world = world;
     this.canvas = canvas;
+    this.getNearestPatient = getNearestPatient || (() => null);
     camera.rotation.order = "YXZ";
 
     this.position = new THREE.Vector3(64.5, 20, 70.5);
@@ -49,10 +71,15 @@ export class Player {
     this.jumpQueued = false;
     this._movementTime = 0;
     this._lookDir = new THREE.Vector3();
+    this._breaking = null;
+    this._breakHeld = false;
+    this.breakProgress = 0;
+    this.breakPhase = 0;
     this.moving = false;
     this.sprinting = false;
     this.surface = "default";
     this._wasGrounded = true;
+    this._lastBreakPhase = 0;
 
     on("input:touch-move", ({ x = 0, y = 0 }) => {
       this.touchMove.x = Math.max(-1, Math.min(1, Number(x) || 0));
@@ -75,6 +102,8 @@ export class Player {
     on("input:other-flight-vertical", ({ value = 0 }) => {
       this.creativeFlightVertical = Math.max(-1, Math.min(1, Number(value) || 0));
     });
+    on("input:break-start", () => this._startBreaking());
+    on("input:break-stop", () => this._stopBreaking());
     on("input:place", () => {
       if (this.enabled) this._useSelectedItem();
     });
@@ -108,15 +137,24 @@ export class Player {
 
     this._onMouseDown = (e) => {
       if (!this.enabled) return;
-      // Left-click is the direct patient-card action. It also works before
-      // pointer lock is acquired, so the first click near a patient is useful.
       if (e.button === 0) {
-        emit("input:interact", {});
+        // A nearby patient keeps the direct left-click card action. Everywhere
+        // else on PC, the same button starts the familiar held-to-break action.
+        if (this.getNearestPatient?.()) {
+          emit("input:interact", {});
+          return;
+        }
+        if (document.pointerLockElement !== this.canvas) this.canvas.requestPointerLock?.();
+        this._startBreaking();
         return;
       }
       if (document.pointerLockElement !== this.canvas) return;
       if (e.button === 2) this._useSelectedItem();
     };
+    this._onMouseUp = (e) => {
+      if (e.button === 0) this._stopBreaking();
+    };
+    this._onWindowBlur = () => this._stopBreaking();
 
     this._onWheel = (e) => {
       if (!this.enabled || document.pointerLockElement !== this.canvas) return;
@@ -131,6 +169,8 @@ export class Player {
     window.addEventListener("keyup", this._onKeyUp);
     document.addEventListener("mousemove", this._onMouseMove);
     canvas.addEventListener("mousedown", this._onMouseDown);
+    window.addEventListener("mouseup", this._onMouseUp);
+    window.addEventListener("blur", this._onWindowBlur);
     canvas.addEventListener("wheel", this._onWheel, { passive: false });
     canvas.addEventListener("contextmenu", this._onContextMenu);
   }
@@ -154,6 +194,8 @@ export class Player {
 
   update(dt) {
     if (!this.enabled) {
+      this._breakHeld = false;
+      this._cancelBreaking();
       this.velocity.set(0, 0, 0);
       this.touchMove.x = 0;
       this.touchMove.y = 0;
@@ -163,9 +205,11 @@ export class Player {
       return;
     }
     if (this.creativeFlight) {
+      this._stopBreaking();
       this._updateCreativeFlight(dt);
       return;
     }
+    this._updateBreaking(dt);
 
     const forwardX = -Math.sin(this.yaw);
     const forwardZ = -Math.cos(this.yaw);
@@ -355,6 +399,7 @@ export class Player {
   }
 
   teleport(x, y, z) {
+    this._cancelBreaking();
     this.position.set(x, y, z);
     this.velocity.set(0, 0, 0);
     this._movementTime = 0;
@@ -374,6 +419,103 @@ export class Player {
     if (!Number.isInteger(next) || next < 0 || next >= HOTBAR_ITEMS.length) return;
     this.hotbarIndex = next;
     if (notify) emit("input:hotbar", { index: next });
+  }
+
+  _breakBlock() {
+    const hit = this._getBreakTarget();
+    if (!hit) {
+      this._cancelBreaking();
+      return;
+    }
+    const key = this._blockKey(hit);
+    if (this._breaking?.key === key) return;
+    this._breaking = {
+      key,
+      x: hit.x,
+      y: hit.y,
+      z: hit.z,
+      block: hit.block,
+      elapsed: 0,
+      duration: BLOCK_BREAK_TIMES[hit.block] || DEFAULT_BREAK_TIME,
+    };
+    this._updateBreakProgress();
+  }
+
+  _startBreaking() {
+    if (!this.enabled || this.creativeFlight) return;
+    this._breakHeld = true;
+    this._breakBlock();
+  }
+
+  _stopBreaking() {
+    this._breakHeld = false;
+    this._cancelBreaking();
+  }
+
+  _getBreakTarget() {
+    if (!this.world) return null;
+    const hit = this.world.raycast(this.camera.position.clone(), this.camera.getWorldDirection(this._lookDir), 6);
+    if (!hit || hit.block === BLOCK.WATER) return null;
+    if (this.world.isMapBorder?.(hit.x, hit.y, hit.z)) return null;
+    return hit;
+  }
+
+  _blockKey(hit) {
+    return `${hit.x}:${hit.y}:${hit.z}`;
+  }
+
+  _updateBreaking(dt) {
+    if (!this._breakHeld) {
+      this._cancelBreaking();
+      return;
+    }
+    const hit = this._getBreakTarget();
+    if (!hit) {
+      this._cancelBreaking();
+      return;
+    }
+    const target = this._breaking;
+    if (!target || this._blockKey(hit) !== target.key || this.world.getBlock(target.x, target.y, target.z) !== target.block) {
+      this._breakBlock();
+      if (!this._breaking) return;
+    }
+    const activeTarget = this._breaking;
+    activeTarget.elapsed += Math.max(0, dt);
+    this._updateBreakProgress();
+    if (activeTarget.elapsed < activeTarget.duration) return;
+    this.world.setBlock(activeTarget.x, activeTarget.y, activeTarget.z, BLOCK.AIR);
+    this.world.spawnBlockDebris?.(activeTarget.x, activeTarget.y, activeTarget.z, activeTarget.block);
+    emit("player:block-broken", {
+      x: activeTarget.x,
+      y: activeTarget.y,
+      z: activeTarget.z,
+      block: activeTarget.block,
+      material: blockMaterial(activeTarget.block),
+    });
+    this._cancelBreaking();
+  }
+
+  _updateBreakProgress() {
+    if (!this._breaking) {
+      this.breakProgress = 0;
+      this.breakPhase = 0;
+      this.world?.setBreakEffect?.(0, 0, null);
+      return;
+    }
+    this.breakProgress = Math.min(1, this._breaking.elapsed / this._breaking.duration);
+    this.breakPhase = this.breakProgress > 0 ? Math.min(10, Math.ceil(this.breakProgress * 10)) : 0;
+    if (this.breakPhase !== this._lastBreakPhase) {
+      this._lastBreakPhase = this.breakPhase;
+      if (this.breakPhase > 0) emit("player:break-tick", { material: blockMaterial(this._breaking.block), phase: this.breakPhase });
+    }
+    this.world?.setBreakEffect?.(this.breakProgress, this.breakPhase, this._breaking);
+  }
+
+  _cancelBreaking() {
+    if (!this._breaking) return;
+    this._breaking = null;
+    this._lastBreakPhase = 0;
+    this._updateBreakProgress();
   }
 
   _useSelectedItem() {

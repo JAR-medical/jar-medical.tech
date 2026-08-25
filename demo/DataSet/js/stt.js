@@ -6,6 +6,13 @@ const MAX_SECONDS = 90;
 const MIN_SPEECH_SECONDS = 0.8;
 const SILENCE_RMS = 0.01;
 
+function isContributionSessionFailure(status, detail) {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  const text = String(detail || "").toLowerCase();
+  return /beitrag|sitzung|session|zustimmung|consent|auth/.test(text);
+}
+
 export class SpeechClient {
   constructor(baseUrl = null) {
     // null => resolve from window.MEDICRAFT_API_BASE (static hosting) at call time.
@@ -25,12 +32,17 @@ export class SpeechClient {
     this._recordingContext = {};
     this.lastAudioBlob = null;
     this.lastAudioInfo = null;
+    this._refreshContributionSession = null;
   }
 
   // The base this client actually calls: an explicit constructor argument wins,
   // otherwise whatever config.js set.
   _base() {
     return this.baseUrl ?? apiBase();
+  }
+
+  setContributionSessionRefresher(callback) {
+    this._refreshContributionSession = typeof callback === "function" ? callback : null;
   }
 
   // A misconfigured static deployment and a backend that is genuinely down look
@@ -228,23 +240,26 @@ export class SpeechClient {
     };
     // Keep the routing data beside this particular WAV. The chart can close —
     // and its mutable currentPatientId can change — while fetch is in flight.
-    const recordingContext = { ...this._recordingContext };
-    const headers = { "Content-Type": "audio/wav" };
-    const addEncodedHeader = (name, value) => {
+    let recordingContext = { ...this._recordingContext };
+    const buildHeaders = (context) => {
+      const headers = { "Content-Type": "audio/wav" };
+      const addEncodedHeader = (name, value) => {
       const clean = String(value || "").replace(/[\r\n]+/g, " ").trim();
       if (clean) headers[name] = encodeURIComponent(clean);
+      };
+      addEncodedHeader("X-Medicraft-Expected-Text", context.expectedText);
+      addEncodedHeader("X-Medicraft-Scenario-ID", context.scenarioId);
+      addEncodedHeader("X-Medicraft-Patient-ID", context.patientId);
+      addEncodedHeader("X-Medicraft-Session-ID", context.contributionSessionId);
+      if (context.contributorToken) {
+        headers["X-Medicraft-Contributor-Token"] = context.contributorToken;
+      }
+      addEncodedHeader("X-Medicraft-Prompt-ID", context.promptId);
+      addEncodedHeader("X-Medicraft-Task-Type", context.taskType);
+      addEncodedHeader("X-Medicraft-Required-Concepts", JSON.stringify(context.requiredConcepts));
+      addEncodedHeader("Idempotency-Key", context.idempotencyKey);
+      return headers;
     };
-    addEncodedHeader("X-Medicraft-Expected-Text", recordingContext.expectedText);
-    addEncodedHeader("X-Medicraft-Scenario-ID", recordingContext.scenarioId);
-    addEncodedHeader("X-Medicraft-Patient-ID", recordingContext.patientId);
-    addEncodedHeader("X-Medicraft-Session-ID", recordingContext.contributionSessionId);
-    if (recordingContext.contributorToken) {
-      headers["X-Medicraft-Contributor-Token"] = recordingContext.contributorToken;
-    }
-    addEncodedHeader("X-Medicraft-Prompt-ID", recordingContext.promptId);
-    addEncodedHeader("X-Medicraft-Task-Type", recordingContext.taskType);
-    addEncodedHeader("X-Medicraft-Required-Concepts", JSON.stringify(recordingContext.requiredConcepts));
-    addEncodedHeader("Idempotency-Key", recordingContext.idempotencyKey);
     this.transcribing = true;
     emit("stt:status", { state: "transcribing", context: recordingContext });
     try {
@@ -252,6 +267,7 @@ export class SpeechClient {
       // between the health probe and now, fail over and send it once more
       // rather than losing the recording.
       const endpoint = recordingContext.contributionMode ? "/api/clips" : "/api/transcribe";
+      let headers = buildHeaders(recordingContext);
       const send = () => fetch(`${this._base()}${endpoint}`, {
         method: "POST",
         headers,
@@ -268,7 +284,34 @@ export class SpeechClient {
         if (!next && next !== "") throw transportError;
         res = await send();
       }
-      const data = await res.json().catch(() => null);
+      let data = await res.json().catch(() => null);
+      // A stale tab can keep a session id that no longer exists on the
+      // backend. Refresh consent-backed session state and retry this exact WAV
+      // once, preserving its idempotency key so a late first response cannot
+      // create a duplicate clip.
+      if (
+        recordingContext.contributionMode &&
+        isContributionSessionFailure(res.status, data?.detail) &&
+        this._refreshContributionSession
+      ) {
+        const refreshed = await this._refreshContributionSession(recordingContext);
+        if (refreshed?.sessionId && refreshed?.contributorToken) {
+          recordingContext = {
+            ...recordingContext,
+            contributionSessionId: refreshed.sessionId,
+            contributorId: refreshed.contributorId || recordingContext.contributorId,
+            contributorToken: refreshed.contributorToken,
+          };
+          headers = buildHeaders(recordingContext);
+          emit("stt:status", {
+            state: "transcribing",
+            detail: "Beitragssitzung wird erneuert …",
+            context: recordingContext,
+          });
+          res = await send();
+          data = await res.json().catch(() => null);
+        }
+      }
       if (res.ok && data && recordingContext.contributionMode) {
         const detail = {
           clipId: data.clip_id,

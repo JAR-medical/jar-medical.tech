@@ -98,11 +98,28 @@ export class ContributionClient {
       sessionId: result.session_id,
       consentVersion: result.consent_version,
       contributorToken: result.contributor_token || this.session?.contributorToken || null,
+      ageBand,
+      locale,
+      mode,
+      medicContext: Boolean(medicContext),
     };
     storeSession(this.session);
     this.summary = result.summary || null;
     this.recoveryCode = result.recovery_code || null;
     return result;
+  }
+
+  // A session can disappear while a tab is open (for example after the
+  // backend data store is restored). Consent is still valid, so create a new
+  // contribution session without asking the player to leave the mission.
+  async renewSession() {
+    const previous = this.session || {};
+    return this.startSession({
+      ageBand: previous.ageBand || "16+",
+      locale: previous.locale || "de-DE",
+      mode: previous.mode || "campaign",
+      medicContext: Boolean(previous.medicContext),
+    });
   }
 
   async nextPrompt(stage = "campaign") {
