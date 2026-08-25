@@ -2,7 +2,7 @@ import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
 import { apiBase } from "./api.js";
 import { World } from "./world.js?v=20260824-transcript1";
-import { Player } from "./player.js?v=20260825-clinic-tunnel1";
+import { Player } from "./player.js?v=20260825-clinic-tunnel2";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260825-voice-resilience1";
