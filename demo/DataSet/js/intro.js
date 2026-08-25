@@ -27,6 +27,17 @@ const BLUE = "#7fb6ff";
 
 const SANS = "'Segoe UI', system-ui, -apple-system, sans-serif";
 const MONO = "'Consolas', 'SF Mono', ui-monospace, monospace";
+// These are separate tiny decal assets, not part of the ordered intro-photo
+// sequence. They are loaded only for the two scientists who wear them.
+const STICKER_ASSETS = Object.freeze({
+  claude: "./images/stickers/claude.png",
+  serotonin: "./images/stickers/serotonin.png",
+  phase: "./images/stickers/phase-diagram.png",
+  toothbrush: "./images/stickers/toothbrush.png",
+  plane: "./images/stickers/plane.png",
+});
+
+const STICKER_TEXTURE_LOADER = new THREE.TextureLoader();
 
 // The four chapters, in the order of Images/Photos.txt. `headline` is painted
 // across the strip under the photograph, big enough to read while walking;
@@ -196,140 +207,13 @@ function canvasTexture(width, height, draw) {
 // images. Each one is a tiny, high-contrast sticker that remains legible at
 // the observation-room distance without adding another asset request.
 function stickerTexture(kind) {
-  return canvasTexture(96, 96, (ctx, w, h) => {
-    const inset = 5;
-    const radius = 14;
-    ctx.clearRect(0, 0, w, h);
-    ctx.beginPath();
-    ctx.moveTo(inset + radius, inset);
-    ctx.lineTo(w - inset - radius, inset);
-    ctx.quadraticCurveTo(w - inset, inset, w - inset, inset + radius);
-    ctx.lineTo(w - inset, h - inset - radius);
-    ctx.quadraticCurveTo(w - inset, h - inset, w - inset - radius, h - inset);
-    ctx.lineTo(inset + radius, h - inset);
-    ctx.quadraticCurveTo(inset, h - inset, inset, h - inset - radius);
-    ctx.lineTo(inset, inset + radius);
-    ctx.quadraticCurveTo(inset, inset, inset + radius, inset);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(255, 253, 245, 0.96)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(38, 52, 59, 0.35)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    if (kind === "claude") {
-      // A compact orange six-petal mark, echoing Claude's warm icon language.
-      ctx.strokeStyle = "#d97757";
-      ctx.lineWidth = 7;
-      ctx.lineCap = "round";
-      for (let i = 0; i < 6; i++) {
-        ctx.save();
-        ctx.rotate((i / 6) * Math.PI * 2);
-        ctx.beginPath();
-        ctx.moveTo(0, 4);
-        ctx.quadraticCurveTo(0, -18, 10, -25);
-        ctx.stroke();
-        ctx.restore();
-      }
-      ctx.fillStyle = "#26343b";
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (kind === "serotonin") {
-      // Ultra-small 5-HT molecule: a purple ring and its short side chain.
-      ctx.strokeStyle = "#7c3aed";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
-        const x = Math.cos(a) * 13;
-        const y = Math.sin(a) * 13;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(11, 8);
-      ctx.lineTo(21, 16);
-      ctx.lineTo(27, 13);
-      ctx.stroke();
-      ctx.fillStyle = "#5b21b6";
-      ctx.font = "700 12px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("5-HT", 0, 31);
-    } else if (kind === "phase") {
-      // Mini phase diagram: axes, a curved boundary, and a cool/warm split.
-      ctx.strokeStyle = "#26343b";
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-25, 23);
-      ctx.lineTo(-25, -23);
-      ctx.moveTo(-25, 23);
-      ctx.lineTo(26, 23);
-      ctx.stroke();
-      ctx.strokeStyle = "#0073aa";
-      ctx.beginPath();
-      ctx.moveTo(-22, 12);
-      ctx.bezierCurveTo(-6, 8, -1, -14, 20, -19);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(0, 115, 170, 0.16)";
-      ctx.beginPath();
-      ctx.moveTo(-22, 12);
-      ctx.bezierCurveTo(-6, 8, -1, -14, 20, -19);
-      ctx.lineTo(20, 23);
-      ctx.lineTo(-22, 23);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#26343b";
-      ctx.font = "700 10px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText("P", 22, 33);
-    } else if (kind === "toothbrush") {
-      ctx.rotate(-0.22);
-      ctx.strokeStyle = "#0073aa";
-      ctx.lineWidth = 8;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-24, 18);
-      ctx.lineTo(20, -13);
-      ctx.stroke();
-      ctx.strokeStyle = "#8ad7ec";
-      ctx.lineWidth = 10;
-      ctx.beginPath();
-      ctx.moveTo(10, -7);
-      ctx.lineTo(26, -18);
-      ctx.stroke();
-      ctx.strokeStyle = "#f7f7f7";
-      ctx.lineWidth = 3;
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath();
-        ctx.moveTo(23 + i * 4, -17);
-        ctx.lineTo(28 + i * 4, -27);
-        ctx.stroke();
-      }
-    } else if (kind === "plane") {
-      ctx.fillStyle = "#0073aa";
-      ctx.beginPath();
-      ctx.moveTo(-28, 4);
-      ctx.lineTo(28, -4);
-      ctx.lineTo(4, 5);
-      ctx.lineTo(18, 19);
-      ctx.lineTo(1, 10);
-      ctx.lineTo(-9, 25);
-      ctx.lineTo(-7, 8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#d23b30";
-      ctx.fillRect(-4, -4, 12, 4);
-    }
-    ctx.restore();
-  });
+  const texture = STICKER_TEXTURE_LOADER.load(STICKER_ASSETS[kind]);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  return texture;
 }
-
 function wrapLines(ctx, text, maxWidth) {
   const lines = [];
   let line = "";
