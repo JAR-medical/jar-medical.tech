@@ -55,6 +55,9 @@ export class Player {
     this.creativeFlight = false;
     this.creativeFlightVertical = 0;
     this.otherPhysics = { gravityScale: 1, speedScale: 1, jumpScale: 1, invertControls: false };
+    // The opening hall can apply a temporary, invisible movement lane without
+    // changing the normal player physics used by the rest of the campaign.
+    this.introConstraint = null;
     // Scripted scenes can take running away and hand it back as a reward. The
     // walk speed is unaffected, so a gated player is slowed, never stuck.
     this.sprintEnabled = true;
@@ -254,7 +257,8 @@ export class Player {
         this.keys.has("ShiftLeft") ||
         this.keys.has("ShiftRight") ||
         autoSprinting);
-    const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1) * this.otherPhysics.speedScale;
+    const introSpeedScale = this.introConstraint?.speedScale ?? 1;
+    const speed = WALK_SPEED * (sprinting ? SPRINT_MULT : 1) * this.otherPhysics.speedScale * introSpeedScale;
     this.velocity.x = moveX * speed;
     this.velocity.z = moveZ * speed;
 
@@ -272,6 +276,16 @@ export class Player {
 
     const p = this.position;
     let nx = p.x + this.velocity.x * dt;
+    // Apply the guided lane before voxel collision testing so a side push is
+    // stopped at the border rather than being tested against a distant wall.
+    if (this.introConstraint) {
+      if (Number.isFinite(this.introConstraint.minX)) {
+        nx = Math.max(this.introConstraint.minX, nx);
+      }
+      if (Number.isFinite(this.introConstraint.maxX)) {
+        nx = Math.min(this.introConstraint.maxX, nx);
+      }
+    }
     const blockedX = this._collides(nx, p.y, p.z);
     if (blockedX) nx = p.x;
     let nz = p.z + this.velocity.z * dt;
@@ -396,6 +410,12 @@ export class Player {
       jumpScale: Math.max(0.5, Math.min(2.5, Number(jumpScale) || 1)),
       invertControls: Boolean(invertControls),
     };
+  }
+
+  setIntroConstraint(constraint = null) {
+    this.introConstraint = constraint ? { ...constraint } : null;
+    const pitchOffset = this.introConstraint?.pitchOffset ?? 0;
+    this.camera.rotation.set(this.pitch + pitchOffset, this.yaw, 0);
   }
 
   teleport(x, y, z) {

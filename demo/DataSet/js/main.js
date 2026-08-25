@@ -2,7 +2,7 @@ import * as THREE from "../vendor/three.module.js";
 import { emit, on } from "./events.js";
 import { apiBase } from "./api.js";
 import { World } from "./world.js?v=20260824-transcript1";
-import { Player } from "./player.js?v=20260825-break1";
+import { Player } from "./player.js?v=20260825-clinic-tunnel1";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260825-voice-resilience1";
@@ -13,7 +13,7 @@ import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { IntroSequence } from "./intro.js?v=20260825-blue1";
-import { LEVELS } from "./levels.js";
+import { LEVELS } from "./levels.js?v=20260825-clinic-tunnel1";
 import { ContributionClient } from "./contributions.js?v=20260825-voice-resilience1";
 import {
   fetchRemoteRuns,
@@ -848,6 +848,7 @@ export class App {
   }
 
   rebuildWorld(level) {
+    this.player.setIntroConstraint?.(null);
     this.intro?.dispose();
     this.intro = null;
     this.otherMode.restoreSandboxEdits?.();
@@ -1017,14 +1018,30 @@ export class App {
   }
 
   // The opening corridor keeps Level 1's automatic sprint disabled; later
-  // levels use the normal two-second auto-sprint threshold.
+  // levels use the normal two-second auto-sprint threshold. Its movement lane
+  // is enforced in Player so the tunnel stays straight even where the scenery
+  // opens up or a side wall has a gap.
   startIntro(level, spots) {
     this.player.sprintEnabled = true;
-    if (!level?.intro) return;
+    if (!level?.intro) {
+      this.player.setIntroConstraint?.(null);
+      return;
+    }
+    const intro = level.intro;
+    const lookUp = (Number(intro.lookUpDegrees) || 0) * Math.PI / 180;
+    this.player.setIntroConstraint({
+      speedScale: Number(intro.walkSpeedScale) || 1,
+      // Player pitch is positive when looking up. Convert the authored target
+      // angle into an offset so normal mouse-look still works during the walk.
+      pitchOffset: lookUp - this.player.pitch,
+      minX: intro.axis + 0.5 - (Number(intro.straightHalfWidth) || intro.halfWidth),
+      maxX: intro.axis + 0.5 + (Number(intro.straightHalfWidth) || intro.halfWidth),
+    });
     this.ui.showIntroVeil();
     this.intro = new IntroSequence(this.scene, level, this.world, {
       anisotropy: this.renderer.capabilities.getMaxAnisotropy(),
       onExit: () => {
+        this.player.setIntroConstraint?.(null);
         this.player.sprintEnabled = true;
         this.audio.play("medal");
         const sprintHint = this.player.autoSprintEnabled ? " — weiterlaufen, um automatisch zu sprinten" : "";

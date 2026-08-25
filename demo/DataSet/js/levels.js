@@ -84,6 +84,11 @@ const INTRO = Object.freeze({
   halfWidth: 3,
   height: 5,
   lift: 3,
+  // The opening hall is a guided walk: keep the pace calm, raise the initial
+  // view slightly, and leave only a narrow invisible lane for lateral drift.
+  walkSpeedScale: 0.5,
+  lookUpDegrees: 7,
+  straightHalfWidth: 0.45,
   // Push the sealed end two blocks north, up to the last usable z slice of
   // the 128-block map. The extra room gives the image run space to open out
   // away from the map centre without shortening the approach to the plaza.
@@ -157,9 +162,9 @@ export const LEVELS = Object.freeze([
     id: "tutorial_clinic",
     title: "Klinik",
     subtitle: "Einweisung",
-    patientCount: 1,
+    patientCount: 2,
     briefing:
-      "Ein einzelner Patient liegt auf dem Klinikvorplatz. Geh hin, drücke E und sprich den Text aus der Karte laut vor.",
+      "Zwei Patienten liegen in der kleinen Klinikstation. Geh hinein, drücke E und sprich den Text aus der Karte laut vor.",
     sky: 0x9fd8f2,
     terrain: MEADOW,
     // Extended north to z=104 so the apron the aircraft stands on is levelled
@@ -184,6 +189,13 @@ export const LEVELS = Object.freeze([
       { type: "tree", at: [44, 78] },
       { type: "tree", at: [88, 88] },
       { type: "pad", area: [62, 76, 66, 78] },
+      // Move the teaching patients into the clinic hut instead of leaving them
+      // at the tunnel mouth. The blankets make their locations readable on
+      // the darker interior floor and give the first level a small treatment
+      // scene to enter.
+      { type: "pad", area: [59, 57, 62, 59] },
+      { type: "pad", area: [65, 61, 68, 63] },
+      { type: "lamppost", at: [69, 56], post: "METAL", height: 2 },
       // The apron, then the airframe, then the corridor that is carved through
       // it. Order matters: `intro_tunnel` hollows its own hold out of the hull.
       { type: "ground", area: [46, 84, 82, 104], block: "CONCRETE" },
@@ -210,7 +222,8 @@ export const LEVELS = Object.freeze([
     hub: [64.5, 79.5],
     intro: INTRO,
     anchors: [
-      { id: "A", spots: [[64, 72], [58, 71], [71, 72], [64, 80]] },
+      { id: "A", spots: [[61, 58], [60, 57], [62, 59]] },
+      { id: "B", spots: [[66, 62], [67, 61], [65, 63]] },
     ],
   },
 
