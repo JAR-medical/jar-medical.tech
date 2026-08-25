@@ -27,6 +27,7 @@ const BLUE = "#7fb6ff";
 
 const SANS = "'Segoe UI', system-ui, -apple-system, sans-serif";
 const MONO = "'Consolas', 'SF Mono', ui-monospace, monospace";
+
 // These are separate tiny decal assets, not part of the ordered intro-photo
 // sequence. They are loaded only for the two scientists who wear them.
 const STICKER_ASSETS = Object.freeze({
@@ -203,9 +204,6 @@ function canvasTexture(width, height, draw) {
   return texture;
 }
 
-// Coat decals are intentionally drawn here instead of loaded as external
-// images. Each one is a tiny, high-contrast sticker that remains legible at
-// the observation-room distance without adding another asset request.
 function stickerTexture(kind) {
   const texture = STICKER_TEXTURE_LOADER.load(STICKER_ASSETS[kind]);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -214,6 +212,7 @@ function stickerTexture(kind) {
   texture.generateMipmaps = false;
   return texture;
 }
+
 function wrapLines(ctx, text, maxWidth) {
   const lines = [];
   let line = "";
@@ -627,15 +626,6 @@ export class IntroSequence {
   _buildSignage() {
     const cfg = this.config;
     const y = this.floorY;
-
-    this._sign(
-      signTexture({
-        kicker: "MEDICRAFT · J.A.R.",
-        headline: "Vier Bilder, dann dein erster Patient.",
-        body: ["Du sprichst. Daraus wird ein Datensatz,", "der Rettungskräften zuhören lernt."],
-      }),
-      { z: cfg.signZ ?? cfg.arrowZ + 2, y: y + 2.7, width: 4.4, height: 2.2, wall: "left" },
-    );
 
     // Keep the low floor markers as quiet orientation help, but do not place
     // the large "HIER ENTLANG" icon in the player's first view at spawn.

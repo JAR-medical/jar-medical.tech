@@ -29,8 +29,7 @@ const TELEPORT_DELAY_MS = 6000;
 
 function isContributionServiceUnavailable(error) {
   const message = String(error?.message || error || "").toLowerCase();
-  return error?.name === "TypeError" ||
-    /failed to fetch|networkerror|load failed|server antwortet nicht|http 5\d\d/.test(message);
+  return /failed to fetch|networkerror|load failed|server antwortet nicht|http 5\d\d/.test(message);
 }
 
 const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v2";
@@ -817,7 +816,7 @@ export class App {
         contributionMode = false;
         this.trainingReadyClips = 0;
         this.ui.renderContributionSummary({});
-        this.ui.toast("Server nicht erreichbar — Offline-Spiel gestartet. Sprachdaten werden nicht übertragen.", "warn");
+        this.ui.toast?.("Server nicht erreichbar — Offline-Spiel gestartet. Sprachdaten werden nicht übertragen.", "warn");
       } else {
         this.showBriefing();
         this.ui.showConsentError?.(
