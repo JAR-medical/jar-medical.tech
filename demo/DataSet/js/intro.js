@@ -123,8 +123,41 @@ export const INTRO_CHAPTERS = Object.freeze([
 // who stops pretending to be professional about it.
 const OBSERVERS = Object.freeze([
   { offset: -3.1, depth: 0.0, skin: 0xd9a066, hair: 0x2b2118, longHair: false, prop: "clipboard", lean: 0.5 },
-  { offset: -1.0, depth: 0.45, skin: 0x8d5a3b, hair: 0x140f0c, longHair: false, prop: "tablet", lean: -0.35 },
-  { offset: 1.1, depth: 0.0, skin: 0xe0ac7e, hair: 0x6b3f1d, longHair: true, prop: "mug", lean: 0.25, waves: true },
+  // The two middle scientists carry tiny side-only coat decals. They are
+  // deliberately mounted on opposite outer flanks, so the symbols appear
+  // when the player looks across the observation room rather than on the
+  // straight-on view through the glass.
+  {
+    offset: -1.0,
+    depth: 0.45,
+    skin: 0x8d5a3b,
+    hair: 0x140f0c,
+    longHair: false,
+    prop: "tablet",
+    lean: -0.35,
+    stickerSide: -1,
+    stickers: [
+      { kind: "claude", size: 0.12, y: 1.43, z: 0 },
+      { kind: "serotonin", size: 0.065, y: 1.27, z: -0.07 },
+      { kind: "phase", size: 0.075, y: 1.27, z: 0.07 },
+    ],
+  },
+  {
+    offset: 1.1,
+    depth: 0.0,
+    skin: 0xe0ac7e,
+    hair: 0x6b3f1d,
+    longHair: true,
+    prop: "mug",
+    lean: 0.25,
+    waves: true,
+    stickerSide: 1,
+    stickers: [
+      { kind: "claude", size: 0.12, y: 1.43, z: 0 },
+      { kind: "toothbrush", size: 0.075, y: 1.27, z: -0.07 },
+      { kind: "plane", size: 0.075, y: 1.27, z: 0.07 },
+    ],
+  },
   { offset: 3.2, depth: 0.5, skin: 0xc68b59, hair: 0x4a4a4f, longHair: false, prop: null, lean: -0.6 },
 ]);
 
@@ -159,6 +192,143 @@ function canvasTexture(width, height, draw) {
   return texture;
 }
 
+// Coat decals are intentionally drawn here instead of loaded as external
+// images. Each one is a tiny, high-contrast sticker that remains legible at
+// the observation-room distance without adding another asset request.
+function stickerTexture(kind) {
+  return canvasTexture(96, 96, (ctx, w, h) => {
+    const inset = 5;
+    const radius = 14;
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();
+    ctx.moveTo(inset + radius, inset);
+    ctx.lineTo(w - inset - radius, inset);
+    ctx.quadraticCurveTo(w - inset, inset, w - inset, inset + radius);
+    ctx.lineTo(w - inset, h - inset - radius);
+    ctx.quadraticCurveTo(w - inset, h - inset, w - inset - radius, h - inset);
+    ctx.lineTo(inset + radius, h - inset);
+    ctx.quadraticCurveTo(inset, h - inset, inset, h - inset - radius);
+    ctx.lineTo(inset, inset + radius);
+    ctx.quadraticCurveTo(inset, inset, inset + radius, inset);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255, 253, 245, 0.96)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(38, 52, 59, 0.35)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    if (kind === "claude") {
+      // A compact orange six-petal mark, echoing Claude's warm icon language.
+      ctx.strokeStyle = "#d97757";
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 6; i++) {
+        ctx.save();
+        ctx.rotate((i / 6) * Math.PI * 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 4);
+        ctx.quadraticCurveTo(0, -18, 10, -25);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.fillStyle = "#26343b";
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (kind === "serotonin") {
+      // Ultra-small 5-HT molecule: a purple ring and its short side chain.
+      ctx.strokeStyle = "#7c3aed";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
+        const x = Math.cos(a) * 13;
+        const y = Math.sin(a) * 13;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(11, 8);
+      ctx.lineTo(21, 16);
+      ctx.lineTo(27, 13);
+      ctx.stroke();
+      ctx.fillStyle = "#5b21b6";
+      ctx.font = "700 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("5-HT", 0, 31);
+    } else if (kind === "phase") {
+      // Mini phase diagram: axes, a curved boundary, and a cool/warm split.
+      ctx.strokeStyle = "#26343b";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-25, 23);
+      ctx.lineTo(-25, -23);
+      ctx.moveTo(-25, 23);
+      ctx.lineTo(26, 23);
+      ctx.stroke();
+      ctx.strokeStyle = "#0073aa";
+      ctx.beginPath();
+      ctx.moveTo(-22, 12);
+      ctx.bezierCurveTo(-6, 8, -1, -14, 20, -19);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0, 115, 170, 0.16)";
+      ctx.beginPath();
+      ctx.moveTo(-22, 12);
+      ctx.bezierCurveTo(-6, 8, -1, -14, 20, -19);
+      ctx.lineTo(20, 23);
+      ctx.lineTo(-22, 23);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#26343b";
+      ctx.font = "700 10px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("P", 22, 33);
+    } else if (kind === "toothbrush") {
+      ctx.rotate(-0.22);
+      ctx.strokeStyle = "#0073aa";
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-24, 18);
+      ctx.lineTo(20, -13);
+      ctx.stroke();
+      ctx.strokeStyle = "#8ad7ec";
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(10, -7);
+      ctx.lineTo(26, -18);
+      ctx.stroke();
+      ctx.strokeStyle = "#f7f7f7";
+      ctx.lineWidth = 3;
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(23 + i * 4, -17);
+        ctx.lineTo(28 + i * 4, -27);
+        ctx.stroke();
+      }
+    } else if (kind === "plane") {
+      ctx.fillStyle = "#0073aa";
+      ctx.beginPath();
+      ctx.moveTo(-28, 4);
+      ctx.lineTo(28, -4);
+      ctx.lineTo(4, 5);
+      ctx.lineTo(18, 19);
+      ctx.lineTo(1, 10);
+      ctx.lineTo(-9, 25);
+      ctx.lineTo(-7, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#d23b30";
+      ctx.fillRect(-4, -4, 12, 4);
+    }
+    ctx.restore();
+  });
+}
 function wrapLines(ctx, text, maxWidth) {
   const lines = [];
   let line = "";
@@ -397,6 +567,27 @@ function buildObserver(spec) {
     add(new THREE.BoxGeometry(0.28, 0.36, 0.04), new THREE.MeshBasicMaterial({ color: 0x5ad2c4 }), -0.3, 1.05, -0.2);
   } else if (spec.prop === "mug") {
     add(new THREE.BoxGeometry(0.14, 0.16, 0.14), new THREE.MeshLambertMaterial({ color: 0xc0453c }), 0.29, 1.05, -0.18);
+  }
+
+  // These planes are mounted on the outer x-face of the upper coat. With a
+  // front-sided material they disappear from the straight-on corridor view;
+  // only a side angle reveals them, like real stickers on a coat flank.
+  const stickerSide = spec.stickerSide === -1 ? -1 : 1;
+  for (const sticker of spec.stickers || []) {
+    const size = Math.max(0.04, Number(sticker.size) || 0.08);
+    const material = new THREE.MeshBasicMaterial({
+      map: stickerTexture(sticker.kind),
+      transparent: true,
+      side: THREE.FrontSide,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+    decal.name = `observer-sticker-${sticker.kind}`;
+    decal.position.set(stickerSide * 0.256, sticker.y ?? 1.3, sticker.z ?? 0);
+    decal.rotation.y = stickerSide * Math.PI / 2;
+    decal.renderOrder = 1;
+    group.add(decal);
   }
 
   // A room of four people standing to attention is a shop window. A few degrees
