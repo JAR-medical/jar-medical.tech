@@ -135,10 +135,8 @@ export const INTRO_CHAPTERS = Object.freeze([
 // who stops pretending to be professional about it.
 const OBSERVERS = Object.freeze([
   { offset: -3.1, depth: 0.0, skin: 0xd9a066, hair: 0x2b2118, longHair: false, prop: "clipboard", lean: 0.5 },
-  // The two middle scientists carry tiny side-only coat decals. They are
-  // deliberately mounted on opposite outer flanks, so the symbols appear
-  // when the player looks across the observation room rather than on the
-  // straight-on view through the glass.
+  // Two non-girl scientists carry tiny side-only sleeve decals. The planes sit
+  // on the outer faces of their arms, so they appear only from a side angle.
   {
     offset: -1.0,
     depth: 0.45,
@@ -149,9 +147,9 @@ const OBSERVERS = Object.freeze([
     lean: -0.35,
     stickerSide: -1,
     stickers: [
-      { kind: "claude", size: 0.12, y: 1.43, z: 0 },
-      { kind: "serotonin", size: 0.065, y: 1.27, z: -0.07 },
-      { kind: "phase", size: 0.075, y: 1.27, z: 0.07 },
+      { kind: "claude", size: 0.105, y: -0.18, z: 0 },
+      { kind: "serotonin", size: 0.06, y: -0.39, z: -0.06 },
+      { kind: "phase", size: 0.07, y: -0.39, z: 0.06 },
     ],
   },
   {
@@ -163,14 +161,23 @@ const OBSERVERS = Object.freeze([
     prop: "mug",
     lean: 0.25,
     waves: true,
+
+  },
+  {
+    offset: 3.2,
+    depth: 0.5,
+    skin: 0xc68b59,
+    hair: 0x4a4a4f,
+    longHair: false,
+    prop: null,
+    lean: -0.6,
     stickerSide: 1,
     stickers: [
-      { kind: "claude", size: 0.12, y: 1.43, z: 0 },
-      { kind: "toothbrush", size: 0.075, y: 1.27, z: -0.07 },
-      { kind: "plane", size: 0.075, y: 1.27, z: 0.07 },
+      { kind: "claude", size: 0.105, y: -0.18, z: 0 },
+      { kind: "toothbrush", size: 0.07, y: -0.39, z: -0.06 },
+      { kind: "plane", size: 0.07, y: -0.39, z: 0.06 },
     ],
   },
-  { offset: 3.2, depth: 0.5, skin: 0xc68b59, hair: 0x4a4a4f, longHair: false, prop: null, lean: -0.6 },
 ]);
 
 const WAVE_RANGE = 13;
@@ -453,10 +460,11 @@ function buildObserver(spec) {
     add(new THREE.BoxGeometry(0.14, 0.16, 0.14), new THREE.MeshLambertMaterial({ color: 0xc0453c }), 0.29, 1.05, -0.18);
   }
 
-  // These planes are mounted on the outer x-face of the upper coat. With a
+  // These planes are mounted on the outer x-face of one sleeve. With a
   // front-sided material they disappear from the straight-on corridor view;
-  // only a side angle reveals them, like real stickers on a coat flank.
+  // only a side angle reveals them, like real stickers on an arm.
   const stickerSide = spec.stickerSide === -1 ? -1 : 1;
+  const stickerArm = shoulders[stickerSide < 0 ? 0 : 1];
   for (const sticker of spec.stickers || []) {
     const size = Math.max(0.04, Number(sticker.size) || 0.08);
     const material = new THREE.MeshBasicMaterial({
@@ -468,10 +476,10 @@ function buildObserver(spec) {
     });
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
     decal.name = `observer-sticker-${sticker.kind}`;
-    decal.position.set(stickerSide * 0.256, sticker.y ?? 1.3, sticker.z ?? 0);
+    decal.position.set(stickerSide * 0.086, sticker.y ?? -0.3, sticker.z ?? 0);
     decal.rotation.y = stickerSide * Math.PI / 2;
     decal.renderOrder = 1;
-    group.add(decal);
+    stickerArm.add(decal);
   }
 
   // A room of four people standing to attention is a shop window. A few degrees
