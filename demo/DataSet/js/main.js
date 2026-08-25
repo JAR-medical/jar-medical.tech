@@ -11,7 +11,7 @@ import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
 import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
-import { IntroSequence } from "./intro.js?v=20260825-stickers1";
+import { IntroSequence } from "./intro.js?v=20260825-stickers2";
 import { LEVELS } from "./levels.js";
 import { ContributionClient } from "./contributions.js?v=20260825-role2";
 import {
