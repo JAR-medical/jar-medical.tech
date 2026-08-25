@@ -335,7 +335,7 @@ export class Player {
     }
 
     this.camera.position.set(p.x, p.y + EYE_HEIGHT, p.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0);
+    this.camera.rotation.set(this.pitch + (this.introConstraint?.pitchOffset ?? 0), this.yaw, 0);
   }
 
   _canAutoJump(x, z) {
@@ -391,7 +391,7 @@ export class Player {
     this.sprinting = fast;
     this.surface = blockMaterial(this.world.getBlock(Math.floor(this.position.x), Math.floor(this.position.y - 0.12), Math.floor(this.position.z)));
     this.camera.position.set(this.position.x, this.position.y + EYE_HEIGHT, this.position.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0);
+    this.camera.rotation.set(this.pitch + (this.introConstraint?.pitchOffset ?? 0), this.yaw, 0);
   }
 
   setCreativeFlight(enabled) {
