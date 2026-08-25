@@ -329,6 +329,7 @@ function stickerTexture(kind) {
     ctx.restore();
   });
 }
+
 function wrapLines(ctx, text, maxWidth) {
   const lines = [];
   let line = "";
@@ -749,7 +750,7 @@ export class IntroSequence {
         headline: "Vier Bilder, dann dein erster Patient.",
         body: ["Du sprichst. Daraus wird ein Datensatz,", "der Rettungskräften zuhören lernt."],
       }),
-      { z: cfg.arrowZ + 2, y: y + 2.7, width: 4.4, height: 2.2, wall: "left" },
+      { z: cfg.signZ ?? cfg.arrowZ + 2, y: y + 2.7, width: 4.4, height: 2.2, wall: "left" },
     );
 
     // Keep the low floor markers as quiet orientation help, but do not place

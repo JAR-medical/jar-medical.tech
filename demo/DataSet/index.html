@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#f7f7f7" />
 <title>MEDICRAFT</title>
-<link rel="stylesheet" href="./css/style.css?v=20260825-funny2" />
+<link rel="stylesheet" href="./css/style.css?v=20260825-funny4" />
 <link rel="modulepreload" href="./vendor/three.module.js" />
 </head>
 <body>
@@ -52,6 +52,16 @@
             </span>
           </label>
         </div>
+        <div class="medic-context-choice">
+          <button id="medic-context-toggle" class="medic-context-toggle" type="button" aria-pressed="false" aria-describedby="medic-context-note">
+            <span class="medic-context-icon" aria-hidden="true">⚕</span>
+            <span class="medic-context-copy">
+              <strong>Ich bin Mediziner:in / Rettungskraft</strong>
+              <small id="medic-context-note">Freiwillig · nur für pseudonyme Datenanalyse, nicht öffentlich</small>
+            </span>
+            <span id="medic-context-state" class="medic-context-state">OPTIONAL</span>
+          </button>
+        </div>
         <div class="identity-foot">
           <p id="identity-hint">Der Spielername ist optional. Wenn du einen eingibst, kannst du zusätzlich ein Team nennen.</p>
           <p id="player-name-error" class="identity-error hidden" role="alert"></p>
@@ -93,10 +103,11 @@
 
       <div class="training-consent">
         <div class="consent-copy">
-          <span class="consent-label">FREIWILLIGE SPRACHDATENSPENDE · VERSION 2026-08-24-V1</span>
+          <span class="consent-label">FREIWILLIGE SPRACHDATENSPENDE · VERSION 2026-08-25-V2</span>
           <strong>Nur mit zwei aktiven Bestätigungen startet die Datensammlung.</strong>
           <span>Ich willige ausdrücklich ein, dass J.A.R. – Projektteam meine in Medicraft gesprochenen Sprachaufnahmen, die daraus erzeugten Transkripte sowie Aufgaben-, Qualitäts- und Modellinformationen für die Entwicklung und Prüfung von Sprachmodellen und digitalen Rettungshilfen verarbeitet.</span>
           <span>Die Daten dienen Forschung, Qualitätssicherung, Duplikatprüfung und dem Aufbau eines pseudonymen Sprachdatensatzes. Es werden keine Entscheidungen über mich getroffen und Medicraft ist kein medizinischer Rat.</span>
+          <span>Die freiwillige Auswahl „Ich bin Mediziner:in / Rettungskraft“ wird nach der Einwilligung nur als pseudonymes Analysemerkmal verarbeitet und nicht öffentlich veröffentlicht.</span>
           <span>Die Aufbewahrung beträgt höchstens 24 Monate. Ich kann meine Einwilligung jederzeit ohne Nachteile über „Einstellungen → Beiträge“, mit dem angezeigten Löschcode oder per Kontakt widerrufen.</span>
           <span class="consent-warning"><b>Bitte keine echten Patientendaten, Namen, Adressen oder sonstigen privaten Inhalte sprechen.</b> Die Szenarien sind fiktiv.</span>
           <label class="consent-check"><input id="data-consent-confirm" type="checkbox" required /> Ich habe die Datenvereinbarung und Datenschutzhinweise gelesen und willige für diesen Zweck ein.</label>
@@ -376,10 +387,10 @@
           <h3>Ansicht</h3>
           <div class="settings-row">
             <label for="set-fov">Sichtfeld (FOV)</label>
-            <input id="set-fov" type="range" min="60" max="110" step="1" value="75" aria-describedby="fov-note" />
-            <output id="set-fov-value" for="set-fov">75°</output>
+            <input id="set-fov" type="range" min="60" max="110" step="1" value="72" aria-describedby="fov-note" />
+            <output id="set-fov-value" for="set-fov">72°</output>
           </div>
-          <p id="fov-note" class="settings-note">Minecraft-ähnlich bei 70°. Ein höherer Wert zeigt mehr Umgebung, kann aber stärker wirken.</p>
+          <p id="fov-note" class="settings-note">Standard: Smartphone 85°, iPad 77°, PC 72°. Ein höherer Wert zeigt mehr Umgebung, kann aber stärker wirken.</p>
           <div class="settings-row other-setting-row">
             <label for="set-crosshair-enabled">Fadenkreuz</label>
             <input id="set-crosshair-enabled" class="other-slider" type="checkbox" role="switch" aria-describedby="crosshair-note" checked />
@@ -476,6 +487,6 @@
   <!-- Plain script on purpose: it must set window.MEDICRAFT_API_BASE before the
        deferred module entry point runs. -->
   <script src="./config.js?v=20260824-backend2"></script>
-  <script type="module" src="./js/main.js?v=20260825-practice2"></script>
+  <script type="module" src="./js/main.js?v=20260825-funny4"></script>
 </body>
 </html>

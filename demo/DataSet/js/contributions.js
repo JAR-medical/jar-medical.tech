@@ -1,6 +1,6 @@
 import { apiUrl } from "./api.js";
 
-export const CONSENT_VERSION = "2026-08-24-v1";
+export const CONSENT_VERSION = "2026-08-25-v2";
 const REQUEST_TIMEOUT_MS = 12_000;
 const STORED_SESSION_KEY = "medicraft.contribution.session";
 

@@ -171,8 +171,7 @@ export class Game {
       loaded_at: new Date().toISOString(),
       patients: this.runs.map((run) => this.serializeRun(run)),
     };
-    // Practice mode is intentionally local: no scenario, action, or report
-    // payload is sent when the player has declined the voice contribution.
+    // Scenario data is synchronized only for an active, consented campaign.
     this.scenarioSync = this.contributionMode ? this.syncScenario() : Promise.resolve(false);
     this.started = true;
     emit("game:started", { count: total });

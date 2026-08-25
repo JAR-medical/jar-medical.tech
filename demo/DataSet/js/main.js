@@ -5,7 +5,7 @@ import { Player } from "./player.js?v=20260825-funny3";
 import { PatientManager } from "./entities.js";
 import { Game } from "./gameplay.js?v=20260824-consent10";
 import { SpeechClient } from "./stt.js?v=20260824-recording90";
-import { UI } from "./ui.js?v=20260825-practice2";
+import { UI } from "./ui.js?v=20260825-funny4";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
@@ -13,7 +13,7 @@ import { randomSeed } from "./cases.js";
 import { Campaign } from "./campaign.js";
 import { IntroSequence } from "./intro.js?v=20260825-stickers1";
 import { LEVELS } from "./levels.js";
-import { ContributionClient } from "./contributions.js?v=20260825-worldfix7";
+import { ContributionClient } from "./contributions.js?v=20260825-role1";
 import {
   fetchRemoteRuns,
   LEADERBOARD_CONSENT_VERSION,
@@ -26,23 +26,44 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const TELEPORT_DELAY_MS = 6000;
-const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v1";
-const DISPLAY_SETTINGS_DEFAULTS = Object.freeze({ fov: 75, crosshair: true, reducedMotion: false });
+const DISPLAY_SETTINGS_KEY = "medicraft.display-settings.v2";
+const DISPLAY_FOV_DEFAULTS = Object.freeze({ phone: 85, ipad: 77, pc: 72 });
+const DISPLAY_SETTINGS_DEFAULTS = Object.freeze({ crosshair: true, reducedMotion: false });
 
-function clampDisplayFov(value) {
-  return Math.max(60, Math.min(110, Math.round(Number(value) || DISPLAY_SETTINGS_DEFAULTS.fov)));
+function displayDeviceClass() {
+  const navigatorLike = globalThis.navigator || {};
+  const userAgent = String(navigatorLike.userAgent || "");
+  const platform = String(navigatorLike.platform || "");
+  const touchPoints = Number(navigatorLike.maxTouchPoints || 0);
+  const coarsePointer = globalThis.matchMedia?.("(hover: none) and (pointer: coarse)").matches === true;
+  const width = Number(globalThis.innerWidth || 0);
+  const height = Number(globalThis.innerHeight || 0);
+  const ipad = /iPad/i.test(userAgent) || (platform === "MacIntel" && touchPoints > 1);
+  const phone = !ipad && (
+    /iPhone|iPod|Android.*Mobile|Windows Phone/i.test(userAgent) ||
+    (coarsePointer && Math.min(width || Infinity, height || Infinity) <= 760)
+  );
+  return ipad ? "ipad" : phone ? "phone" : "pc";
+}
+
+function defaultDisplayFov() {
+  return DISPLAY_FOV_DEFAULTS[displayDeviceClass()];
+}
+
+function clampDisplayFov(value, fallback = defaultDisplayFov()) {
+  return Math.max(60, Math.min(110, Math.round(Number(value) || fallback)));
 }
 
 function loadDisplaySettings() {
   try {
     const parsed = JSON.parse(globalThis.localStorage?.getItem(DISPLAY_SETTINGS_KEY) || "{}");
     return {
-      fov: clampDisplayFov(parsed.fov),
+      fov: clampDisplayFov(parsed.fov, defaultDisplayFov()),
       crosshair: parsed.crosshair !== false,
       reducedMotion: Boolean(parsed.reducedMotion),
     };
   } catch (error) {
-    return { ...DISPLAY_SETTINGS_DEFAULTS };
+    return { fov: defaultDisplayFov(), ...DISPLAY_SETTINGS_DEFAULTS };
   }
 }
 
@@ -87,6 +108,7 @@ export class App {
     this._resumeAfterSettings = false;
     this.playMode = "campaign";
     this.leaderboardOptIn = false;
+    this.medicContext = false;
     this.trainingReadyClips = 0;
     this.displaySettings = loadDisplaySettings();
 
@@ -289,10 +311,14 @@ export class App {
       onInteract: (patientId) => this.openChart(patientId),
       onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
-      onRestart: () => this.showBriefing(),
+      onRestart: () => {
+        this.ui.setMedicContextSelected(false);
+        this.showBriefing();
+      },
       onNextLevel: () => this.teleportToNextLevel(),
       onIdentityChanged: (identity) => this.publishRun(identity),
       onLeaderboardOptInChanged: (enabled) => { this.leaderboardOptIn = Boolean(enabled); },
+      onMedicContextChanged: (enabled) => { this.medicContext = Boolean(enabled); },
       onSettingsOpen: () => this.settingsSnapshot(),
       onDisplaySettingsChanged: (settings) => this.applyDisplaySettings(settings),
       onOtherModeChanged: (state) => this.otherMode.setState({
@@ -779,6 +805,12 @@ export class App {
         `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
       );
       return;
+    }
+    if (this.medicContext) {
+      void this.contributions.track("profile_context_selected", {
+        medic: true,
+        selection_source: "start_screen",
+      });
     }
     this.beginMission();
   }

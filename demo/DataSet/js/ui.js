@@ -51,6 +51,7 @@ export class UI {
     this._lbStatus = "";
     this._setLbScope = "global";
     this._publicLeaderboardOptIn = false;
+    this._medicContextSelected = false;
     this._settingsTab = "sound";
     this._settingsSnapshot = null;
     this._admin = false;
@@ -174,6 +175,8 @@ export class UI {
       playerNameError: $("player-name-error"),
       playerNameCount: $("player-name-count"),
       playerCrewCount: $("player-crew-count"),
+      medicContextToggle: $("medic-context-toggle"),
+      medicContextState: $("medic-context-state"),
       leaderboardOptInStart: $("leaderboard-opt-in-start"),
       identityAvatar: $("identity-avatar"),
       identityPreviewName: $("identity-preview-name"),
@@ -305,6 +308,11 @@ export class UI {
   bindMain(h) {
     this.handlers = h;
     this.prefillPlayerName();
+    this._renderMedicContext();
+    this.el.medicContextToggle?.addEventListener("click", () => {
+      this.setMedicContextSelected(!this._medicContextSelected);
+    });
+    this.handlers.onMedicContextChanged?.(this._medicContextSelected);
     this.el.btnStart.addEventListener("click", () => {
       // A public name is optional. Anonymous runs are shown as "Anonym" on the
       // board, so opting out of the name never blocks data collection.
@@ -538,6 +546,25 @@ export class UI {
   // Player name (start screen)
   // ---------------------------------------------------------------------
 
+  _renderMedicContext() {
+    const selected = Boolean(this._medicContextSelected);
+    this.el.medicContextToggle?.setAttribute("aria-pressed", String(selected));
+    if (this.el.medicContextState) this.el.medicContextState.textContent = selected ? "AUSGEWÄHLT" : "OPTIONAL";
+  }
+
+  setMedicContextSelected(value, { notify = true } = {}) {
+    const selected = Boolean(value);
+    const changed = this._medicContextSelected !== selected;
+    this._medicContextSelected = selected;
+    this._renderMedicContext();
+    if (notify && changed) this.handlers.onMedicContextChanged?.(selected);
+    return selected;
+  }
+
+  isMedicContextSelected() {
+    return Boolean(this._medicContextSelected);
+  }
+
   _syncIdentityTeamVisibility(name) {
     const visible = Boolean(String(name || "").trim());
     const fields = [
@@ -662,7 +689,7 @@ export class UI {
 
     const bindDisplaySettings = () => {
       const next = {
-        fov: Number(this.el.setFov?.value) || 75,
+        fov: Number(this.el.setFov?.value) || Number(this._settingsSnapshot?.fov) || 72,
         crosshair: Boolean(this.el.setCrosshairEnabled?.checked),
         reducedMotion: Boolean(this.el.setReducedMotion?.checked),
       };
@@ -795,7 +822,7 @@ export class UI {
   syncOtherControls(snapshot = this._settingsSnapshot || {}) {
     const merged = { ...(this._settingsSnapshot || {}), ...(snapshot || {}) };
     this._settingsSnapshot = merged;
-    const fov = Math.max(60, Math.min(110, Number(merged.fov) || 75));
+    const fov = Math.max(60, Math.min(110, Number(merged.fov) || 72));
     const crosshair = merged.crosshair !== false;
     const reducedMotion = Boolean(merged.reducedMotion);
     if (this.el.setFov) this.el.setFov.value = String(fov);
@@ -1129,6 +1156,7 @@ export class UI {
     this.el.hud.classList.add("hidden");
     this.syncLeaderboardOptIn(false);
     this.handlers.onLeaderboardOptInChanged?.(false);
+    this.setMedicContextSelected(false);
     this.prefillPlayerName();
     this._setBadge(sttReady);
   }

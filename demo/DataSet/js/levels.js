@@ -89,7 +89,7 @@ const INTRO = Object.freeze({
   // away from the map centre without shortening the approach to the plaza.
   from: 127,
   to: 84,
-  windowZ: 122,
+  windowZ: 124,
   chamberHalfWidth: 4,
   // The corridor changes material five times on the way out. Each entry is the
   // band's *lowest* z, listed rather than derived so the last three can line up
@@ -112,6 +112,9 @@ const INTRO = Object.freeze({
   // Listed rather than derived because the open nose ramp at the end has no
   // walls, and a panel placed by formula would float over it.
   panelZ: Object.freeze([116, 109, 102, 95, 88]),
+  // The welcome board is wider than a chapter panel, so it gets its own
+  // position instead of sharing the short gap before the first photograph.
+  signZ: 121,
   arrowZ: 112,
   // Crossing this line is what ends the intro: sprint is released, the level
   // banner appears, and the sequence stops listening.
@@ -199,9 +202,9 @@ export const LEVELS = Object.freeze([
     // The first thing a player ever sees is the inside of the corridor, four
     // blocks above the plaza. `lift` is the player's feet over the site floor,
     // because the height map still reports the terrain under the gallery.
-    // Moved back with the longer approach so the first panel is still ahead
-    // of the player when the intro veil lifts.
-    spawn: { at: [64.5, 117.5], face: [64.5, 102], lift: 4 },
+    // Moved back so the welcome board and first panel are both ahead of the
+    // player when the intro veil lifts, with no overlap on the left wall.
+    spawn: { at: [64.5, 121.5], face: [64.5, 102], lift: 4 },
     // Where a player who falls out of the world is put back. That has to stay
     // the plaza: the corridor is a one-way scene and cannot be re-entered.
     hub: [64.5, 79.5],
