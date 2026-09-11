@@ -102,6 +102,12 @@ const TR = (function () {
   function naechsterKnoten(ll, fuss) {
     let best = -1, bd = Infinity;
     for (let i = 0; i < graph.knoten.length; i++) {
+      // Der OSM-Auszug enthält einzelne entartete Linien, die aus demselben
+      // Punkt zweimal bestehen. Sie erzeugen Knoten ganz ohne Kante; wird so
+      // ein Knoten als Start gewählt, findet Dijkstra nichts und der Weg fällt
+      // auf die Luftlinie zurück. Fahrzeuge übersprangen solche Knoten schon
+      // über die Klassenprüfung, Trupps zu Fuß nicht.
+      if (!graph.adj[i].length) continue;
       if (!fuss && !graph.adj[i].some((e) => e[2] < 2)) continue;
       const d = dist(ll, graph.knoten[i]);
       if (d < bd) { bd = d; best = i; }
@@ -355,8 +361,13 @@ const TR = (function () {
       });
     }
 
-    ROSTER = szenario.patienten.slice();
-    FUNK_SKRIPT = szenario.funk.slice();
+    // Nach Erkennungszeit sortieren: takt() deckt das Roster streng der Reihe
+    // nach auf und hält an, sobald der nächste Eintrag in der Zukunft liegt.
+    // Lagen mit mehreren Schadensstellen schreiben ihre Marker blockweise je
+    // Stelle auf - unsortiert erschienen dann sieben Patienten gleichzeitig,
+    // statt zu den eingetragenen Zeiten.
+    ROSTER = szenario.patienten.slice().sort((a, b) => a.t - b.t);
+    FUNK_SKRIPT = szenario.funk.slice().sort((a, b) => a.t - b.t);
     naechsterFunk = 0;
     naechsterPatient = 0;
 
