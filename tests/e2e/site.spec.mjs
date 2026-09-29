@@ -259,3 +259,22 @@ test.describe('the call to action', () => {
     }
   });
 });
+
+test.describe('the TriARge demo map', () => {
+  test(
+    'loads the Neubiberg map from OpenStreetMap without a CARTO key',
+    async ({ page, baseURL, tileStub, pageProblems }) => {
+      const response = await page.goto(`${baseURL}/demo/neubiberg/`);
+      expect(response.status(), 'the Neubiberg demo URL did not load').toBe(200);
+
+      await expect(page.locator('#map')).toBeVisible();
+      await expect(page.locator('#basiskarte')).toHaveValue('hell');
+      await expect.poll(() => page.locator('.leaflet-tile-loaded').count())
+        .toBeGreaterThan(0);
+      expect(tileStub.length, 'the map did not request any OpenStreetMap tiles').toBeGreaterThan(0);
+      expect(tileStub.every((url) => url.includes('tile.openstreetmap.org')),
+        'the demo requested a tile provider that needs an API key').toBe(true);
+      expectClean(pageProblems, 'the Neubiberg demo map');
+    },
+  );
+});

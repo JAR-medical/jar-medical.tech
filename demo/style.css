@@ -339,6 +339,8 @@ input[type="range"] { flex: 1; min-width: 90px; }
 /* Leaflet-Anpassungen */
 .leaflet-container { font-family: var(--schrift); font-size: 11px; background: #fbfbfc; }
 .leaflet-div-icon { background: none; border: none; }
+/* Heller Kartengrund aus OSM-Kacheln, angelehnt an CARTO Positron. */
+.kachel-hell { filter: grayscale(.9) brightness(1.1) contrast(.8); }
 .leaflet-control-attribution { font-size: 9px; background: rgba(255,255,255,.85) !important; }
 .leaflet-bar a { border-radius: 0 !important; color: var(--tinte) !important; }
 .leaflet-control-scale-line { border-color: var(--tinte-2); color: var(--tinte-2); background: rgba(255,255,255,.8); }

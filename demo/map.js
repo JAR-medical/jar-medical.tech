@@ -21,16 +21,19 @@ const KARTE = (function () {
   let messModus = false, messPunkte = [], messLinie = null, messLabel = null;
   let behaelterEl = null;
 
+  // Beide Varianten nutzen die schluessellosen OSM-Kacheln. CARTO light_all
+  // liefert seit 2026 ohne API-Key nur noch "API KEY REQUIRED"-Bilder; die
+  // helle Darstellung entsteht deshalb per CSS-Filter (.kachel-hell).
+  const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende';
   const KACHELN = {
     hell: {
-      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      opt: { maxZoom: 19, subdomains: "abcd",
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, &copy; <a href="https://carto.com/attributions">CARTO</a>' },
+      url: OSM_URL,
+      opt: { maxZoom: 19, className: "kachel-hell", attribution: OSM_ATTR },
     },
     osm: {
-      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      opt: { maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende' },
+      url: OSM_URL,
+      opt: { maxZoom: 19, attribution: OSM_ATTR },
     },
   };
 
