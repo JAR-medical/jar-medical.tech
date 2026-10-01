@@ -12,7 +12,7 @@ const skip = !password && 'Set JAR_PREVIEW_PASSWORD privately to test encrypted 
 const recorder = source.match(/<script>\/\* js\/contribute.js \*\/([\s\S]*?)<\/script>/)?.[1];
 
 // Exercise the real inlined controller without a device, browser or network.
-function harness({ storage = new Map(), mediaError, deferredMedia, failClip = false } = {}) {
+function harness({ storage = new Map(), mediaError, deferredMedia, deferredClip, failClip = false } = {}) {
   class Element {
     checked = false; hidden = false; disabled = false; textContent = ''; src = '';
     handlers = {}; attributes = {};
@@ -29,7 +29,7 @@ function harness({ storage = new Map(), mediaError, deferredMedia, failClip = fa
     return nodes.get(selector);
   };
   const root = { querySelector: q, closest: () => ({ querySelectorAll: () => [] }) };
-  for (const selector of ['[data-recording-stage]', '[data-recording-review]', '[data-recording-receipt]', '[data-recovery-note]']) {
+  for (const selector of ['[data-recording-stage]', '[data-recording-review]', '[data-recording-receipt]', '[data-recovery-note]', '[data-record-next]']) {
     q(selector).hidden = true;
   }
   const doc = { documentElement: { lang: 'de' }, hidden: false, handlers: {},
@@ -68,6 +68,7 @@ function harness({ storage = new Map(), mediaError, deferredMedia, failClip = fa
         result = { ok: true, contributor_token: 'test-token', session_id: 'test-session', recovery_code: 'test-recovery' };
       } else if (url.endsWith('/api/contribution-events')) result = { ok: true };
       else {
+        if (deferredClip) await deferredClip;
         if (state.failClip) { state.failClip = false; status = 503; result = { detail: 'test outage' }; }
         else result = { ok: true, clip_id: 'test-clip', validation_state: 'basic_accepted' };
       }
@@ -88,6 +89,7 @@ function harness({ storage = new Map(), mediaError, deferredMedia, failClip = fa
     const values = new Float32Array(48000).fill(0.1);
     state.processor.onaudioprocess({ inputBuffer: { getChannelData: () => values } });
     await q('[data-record-toggle]').fire();
+    await new Promise(resolve => setImmediate(resolve));
   }
   return { q, state, agree, record, doc, storage };
 }
@@ -120,21 +122,24 @@ test('both confirmations gate recording, with no backend contact', { skip }, asy
   assert.equal(h.state.requests.length, 0);
 });
 
-test('WAV stays local until send, then includes exact prompt and consent audit', { skip }, async () => {
+test('stopping automatically uploads WAV with exact prompt and consent audit', { skip }, async () => {
   const h = harness();
-  await h.agree(); await h.record();
+  await h.agree();
+  assert.equal(h.state.requests.length, 0);
+  await h.record();
   assert.equal(h.state.stopped, 1);
   assert.equal(h.q('[data-recording-review]').hidden, false);
-  assert.equal(h.state.requests.length, 0);
-  await h.q('[data-record-send]').fire();
   assert.equal(h.state.requests.length, 3);
   const [session, event, clip] = h.state.requests;
   assert.equal(JSON.parse(session.body).age_band, '16+');
   assert.equal(JSON.parse(session.body).mode, 'website_read_aloud');
+  assert.equal(JSON.parse(session.body).medic_context, false);
   const audit = JSON.parse(event.body);
   assert.equal(audit.event_name, 'prompt_shown'); // accepted by existing API
   assert.equal(audit.payload.audio_consent, true);
   assert.equal(audit.payload.age_confirmed_16_plus, true);
+  assert.equal(audit.payload.automatic_upload_consent, true);
+  assert.equal(audit.payload.medic_context, false);
   assert.ok(audit.payload.accepted_at);
   assert.equal(clip.headers['x-medicraft-prompt-id'], h.q('[data-prompt-id]').textContent);
   assert.equal(decodeURIComponent(clip.headers['x-medicraft-expected-text']), h.q('[data-prompt-text]').textContent);
@@ -150,15 +155,18 @@ test('WAV stays local until send, then includes exact prompt and consent audit',
   assert.equal(h.q('[data-recording-receipt]').hidden, false);
   assert.equal(h.q('[data-recovery-code]').textContent, 'test-recovery');
   assert.equal(h.q('[data-record-send]').disabled, true);
+  assert.equal(h.q('[data-record-next]').hidden, false);
+  assert.equal(h.q('[data-record-next]').disabled, false);
 });
 
 test('an outage retains playback, recovery code and idempotency on retry', { skip }, async () => {
   const h = harness({ failClip: true });
-  await h.agree(); await h.record(); await h.q('[data-record-send]').fire();
+  await h.agree(); await h.record();
   assert.equal(h.q('[data-recording-receipt]').hidden, true);
   assert.equal(h.q('[data-recording-review]').hidden, false);
   assert.equal(h.q('[data-recovery-note]').hidden, false);
   assert.equal(h.q('[data-record-send]').disabled, false);
+  assert.equal(h.q('[data-record-next]').hidden, true);
   await h.q('[data-record-send]').fire();
   assert.equal(h.state.requests.length, 4);
   assert.equal(h.state.requests[2].headers['idempotency-key'], h.state.requests[3].headers['idempotency-key']);
@@ -202,11 +210,70 @@ test('reloads select a different versioned passage, each around 30 seconds', { s
   assert.equal(seen.size, 6);
 });
 
-test('privacy describes Alex storage, explicit sending and withdrawal code', { skip }, () => {
+test('privacy describes automatic upload, optional medical context and withdrawal code', { skip }, () => {
   const privacy = decryptPreview(fs.readFileSync(new URL('../website-preview/datenschutz.html', import.meta.url), 'utf8'), password);
   const section = privacy.match(/<section aria-labelledby="ds-aufnahme">([\s\S]*?)<\/section>/)[1];
   assert.match(section, /elrsisbest\.tailb58b58\.ts\.net/);
   assert.match(section, /Widerrufscode/);
   assert.match(section, /Text-ID/);
+  assert.match(section, /automatisch an Alex PC gesendet/);
+  assert.match(section, /freiwillige Selbstauskunft/);
   assert.doesNotMatch(section, /speakpipe\.com/);
+});
+
+test('optional medical status is recorded once and preserved across Next recordings', { skip }, async () => {
+  const h = harness();
+  assert.equal(h.q('#recording-medic').checked, false);
+  h.q('#recording-medic').checked = true;
+  await h.agree(); await h.record();
+  const firstPrompt = h.q('[data-prompt-id]').textContent;
+  assert.equal(JSON.parse(h.state.requests[0].body).medic_context, true);
+  assert.equal(JSON.parse(h.state.requests[1].body).payload.medic_context, true);
+  assert.equal(h.q('#recording-medic').disabled, true);
+  await h.q('[data-record-next]').fire();
+  assert.notEqual(h.q('[data-prompt-id]').textContent, firstPrompt);
+  assert.equal(h.q('[data-recording-review]').hidden, true);
+  assert.equal(h.q('[data-recording-receipt]').hidden, true);
+  assert.equal(h.q('[data-record-toggle]').disabled, false);
+  assert.equal(h.state.mediaCalls, 1); // Next does not start the microphone
+  assert.equal(h.state.requests.length, 3); // or upload anything by itself
+  await h.record();
+  assert.equal(h.state.requests.length, 5);
+  assert.equal(h.state.requests.filter(r => r.url.endsWith('/api/contribution-sessions')).length, 1);
+  const audit = JSON.parse(h.state.requests[3].body);
+  const clip = h.state.requests[4];
+  assert.equal(audit.payload.medic_context, true);
+  assert.notEqual(clip.headers['x-medicraft-prompt-id'], firstPrompt);
+  assert.equal(audit.payload.prompt_id, clip.headers['x-medicraft-prompt-id']);
+  assert.equal(decodeURIComponent(clip.headers['x-medicraft-expected-text']), h.q('[data-prompt-text]').textContent);
+  assert.notEqual(clip.headers['idempotency-key'], h.state.requests[2].headers['idempotency-key']);
+});
+
+test('Next stays unavailable while storage acknowledgement is pending', { skip }, async () => {
+  let resolve;
+  const h = harness({ deferredClip: new Promise(done => { resolve = done; }) });
+  await h.agree(); await h.record();
+  assert.equal(h.state.requests.length, 3);
+  assert.equal(h.q('[data-record-next]').hidden, true);
+  assert.equal(h.q('[data-record-next]').disabled, true);
+  const prompt = h.q('[data-prompt-id]').textContent;
+  await h.q('[data-record-next]').fire();
+  assert.equal(h.q('[data-prompt-id]').textContent, prompt);
+  assert.equal(h.q('[data-record-toggle]').disabled, true);
+  resolve(); await new Promise(done => setImmediate(done));
+  assert.equal(h.q('[data-record-next]').hidden, false);
+});
+
+test('an interrupted recording stays local until explicitly retried', { skip }, async () => {
+  const h = harness();
+  await h.agree(); await h.q('[data-record-toggle]').fire();
+  await new Promise(done => setImmediate(done));
+  h.state.processor.onaudioprocess({ inputBuffer: { getChannelData: () => new Float32Array(48000).fill(0.1) } });
+  h.doc.hidden = true;
+  h.doc.handlers.visibilitychange();
+  await new Promise(done => setImmediate(done));
+  assert.equal(h.state.stopped, 1);
+  assert.equal(h.state.requests.length, 0);
+  assert.equal(h.q('[data-recording-review]').hidden, false);
+  assert.match(h.q('[data-record-status]').textContent, /unterbrochen/);
 });
