@@ -172,6 +172,12 @@ const KARTE = (function () {
     });
     map.on("click", (e) => {
       if (messModus) { messPunktSetzen(e.latlng); return; }
+      // Auf dem Telefon liegen die Details als Blatt über der Karte (ui.js).
+      // Ein Tipp daneben schließt es, statt gleich das Rasterfeld zu wählen.
+      if (document.getElementById("rail-r").classList.contains("blatt")) {
+        TR.auswaehlen(null);
+        return;
+      }
       TR.auswaehlen(flaecheUnter([e.latlng.lat, e.latlng.lng]));
     });
     // Beim stufenlosen Zoomen laufen die Zwischenstufen über "zoom"; nur auf

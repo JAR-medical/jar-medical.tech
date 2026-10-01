@@ -706,7 +706,10 @@ const TR = (function () {
       // gemeinsamer Mittelpunkt für die meisten Trupps der falsche Ort.
       const eigen = S.abschnitte.get(m.basis);
       m.status = "Erkundung Schadensbereich";
-      fahrtAuftrag(m, streu(eigen ? eigen.ll : S.epi, eigen ? Math.max(40, eigen.r * 0.6) : 55), true, "streife");
+      // Abschnitte mit Fläche statt Kreis (Halle: Bootseinsatzstelle) haben
+      // kein r - ohne Rückfall würde das Streifziel NaN.
+      const streifR = eigen && eigen.r ? Math.max(40, eigen.r * 0.6) : 55;
+      fahrtAuftrag(m, streu(eigen ? eigen.ll : S.epi, streifR), true, "streife");
       m.wartet = 2;
     } else {
       m.status = "bereit";

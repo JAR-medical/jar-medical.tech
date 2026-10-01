@@ -640,6 +640,26 @@ describe('switching between the three exercise scenarios', () => {
     assert.ok(T.S.patienten.size > 0);
   });
 
+  // Halle hatte einen Abschnitt ohne Radius; das Streifziel des Boots-Trupps
+  // wurde NaN und die Karte warf bei jedem Bild „Invalid LatLng“.
+  for (const id of ['neubiberg', 'halle', 'muenchen']) {
+    test(`every unit keeps a finite position and route in ${id}`, () => {
+      const T = loadEngine({ seed: 9 }).TR;
+      T.init(T.szenarien().find((s) => s.id === id));
+      const endlich = (p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]);
+      for (let t = 0; t < 600; t += 20) {
+        runSimulation(T, 20);
+        for (const m of T.S.mittel.values()) {
+          assert.ok(endlich(m.ll), `${m.id} has no valid position at ${T.S.simSek | 0} s`);
+          if (m.pfad) {
+            assert.ok(m.pfad.slice(m.pfadPos).every(endlich),
+              `${m.id} routes through an invalid point at ${T.S.simSek | 0} s`);
+          }
+        }
+      }
+    });
+  }
+
   test('switching to an unknown scenario leaves the current one alone', () => {
     const T = loadEngine({ seed: 5 }).TR;
     T.init(T.szenarien().find((s) => s.id === 'neubiberg'));

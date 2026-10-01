@@ -15,6 +15,9 @@
   // Messwerte werden immer als ganze Zahl angezeigt.
   const zahl = (v) => (v == null ? "-" : String(Math.round(v)));
 
+  // Telefonbreite wie in style.css: dort stehen die Bereiche untereinander.
+  const telefon = window.matchMedia("(max-width: 620px)");
+
   let dockTab = "patienten";
   let patSort = { spalte: "kat", ab: false };
   let syncAn = false;
@@ -62,8 +65,9 @@
     griff.classList.toggle("gesperrt", z.zu);
     $("app").style.setProperty(cfg.eigenschaft, (z.zu ? LEISTE_ZU : z.breite) + "px");
     const btn = rail.querySelector(".rail-btn");
-    const einwaerts = seite === "l" ? "‹" : "›";
-    const auswaerts = seite === "l" ? "›" : "‹";
+    // Auf dem Telefon klappen die Leisten nach unten auf, nicht zur Seite.
+    const einwaerts = telefon.matches ? "▾" : seite === "l" ? "‹" : "›";
+    const auswaerts = telefon.matches ? "▸" : seite === "l" ? "›" : "‹";
     btn.textContent = z.zu ? auswaerts : einwaerts;
     btn.title = z.zu ? "Leiste ausklappen" : "Leiste einklappen";
     rail.setAttribute("aria-expanded", String(!z.zu));
@@ -167,6 +171,23 @@
     for (const btn of document.querySelectorAll(".rail-btn")) {
       btn.onclick = () => leisteUmschalten(btn.dataset.rail);
     }
+    // Telefon: die ganze Überschriftenzeile ist die Schaltfläche, und eine
+    // aufgeklappte Leiste wird ins Bild geholt - sie liegt unter der Karte.
+    for (const seite of ["l", "r"]) {
+      const rail = $(LEISTEN[seite].rail);
+      rail.querySelector(".rail-kopf").addEventListener("click", (e) => {
+        if (!telefon.matches || e.target.closest("button") || rail.classList.contains("blatt")) return;
+        leisteUmschalten(seite);
+      });
+      rail.querySelector(".rail-btn").addEventListener("click", () => {
+        if (telefon.matches && !leisten[seite].zu) rail.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    }
+    telefon.addEventListener("change", () => {
+      leisteAnwenden("l");
+      leisteAnwenden("r");
+      blattAnwenden();
+    });
   }
 
   /* ----------------------------------------------------------------- Adresse
@@ -248,6 +269,8 @@
     abschnitteVerdrahten();
     dockVerdrahten();
     funkVerdrahten();
+    blattVerdrahten();
+    introVerdrahten();
 
     TR.on("patienten", () => {
       kennzahlen();
@@ -261,11 +284,13 @@
     TR.on("funk", funkZeichnen);
     TR.on("ereignisse", () => { if (dockTab === "ereignisse") dockZeichnen(); });
     TR.on("transporte", () => { if (dockTab === "transport") dockZeichnen(); });
-    TR.on("auswahl", inspektorZeichnen);
+    TR.on("auswahl", () => { inspektorZeichnen(); blattAnwenden(); });
     TR.on("sitzungen", sitzungenZeichnen);
     TR.on("steuerung", steuerungZeichnen);
     TR.on("abschnitte", () => { abschnittListe(); inspektorZeichnen(); });
-    TR.on("szenario", () => { rasterFelderZeigen(); zellgroesse(); demoHinweis(); titelSetzen(); steuerungZeichnen(); });
+    TR.on("szenario", () => {
+      rasterFelderZeigen(); zellgroesse(); demoHinweis(); titelSetzen(); steuerungZeichnen(); legendeInhalt();
+    });
     TR.on("neustart", () => {
       syncAn = false;
       kopfzeileAufbauen();
@@ -333,7 +358,7 @@
       syncAn = true;
       const p = $("pill-sync");
       p.textContent = "Cloud-Sync aktiv";
-      p.className = "pill ok";
+      p.classList.add("ok");
       TR.funken("Fernmelder ELW 2", "Netzabdeckung stabil - Hybrid-Sync aktiv, Lagebild wird repliziert.");
     }
   }
@@ -355,7 +380,7 @@
     const kz = TR.kennzahlen();
     $("zaehler").innerHTML = ["SK1", "SK2", "SK3", "SK4", "TOT", "UNG"]
       .filter((k) => kz.kat[k])
-      .map((k) => `<span class="z z-${k}" title="${esc(KAT[k].label)}">${kz.kat[k]}</span>`)
+      .map((k) => `<span class="z z-${k}" title="${esc(KAT[k].label)}" aria-label="${esc(KAT[k].label + ": " + kz.kat[k])}">${kz.kat[k]}</span>`)
       .join("");
 
     const felder = [
@@ -520,12 +545,54 @@
 
   /* ------------------------------------------------------------- Legende */
 
+  // Bedeutung der Sichtungskategorien in einem Halbsatz - die Farbe allein
+  // sagt jemandem ohne MANV-Ausbildung nichts.
+  const KAT_SINN = {
+    SK1: "akute Lebensgefahr, sofort behandeln",
+    SK2: "schwer verletzt, dringlich behandeln",
+    SK3: "leicht verletzt, später behandeln",
+    SK4: "ohne Überlebenschance, betreuen",
+    TOT: "",
+    UNG: "noch nicht gesichtet",
+  };
+
+  // Fahrzeug- und Funktionskürzel, die in allen Lagen auf der Karte stehen.
+  const KUERZEL = [
+    ["RTW", "Rettungswagen"], ["NEF", "Notarzt-Einsatzfahrzeug"], ["RTH", "Rettungshubschrauber"],
+    ["ELW", "Einsatzleitwagen"], ["LF", "Löschfahrzeug"], ["T1 …", "Trupps"],
+    ["LNA", "Leitender Notarzt"], ["OrgL", "Organisatorischer Leiter"],
+  ];
+
   function legendeAufbauen() {
-    const kats = Object.entries(KAT)
-      .map(([k, m]) => `<span class="lg"><i class="pkt k-${k}"></i>${esc(m.label)}</span>`).join("");
+    legendeInhalt();
+
+    // Standardmäßig eingeklappt - die Legende soll die Karte nicht zustellen.
+    let offen = false;
+    try { offen = localStorage.getItem("triarge.legende") === "offen"; } catch (e) { /* egal */ }
+    const anwenden = () => {
+      $("legende").classList.toggle("zu", !offen);
+      $("legende-schalter").title = offen ? "Legende einklappen" : "Legende ausklappen";
+      $("legende-schalter").setAttribute("aria-expanded", String(offen));
+    };
+    $("legende-schalter").onclick = () => {
+      offen = !offen;
+      anwenden();
+      try { localStorage.setItem("triarge.legende", offen ? "offen" : "zu"); } catch (e) { /* egal */ }
+    };
+    anwenden();
+  }
+
+  // Inhalt hängt an der Lage: die Abschnittskürzel unterscheiden sich je Lage.
+  function legendeInhalt() {
+    const kats = Object.entries(KAT).map(([k, m]) =>
+      `<span class="lg"><i class="pkt k-${k}"></i><b>${esc(m.label)}</b>${KAT_SINN[k] ? `<em>${esc(KAT_SINN[k])}</em>` : ""}</span>`
+    ).join("");
+    const abschnitte = [...S.abschnitte.values()].filter((a) => a.kurz && a.kurz !== a.name).map((a) =>
+      `<span class="lg"><b>${esc(a.kurz)}</b>${esc(a.name)}</span>`).join("");
+    const kuerzel = KUERZEL.map(([k, t]) => `<span class="lg"><b>${esc(k)}</b>${esc(t)}</span>`).join("");
     $("legende-inhalt").innerHTML =
-      `<div class="lg-zeile">${kats}</div>` +
-      `<div class="lg-zeile">
+      `<div class="lg-zeile lg-liste"><span class="lg-titel">Patienten nach Sichtung</span>${kats}</div>` +
+      `<div class="lg-zeile"><span class="lg-titel">Symbole</span>
          <span class="lg"><i class="bx u-trupp"></i>Trupp</span>
          <span class="lg"><i class="bx u-rtw"></i>RTW</span>
          <span class="lg"><i class="bx u-nef"></i>NEF/Arzt</span>
@@ -535,21 +602,9 @@
          <span class="lg"><i class="flut"></i>Überflutete Fläche</span>
          <span class="lg"><i class="rt"></i>Gefahrenstelle</span>
          <span class="lg"><i class="sp"></i>Straßensperre</span>
-       </div>`;
-
-    // Standardmäßig eingeklappt - die Legende soll die Karte nicht zustellen.
-    let offen = false;
-    try { offen = localStorage.getItem("triarge.legende") === "offen"; } catch (e) { /* egal */ }
-    const anwenden = () => {
-      $("legende").classList.toggle("zu", !offen);
-      $("legende-schalter").title = offen ? "Legende einklappen" : "Legende ausklappen";
-    };
-    $("legende-schalter").onclick = () => {
-      offen = !offen;
-      anwenden();
-      try { localStorage.setItem("triarge.legende", offen ? "offen" : "zu"); } catch (e) { /* egal */ }
-    };
-    anwenden();
+         <span class="lg"><i class="ring"></i>Absperr- / Gefahrenbereich</span>
+       </div>` +
+      `<div class="lg-zeile lg-liste lg-abk"><span class="lg-titel">Abkürzungen</span>${abschnitte}${kuerzel}</div>`;
   }
 
   /* ------------------------------------------------------------- Inspektor */
@@ -572,16 +627,16 @@
     const kz = TR.kennzahlen();
     return `<div class="insp-leer">
       <p>Kein Objekt ausgewählt. Auf der Karte ein Patientensymbol, ein Einsatzmittel,
-         einen Einsatzabschnitt, eine Gefahrenstelle oder ein Rasterfeld anklicken.</p>
+         einen Einsatzabschnitt, eine Gefahrenstelle oder ein Rasterfeld anklicken oder antippen.</p>
       <div class="dg">
         <span class="k">Erfasste Betroffene</span><span class="v">${kz.gesamt}</span>
         <span class="k">davon gesichtet</span><span class="v">${kz.gesichtet}</span>
         <span class="k">SK I / SK II</span><span class="v">${kz.kat.SK1} / ${kz.kat.SK2}</span>
         <span class="k">abtransportiert</span><span class="v">${kz.transportiert}</span>
       </div>
-      <p class="hinweis">Tasten: <b>Leertaste</b> Pause · <b>1–4</b> Tempo · <b>M</b> Messen ·
+      <p class="hinweis nur-maus">Tasten: <b>Leertaste</b> Pause · <b>1–4</b> Tempo · <b>M</b> Messen ·
          <b>G</b> Raster · <b>[</b> / <b>]</b> Seitenleisten · <b>Esc</b> Auswahl aufheben</p>
-      <p class="hinweis">Die Seitenleisten lassen sich am Trennsteg breiter ziehen; ein Doppelklick
+      <p class="hinweis nur-maus">Die Seitenleisten lassen sich am Trennsteg breiter ziehen; ein Doppelklick
          darauf oder die Schaltfläche in der Leistenüberschrift klappt sie ganz ein.</p>
     </div>`;
   }
@@ -680,7 +735,7 @@
         <span class="k">Stammmittel</span><span class="v">${mittel.length ? mittel.map((m) => esc(m.name)).join(", ") : "-"}</span>
         <span class="k">Koordinate</span><span class="v mono">${a.ll[0].toFixed(5)}, ${a.ll[1].toFixed(5)}</span>
         <span class="k">Rasterfeld</span><span class="v mono">${TR.zelle(a.ll)}</span>
-        <span class="k">Radius</span><span class="v">${a.r} m</span>
+        ${a.r ? `<span class="k">Radius</span><span class="v">${a.r} m</span>` : ""}
       </div>
       <div class="insp-akt"><button class="btn-klein" data-zeigen="1" type="button">Auf Karte zentrieren</button></div>
       ${pats.length ? `<h4>Patienten im Abschnitt</h4><div class="minitab">${pats
@@ -872,12 +927,18 @@
       } else if (s.spalte === "spo2") r = (a.vit.spo2 ?? 999) - (b.vit.spo2 ?? 999);
       return s.ab ? -r : r;
     });
-    const kopf = [["id", "#"], ["kat", "Sichtung"], ["zustand", "Zustand"], ["", "Abschnitt"],
-      ["raster", "Raster"], ["", "AF"], ["", "Puls"], ["spo2", "SpO₂"], ["", "RR"], ["", "GCS"],
-      ["", "Verletzungen / Maßnahmen"], ["", "zuletzt gesehen"]];
+    // [Sortierschlüssel, Kopf, Erklärung, auf dem Telefon ausblenden]
+    const kopf = [["id", "#"], ["kat", "Sichtung", "Sichtungskategorie"], ["zustand", "Zustand"],
+      ["", "Abschnitt", "Einsatzabschnitt", 1], ["raster", "Raster", "Feld im Einsatzraster der Karte"],
+      ["", "AF", "Atemfrequenz pro Minute", 1], ["", "Puls", "Puls pro Minute", 1],
+      ["spo2", "SpO₂", "Sauerstoffsättigung in %"], ["", "RR", "Blutdruck in mmHg", 1],
+      ["", "GCS", "Glasgow Coma Scale: Bewusstsein, 3 (tief bewusstlos) bis 15 (wach)", 1],
+      ["", "Verletzungen / Maßnahmen"], ["", "zuletzt gesehen", "", 1]];
     return `<table class="tab">
-      <thead><tr>${kopf.map(([k, t]) =>
-        `<th${k ? ` class="sortbar${patSort.spalte === k ? " s-an" : ""}" data-sort="${k}"` : ""}>${t}</th>`).join("")}</tr></thead>
+      <thead><tr>${kopf.map(([k, t, erkl, opt]) => {
+        const kl = [k ? "sortbar" : "", patSort.spalte === k && k ? "s-an" : "", opt ? "opt" : ""].filter(Boolean).join(" ");
+        return `<th${kl ? ` class="${kl}"` : ""}${k ? ` data-sort="${k}"` : ""}${erkl ? ` title="${esc(erkl)}"` : ""}>${t}</th>`;
+      }).join("")}</tr></thead>
       <tbody>${liste.map((p) => {
         const v = p.vit || {};
         const feld = TR.patientZelle(p);
@@ -885,18 +946,20 @@
           <td class="mono">#${p.id}</td>
           <td><i class="pkt k-${p.kat}"></i>${esc(KAT[p.kat].label)}</td>
           <td>${esc(TR.STATUS_TEXT[p.zustand] || p.zustand)}</td>
-          <td>${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).kurz || "") : "-"}</td>
+          <td class="opt">${p.abschnitt ? esc((S.abschnitte.get(p.abschnitt) || {}).kurz || "") : "-"}</td>
           <td class="mono${p.ll ? "" : " verlassen"}" title="${p.ll ? "aktuelles Rasterfeld" : "zuletzt bekanntes Rasterfeld vor dem Abtransport"}">${esc(feld)}</td>
-          <td class="num">${zahl(v.af)}</td>
-          <td class="num">${zahl(v.puls)}</td>
+          <td class="num opt">${zahl(v.af)}</td>
+          <td class="num opt">${zahl(v.puls)}</td>
           <td class="num${v.spo2 != null && v.spo2 < 90 ? " krit" : ""}">${zahl(v.spo2)}</td>
-          <td class="num">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") : "-"}</td>
-          <td class="num">${zahl(v.gcs)}</td>
+          <td class="num opt">${v.rrs != null ? Math.round(v.rrs) + (v.rrd != null ? "/" + Math.round(v.rrd) : "") : "-"}</td>
+          <td class="num opt">${zahl(v.gcs)}</td>
           <td class="lang">${esc((p.verletzt || []).join(", "))}${(p.massnahmen || []).length ? " · <i>" + esc(p.massnahmen.join(", ")) + "</i>" : ""}</td>
-          <td>${p.gesehen ? esc(p.gesehen.von) + " " + TR.uhr(p.gesehen.t) : "-"}</td>
+          <td class="opt">${p.gesehen ? esc(p.gesehen.von) + " " + TR.uhr(p.gesehen.t) : "-"}</td>
         </tr>`;
       }).join("")}</tbody></table>
-      ${liste.length ? "" : '<p class="hinweis pad">Keine Patienten entsprechen dem Filter.</p>'}`;
+      ${liste.length ? "" : `<p class="hinweis pad">${S.patienten.size
+        ? "Keine Patienten entsprechen dem Filter."
+        : "Noch keine Patienten erfasst. Sobald die Trupps an der Schadensstelle sichten, erscheinen sie hier und auf der Karte."}</p>`}`;
   }
 
   function tabGefahren() {
@@ -1121,6 +1184,7 @@
 
     document.addEventListener("keydown", (e) => {
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (!$("intro").hidden) return;   // Einführung offen: Tasten gehören ihr
       if (e.key === " ") { e.preventDefault(); TR.pauseUmschalten(); }
       else if (["1", "2", "3", "4"].includes(e.key)) TR.tempoSetzen([1, 2, 4, 8][+e.key - 1]);
       else if (e.key.toLowerCase() === "m") { KARTE.messenUmschalten(); werkzeugeZeichnen(); }
@@ -1176,6 +1240,7 @@
     el.classList.toggle("zu", dock.zu);
     const h = dock.zu ? DOCK_ZU : dock.gross ? dockMax() : Math.min(dock.hoehe, dockMax());
     $("app").style.setProperty("--dock-h", Math.round(h) + "px");
+    $("app").style.setProperty("--kopf-h", document.querySelector(".topbar").offsetHeight + "px");
     $("dock-klein").textContent = dock.zu ? "▲" : "▼";
     $("dock-klein").title = dock.zu ? "Bereich ausklappen" : "Bereich einklappen";
     $("dock-gross").classList.toggle("an", dock.gross);
@@ -1286,6 +1351,53 @@
       griff.addEventListener("pointercancel", loslassen);
     });
     griff.addEventListener("dblclick", () => funkHoeheSetzen(FUNK_STANDARD, true));
+  }
+
+  /* ------------------------------------------------ Details auf dem Telefon
+   * Dort liegt die rechte Leiste ganz unten auf der Seite. Eine Auswahl auf der
+   * Karte würde also scheinbar nichts tun - deshalb erscheinen die Details als
+   * Blatt am unteren Bildrand, über der Karte. */
+
+  function blattAnwenden() {
+    const rail = $("rail-r");
+    const offen = telefon.matches && !!S.auswahl;
+    const war = rail.classList.contains("blatt");
+    rail.classList.toggle("blatt", offen);
+    rail.querySelector(".rail-titel").textContent = offen ? "Details" : "Auswahl & Meldungen";
+    if (offen && !war) rail.querySelector(".rail-inhalt").scrollTop = 0;
+  }
+
+  function blattVerdrahten() {
+    $("blatt-zu").onclick = () => TR.auswaehlen(null);
+  }
+
+  /* --------------------------------------------------------------- Einführung
+   * Erscheint beim ersten Aufruf und hält die Lage so lange an - sonst laufen
+   * die ersten Sichtungen ab, während man noch liest. */
+
+  function introVerdrahten() {
+    const el = $("intro");
+    let vonUnsAngehalten = false;
+    const zeigen = () => {
+      el.hidden = false;
+      if (!S.pause) { TR.pauseUmschalten(); vonUnsAngehalten = true; }
+      $("intro-los").focus();
+    };
+    const schliessen = () => {
+      if (el.hidden) return;
+      el.hidden = true;
+      if (vonUnsAngehalten && S.pause) TR.pauseUmschalten();
+      vonUnsAngehalten = false;
+      try { localStorage.setItem("triarge.intro", "gesehen"); } catch (e) { /* egal */ }
+      $("btn-hilfe").focus();
+    };
+    $("intro-los").onclick = schliessen;
+    $("btn-hilfe").onclick = zeigen;
+    el.addEventListener("click", (e) => { if (e.target === el) schliessen(); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Escape") schliessen(); });
+    let gesehen = false;
+    try { gesehen = localStorage.getItem("triarge.intro") === "gesehen"; } catch (e) { /* egal */ }
+    if (!gesehen) zeigen();
   }
 
   function werkzeugeZeichnen() {

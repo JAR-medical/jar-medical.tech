@@ -9,7 +9,7 @@
   <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds auf echter OpenStreetMap-Karte: drei Übungslagen - Explosion in Neubiberg, Hochwasser in Halle-Kröllwitz, lebensbedrohliche Einsatzlage in München. Sichtung, Einsatzabschnitte, Gefahrenlage, Transportsteuerung.">
   <meta name="robots" content="index,follow">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=14">
+  <link rel="stylesheet" href="./style.css?v=22">
 </head>
 <body>
 
@@ -18,19 +18,20 @@
   <header class="topbar">
     <span class="tb-titel" id="tb-titel">Einsatz</span>
     <select id="lage-wahl" class="tb-sel" title="Übungslage wechseln"></select>
-    <select id="sitzung" class="tb-sel" title="Einsatz wechseln"></select>
-    <button id="btn-neuer-einsatz" class="tb-btn" type="button" title="Neuen Einsatz eröffnen (bisherige Daten bleiben erhalten)">Neuer Einsatz</button>
+    <select id="sitzung" class="tb-sel tb-opt" title="Einsatz wechseln"></select>
+    <button id="btn-neuer-einsatz" class="tb-btn tb-opt" type="button" title="Neuen Einsatz eröffnen (bisherige Daten bleiben erhalten)">Neuer Einsatz</button>
     <span class="tb-sep"></span>
     <span class="tb-uhr"><b id="uhr">--:--:--</b><i>Einsatzzeit <span id="einsatzzeit">00:00</span></i></span>
     <span class="tb-sep"></span>
-    <span class="zaehler" id="zaehler"></span>
+    <span class="zaehler" id="zaehler" aria-label="Patienten je Sichtungskategorie"></span>
     <span class="tb-spacer"></span>
     <button id="btn-funk" class="tb-btn" type="button" title="Sprechfunk-Auswertung (Mikrofon / AUX)">Funk aus</button>
-    <span class="pill" id="pill-sync">lokal</span>
-    <span class="pill ok" id="pill-ws">live</span>
+    <span class="pill tb-opt" id="pill-sync">lokal</span>
+    <span class="pill ok tb-opt" id="pill-ws">live</span>
     <span class="tb-sep"></span>
-    <button id="btn-neustart" class="tb-btn" type="button" title="Übungslage von vorn abspielen">Lage neu abspielen</button>
-    <a class="tb-btn" href="../index.html">Zur Website</a>
+    <button id="btn-neustart" class="tb-btn" type="button" title="Übungslage von vorn abspielen" aria-label="Lage neu abspielen"><span class="tb-icon" aria-hidden="true">↺</span><span class="tb-txt">Lage neu abspielen</span></button>
+    <button id="btn-hilfe" class="tb-btn tb-hilfe" type="button" title="Was zeigt diese Demo?" aria-label="Erklärung zur Demo">?</button>
+    <a class="tb-btn" href="../index.html"><span class="tb-lang">Zur </span>Website</a>
   </header>
 
   <aside class="rail rail-l" id="rail-l">
@@ -148,6 +149,7 @@
     <div class="rail-kopf">
       <span class="rail-titel">Auswahl &amp; Meldungen</span>
       <button class="rail-btn" data-rail="r" type="button" title="Leiste einklappen">›</button>
+      <button class="blatt-zu" id="blatt-zu" type="button" title="Details schließen" aria-label="Details schließen">✕</button>
     </div>
     <div class="rail-inhalt">
 
@@ -173,12 +175,13 @@
   <section class="dock" id="dock">
     <div class="dock-griff" id="dock-griff" title="Höhe ziehen · Doppelklick klappt den Bereich ein"></div>
     <nav class="dock-tabs" id="dock-tabs">
-      <a class="dtab aktiv" data-tab="patienten" href="/demo/asr/" aria-label="Patienten und ASR-System">Patienten</a>
+      <button class="dtab aktiv" data-tab="patienten" type="button">Patienten</button>
       <button class="dtab" data-tab="gefahren" type="button">Gefahrenlage</button>
       <button class="dtab" data-tab="transport" type="button">Transport &amp; Kliniken</button>
       <button class="dtab" data-tab="ereignisse" type="button">Ereignisse</button>
       <button class="dtab" data-tab="lagemeldung" type="button">Lagemeldung</button>
       <span class="dock-spacer"></span>
+      <a class="btn-klein" href="/demo/asr/" title="Sichtung per Spracheingabe: QR-Code, Audio, Lagebild">Sprach-Sichtung (ASR) ↗</a>
       <button id="btn-csv" class="btn-klein" type="button">CSV exportieren</button>
       <button id="dock-gross" class="btn-klein" type="button" title="Bereich auf volle Höhe bringen">⤢</button>
       <button id="dock-klein" class="btn-klein" type="button" title="Bereich ein-/ausklappen">▼</button>
@@ -188,6 +191,29 @@
 
 </div>
 
+<!-- Kurze Einordnung beim ersten Aufruf; über „?“ in der Kopfzeile wieder
+     erreichbar. Wer die Demo über einen geteilten Link öffnet, weiß sonst
+     nicht, was er sieht. -->
+<div class="intro" id="intro" hidden>
+  <div class="intro-karte" role="dialog" aria-modal="true" aria-labelledby="intro-titel">
+    <h2 id="intro-titel">Live-Demo: Lagebild der Einsatzleitung</h2>
+    <p>Simulierte Übungslage eines Massenanfalls von Verletzten (MANV). Die Lage läuft
+      von selbst ab: Trupps sichten Patienten, Rettungsmittel fahren an, Kliniken werden belegt.</p>
+    <ul class="intro-liste">
+      <li><span class="intro-sym"><i class="pkt k-SK1"></i><i class="pkt k-SK2"></i><i class="pkt k-SK3"></i></span>
+        <span><b>Punkte</b> sind Patienten, gefärbt nach Sichtungskategorie: rot = Lebensgefahr, gelb = schwer, grün = leicht verletzt.</span></li>
+      <li><span class="intro-sym"><span class="lg"><i class="bx u-rtw"></i></span></span>
+        <span><b>Kästen</b> sind Einsatzmittel (Rettungswagen, Trupps, Feuerwehr), <b>beschriftete Bereiche</b> die Einsatzabschnitte.</span></li>
+      <li><span class="intro-sym">☝</span>
+        <span><b>Anklicken oder antippen</b> zeigt Details. Die <b>Legende</b> auf der Karte erklärt alle Symbole und Abkürzungen.</span></li>
+      <li><span class="intro-sym">▶</span>
+        <span>Tempo und Pause unten links auf der Karte; die Zahlen oben zählen die Patienten je Kategorie.</span></li>
+    </ul>
+    <p class="hinweis">Prototyp für Übungen, kein Medizinprodukt. Alle Personen und Daten sind simuliert.</p>
+    <button id="intro-los" class="intro-los" type="button">Zur Lage</button>
+  </div>
+</div>
+
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
 <script src="./data/neubiberg.js?v=14"></script>
 <script src="./data/halle-kroellwitz.js?v=14"></script>
@@ -195,8 +221,8 @@
 <script src="./scenario.js?v=14"></script>
 <script src="./szenario-halle.js?v=14"></script>
 <script src="./szenario-muenchen.js?v=14"></script>
-<script src="./engine.js?v=14"></script>
-<script src="./map.js?v=15"></script>
-<script src="./ui.js?v=14"></script>
+<script src="./engine.js?v=15"></script>
+<script src="./map.js?v=17"></script>
+<script src="./ui.js?v=18"></script>
 </body>
 </html>
