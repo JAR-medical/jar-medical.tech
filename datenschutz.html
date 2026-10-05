@@ -3,6 +3,7 @@
 <html lang="de"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#19183b">
   <title>Datenschutzerklärung | J.A.R. Medical</title>
 <!-- Page identity for the language switch: js/site.js looks up
      meta_title_<id> / meta_desc_<id> in js/i18n.js and falls back to the
@@ -2213,7 +2214,13 @@ ul, ol { list-style: none; padding: 0; }
   }
 }
 </style>
-</head><body>
+<style>
+/* Keep the legal page's title panel on the same navy surface as the prose. */
+.theme-dark .legal-hero {
+  background: radial-gradient(120% 92% at 76% 18%, rgba(142, 199, 184, .08) 0%, #14132f 44%, #19183b 100%);
+}
+</style>
+</head><body class="theme-dark page--dark">
 
 <!-- ============================== HEADER ============================== -->
 <a class="skip-link" href="index.html#main" data-i18n="a11y_skip">Zum Inhalt springen</a>

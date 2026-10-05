@@ -10,7 +10,7 @@
      page's title the moment a visitor switched to English. -->
 <meta name="jar:page" content="join">
 <meta name="description" content="Helfen Sie mit, J.A.R. besser zu machen: spielen Sie MediCraft oder sprechen Sie in 90 Sekunden acht kurze Funksprüche für die Spracherkennung ein.">
-<meta name="theme-color" content="#FAFBFB">
+<meta name="theme-color" content="#19183b">
 <link rel="canonical" href="https://jar-medical.tech/mitmachen.html">
 
 <meta property="og:type" content="website">
@@ -2268,7 +2268,13 @@ ul, ol { list-style: none; padding: 0; }
   .contrib-path:hover { transform: none; }
 }
 </style>
-</head><body>
+<style>
+/* Keep this hero on the same navy surface as the rest of the dark page. */
+.theme-dark .contrib-hero {
+  background: radial-gradient(120% 92% at 76% 18%, rgba(142, 199, 184, .08) 0%, #14132f 44%, #19183b 100%);
+}
+</style>
+</head><body class="theme-dark page--dark">
 
 <!-- ============================== HEADER ============================== -->
 <a class="skip-link" href="index.html#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
