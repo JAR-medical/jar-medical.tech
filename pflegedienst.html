@@ -2985,6 +2985,17 @@ html {
   --fx-frame: 1;
   border-color: color-mix(in srgb, var(--line-strong) calc(var(--fx-frame) * 100%), transparent);
 }
+/* The nursing page opens with the app screens, then the supporting copy. */
+html { scroll-padding-top: calc(var(--nav-h) + 3.25rem); }
+#main { padding-top: var(--nav-h); }
+#app + .sc-page-hero { padding-top: 0; }
+#app .sc-phone {
+  width: min(100%, calc(clamp(24rem, 100svh - 14rem, 38rem) * 0.42));
+}
+#app .sc-app__item--lead .sc-phone {
+  width: min(100%, calc(clamp(24rem, 100svh - 14rem, 38rem) * 0.46));
+}
+
 </style>
 </head><body class="theme-dark page--dark">
 
@@ -3041,13 +3052,67 @@ html {
 
 <nav class="sc-subnav" aria-label="Seitenbereiche">
   <div class="sc-subnav__inner">
+    <a href="#app">App</a>
     <a href="#aufgabe">Aufgabe</a>
     <a href="#beispiel">Beispiel</a>
-    <a href="#app">App</a>
     <a href="#stand">Stand</a>
     <a href="#kontakt">Kontakt</a>
   </div>
 </nav>
+
+<!-- ============================== THE APP ==============================
+     The nursing app as it is: two screenshots and a screen recording from
+     JAR Scribe, all on synthetic demo data (the app labels them so itself).
+     The recording is muted and plays only while on screen; js/scroll-fx.js
+     starts and stops it, and leaves it on its controls under reduced motion
+     or without JS. Files in assets/app/. -->
+<section class="sc-rule" id="app">
+  <div class="sc-app">
+    <figure class="sc-app__item">
+      <div class="sc-phone">
+        <img src="assets/app/home.webp" width="920" height="2000" loading="eager" decoding="async" alt="Startbildschirm von JAR Scribe: Bereich Nursing, Knopf Start documentation und eine Demo-Schichtübergabe von heute.">
+      </div>
+      <figcaption>
+        <span class="sc-kicker sc-kicker--accent">01</span>
+        <span data-i18n="app_cap_1">Dokumentation starten</span>
+      </figcaption>
+    </figure>
+
+    <figure class="sc-app__item sc-app__item--lead">
+      <div class="sc-phone">
+        <video src="assets/app/live-transcription.mp4" poster="assets/app/live-transcription-poster.webp" width="600" height="1304" muted="" loop="" playsinline="" preload="metadata" data-inview-play="" aria-label="Bildschirmaufnahme: Eine Schichtübergabe wird gesprochen und live mitgeschrieben; erkannte Werte erscheinen als Felder am unteren Rand." controls></video>
+      </div>
+      <figcaption>
+        <span class="sc-kicker sc-kicker--accent">02</span>
+        <span data-i18n="app_cap_2">Live-Mitschrift beim Sprechen</span>
+      </figcaption>
+    </figure>
+
+    <figure class="sc-app__item">
+      <div class="sc-phone">
+        <img src="assets/app/handover-report.webp" width="920" height="2000" loading="eager" decoding="async" alt="Übergabebericht in JAR Scribe: NEWS2-Score 6, klinisches Risiko mittel, alle sieben Parameter dokumentiert, als ungeprüfter Entwurf markiert.">
+      </div>
+      <figcaption>
+        <span class="sc-kicker sc-kicker--accent">03</span>
+        <span data-i18n="app_cap_3">Übergabe mit NEWS2, zum Gegenzeichnen</span>
+      </figcaption>
+    </figure>
+  </div>
+
+  <header class="sc-head">
+    <div class="sc-head__text reveal">
+      <p class="sc-kicker sc-kicker--accent" data-i18n="app_kicker">Die App</p>
+      <h2 class="sc-h2" data-i18n="app_h2">JAR Scribe auf dem iPhone</h2>
+      <p class="sc-lead" data-i18n="app_lead">Dokumentation starten, sprechen, Übergabe prüfen. Die Mitschrift läuft live mit,
+        Werte wie Temperatur, Sauerstoff, Puls und Blutdruck werden schon beim Sprechen
+        erkannt, und am Ende steht ein Übergabebericht mit NEWS2-Score, als Entwurf zum
+        Prüfen und Gegenzeichnen.</p>
+    </div>
+  </header>
+
+  <p class="sc-app__note" data-i18n="app_note">Aufnahmen aus der App mit synthetischen Demo-Daten, keine echte Patientin. Der Bericht
+    ist ein Entwurf und wird vor der Verwendung geprüft.</p>
+</section>
 
 <!-- ============================== HERO ============================== -->
 <section class="sc-page-hero" aria-labelledby="pageTitle">
@@ -3153,60 +3218,6 @@ html {
     </div>
   </div>
   <div class="sc-gap" aria-hidden="true"></div>
-</section>
-
-<!-- ============================== THE APP ==============================
-     The nursing app as it is: two screenshots and a screen recording from
-     JAR Scribe, all on synthetic demo data (the app labels them so itself).
-     The recording is muted and plays only while on screen; js/scroll-fx.js
-     starts and stops it, and leaves it on its controls under reduced motion
-     or without JS. Files in assets/app/. -->
-<section class="sc-rule" id="app">
-  <header class="sc-head">
-    <div class="sc-head__text reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="app_kicker">Die App</p>
-      <h2 class="sc-h2" data-i18n="app_h2">JAR Scribe auf dem iPhone</h2>
-      <p class="sc-lead" data-i18n="app_lead">Dokumentation starten, sprechen, Übergabe prüfen. Die Mitschrift läuft live mit,
-        Werte wie Temperatur, Sauerstoff, Puls und Blutdruck werden schon beim Sprechen
-        erkannt, und am Ende steht ein Übergabebericht mit NEWS2-Score, als Entwurf zum
-        Prüfen und Gegenzeichnen.</p>
-    </div>
-  </header>
-
-  <div class="sc-app">
-    <figure class="sc-app__item">
-      <div class="sc-phone">
-        <img src="assets/app/home.webp" width="920" height="2000" loading="lazy" decoding="async" alt="Startbildschirm von JAR Scribe: Bereich Nursing, Knopf Start documentation und eine Demo-Schichtübergabe von heute.">
-      </div>
-      <figcaption>
-        <span class="sc-kicker sc-kicker--accent">01</span>
-        <span data-i18n="app_cap_1">Dokumentation starten</span>
-      </figcaption>
-    </figure>
-
-    <figure class="sc-app__item sc-app__item--lead">
-      <div class="sc-phone">
-        <video src="assets/app/live-transcription.mp4" poster="assets/app/live-transcription-poster.webp" width="600" height="1304" muted="" loop="" playsinline="" preload="metadata" data-inview-play="" aria-label="Bildschirmaufnahme: Eine Schichtübergabe wird gesprochen und live mitgeschrieben; erkannte Werte erscheinen als Felder am unteren Rand." controls></video>
-      </div>
-      <figcaption>
-        <span class="sc-kicker sc-kicker--accent">02</span>
-        <span data-i18n="app_cap_2">Live-Mitschrift beim Sprechen</span>
-      </figcaption>
-    </figure>
-
-    <figure class="sc-app__item">
-      <div class="sc-phone">
-        <img src="assets/app/handover-report.webp" width="920" height="2000" loading="lazy" decoding="async" alt="Übergabebericht in JAR Scribe: NEWS2-Score 6, klinisches Risiko mittel, alle sieben Parameter dokumentiert, als ungeprüfter Entwurf markiert.">
-      </div>
-      <figcaption>
-        <span class="sc-kicker sc-kicker--accent">03</span>
-        <span data-i18n="app_cap_3">Übergabe mit NEWS2, zum Gegenzeichnen</span>
-      </figcaption>
-    </figure>
-  </div>
-
-  <p class="sc-app__note" data-i18n="app_note">Aufnahmen aus der App mit synthetischen Demo-Daten, keine echte Patientin. Der Bericht
-    ist ein Entwurf und wird vor der Verwendung geprüft.</p>
 </section>
 
 <!-- ============================== WHERE IT STANDS ============================== -->
