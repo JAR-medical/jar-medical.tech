@@ -3,20 +3,16 @@
 <html lang="de"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>J.A.R. Medical: Medizinische Spracherkennung, die beim ersten Mal versteht</title>
-<!-- Page identity for the language switch: js/site.js looks up
-     meta_title_<id> / meta_desc_<id> in js/i18n.js and falls back to the
-     landing page's pair. Without it every page inherited the landing
-     page's title the moment a visitor switched to English. -->
-<meta name="jar:page" content="index">
-  <meta name="description" content="J.A.R. baut die nächste Generation der medizinischen Transkription: ein Sprachmodell mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz. Für Pflege, Katastrophenschutz und Rettungsdienst.">
+  <title>Rettungsdienst: Das Protokoll am Patienten | J.A.R. Medical</title>
+<meta name="jar:page" content="ems">
+<meta name="description" content="J.A.R. im Rettungsdienst: Spracherkennung auf dem Gerät, damit das Einsatzprotokoll am Patienten entsteht statt im Fahrzeug.">
 <meta name="theme-color" content="#0c0b1f">
-<link rel="canonical" href="https://jar-medical.tech/">
+<link rel="canonical" href="https://jar-medical.tech/rettungsdienst.html">
 
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://jar-medical.tech/">
-  <meta property="og:title" content="J.A.R. Medical: Jedes Wort zählt. Auch beim ersten Mal.">
-  <meta property="og:description" content="Medizinische Spracherkennung mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz.">
+<meta property="og:url" content="https://jar-medical.tech/rettungsdienst.html">
+  <meta property="og:title" content="Rettungsdienst: Das Protokoll am Patienten | J.A.R. Medical">
+<meta property="og:description" content="J.A.R. im Rettungsdienst: Spracherkennung auf dem Gerät, damit das Einsatzprotokoll am Patienten entsteht statt im Fahrzeug.">
 <meta property="og:image" content="https://jar-medical.tech/assets/og.png">
 <meta property="og:locale" content="de_DE">
 <meta name="twitter:card" content="summary_large_image">
@@ -3006,12 +3002,12 @@ html {
     </a>
 
     <nav class="nav__links" id="navLinks" aria-label="Hauptnavigation">
-      <a href="#technologie" data-i18n="nav_tech">Technologie</a>
+      <a href="index.html#technologie" data-i18n="nav_tech">Technologie</a>
       <a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a>
       <a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a>
       <a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a>
-      <a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a>
-      <a href="#team" data-i18n="nav_team">Team</a>
+      <a href="rettungsdienst.html" aria-current="page" data-i18n="nav_ems">Rettungsdienst</a>
+      <a href="index.html#team" data-i18n="nav_team">Team</a>
       <a href="mitmachen.html" data-i18n="nav_join">Mitmachen</a>
     </nav>
 
@@ -3043,86 +3039,81 @@ html {
 
 <main id="main" class="sc-frame">
 
-<!-- ============================== HERO ==============================
-     Four cells: the headline, the side cell with the claim and the two ways
-      in, the spectrogram, and a contents cell. The spectrogram is synthetic;
-     js/waveform.js draws it.
-
-
-     On desktop the hero sits in a two-screen scroll track (js/hero-scroll.js,
-     after mistral.ai's home hero): it pins for one screen while the left
-     column folds away and the side cell grows to fill the view, its lead
-     ending large and centred. Without JS, on phones and under reduced motion
-     the track is inert and the hero is the plain four-cell grid. -->
-<div class="sc-hero-track" data-hero-scroll="">
-<section class="sc-hero" aria-labelledby="heroTitle">
-  <div class="sc-hero__title">
-    <div>
-      <p class="sc-kicker sc-kicker--accent sc-kicker--live" data-i18n="hero_eyebrow">Medizinische Spracherkennung</p>
-      <h1 class="sc-display" id="heroTitle">
-        <span data-i18n="hero_h1_a">Jedes Wort zählt.</span><br>
-        <span data-i18n="hero_h1_b">Auch beim ersten Mal.</span>
-      </h1>
-    </div>
+<nav class="sc-subnav" aria-label="Seitenbereiche">
+  <div class="sc-subnav__inner">
+    <a href="#aufgabe">Aufgabe</a>
+    <a href="#beispiel">Beispiel</a>
+    <a href="#stand">Stand</a>
+    <a href="#kontakt">Kontakt</a>
   </div>
+</nav>
 
-  <div class="sc-hero__side">
-    <p data-i18n="hero_lead">Wir bauen die nächste Generation der medizinischen Transkription: ein Modell
-          mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz.</p>
+<!-- ============================== HERO ============================== -->
+<section class="sc-page-hero" aria-labelledby="pageTitle">
+  <div class="sc-page-hero__title">
+    <p class="sc-kicker sc-kicker--accent" data-i18n="ems_kicker">Einsatzbereich 05 · Rettungsdienst</p>
+    <h1 class="sc-display sc-page-hero__h" id="pageTitle" data-i18n="ems_h1">Das Protokoll am Patienten, nicht im Fahrzeug.</h1>
+  </div>
+  <div class="sc-page-hero__side">
+    <p class="sc-kicker" data-i18n="br_ems_status">Voll einsatzbereit</p>
+    <p data-i18n="br_ems_p">Vom Einsatzort bis zur Übergabe in der Klinik entsteht ein Protokoll, das heute
+      größtenteils im Fahrzeug getippt wird. Gesprochen entsteht es dort, wo es
+      ohnehin gesprochen wird: am Patienten.</p>
     <div class="sc-cta__actions">
-      <a class="btn btn--primary" href="mitmachen.html">
-        <span data-i18n="nav_join">Mitmachen</span>
+      <a class="btn btn--primary" href="mailto:al.kluge@campus.lmu.de">
+        <span data-i18n="team_cta">Kontakt aufnehmen</span>
         <span class="btn__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="btn btn--ghost" href="#technologie" data-i18n="hero_cta_2">Wie es funktioniert</a>
+      <a class="btn btn--ghost" href="index.html#technologie" data-i18n="more_cta">Zur Technologie</a>
     </div>
   </div>
-
-  <div class="sc-hero__art">
-    <canvas class="sc-waveform" aria-hidden="true" width="1152" height="644"></canvas>
-  </div>
-
-  <div class="sc-hero__aside">
-    <p class="sc-kicker" data-i18n="hero_index">Inhalt</p>
-    <nav class="sc-index" aria-label="Inhalt">
-      <a href="#technologie"><span data-i18n="nav_tech">Technologie</span><span>01</span></a>
-      <a href="krankenhaus.html"><span data-i18n="nav_hospital">Krankenhaus</span><span>02</span></a>
-      <a href="pflegedienst.html"><span data-i18n="nav_homecare">Pflegedienst</span><span>03</span></a>
-      <a href="katastrophenschutz.html"><span data-i18n="nav_disaster">Katastrophenschutz</span><span>04</span></a>
-      <a href="rettungsdienst.html"><span data-i18n="nav_ems">Rettungsdienst</span><span>05</span></a>
-    </nav>
-  </div>
-</section>
-</div>
-
-<!-- ============================== STATEMENT ============================== -->
-<section class="sc-statement sc-rule">
-  <p class="sc-kicker sc-kicker--accent reveal" data-i18n="st_kicker">Was wir bauen</p>
-        <p class="reveal" data-i18n="st_p">Ein Sprachmodell, das Medizin versteht: auch die Wörter, die es noch nie gehört hat.</p>
 </section>
 
-<!-- ============================== TECHNOLOGIE ==============================
-     The product, shown working. The panel is the same one the old hero
-      scrubbed; here js/scribe.js runs it in panel mode (no pinned track, the
-     sentence is spoken as the canvas comes up the viewport and the fields
-     resolve once it is in view. A worked example, not a recording: the
-     spoken form says "fünfhundert Milligramm" and "vierzehn Uhr sieben", the
-     fields say 500 mg and 14:07, which is the normalisation step the copy
-     claims and nothing more. -->
-<section class="sc-rule" id="technologie">
+<!-- ============================== THE JOB ============================== -->
+<section class="sc-rule" id="aufgabe">
   <header class="sc-head">
     <div class="sc-head__text reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="tech_kicker">Technologie</p>
-      <h2 class="sc-h2" data-i18n="tech_h2">Vom gesprochenen Satz zum fertigen Eintrag</h2>
-      <p class="sc-lead" data-i18n="tech_lead">Gesprochen wird am Patienten. Transkribiert wird mit, während gesprochen wird,
-        und aus dem Text werden Felder, mit denen ein System danach weiterarbeiten kann.</p>
+      <p class="sc-kicker sc-kicker--accent" data-i18n="sector_task_kicker">Die Aufgabe</p>
+      <h2 class="sc-h2" data-i18n="ems_task_h2">Ein Protokoll, unterwegs geschrieben</h2>
+      <p class="sc-lead" data-i18n="ems_task_lead">Vom Eintreffen bis zur Übergabe muss jeder Schritt festgehalten werden,
+        während das Team am Patienten arbeitet und das Fahrzeug fährt.</p>
     </div>
-    <a class="btn btn--ghost" href="mitmachen.html">
-      <span data-i18n="tech_cta">Ausprobieren</span>
-      <span class="btn__arrow" aria-hidden="true">→</span>
-    </a>
+  </header><div class="sc-cells">
+    <article class="sc-cell reveal">
+      <p class="sc-kicker sc-kicker--accent">01</p>
+      <h3 class="sc-h3" data-i18n="br_ems_1">Ein Patient, vollständiges Protokoll</h3>
+      <p data-i18n="ems_t1_p">Jede Maßnahme, jedes Medikament, jede Uhrzeit gehört ins Protokoll. Heute wird
+        vieles davon nach dem Einsatz im Fahrzeug getippt.</p>
+    </article>
+    <article class="sc-cell reveal" style="--reveal-delay: 90ms">
+      <p class="sc-kicker sc-kicker--accent">02</p>
+      <h3 class="sc-h3" data-i18n="br_ems_2">Fahrtlärm, beide Hände am Patienten</h3>
+      <p data-i18n="ems_t2_p">Motor, Sirene, Funk: Die Umgebung ist laut, und die Hände sind beschäftigt. Die
+        Erkennung muss damit zurechtkommen, ohne dass jemand ein Gerät bedient.</p>
+    </article>
+    <article class="sc-cell reveal" style="--reveal-delay:180ms">
+      <p class="sc-kicker sc-kicker--accent">03</p>
+      <h3 class="sc-h3" data-i18n="ems_t3_h">Die Übergabe in der Klinik</h3>
+      <p data-i18n="ems_t3_p">Was unterwegs gesagt wurde, soll bei der Übergabe schon geordnet vorliegen:
+            Maßnahmen, Medikamente, Uhrzeiten, statt aus dem Gedächtnis erzählt zu werden.</p>
+    </article>
+  </div>
+
+
+</section>
+
+<!-- ============================== EXAMPLE ==============================
+     The landing page's transcription panel with this sector's sentence.
+     js/scribe.js runs it in panel mode, from viewport travel. -->
+<section class="sc-rule" id="beispiel">
+  <header class="sc-head">
+    <div class="sc-head__text reveal">
+      <p class="sc-kicker sc-kicker--accent" data-i18n="sector_ex_kicker">Ein Beispiel</p>
+      <h2 class="sc-h2" data-i18n="sector_ex_h2">So klingt ein Eintrag</h2>
+      <p class="sc-lead" data-i18n="sector_ex_lead">Ein ausgedachter, aber typischer Satz, und die Felder, die das Modell daraus
+        machen soll.</p>
+    </div>
   </header><div class="sc-canvas" data-stage="">
-    <canvas class="sc-waveform" aria-hidden="true" width="1068" height="828"></canvas>
     <div class="scribe" data-scribe="">
       <p class="scribe__meta">
         <span class="scribe__dot" aria-hidden="true"></span>
@@ -3131,277 +3122,77 @@ html {
 
       <div class="scribe__wave" aria-hidden="true"><span style="height: 18%"></span><span style="height: 18%"></span><span style="height: 20.8%"></span><span style="height: 25.6%"></span><span style="height: 30.6%"></span><span style="height: 34.5%"></span><span style="height: 36.2%"></span><span style="height: 35.9%"></span><span style="height: 34.5%"></span><span style="height: 33.5%"></span><span style="height: 34.5%"></span><span style="height: 38.2%"></span><span style="height: 44.1%"></span><span style="height: 50.8%"></span><span style="height: 55.9%"></span><span style="height: 56.8%"></span><span style="height: 51.4%"></span><span style="height: 39.3%"></span><span style="height: 21.5%"></span><span style="height: 35.2%"></span><span style="height: 55.1%"></span><span style="height: 70.1%"></span><span style="height: 77.3%"></span><span style="height: 75.4%"></span><span style="height: 64.9%"></span><span style="height: 48.6%"></span><span style="height: 30.2%"></span><span style="height: 22.2%"></span><span style="height: 33.4%"></span><span style="height: 38%"></span><span style="height: 36.2%"></span><span style="height: 30.5%"></span><span style="height: 23.8%"></span><span style="height: 19.7%"></span><span style="height: 20.3%"></span><span style="height: 26.4%"></span><span style="height: 37%"></span><span style="height: 49.4%"></span><span style="height: 60.5%"></span><span style="height: 67%"></span><span style="height: 67%"></span><span style="height: 60.1%"></span><span style="height: 47.6%"></span><span style="height: 32.1%"></span><span style="height: 19.4%"></span><span style="height: 32%"></span><span style="height: 39.9%"></span><span style="height: 42.7%"></span><span style="height: 41%"></span><span style="height: 36.6%"></span><span style="height: 31.3%"></span><span style="height: 26.5%"></span><span style="height: 22.9%"></span><span style="height: 20.3%"></span><span style="height: 18%"></span><span style="height: 18%"></span></div>
 
-      <p class="scribe__said" data-scribe-text="" data-i18n="scribe_said">Fünfhundert Milligramm Paracetamol intravenös, vierzehn Uhr sieben, Patient A7.</p>
+      <p class="scribe__said" data-scribe-text="" data-i18n="ems_said">Venöser Zugang rechter Handrücken, Ringer fünfhundert Milliliter, Blutdruck hundertzehn zu siebzig, zehn Uhr zwölf.</p>
 
       <dl class="scribe__fields" data-scribe-fields="">
         <div class="scribe__field">
-          <dt data-i18n="scribe_k1">Maßnahme</dt>
-          <dd data-i18n="scribe_v1">Paracetamol i.v.</dd>
+          <dt data-i18n="ems_k1">Maßnahme</dt>
+          <dd data-i18n="ems_v1">i.v.-Zugang re. Hand</dd>
         </div>
         <div class="scribe__field">
-          <dt data-i18n="scribe_k2">Dosis</dt>
-          <dd data-i18n="scribe_v2">500 mg</dd>
+          <dt data-i18n="ems_k2">Infusion</dt>
+          <dd data-i18n="ems_v2">Ringer 500 ml</dd>
+        </div>
+        <div class="scribe__field">
+          <dt data-i18n="ems_k3">RR</dt>
+          <dd data-i18n="ems_v3">110/70</dd>
         </div>
         <div class="scribe__field">
           <dt data-i18n="scribe_k3">Zeit</dt>
-          <dd data-i18n="scribe_v3">14:07</dd>
-        </div>
-        <div class="scribe__field">
-          <dt data-i18n="scribe_k4">Kennung</dt>
-          <dd data-i18n="scribe_v4">A7</dd>
+          <dd>10:12</dd>
         </div>
       </dl>
     </div>
   </div>
 
 
-
-  <ul class="sc-caps">
-    <li data-n="01" data-i18n="cap_1">Zero-Shot: Fachbegriffe ohne Training vor Ort</li>
-    <li data-n="02" data-i18n="cap_2">Inferenz auf dem Gerät</li>
-    <li data-n="03" data-i18n="cap_3">Transkription in Echtzeit</li>
-    <li data-n="04" data-i18n="cap_4">Strukturierte Felder statt Fließtext</li>
-    <li data-n="05" data-i18n="cap_5">Funktioniert ohne Netz</li>
-  </ul>
   <div class="sc-gap" aria-hidden="true"></div>
-
-  <!-- Four principles. Same copy as the old bento, re-cut as cells of the
-       sheet rather than floating cards. -->
-  <div class="sc-cells sc-cells--4">
-    <article class="sc-cell reveal">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_1_chip">Zero-Shot</p>
-      <h3 class="sc-h3" data-i18n="sol_1_h">Versteht, was es nie gehört hat</h3>
-      <p data-i18n="sol_1_p">Ein neues Präparat, eine ungewohnte Abkürzung, ein anderer Dialekt: dafür
-        braucht das Modell kein Training vor Ort. Es überträgt, was es an medizinischer
-        Sprache gelernt hat, auf Wörter, die ihm zum ersten Mal begegnen.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:90ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="1.5"></rect><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_2_chip">Edge-KI</p>
-      <h3 class="sc-h3" data-i18n="sol_2_h">Läuft auf dem Gerät</h3>
-      <p data-i18n="sol_2_p">Keine Verbindung, keine Cloud, keine Aufnahme, die den Einsatzort verlässt.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:180ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_3_chip">Echtzeit</p>
-      <h3 class="sc-h3" data-i18n="sol_3_h">Mitschreiben statt Nachtragen</h3>
-      <p data-i18n="sol_3_p">Die Transkription läuft, während gesprochen wird. Am Ende der Maßnahme steht
-        sie schon da; niemand trägt sie später aus dem Gedächtnis nach.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:270ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h5M4 12h5M4 18h5M12 6h8M12 12h8M12 18h8"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_4_chip">Strukturiert</p>
-      <h3 class="sc-h3" data-i18n="sol_4_h">Felder statt Fließtext</h3>
-      <p data-i18n="sol_4_p">Aus dem Gesprochenen werden Felder: Maßnahme, Dosis, Uhrzeit, Kennung. Das ist
-        der Unterschied zwischen einem Diktat und einer Dokumentation, mit der ein
-        System danach noch etwas anfangen kann.</p>
-    </article>
-  </div>
 </section>
 
-<!-- ============================== BEREICHE ==============================
-     Four doors, one per sector page. The statuses are deliberately not the
-     same, because they are not: Katastrophenschutz has a system built and
-     partners testing it, the other two are directions. Anything that levels
-     them up to look equally far along is a claim this project cannot back. -->
-<section class="sc-rule" id="bereiche">
-  <header class="sc-head">
-    <div class="sc-head__text reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="br_eyebrow">Einsatzbereiche</p>
-      <h2 class="sc-h2" data-i18n="br_h2">Vier Bereiche, dieselbe Sprache</h2>
-      <p class="sc-lead" data-i18n="br_lead">Überall dort, wo am Menschen gearbeitet und danach darüber geschrieben wird,
-        ist es dieselbe Aufgabe: Gesprochenes verlässlich festhalten, in der Sprache
-        des Fachs. Was sich unterscheidet, ist der Lärm, das Tempo und das Formular
-        am Ende.</p>
-    </div>
-  </header><div class="sc-sectors">
-    <a class="sc-sector reveal" href="krankenhaus.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">02</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_hospital_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_hospital_h">Krankenhaus</h3>
-        <p data-i18n="br_hospital_p">Dokumentation am Bett statt im Stationszimmer. Die Pflegekraft spricht, was
-          sie getan hat, während sie es tut, und muss es am Schichtende nicht aus dem
-          Gedächtnis rekonstruieren.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 90ms" href="pflegedienst.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">03</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_homecare_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_homecare_h">Pflegedienst</h3>
-        <p data-i18n="br_homecare_p">Dokumentation beim Patienten zuhause statt im Auto. Die Pflegekraft spricht, was
-          sie getan hat, während sie es tut, und muss es nach der Tour nicht aus dem
-          Gedächtnis rekonstruieren.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 180ms" href="katastrophenschutz.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">04</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker sc-kicker--accent sc-kicker--live" data-i18n="br_dis_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_dis_h">Katastrophenschutz</h3>
-        <p data-i18n="br_dis_p">Der Bereich, in dem das System schon steht: Einsatzhelm mit AR-Brille, Sichtung
-          im Blickfeld, Dokumentation über die Sprache. Hier laufen die Pilotprojekte mit
-          dem DRK, und von hier kommen die Sprachaufnahmen, an denen das Modell lernt.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 270ms" href="rettungsdienst.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">05</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_ems_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_ems_h">Rettungsdienst</h3>
-        <p data-i18n="br_ems_p">Vom Einsatzort bis zur Übergabe in der Klinik entsteht ein Protokoll, das heute
-          größtenteils im Fahrzeug getippt wird. Gesprochen entsteht es dort, wo es
-          ohnehin gesprochen wird: am Patienten.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-  </div>
-
-
-</section>
-
-<!-- ============================== DEMO + MITMACHEN ============================== -->
-<section class="sc-split" id="demo">
+<!-- ============================== WHERE IT STANDS ============================== -->
+<section class="sc-split" id="stand">
   <div class="reveal">
-    <p class="sc-kicker sc-kicker--accent" data-i18n="demo_eyebrow">Ausprobieren</p>
-    <h2 class="sc-h3" style="margin:var(--sp-4) 0" data-i18n="demo_h2">Sehen Sie J.A.R. in Aktion</h2>
-    <p class="sc-lead" data-i18n="demo_p">Die Oberfläche und der komplette Ablauf (von der Sichtung bis zur Übergabe)
-      stehen als interaktive Demo bereit. Kein Download, direkt im Browser.</p>
-    <div class="sc-cta__actions" style="margin-top:var(--sp-6)">
-      <a class="btn btn--primary" href="mitmachen.html">
-        <span data-i18n="nav_join">Mitmachen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="btn btn--ghost" href="/demo/paramedic/">
-        <span data-i18n="demo_cta_2">AR-Client öffnen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
+    <p class="sc-kicker sc-kicker--accent" data-i18n="sector_feature1_kicker">Im Einsatz</p>
+    <h2 class="sc-h3" data-i18n="ems_feature1_h">Die Software</h2>
+    <p data-i18n="ems_feature1_p">Die Spracherkennung läuft auf dem Gerät, in Echtzeit und mit Fachvokabular.
+      Sie ist speziell für die Anforderungen im Rettungsdienst entwickelt.</p>
   </div>
-  <div class="reveal" id="mitmachen" style="--reveal-delay:90ms">
-    <p class="sc-kicker sc-kicker--accent" data-i18n="join_band_eyebrow">Mitmachen</p>
-    <h2 class="sc-h3" style="margin:var(--sp-4) 0" data-i18n="join_band_h">Fünf Minuten oder neunzig Sekunden</h2>
-    <p class="sc-lead" data-i18n="join_band_p">Wir haben kein Budget für Studien und keinen Zugriff auf echte Einsatzdaten.
-          Spielen Sie MediCraft, oder sprechen Sie uns acht kurze Funksprüche ein,
-      an denen die Spracherkennung lernt.</p>
-    <div class="sc-cta__actions" style="margin-top:var(--sp-6)">
-      <a class="btn btn--ghost" href="mitmachen.html">
-        <span data-i18n="join_band_cta">Zum Projekt beitragen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
+  <div class="reveal" style="--reveal-delay:90ms">
+    <p class="sc-kicker" data-i18n="sector_feature2_kicker">Die Integration</p>
+    <h2 class="sc-h3" data-i18n="ems_feature2_h">Nahtlose Anbindung</h2>
+    <p data-i18n="ems_feature2_p">Ein kompaktes Gerät für den Einsatzort, und eine direkte Anbindung an die Klinik.</p>
   </div>
 </section>
 
-<!-- ============================== PARTNER ============================== -->
-<section class="section partners" id="partner">
-  <div class="wrap">
-    <header class="sec-head reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="par_eyebrow">Partner</p>
-      <h2 class="sc-h2" style="margin:var(--sp-4) 0" data-i18n="par_h2">Und wir sind nicht allein</h2>
-      <p class="sc-lead" data-i18n="par_lead">Drei Organisationen begleiten das Projekt: mit Praxiswissen, mit Technik
-        und mit Daten, an die wir sonst nicht herankämen.</p>
-    </header>
-
-    <ul class="partners__grid">
-      <li class="partner card reveal">
-        <div class="partner__logo">
-          <img src="assets/partners/drk.png" alt="Deutsches Rotes Kreuz" width="519" height="190" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_drk_1">Pilotprojekte</li>
-          <li data-i18n="par_drk_2">Mentoring und fachlicher Input</li>
-          <li data-i18n="par_drk_3">Rückmeldung aus der Praxis</li>
-        </ul>
-      </li>
-      <li class="partner card reveal" style="--reveal-delay:90ms">
-        <div class="partner__logo">
-          <img src="assets/partners/tum.png" alt="Technische Universität München" width="266" height="150" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_tum_1">Technische Unterstützung (Hex Lab)</li>
-          <li data-i18n="par_tum_2">Zugang zu Geräten</li>
-          <li data-i18n="par_tum_3">Betreuung der Forschung</li>
-        </ul>
-      </li>
-      <li class="partner card reveal" style="--reveal-delay:180ms">
-        <div class="partner__logo">
-          <img src="assets/partners/dlr.png" alt="Deutsches Zentrum für Luft- und Raumfahrt" width="202" height="170" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_dlr_1">Bildgebung nach dem Stand der Technik (Satellit, Drohne)</li>
-          <li data-i18n="par_dlr_2">Eigene Datenbestände</li>
-          <li data-i18n="par_dlr_3">Full-Stack-Integration</li>
-        </ul>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<!-- ============================== TEAM ============================== -->
-<section class="section" id="team">
-  <div class="wrap">
-    <div class="team">
-      <div class="team__intro reveal">
-        <p class="sc-kicker sc-kicker--accent" data-i18n="team_eyebrow">Das Team</p>
-        <h2 class="sc-h2" style="margin:var(--sp-4) 0" data-i18n="team_h2">Drei Schüler, eine Sprache</h2>
-        <p class="sc-lead" data-i18n="team_p">J.A.R. Medical entstand am Gymnasium Neubiberg und wird im UnternehmerTUM
-          Makerspace und an der LMU München weiterentwickelt. Wir bauen Modell, Hardware
-          und Software selbst, und suchen den Austausch mit allen, die am Menschen
-          arbeiten und danach darüber schreiben müssen.</p>
-        <a class="btn btn--ghost" href="mailto:al.kluge@campus.lmu.de">
-          <span data-i18n="team_cta">Kontakt aufnehmen</span>
-          <span class="btn__arrow" aria-hidden="true">→</span>
-        </a>
-      </div>
-
-          <!-- Rollen/Kurzbiografien bewusst offen gelassen; vom Team zu ergänzen. -->
-      <ul class="team__people reveal" style="--reveal-delay:120ms">
-        <li class="team__person card"><span class="team__mono">JN</span><h3>Johannes Nirschl</h3></li>
-        <li class="team__person card"><span class="team__mono">AK</span><h3>Alexander Kluge</h3></li>
-        <li class="team__person card"><span class="team__mono">JK</span><h3>Jonas Kaindl</h3></li>
-      </ul>
+<section class="sc-rule">
+  <div class="sc-gap" aria-hidden="true"></div>
+  <div class="sc-status">
+    <div>
+      <p class="sc-kicker sc-kicker--accent sc-kicker--live" data-i18n="sector_ready_kicker">Einsatzbereit</p>
+      <h2 class="sc-h3" data-i18n="ems_ready_h">Jetzt einsetzen</h2>
+      <p data-i18n="ems_ready_p">Das System für den Rettungsdienst ist voll einsatzbereit. Wenn Sie J.A.R.
+        nutzen möchten: Schreiben Sie uns.</p>
     </div>
-  </div>
-</section>
-
-<!-- ============================== CLOSING ============================== -->
-<section class="sc-cta">
-  <h2 class="sc-h2" data-i18n="cta_h">Hören Sie selbst.</h2>
-  <div class="sc-cta__actions">
-    <a class="btn btn--primary" href="mitmachen.html">
-      <span data-i18n="nav_join">Mitmachen</span>
+    <a class="btn btn--primary" href="mailto:al.kluge@campus.lmu.de">
+      <span data-i18n="sector_contact">Kontakt aufnehmen</span>
       <span class="btn__arrow" aria-hidden="true">→</span>
     </a>
-    <a class="btn btn--ghost" href="mailto:al.kluge@campus.lmu.de" data-i18n="team_cta">Kontakt aufnehmen</a>
+  </div>
+  <div class="sc-gap" aria-hidden="true"></div>
+</section>
+
+<!-- ============================== OTHER SECTORS ============================== -->
+<section class="sc-cta">
+  <h2 class="sc-h2" data-i18n="sector_cta_h">Dieselbe Sprache, ein anderer Ort.</h2>
+  <div class="sc-cta__actions">
+    <a class="btn btn--ghost" href="krankenhaus.html">
+      <span data-i18n="nav_hospital">Krankenhaus</span>
+      <span class="btn__arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="btn btn--ghost" href="katastrophenschutz.html">
+      <span data-i18n="nav_disaster">Katastrophenschutz</span>
+      <span class="btn__arrow" aria-hidden="true">→</span>
+    </a>
   </div>
 </section>
 
@@ -3421,12 +3212,12 @@ html {
       <nav class="foot__col" aria-labelledby="footNav1">
         <h4 id="footNav1" data-i18n="foot_h_site">Website</h4>
         <ul>
-          <li><a href="#technologie" data-i18n="nav_tech">Technologie</a></li>
+          <li><a href="index.html#technologie" data-i18n="nav_tech">Technologie</a></li>
           <li><a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a></li>
           <li><a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a></li>
           <li><a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a></li>
           <li><a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a></li>
-          <li><a href="#team" data-i18n="nav_team">Team</a></li>
+          <li><a href="index.html#team" data-i18n="nav_team">Team</a></li>
         </ul>
       </nav>
 
@@ -4092,299 +3883,6 @@ window.JAR_I18N = {
   }
 
 };
-</script>
-<script>/* js/hero-scroll.js */
-/* ==========================================================================
-   J.A.R. — Hero scroll track
-   After mistral.ai's home hero (<mistral-section-hero-home>): the hero sits in
-   a two-screen track, pins for one, and as the visitor scrolls the left column
-   folds away while the side cell grows to fill the view. The lead ends large
-   and centred with the two ways in beneath it. Scrolling back reverses it.
-
-   Markup:  <div class="sc-hero-track" data-hero-scroll>
-              <section class="sc-hero"> …four cells… </section>
-            </div>
-
-   Same contract as waveform.js: one rAF-throttled scroll listener, scroll
-   position is the only input, nothing runs on a timer. The script writes a
-   single progress value, --p (0..1), on .sc-hero; the grid in showcase.css is
-   a function of it. The side cell's lead and buttons are the exception — they
-   are measured once in flow (like mistral's calcScrollEndPosition) and then
-   placed here, because their path from the corner to the centre can't be
-   expressed in CSS without reflowing the text.
-
-   The scrub is linear, as on mistral.ai (ease: none), so the sheet tracks the
-   scrollbar exactly. Below 1024px and under reduced motion the track is left
-   inert and the hero is the plain grid; the media query matches the one in
-   showcase.css.
-
-   Load order: before waveform.js, so the hero canvas already has its pinned
-   size when the mosaic paints for the first time.
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  var track = document.querySelector('[data-hero-scroll]');
-  if (!track || !window.matchMedia) return;
-
-  var hero = track.querySelector('.sc-hero');
-  var side = hero && hero.querySelector('.sc-hero__side');
-  var lead = side && side.querySelector(':scope > p');
-  var actions = side && side.querySelector(':scope > .sc-cta__actions');
-  if (!hero || !side || !lead || !actions) return;
-
-  var titleInner = hero.querySelector('.sc-hero__title > div');
-  var aside = hero.querySelector('.sc-hero__aside');
-  var canvas = hero.querySelector('.sc-hero__art .sc-waveform');
-
-  var mq = window.matchMedia('(min-width: 1024px) and (prefers-reduced-motion: no-preference)');
-
-  var geo = null;     // measured start/end geometry, null when inert
-  var lastP = -1;
-
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function clearPlacement() {
-    lead.style.translate = '';
-    lead.style.scale = '';
-    actions.style.translate = '';
-  }
-
-  /* Read the layout at p = 0 with the side cell's contents still in flow,
-     then lift them out. Offsets rather than bounding rects throughout: the
-     load animation is still translating these elements for the first second
-     and a rect would bake that offset in. */
-  function measure() {
-    track.classList.remove('is-measured');
-    clearPlacement();
-    lastP = -1;
-
-    if (!mq.matches) {
-      track.classList.remove('is-live');
-      hero.style.removeProperty('--p');
-      geo = null;
-      return;
-    }
-
-    track.classList.add('is-live');
-    hero.style.setProperty('--p', '0');
-
-    var padTop = parseFloat(getComputedStyle(hero).paddingTop) || 0;
-    var cw = hero.clientWidth;
-    var ch = hero.clientHeight - padTop;
-
-    var sideLeft = side.offsetLeft;
-    var sideTop = side.offsetTop;
-
-    var L0 = {
-      x: sideLeft + lead.offsetLeft,
-      y: sideTop + lead.offsetTop,
-      w: lead.offsetWidth,
-      h: lead.offsetHeight
-    };
-    var A0 = {
-      x: sideLeft + actions.offsetLeft,
-      y: sideTop + actions.offsetTop,
-      w: actions.offsetWidth,
-      h: actions.offsetHeight
-    };
-    if (L0.w < 1 || L0.h < 1) { geo = null; return; }
-
-    /* End state: the lead about three fifths of the sheet wide, never taller
-       than a bit over half of it, the buttons centred below. */
-    var s = Math.min(cw * 0.62, 960) / L0.w;
-    s = Math.min(s, (ch * 0.55) / L0.h);
-    s = Math.max(1, s);
-
-    var gap = Math.max(16, A0.y - (L0.y + L0.h)) * 1.5;
-    var groupH = L0.h * s + gap + A0.h;
-    var top = padTop + (ch - groupH) / 2;
-
-    /* The buttons wrap inside a box as wide as the side cell; centre what is
-       actually drawn, not the box, or they land left of the lead's axis.
-       A rect difference, because the load animation's held transform on the
-       wrapper changes which element the buttons' offsets are relative to —
-       and the same transform cancels out of the subtraction. */
-    var actVisible = 0;
-    var aLeft = actions.getBoundingClientRect().left;
-    for (var i = 0; i < actions.children.length; i++) {
-      actVisible = Math.max(actVisible, actions.children[i].getBoundingClientRect().right - aLeft);
-    }
-    if (!actVisible) actVisible = A0.w;
-
-    geo = {
-      sideLeft: sideLeft,
-      sideTop: sideTop,
-      s: s,
-      L0: L0,
-      L1: { x: (cw - L0.w * s) / 2, y: top },
-      A0: A0,
-      A1: { x: (cw - actVisible) / 2, y: top + L0.h * s + gap }
-    };
-
-    hero.style.setProperty('--lead-w', L0.w + 'px');
-    hero.style.setProperty('--act-w', Math.ceil(A0.w) + 'px');
-    hero.style.setProperty('--row2-h', (aside ? aside.offsetHeight : ch * 0.4) + 'px');
-    if (titleInner) hero.style.setProperty('--title-w', titleInner.offsetWidth + 'px');
-    if (canvas) {
-      hero.style.setProperty('--art-w', canvas.clientWidth + 'px');
-      hero.style.setProperty('--art-h', canvas.clientHeight + 'px');
-    }
-
-    track.classList.add('is-measured');
-  }
-
-  /* Positions are computed in hero coordinates and converted to the side
-     cell's, whose left edge moves with the folding column. */
-  function place(el, a, b, p, s) {
-    var x = lerp(a.x, b.x, p) - geo.sideLeft * (1 - p);
-    var y = lerp(a.y, b.y, p) - geo.sideTop;
-    el.style.translate = x.toFixed(2) + 'px ' + y.toFixed(2) + 'px';
-    if (s !== undefined) el.style.scale = s.toFixed(4);
-  }
-
-  function frame() {
-    queued = false;
-    if (!geo) return;
-
-    var total = track.offsetHeight - hero.offsetHeight;
-    var p = total > 0 ? -track.getBoundingClientRect().top / total : 0;
-    p = p < 0 ? 0 : p > 1 ? 1 : p;
-    if (p === lastP) return;
-    lastP = p;
-
-    hero.style.setProperty('--p', p.toFixed(4));
-    place(lead, geo.L0, geo.L1, p, lerp(1, geo.s, p));
-    place(actions, geo.A0, geo.A1, p);
-  }
-
-  var queued = false;
-  function request() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(frame);
-  }
-
-  var remeasureQueued = false;
-  function remeasure() {
-    if (remeasureQueued) return;
-    remeasureQueued = true;
-    requestAnimationFrame(function () {
-      remeasureQueued = false;
-      measure();
-      frame();
-    });
-  }
-
-  measure();
-  frame();
-
-  window.addEventListener('scroll', request, { passive: true });
-  window.addEventListener('resize', remeasure, { passive: true });
-  window.addEventListener('orientationchange', function () { setTimeout(remeasure, 120); });
-  if (mq.addEventListener) mq.addEventListener('change', remeasure);
-  else if (mq.addListener) mq.addListener(remeasure);
-
-  /* The lead's size depends on the webfont and on the language. i18n.js
-     swaps text in place without an event, so watch the side cell's text;
-     our own writes are style attributes and don't trigger this. */
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(remeasure);
-  if (document.fonts && document.fonts.addEventListener) {
-    document.fonts.addEventListener('loadingdone', remeasure);
-  }
-  if ('MutationObserver' in window) {
-    new MutationObserver(remeasure).observe(side, {
-      childList: true, characterData: true, subtree: true
-    });
-  }
-})();
-</script>
-<script>/* js/waveform.js */
-// js/waveform.js
-(function() {
-  const canvases = document.querySelectorAll('.sc-waveform');
-  if (!canvases.length) return;
-
-  const color = 'rgba(142, 199, 184, 0.8)';
-
-  canvases.forEach(canvas => {
-    const ctx = canvas.getContext('2d');
-    let width, height;
-
-    // Resize handler
-    function resize() {
-      // Get dimensions from the canvas itself (its CSS size)
-      const rect = canvas.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-
-      // High DPI support
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      ctx.scale(dpr, dpr);
-    }
-
-    // Observe canvas element size changes
-    const resizeObserver = new ResizeObserver(() => resize());
-    resizeObserver.observe(canvas);
-    resize();
-
-    // Animation variables
-    let time = 0;
-    const lines = 3;
-
-    function draw() {
-      ctx.clearRect(0, 0, width, height);
-
-      const cy = height / 2;
-
-      for (let i = 0; i < lines; i++) {
-        ctx.beginPath();
-        // The first line is bright and thicker, others are fainter for depth
-        ctx.lineWidth = i === 0 ? 2.5 : 1.5;
-
-        // Calculate dynamic alpha for breathing effect
-        const alphaPhase = Math.sin(time + i * Math.PI) * 0.1;
-        const baseAlpha = i === 0 ? 0.8 : (0.3 - i * 0.1);
-        const currentAlpha = Math.max(0.1, baseAlpha + alphaPhase);
-
-        ctx.strokeStyle = `rgba(142, 199, 184, ${currentAlpha})`;
-
-        // Morphing parameters
-        const frequency = 0.015 + i * 0.005;
-        // The amplitude varies smoothly to simulate speaking
-        const amplitudeModulation = (0.5 + Math.sin(time * 1.5) * 0.5) * (height * 0.3);
-        const amplitude = (height * 0.1) + amplitudeModulation * (1 - i * 0.2);
-        const phase = time * 2.5 + i * (Math.PI / 3);
-
-        ctx.moveTo(0, cy);
-
-        for (let x = 0; x <= width; x += 3) {
-          // Windowing function (Hann window) to taper ends smoothly to 0
-          const nx = x / width;
-          const windowFunc = Math.sin(nx * Math.PI);
-
-          // Organic combination of sine waves for a complex, non-repeating look
-          const wave1 = Math.sin(x * frequency + phase);
-          const wave2 = Math.sin(x * frequency * 1.7 + phase * 1.3) * 0.6;
-          const wave3 = Math.cos(x * frequency * 0.4 - phase * 0.8) * 0.3;
-
-          const y = cy + (wave1 + wave2 + wave3) * amplitude * windowFunc;
-
-          ctx.lineTo(x, y);
-        }
-
-        ctx.stroke();
-      }
-
-      time += 0.02;
-      requestAnimationFrame(draw);
-    }
-
-    draw();
-  });
-})();
 </script>
 <script>/* js/scribe.js */
 /* ==========================================================================

@@ -126,7 +126,7 @@ describe('the site skeleton GitHub Pages needs', () => {
 });
 
 describe('references hidden inside JavaScript', () => {
-  const INDEX = readText('index.html');
+  const INDEX = readText('website_old/index.html');
 
   test('every localised concept image referenced by the switcher exists', () => {
     const images = objectFromHtml(INDEX, 'I18N_CONCEPT_IMAGES');
@@ -168,7 +168,7 @@ describe('removed features leave nothing behind', () => {
   });
 
   test('no translation references the removed AR call-to-action', () => {
-    const I18N = objectFromHtml(readText('index.html'), 'I18N');
+    const I18N = objectFromHtml(readText('website_old/index.html'), 'I18N');
     const offenders = Object.entries(I18N)
       .filter(([, dict]) => Object.keys(dict).some((k) => k.startsWith('cta_btn_ar')))
       .map(([lang]) => lang);

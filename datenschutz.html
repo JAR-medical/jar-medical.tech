@@ -2,29 +2,17 @@
 
 <html lang="de"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>J.A.R. Medical: Medizinische Spracherkennung, die beim ersten Mal versteht</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datenschutzerklärung | J.A.R. Medical</title>
 <!-- Page identity for the language switch: js/site.js looks up
      meta_title_<id> / meta_desc_<id> in js/i18n.js and falls back to the
      landing page's pair. Without it every page inherited the landing
      page's title the moment a visitor switched to English. -->
-<meta name="jar:page" content="index">
-  <meta name="description" content="J.A.R. baut die nächste Generation der medizinischen Transkription: ein Sprachmodell mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz. Für Pflege, Katastrophenschutz und Rettungsdienst.">
-<meta name="theme-color" content="#0c0b1f">
-<link rel="canonical" href="https://jar-medical.tech/">
-
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://jar-medical.tech/">
-  <meta property="og:title" content="J.A.R. Medical: Jedes Wort zählt. Auch beim ersten Mal.">
-  <meta property="og:description" content="Medizinische Spracherkennung mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz.">
-<meta property="og:image" content="https://jar-medical.tech/assets/og.png">
-<meta property="og:locale" content="de_DE">
-<meta name="twitter:card" content="summary_large_image">
-
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<meta name="jar:page" content="privacy">
+<meta name="description" content="Datenschutzerklärung nach DSGVO für die statische Website von J.A.R. Medical: keine Cookies, kein Tracking, nur Server-Log-Daten des Hosting-Anbieters.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon.svg">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-
 <style>/* css/tokens.css */
 /* ==========================================================================
    J.A.R. Medical — Design tokens
@@ -1903,1097 +1891,332 @@ ul, ol { list-style: none; padding: 0; }
   .team__person:hover { transform: none; }
 }
 </style>
-<style>/* css/showcase.css */
+<style>/* css/legal.css */
 /* ==========================================================================
-   J.A.R. — Showcase layer
-   The dark, gridded system the landing page and the three sector pages share.
-   Loaded after site.css; it adds primitives (.sc-*) and re-grounds the page,
-   it does not restyle the components it inherits.
+   J.A.R. Medical — Legal pages
+   Impressum · Datenschutzerklärung · Nutzungsbedingungen
 
-   The reference is mistral.ai, taken as a structure rather than a skin: a
-   near-black ground, a visible 1px grid that cuts the page into cells, very
-   large light-weight display type, and monospace caps for every label. Their
-   signature is a pixel mosaic in their brand colours. Ours is a spectrogram
-   drawn the same way — the thing this company works on, at the scale of an
-   illustration — in mint on navy-black. js/waveform.js draws it.
+   Consumes css/tokens.css exclusively: no raw hex, no magic spacing values.
+   Every selector here is `.legal`-prefixed; the .nav / .foot chrome lives in
+   css/site.css and is never touched from this file.
+   Dark-theme native — the site has no light mode.
    ========================================================================== */
 
-/* ---- Ground ---------------------------------------------------------------
-   A dark page re-points the same tokens .theme-dark does, a step deeper. Every
-   component that reads tokens (cards, partner plates, the team list) therefore
-   works here unchanged — this file never has to know about them. */
-.page--dark {
-  --bg-abyss: #0c0b1f;          /* ground: the deck's navy, taken near black   */
-  --bg-deep: #090818;
-  --bg-base: #09081a;
-  --bg-raise: #15142e;          /* cells, cards                                */
-  --bg-raise-2: #1c1b3b;
-  --bg-invert: #19183b;         /* the deck navy itself, used as a panel       */
+/* --------------------------------------------------------------------------
+   Hero
+   -------------------------------------------------------------------------- */
 
-  --ink: #f4f5fa;
-  --ink-soft: #a9afc4;
-  --ink-faint: #868ca4;
-
-  --line: rgba(255, 255, 255, 0.10);
-  --line-strong: rgba(255, 255, 255, 0.20);
-  --line-mint: rgba(142, 199, 184, 0.34);
-
-  --accent: var(--brand-mint);
-  --accent-quiet: #7fa79c;
-  --surface-tint: rgba(142, 199, 184, 0.10);
-  --ring-line: var(--ring-line-invert);
-  --sig-red: #f0776e;
-  --sig-amber: #f0b45c;
-  --sig-green: #5cc08f;
-
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.8);
-  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.4), 0 26px 56px -24px rgba(0, 0, 0, 0.85);
-
-  --surface-glass-strong: rgba(12, 11, 31, 0.86);
-
-  background: var(--bg-abyss);
-  color: var(--ink);
-  color-scheme: dark;
+.legal-hero {
+  position: relative;
+  padding-top: calc(var(--nav-h) + var(--sp-8));
+  padding-bottom: var(--sp-7);
+  background: var(--grad-stage);
+  border-bottom: 1px solid var(--line);
 }
 
-/* The page is the grid: one shared measure for every framed section, so the
-   vertical rules line up from the hero to the footer. */
-:root, .page--dark { --sc-frame: 100%; }
-
-/* ---- Chrome on a dark page -------------------------------------------------
-   Mistral's bar: solid, hairline-divided, no glass blur over content. */
-.page--dark .nav,
-.page--dark .nav.is-scrolled {
-  background: rgba(12, 11, 31, 0.92);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-  backdrop-filter: saturate(140%) blur(14px);
-  box-shadow: 0 1px 0 0 var(--line);
-}
-.page--dark .nav__links a { color: var(--ink-soft); }
-.page--dark .nav__links a:hover,
-.page--dark .nav__links a.is-active,
-.page--dark .nav__links a[aria-current="page"] { color: var(--ink); }
-.page--dark .nav__name { color: var(--ink); }
-.page--dark .nav__tag { color: var(--ink-faint); }
-.page--dark .langswitch__btn { color: var(--ink-soft); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.page--dark .langswitch__menu { background: var(--bg-raise); box-shadow: inset 0 0 0 1px var(--line), var(--shadow-lift); }
-.page--dark .langswitch__menu button { color: var(--ink-soft); }
-.page--dark .nav__burger span { background: var(--ink); }
-.page--dark .btn--primary {
-  --btn-bg: var(--brand-mint);
-  --btn-fg: var(--brand-navy);
-  --btn-line: transparent;
-}
-.page--dark .btn--primary:hover { --btn-bg: #a3d5c8; box-shadow: var(--glow-mint); }
-.page--dark .btn--ghost {
-  --btn-bg: transparent;
-  --btn-fg: var(--ink);
-  --btn-line: var(--line-strong);
-  background: transparent;
-}
-.page--dark .btn--ghost:hover { --btn-line: var(--brand-mint); background: rgba(255, 255, 255, 0.06); }
-.page--dark .eyebrow { color: var(--accent); }
-.page--dark .scrollbar i { background: var(--brand-mint); }
-
-@media (max-width: 1180px) {
-  .page--dark .nav__links { background: rgba(12, 11, 31, 0.97); }
+.legal-hero__inner {
+  max-width: var(--wrap-text);
 }
 
-/* ---- Type ------------------------------------------------------------------ */
-/* Display lines are light, not bold: at this size weight reads as noise, and
-   the contrast with the 600-weight UI around it is most of the look. */
-.sc-display {
-  font-size: clamp(2.2rem, 0.6rem + 4.5vw, 5.5rem);
-  font-weight: 400;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
+.legal-hero__title {
+  margin-top: var(--sp-4);
+  font-size: var(--t-h2);
+  letter-spacing: var(--track-head);
 }
-.sc-h2 {
-  font-size: clamp(1.8rem, 0.9rem + 3vw, 3.8rem);
-  font-weight: 450;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
-}
-.sc-h3 {
-  font-size: clamp(1.35rem, 1rem + 1vw, 1.9rem);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-}
-.sc-lead {
-  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
-  line-height: 1.5;
+
+.legal-hero__lead {
+  margin-top: var(--sp-4);
+  max-width: var(--wrap-text);
+  font-size: var(--t-lead);
+  line-height: var(--lh-body);
   color: var(--ink-soft);
-  text-wrap: pretty;
 }
-.sc-kicker {
+
+.legal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-5);
+  font-size: var(--t-small);
+  color: var(--ink-faint);
+}
+
+.legal-meta__item {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+}
+
+.legal-meta__item + .legal-meta__item::before {
+  content: "";
+  width: var(--sp-1);
+  height: var(--sp-1);
+  border-radius: var(--r-pill);
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------------------------
+   Layout — sticky table of contents beside the prose
+   -------------------------------------------------------------------------- */
+
+.legal-layout {
+  --legal-toc-w: 16rem;
+  display: grid;
+  grid-template-columns: var(--legal-toc-w) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(var(--sp-6), 5vw, var(--sp-9));
+  padding-top: var(--sp-8);
+  padding-bottom: var(--section-y);
+}
+
+/* --------------------------------------------------------------------------
+   Table of contents
+   -------------------------------------------------------------------------- */
+
+.legal-toc {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--sp-5));
+  min-width: 0;
+}
+
+.legal-toc__title {
+  margin-bottom: var(--sp-4);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
   text-transform: uppercase;
   color: var(--ink-faint);
 }
-.sc-kicker--accent { color: var(--accent); }
-.sc-kicker--live::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
 
-/* ---- The frame --------------------------------------------------------------
-   Every framed section is a box of hairlines at the shared measure. Cells
-   inside draw their own right/bottom rules, so a grid of them reads as one
-   ruled sheet rather than a pile of bordered cards. */
-.sc-frame {
-  width: var(--sc-frame);
-  margin-inline: auto;
-  border-left: 0;
-  border-right: 0;
-}
-.sc-rule { border-top: 1px solid var(--line); padding-bottom: clamp(3rem, 6vw, 5rem); }
-
-/* ---- Subnav (Sprungmarken-Leiste) -------------------------------------------------------- */
-.sc-subnav {
-  position: sticky;
-  top: var(--nav-h, 4rem);
-  z-index: 40;
-  background: var(--bg-base);
-  border-bottom: 1px solid var(--line);
-  margin-top: -1px; /* overlap potential top borders */
-}
-.page--dark .sc-subnav {
-  background: rgba(12, 11, 31, 0.92);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-  backdrop-filter: saturate(140%) blur(14px);
-}
-@supports (backdrop-filter: blur(14px)) {
-  .sc-subnav {
-    background: rgba(255, 255, 255, 0.85);
-    -webkit-backdrop-filter: saturate(140%) blur(14px);
-    backdrop-filter: saturate(140%) blur(14px);
-  }
-}
-.sc-subnav__inner {
-  display: flex;
-  gap: var(--sp-6);
-  padding: var(--sp-4) clamp(1.25rem, 3vw, 2.5rem);
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
-}
-.sc-subnav__inner::-webkit-scrollbar { display: none; }
-.sc-subnav__inner a {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  text-decoration: none;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.sc-subnav__inner a:hover {
-  color: var(--ink);
-}
-
-/* ---- Hero ------------------------------------------------------------------ */
-.sc-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 30%);
-  grid-template-rows: 1fr auto;
-  min-height: 100dvh;
-  padding-top: var(--nav-h);
-}
-.sc-hero__title {
-  display: flex;
-  align-items: flex-end;
-  padding: clamp(2rem, 4vw, 4rem) clamp(1.25rem, 3vw, 2.5rem);
-  border-right: 1px solid var(--line);
-}
-.sc-hero__side {
+.legal-toc__list {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: var(--sp-5);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  background: var(--bg-raise);
-}
-.sc-hero__side p { font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.3rem); line-height: 1.4; }
-.sc-hero__side .btn { align-self: flex-start; }
-.sc-hero__art {
-  position: relative;
-  border-top: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  overflow: hidden;
-}
-.sc-hero__aside {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: clamp(1.25rem, 2.5vw, 2rem);
-  border-top: 1px solid var(--line);
-}
-.sc-arrows { display: grid; gap: 0.35rem; color: var(--ink-faint); font-family: var(--font-mono); }
-
-@media (max-width: 900px) {
-  .sc-hero {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto 1fr auto;
-  }
-  .sc-hero__title { border-right: 0; padding-bottom: var(--sp-6); }
-  .sc-hero__side { padding: var(--sp-5) clamp(1.25rem, 3vw, 2.5rem); }
-  .sc-hero__art { border-right: 0; }
-  .sc-hero__aside { display: none; }
+  gap: var(--sp-1);
+  border-left: 1px solid var(--line);
 }
 
-/* ---- The mosaic -------------------------------------------------------------
-   A canvas that fills its cell. Registration marks and the two corner labels
-   are DOM, not canvas, so they stay crisp and translatable. Without JS the cell
-   is the bare ground with its labels — a frame waiting for its picture, which
-   is honest and still reads as part of the grid. */
-.sc-waveform { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.sc-tag {
-  position: absolute;
-  z-index: 1;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink);
-  pointer-events: none;
-  text-shadow: 0 1px 8px rgba(9, 8, 24, 0.9);
-}
-
-/* ---- Statement --------------------------------------------------------------- */
-.sc-statement {
-  padding: clamp(5rem, 14vw, 11rem) clamp(1.25rem, 3vw, 2.5rem);
-  text-align: center;
-}
-.sc-statement p:not(.sc-kicker) {
-  max-width: 22ch;
-  margin-inline: auto;
-  font-size: clamp(1.9rem, 0.9rem + 3.4vw, 4rem);
-  font-weight: 450;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-.sc-statement .sc-kicker { margin-bottom: var(--sp-6); }
-
-/* ---- Section head ------------------------------------------------------------ */
-.sc-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-5) var(--sp-7);
-  padding: clamp(2.5rem, 5vw, 4.5rem) clamp(1.25rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 2.5rem);
-}
-.sc-head__text { max-width: 44rem; }
-.sc-head__text .sc-kicker { margin-bottom: var(--sp-4); }
-.sc-head__text .sc-lead { margin-top: var(--sp-4); }
-
-/* ---- Sector cards -------------------------------------------------------------
-   Three cells of one ruled sheet. The art strip is the mosaic again, seeded per
-   sector, so the three read as one family without three stock photographs. */
-.sc-sectors {
-  display: grid;
-  /* Four sectors, two by two: a row of four made each card too narrow for its
-     copy, and three columns left the fourth alone on a second row. */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-}
-.sc-sector {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--line);
-  color: inherit;
-  transition: background-color var(--dur) var(--ease-out);
-}
-.sc-sector:nth-child(2n) { border-right: 0; }
-.sc-sector:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
-.sc-sector:hover { background: var(--bg-raise); }
-.sc-sector__art {
-  position: relative;
-  /* Flatter than the old 16/10: in a two-column grid each strip is twice as
-     wide, and 16/10 made the art taller than the copy beneath it. */
-  aspect-ratio: 16 / 6;
-  border-bottom: 1px solid var(--line);
-  overflow: hidden;
-}
-.sc-sector__body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--sp-4);
-  padding: clamp(1.5rem, 2.5vw, 2rem);
-}
-.sc-sector__body p { color: var(--ink-soft); font-size: var(--t-small); }
-.sc-sector__more {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-top: auto;
-  padding-top: var(--sp-4);
-  font-size: var(--t-small);
-  font-weight: 600;
-  color: var(--ink);
-}
-.sc-sector__more span { transition: transform var(--dur) var(--ease-out); }
-.sc-sector:hover .sc-sector__more span { transform: translateX(4px); }
-.sc-sector:focus-visible { outline: 2px solid var(--brand-mint); outline-offset: -2px; border-radius: 0; }
-
-@media (max-width: 900px) {
-  .sc-sectors { grid-template-columns: minmax(0, 1fr); }
-  .sc-sector,
-  .sc-sector:nth-child(-n + 2) { border-right: 0; border-bottom: 1px solid var(--line); }
-  .sc-sector:last-child { border-bottom: 0; }
-}
-
-/* ---- Product canvas -------------------------------------------------------------
-   Mistral's move: a big brand-coloured field inside the dark page with the
-   product UI floating on it. Here the field is the mosaic and the UI is the
-   transcription panel, which js/scribe.js plays as the canvas scrolls past. */
-.sc-canvas {
-  position: relative;
-  min-height: clamp(26rem, 46vw, 38rem);
-  margin: 0 clamp(1.25rem, 3vw, 2.5rem);
-  border: 1px solid var(--line);
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  padding: clamp(1.5rem, 4vw, 3.5rem);
-}
-.sc-canvas > .scribe { position: relative; z-index: 2; justify-self: center; }
-.sc-canvas .scribe { box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9), inset 0 0 0 1px var(--line-strong); }
-
-/* ---- Capability rows ------------------------------------------------------------ */
-.sc-caps {
-  margin: clamp(1.5rem, 3vw, 2.5rem) clamp(1.25rem, 3vw, 2.5rem) 0;
-  border-top: 1px solid var(--line);
-}
-.sc-caps li {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-5);
-  padding: var(--sp-4) 0;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.sc-caps li::before {
-  content: attr(data-n);
-  min-width: 2.5ch;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---- Cells ------------------------------------------------------------------------ */
-.sc-cells {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-}
-.sc-cell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  min-height: clamp(14rem, 22vw, 18rem);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  border-right: 1px solid var(--line);
-}
-.sc-cell:last-child { border-right: 0; }
-.sc-cell p { color: var(--ink-soft); font-size: var(--t-small); margin-top: auto; }
-.sc-cell__icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  background: var(--surface-tint);
-  box-shadow: inset 0 0 0 1px var(--line-mint);
-  color: var(--accent);
-}
-.sc-cell__icon svg { width: 18px; height: 18px; }
-
-@media (max-width: 900px) {
-  .sc-cells { grid-template-columns: minmax(0, 1fr); }
-  .sc-cell { border-right: 0; border-bottom: 1px solid var(--line); min-height: 0; }
-  .sc-cell:last-child { border-bottom: 0; }
-  .sc-cell p { margin-top: 0; }
-}
-
-/* ---- Split: text beside a panel ---------------------------------------------------- */
-.sc-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  border-top: 1px solid var(--line);
-}
-.sc-split > * { padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1.25rem, 3vw, 2.5rem); }
-.sc-split > * + * { border-left: 1px solid var(--line); }
-@media (max-width: 900px) {
-  .sc-split { grid-template-columns: minmax(0, 1fr); }
-  .sc-split > * + * { border-left: 0; border-top: 1px solid var(--line); }
-}
-
-/* ---- Closing band ------------------------------------------------------------------ */
-.sc-cta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-6);
-  padding: clamp(3.5rem, 8vw, 7rem) clamp(1.25rem, 3vw, 2.5rem);
-  border-top: 1px solid var(--line);
-}
-.sc-cta__actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
-
-/* ---- Sector page hero -----------------------------------------------------------------
-   The sector pages open on the same grid: title cell, a side cell with status
-   and the lead, and the sector's own mosaic band. */
-.sc-page-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 34%);
-  padding-top: var(--nav-h);
-}
-.sc-page-hero__title {
-  padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 3vw, 2.5rem) clamp(2rem, 4vw, 3.5rem);
-  border-right: 1px solid var(--line);
-}
-.sc-page-hero__title .sc-kicker { margin-bottom: var(--sp-5); }
-.sc-page-hero__side {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: var(--sp-5);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  background: var(--bg-raise);
-}
-.sc-page-hero__band {
-  grid-column: 1 / -1;
-  position: relative;
-  height: clamp(4rem, 8vw, 6rem);
-  border-top: 1px solid var(--line);
-  overflow: hidden;
-}
-@media (max-width: 900px) {
-  .sc-page-hero { grid-template-columns: minmax(0, 1fr); }
-  .sc-page-hero__title { border-right: 0; }
-}
-
-/* ---- The honest status block ----------------------------------------------------------
-   For the two sectors that are directions rather than products: says so, in
-   the layout, before anyone has to ask. */
-.sc-status {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-6);
-  margin: 0 clamp(1.25rem, 3vw, 2.5rem);
-  padding: clamp(1.75rem, 3.5vw, 3rem);
-  border: 1px dashed var(--line-strong);
-}
-.sc-status .sc-h3 { margin: var(--sp-3) 0 var(--sp-3); }
-.sc-status p { color: var(--ink-soft); font-size: var(--t-small); max-width: 56ch; }
-@media (max-width: 760px) {
-  .sc-status { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* ---- Spacing helper for the stacked sheet ------------------------------------------------ */
-.sc-gap { height: clamp(2.5rem, 5vw, 4.5rem); }
-
-/* ---- Reveal tuned for the dark sheet: shorter travel, it is a denser page. */
-.page--dark .reveal { transform: translateY(14px); }
-.page--dark .reveal.is-in { transform: none; }
-
-/* ---- Footer joins the ground ------------------------------------------------------------- */
-.page--dark .foot { background: var(--bg-abyss); border-top: 1px solid var(--line); }
-
-/* ---- Four-up cells ------------------------------------------------------------------------
-   The technology principles are four, not three. Two by two in between, with
-   the rules redrawn so the inner cross is one line and not a doubled one. */
-/* Dynamic Mistral-style grid expansion */
-.sc-cells--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  transition: grid-template-columns 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@media (hover: hover) and (min-width: 1101px) {
-  .sc-cells--4:has(.sc-cell:nth-child(1):hover) { grid-template-columns: 1.6fr 0.8fr 0.8fr 0.8fr; }
-  .sc-cells--4:has(.sc-cell:nth-child(2):hover) { grid-template-columns: 0.8fr 1.6fr 0.8fr 0.8fr; }
-  .sc-cells--4:has(.sc-cell:nth-child(3):hover) { grid-template-columns: 0.8fr 0.8fr 1.6fr 0.8fr; }
-  .sc-cells--4:has(.sc-cell:nth-child(4):hover) { grid-template-columns: 0.8fr 0.8fr 0.8fr 1.6fr; }
-
-  .sc-cell {
-    transition: background-color 0.4s ease;
-  }
-  .sc-cell:hover {
-    background-color: var(--bg-raise);
-  }
-}
-@media (max-width: 1100px) and (min-width: 901px) {
-  .sc-cells--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .sc-cells--4 .sc-cell:nth-child(2n) { border-right: 0; }
-  .sc-cells--4 .sc-cell:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
-}
-
-/* ---- Index list in the hero's corner cell ------------------------------------------------- */
-.sc-index { display: grid; gap: 0; border-top: 1px solid var(--line); }
-.sc-index a {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.sc-index a:hover { color: var(--ink); }
-.sc-index a span:last-child { color: var(--ink-faint); }
-
-/* ---- Components inherited from site.css, on the dark sheet ---------------------------------
-   The same reasons .theme-dark gives in site.css: the partner marks are dark
-   third-party trademarks and get a white plate rather than a recolour, and the
-   demo panel would dissolve into a ground of its own colour. */
-.page--dark .partner__logo {
-  height: 6.5rem;
-  padding: var(--sp-4) var(--sp-5);
-  border-radius: var(--r-md);
-  background: var(--bg-light);
-}
-.page--dark .partner__logo img { max-height: 4.5rem; }
-.page--dark .demo__panel {
-  background: var(--bg-raise);
-  box-shadow: var(--shadow-lift), inset 0 0 0 1px var(--line-mint);
-}
-
-/* Sections inside the frame keep their own vertical rhythm but none of the
-   paper-era padding at the sides: the frame's cells set the inset. */
-.sc-frame > .section { padding-inline: clamp(1.25rem, 3vw, 2.5rem); border-top: 1px solid var(--line); }
-.sc-frame > .section > .wrap { max-width: none; padding-inline: 0; }
-
-/* The transcription panel on the product canvas. site.css makes it fill its
-   band on phones because there it is a pinned stage row; here it sits in a
-   normal-flow canvas and should just be its own height. */
-@media (max-width: 900px) {
-  .sc-canvas .scribe { height: auto; padding: var(--sp-5); }
-  .sc-canvas .scribe__wave { flex: none; height: 48px; }
-}
-
-/* ---- Sector page title ------------------------------------------------------------------
-   A sentence rather than two words, so one step down from the landing page's
-   display size; hyphenation lets "Rettungsdienst"-length German words break
-   at a phone's measure instead of overflowing it. */
-.sc-page-hero__h {
-  font-size: clamp(2rem, 0.8rem + 3.5vw, 4.2rem);
-  font-weight: 400;
-  -webkit-hyphens: auto;
-  hyphens: auto;
-}
-.sc-page-hero__side .sc-cta__actions { margin-top: var(--sp-2); }
-.sc-split .sc-h3 { margin: var(--sp-4) 0 var(--sp-3); }
-.sc-split p:not(.sc-kicker) { color: var(--ink-soft); max-width: 52ch; }
-
-/* ---- Phone fixes ------------------------------------------------------------------------
-   .sc-cells--4 is declared after the shared cells breakpoint, so it has to
-   restate the single column itself or it wins at every width. */
-@media (max-width: 900px) {
-  .sc-cells--4 { grid-template-columns: minmax(0, 1fr); }
-  /* site.css puts label and value on one line for the pinned stage, where
-     height is the budget. Here width is, and a long value ran into the next
-     field's label — stacked is the default and the right call. */
-  .sc-canvas .scribe__field { display: block; }
-  .sc-canvas .scribe__field dd { margin-top: 0.2rem; }
-}
-
-/* A grid item will not shrink below its content by default, so on a 360px
-   phone the panel pushed past the canvas and was clipped by it. */
-.sc-canvas { grid-template-columns: minmax(0, 1fr); }
-.sc-canvas > .scribe { min-width: 0; width: min(34rem, 100%); }
-.sc-canvas .scribe__said,
-.sc-canvas .scribe__field dd { overflow-wrap: anywhere; }
-@media (max-width: 560px) {
-  .sc-canvas { margin-inline: 0.75rem; padding: 1rem; }
-}
-
-/* ---- Mistral.ai Exact Grid Draw Animation ----------------------------------- */
-@media (prefers-reduced-motion: no-preference) {
-
-  /* 1. Hide static borders */
-  .sc-frame { border-left-color: transparent !important; border-right-color: transparent !important; }
-  .sc-hero__title, .sc-hero__art, .sc-hero__aside { border-color: transparent !important; }
-
-  /* 2. Setup relative positioning for drawing lines */
-  .sc-frame, .sc-hero { position: relative; }
-
-  /* 3. Define the drawing keyframes */
-  @keyframes drawY {
-    0% { transform: scaleY(0); }
-    100% { transform: scaleY(1); }
-  }
-  @keyframes drawX {
-    0% { transform: scaleX(0); }
-    100% { transform: scaleX(1); }
-  }
-
-  /* 4. Draw outer frame borders from top to bottom */
-  .sc-frame::before, .sc-frame::after {
-    content: ''; position: absolute; top: 0; bottom: 0; width: 1px;
-    background-color: var(--line);
-    transform-origin: top;
-    transform: scaleY(0);
-    animation: drawY 1.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
-    z-index: -1;
-  }
-  .sc-frame::before { left: 0; }
-  .sc-frame::after { right: 0; }
-
-  /* 5. Draw internal hero grid vertical line */
-  .sc-hero::before {
-    content: ''; position: absolute;
-    grid-column: 2; grid-row: 1 / -1;
-    left: 0; top: 0; bottom: 0; width: 1px;
-    background-color: var(--line);
-    transform-origin: top;
-    transform: scaleY(0);
-    animation: drawY 1s cubic-bezier(0.8, 0, 0.2, 1) 0.2s forwards;
-    z-index: 10;
-  }
-
-  /* 6. Draw internal hero grid horizontal line */
-  .sc-hero::after {
-    content: ''; position: absolute;
-    grid-column: 1 / -1; grid-row: 2;
-    top: -1px; left: 0; right: 0; height: 1px;
-    background-color: var(--line);
-    transform-origin: left;
-    transform: scaleX(0);
-    animation: drawX 1s cubic-bezier(0.8, 0, 0.2, 1) 0.5s forwards;
-    z-index: 10;
-  }
-
-  /* 7. Content Fades & Mark Pops */
-  @keyframes contentFadeInUp {
-    0% { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-  .sc-hero__title > div > *,
-  .sc-hero__side > *,
-  .sc-hero__aside > *,
-  .sc-hero__art .sc-tag,
-  .sc-hero__art canvas,
-  .nav__inner {
-    opacity: 0;
-    animation: contentFadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  /* Sequence the text fades */
-  .nav__inner { animation-delay: 0.1s; }
-  .sc-hero__title .sc-kicker { animation-delay: 0.7s; }
-  .sc-hero__title .sc-display { animation-delay: 0.8s; }
-  .sc-hero__side p { animation-delay: 1.0s; }
-  .sc-hero__side .sc-cta__actions { animation-delay: 1.1s; }
-  .sc-hero__aside > * { animation-delay: 1.3s; }
-  .sc-hero__art canvas { animation-delay: 1.4s; }
-  .sc-hero__art .sc-tag { animation-delay: 1.5s; }
-}
-
-/* ---- Hero scroll track ---------------------------------------------------------
-   After mistral.ai's home hero: a two-screen track whose hero pins for one
-   screen. js/hero-scroll.js writes one number, --p (0..1), on .sc-hero; the
-   grid lines themselves move — column one folds from 70% to nothing, the
-   horizontal rule rides down off the sheet — and the side cell grows until it
-   is the whole view. Its lead and buttons are lifted out of flow and placed by
-   the script so they travel to the centre without reflowing.
-
-   Everything is keyed off classes the script adds (.is-live once the layout
-   is pinned, .is-measured once positions are known), so without JS, below
-   1024px and under reduced motion the hero is the plain four-cell grid.
-
-   Transforms go through the individual translate/scale properties on purpose:
-   the load animation above holds `transform` on the cell contents with
-   fill-mode forwards, which would override an inline transform. */
-@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
-  .sc-hero-track.is-live { height: 200svh; }
-
-  .sc-hero-track.is-live .sc-hero {
-    position: sticky;
-    top: 0;
-    height: 100svh;
-    grid-template-columns: calc(70% * (1 - var(--p, 0))) minmax(0, 1fr);
-    grid-template-rows: 60% 40%;
-    overflow: hidden;
-  }
-
-  /* The horizontal rule follows the bottom edge of the growing side cell. */
-  .sc-hero-track.is-live .sc-hero::after {
-    translate: 0 calc(var(--row2-h, 0px) * var(--p, 0));
-  }
-
-  /* Left column: clipped by its shrinking track and lifted half a screen.
-     The title's side padding moves inside so the cell can reach zero width. */
-  .sc-hero-track.is-live .sc-hero__title {
-    min-width: 0;
-    padding-inline: 0;
-    overflow: hidden;
-    translate: 0 calc(-50svh * var(--p, 0));
-  }
-  .sc-hero-track.is-live .sc-hero__title > div {
-    flex: none;
-    box-sizing: border-box;
-    padding-inline: clamp(1.25rem, 3vw, 2.5rem);
-  }
-  .sc-hero-track.is-measured .sc-hero__title > div { width: var(--title-w); }
-
-  .sc-hero-track.is-live .sc-hero__art {
-    min-width: 0;
-    translate: 0 calc(-50svh * var(--p, 0));
-  }
-  /* Cropped, not squeezed: at a fixed size waveform.js keeps drawing the same
-     picture instead of re-laying it out with fewer columns every frame. */
-  .sc-hero-track.is-measured .sc-hero__art .sc-waveform {
-    right: auto;
-    bottom: auto;
-    width: var(--art-w);
-    height: var(--art-h);
-  }
-
-  /* Side cell: its fill extends down with the rule and fades out, like
-     mistral's js-background layer. */
-  .sc-hero-track.is-live .sc-hero__side {
-    position: relative;
-    isolation: isolate;
-    background: none;
-  }
-  .sc-hero-track.is-live .sc-hero__side::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: calc(100% + var(--row2-h, 0px) * var(--p, 0));
-    background: var(--bg-raise);
-    opacity: calc(1 - var(--p, 0));
-    z-index: -1;
-  }
-  .sc-hero-track.is-measured .sc-hero__side > * {
-    position: absolute;
-    top: 0;
-    left: 0;
-    margin: 0;
-    z-index: 3;
-  }
-  .sc-hero-track.is-measured .sc-hero__side > p {
-    width: var(--lead-w);
-    transform-origin: 0 0;
-  }
-  .sc-hero-track.is-measured .sc-hero__side > .sc-cta__actions { width: var(--act-w); }
-
-  /* Contents cell slides out under the rule. */
-  .sc-hero-track.is-live .sc-hero__aside {
-    translate: 0 calc(100% * var(--p, 0));
-  }
-}
-
-/* ---- Scroll Snapping -------------------------------------------------------- */
-html {
-  scroll-snap-type: y proximity;
-  scroll-padding-top: var(--nav-h);
-}
-
-.sc-hero-track,
-.sc-frame > section,
-.foot {
-  scroll-snap-align: start;
-}
-
-/* ---- The app: three phones ------------------------------------------------------------
-   Screenshots and the screen recording from JAR Scribe, each in a plain phone
-   frame: a dark bezel and the screen's own corner radius, no device artwork.
-   The recording sits in the middle and a step larger, because it is the one
-   that shows the thing working. On a phone the row becomes a swipeable strip
-   instead of three tall screens stacked on top of each other. */
-.sc-app {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  gap: clamp(1.25rem, 3vw, 3rem);
-  padding: clamp(1rem, 2vw, 2rem) clamp(1.25rem, 3vw, 2.5rem) 0;
-}
-.sc-app__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-4);
-  margin: 0;
-}
-.sc-phone {
-  width: min(100%, 17.5rem);
-  aspect-ratio: 920 / 2000;
-  padding: 0.55rem;
-  border-radius: 2.6rem;
-  background: #0d0c1c;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(25, 24, 59, 0.12),
-    0 30px 60px -28px rgba(25, 24, 59, 0.45);
-}
-.sc-app__item--lead .sc-phone { width: min(100%, 20rem); }
-.sc-phone img,
-.sc-phone video {
+.legal-toc__link {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 2.1rem;
-  background: #f2f2f7;
-}
-.sc-phone video { background: #12112a; }
-.sc-app__item figcaption {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  margin-left: -1px;
+  border-left: 1px solid transparent;
   font-size: var(--t-small);
+  line-height: 1.4;
+  color: var(--ink-soft);
+  transition: color var(--dur) var(--ease-out),
+              border-color var(--dur) var(--ease-out);
+}
+
+.legal-toc__link:hover,
+.legal-toc__link:focus-visible {
+  color: var(--ink);
+  border-left-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   Prose
+   -------------------------------------------------------------------------- */
+
+.legal-body {
+  min-width: 0;
+  max-width: var(--wrap-text);
+  color: var(--ink-soft);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+}
+
+.legal-body > section + section {
+  margin-top: var(--sp-8);
+}
+
+.legal-body h2 {
+  font-size: var(--t-h3);
+  color: var(--ink);
+  margin-bottom: var(--sp-4);
+  padding-top: var(--sp-2);
+}
+
+.legal-body h3 {
+  font-size: var(--t-body);
   font-weight: 600;
   color: var(--ink);
-  text-align: center;
-}
-.sc-app__note {
-  max-width: 60ch;
-  margin: var(--sp-6) auto 0;
-  padding-inline: clamp(1.25rem, 3vw, 2.5rem);
-  font-size: var(--t-micro);
-  color: var(--ink-soft);
-  text-align: center;
-}
-@media (max-width: 760px) {
-  .sc-app {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-    padding-bottom: var(--sp-4);
-  }
-  .sc-app::-webkit-scrollbar { display: none; }
-  .sc-app__item { flex: 0 0 68%; scroll-snap-align: center; }
-  /* The recording first on a phone: it is the one worth the swipe. */
-  .sc-app__item--lead { order: -1; }
-}
-</style>
-<style>/* css/scroll-fx.css */
-/* ==========================================================================
-   J.A.R. — Scroll effects (landing page, below the hero)
-   Styles for js/scroll-fx.js. Everything here is scoped to html.fx-live,
-   which that file adds only when it takes over — so without JS, or under
-   prefers-reduced-motion, none of this applies and the page is unchanged.
-   The script writes progress as custom properties and the individual
-   translate / scale / rotate properties; the shapes live here.
-
-   Used on the dark landing page and on the light sector pages alike, so every
-   colour is a token: --accent is mint on the dark sheet and the darkened teal
-   on paper, where mint would not read.
-   ========================================================================== */
-
-/* Several entrances start off to the side (the demo/Mitmachen halves, the
-   team list, the capability rows). `clip`, not `hidden`: it trims them at the
-   sheet's edge without making <main> a scroll container, so the hero's
-   position: sticky pin keeps working and the page never scrolls sideways. */
-.fx-live #main { overflow-x: clip; }
-
-/* ---- Statement: words ink in as they are read ------------------------------ */
-.fx-live .fx-ink {
-  --ink: 1;
-  opacity: calc(0.16 + 0.84 * var(--ink));
-  transition: color 240ms var(--ease-out);
-}
-.fx-live .fx-ink.is-head { color: var(--accent); }
-
-/* ---- Headlines rise out of a mask ------------------------------------------ */
-.fx-live .fx-mask {
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: top;
-  /* Room for descenders and for the rotate, without changing line height. */
-  padding-bottom: 0.12em;
-  margin-bottom: -0.12em;
-}
-.fx-live .fx-rise {
-  display: inline-block;
-  transform-origin: 0 100%;
-  will-change: translate;
+  letter-spacing: 0;
+  margin-top: var(--sp-6);
+  margin-bottom: var(--sp-3);
 }
 
-/* ---- Kickers decode ------------------------------------------------------------ */
-.fx-live .fx-decode {
-  --decoded: 1;
-  opacity: calc(0.35 + 0.65 * var(--decoded));
-  white-space: pre;
+.legal-body p + p,
+.legal-body p + ul,
+.legal-body ul + p {
+  margin-top: var(--sp-4);
 }
 
-/* ---- Product canvas aperture --------------------------------------------------- */
-.fx-live .sc-canvas {
-  --fx-clip: 0% 0% round 0px;
-  clip-path: inset(var(--fx-clip));
+.legal-body ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
 }
-.fx-live .sc-canvas > .sc-waveform { transform-origin: 50% 50%; }
 
-/* ---- Capability rows: underline sweep -------------------------------------------- */
-.fx-live .sc-caps li {
-  --fx-line: 1;
-  --fx-fade: 1;
+.legal-body li {
   position: relative;
-  opacity: calc(0.2 + 0.8 * var(--fx-fade));
-}
-.fx-live .sc-caps li::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1px;
-  background: linear-gradient(90deg, var(--accent), transparent);
-  transform: scaleX(var(--fx-line));
-  transform-origin: 0 50%;
-  pointer-events: none;
+  padding-left: var(--sp-5);
 }
 
-/* ---- Principle cells: icons draw, a scan line crosses the top ---------------------- */
-.fx-live .sc-cell { --fx-scan: 1; position: relative; }
-.fx-live .sc-cell::before {
+.legal-body li::before {
   content: "";
   position: absolute;
-  top: -1px;
   left: 0;
-  width: 100%;
+  top: calc(var(--lh-body) * 0.5em);
+  width: var(--sp-3);
   height: 1px;
   background: var(--accent);
-  transform: scaleX(var(--fx-scan));
-  transform-origin: 0 50%;
-  opacity: calc(1 - var(--fx-scan) * 0.7);
-  pointer-events: none;
-}
-.fx-live .sc-cell__icon svg > * {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
+  opacity: 0.7;
 }
 
-/* ---- Sector cards: art wipes open from the bottom ---------------------------------- */
-.fx-live .sc-sector__art {
-  --fx-wipe: 0%;
-  clip-path: inset(var(--fx-wipe) 0 0 0);
+.legal-body strong {
+  color: var(--ink);
+  font-weight: 600;
 }
 
-/* ---- Partner plates tip up ------------------------------------------------------- */
-.fx-live .partners__grid { perspective: 1100px; }
-.fx-live .partners__grid > * { transform-origin: 50% 100%; }
-
-/* ---- Closing band: the sweep ------------------------------------------------------- */
-.fx-live .sc-cta { position: relative; overflow: hidden; }
-.fx-live .sc-cta .sc-h2 { transform-origin: 0 100%; }
-.fx-sweep {
-  --fx-sweep: 0;
-  position: absolute;
-  top: -1px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent) 70%, var(--brand-mint));
-  transform: scaleX(var(--fx-sweep));
-  transform-origin: 0 50%;
-  box-shadow: 0 0 18px rgba(142, 199, 184, 0.45);
-  pointer-events: none;
+.legal-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--line-mint);
+  overflow-wrap: anywhere;
+  transition: text-decoration-color var(--dur) var(--ease-out),
+              color var(--dur) var(--ease-out);
 }
 
-/* ---- Pinned statement ----------------------------------------------------------------
-   The section becomes a two-screen track and its content a sticky, full-height
-   panel, so the line holds in the middle of the screen while it inks in. */
-.fx-live .sc-statement.fx-pinned {
-  height: 230vh;
-  height: 230svh;
-  padding: 0;
+.legal-body a:hover {
+  text-decoration-color: currentColor;
 }
-.fx-live .fx-pin {
-  --fx-out: 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100svh;
+
+/* Address / contact block ------------------------------------------------- */
+
+.legal-address {
+  font-style: normal;
+  color: var(--ink);
+  line-height: var(--lh-body);
+}
+
+.legal-body .legal-address {
+  margin-block: var(--sp-5);
+  padding-left: var(--sp-5);
+  border-left: 1px solid var(--line-mint);
+}
+
+/* Callout ----------------------------------------------------------------- */
+
+.legal-note {
+  margin-block: var(--sp-5);
+  padding: var(--sp-5);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--surface-tint);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+}
+
+.legal-note__title {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.legal-note p + p {
+  margin-top: var(--sp-3);
+}
+
+/* Cross links to the other legal pages ------------------------------------ */
+
+.legal-crosslinks {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--nav-h) clamp(1.25rem, 3vw, 2.5rem) 0;
-  opacity: calc(1 - var(--fx-out) * 0.6);
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--line);
 }
 
-/* ---- Headings that stay while their content slides over them ---------------------------
-   Desktop only: on a phone the heading is half the screen tall and pinning it
-   would leave the content a sliver. The block after the heading starts a
-   stretch further down (the heading holds alone for that long) and carries
-   the page ground, so it covers the heading as it passes instead of
-   showing through. */
-@media (min-width: 901px) {
-  .fx-live .fx-stack > .sc-head {
-    position: sticky;
-    top: var(--nav-h);
-    z-index: 0;
-    transform-origin: 50% 0;
+/* Keep the shared button chrome intact inside the prose scope */
+.legal-body .legal-crosslinks__btn {
+  color: var(--btn-fg);
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow screens — the TOC becomes a plain list above the prose
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .legal-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-7);
+    padding-top: var(--sp-7);
   }
-  .fx-live .fx-stack > .sc-head + * {
-    position: relative;
-    z-index: 1;
-    margin-top: 34vh;
-    background: var(--bg-abyss);
-    box-shadow: 0 -40px 60px -30px rgba(0, 0, 0, 0.7);
+
+  .legal-toc {
+    position: static;
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--line);
   }
-  /* On paper a black shadow reads as dirt; a faint navy one as depth. */
-  .fx-live body:not(.page--dark) .fx-stack > .sc-head + * {
-    box-shadow: 0 -30px 50px -34px rgba(25, 24, 59, 0.22);
+
+  .legal-toc__list {
+    border-left: 0;
+  }
+
+  .legal-toc__link {
+    padding-inline: 0;
+    margin-left: 0;
+    border-left: 0;
+  }
+
+  .legal-toc__link:hover,
+  .legal-toc__link:focus-visible {
+    border-left-color: transparent;
+  }
+
+  .legal-body {
+    max-width: none;
   }
 }
 
-/* ---- Fewer grid lines ------------------------------------------------------------------
-   The sheet keeps its structure — sector grid, cell dividers, capability rows,
-   the demo split and the closing band — but drops the rules where the page
-   now flows instead of stepping: hero into statement into Technologie, the
-   rule over the principle cells, and the ones above Partner and Team. */
-.sc-statement.sc-rule,
-#technologie.sc-rule,
-#technologie .sc-cells,
-.sc-frame > #partner.section,
-.sc-frame > #team.section { border-top: 0; }
+@media (max-width: 560px) {
+  .legal-hero {
+    padding-top: calc(var(--nav-h) + var(--sp-6));
+  }
 
-/* The sector pages, same idea: the hero runs straight into "Die Aufgabe" and
-   its cells, and the status block keeps its own dashed frame instead of
-   also sitting under a rule. The split, the cells' dividers and the closing
-   band keep theirs. */
-#aufgabe.sc-rule,
-#aufgabe .sc-cells,
-.sc-split + .sc-rule { border-top: 0; }
+  .legal-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+  }
 
-/* ---- Status block: the dashed frame firms up as it arrives ------------------------------ */
-.fx-live .sc-status {
-  --fx-frame: 1;
-  border-color: color-mix(in srgb, var(--line-strong) calc(var(--fx-frame) * 100%), transparent);
+  .legal-meta__item + .legal-meta__item::before {
+    content: none;
+  }
+
+  .legal-note {
+    padding: var(--sp-4);
+  }
+
+  .legal-crosslinks__btn {
+    width: 100%;
+  }
 }
 </style>
 </head><body>
 
 <!-- ============================== HEADER ============================== -->
-<a class="skip-link" href="#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
+<a class="skip-link" href="index.html#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
 
 <header class="nav" id="nav">
   <div class="nav__inner wrap wrap--wide">
@@ -3006,12 +2229,12 @@ html {
     </a>
 
     <nav class="nav__links" id="navLinks" aria-label="Hauptnavigation">
-      <a href="#technologie" data-i18n="nav_tech">Technologie</a>
+      <a href="index.html#technologie" data-i18n="nav_tech">Technologie</a>
       <a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a>
       <a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a>
       <a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a>
       <a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a>
-      <a href="#team" data-i18n="nav_team">Team</a>
+      <a href="index.html#team" data-i18n="nav_team">Team</a>
       <a href="mitmachen.html" data-i18n="nav_join">Mitmachen</a>
     </nav>
 
@@ -3041,370 +2264,304 @@ html {
   </div>
 </header>
 
-<main id="main" class="sc-frame">
+<!-- =============================== MAIN =============================== -->
+<main id="main">
 
-<!-- ============================== HERO ==============================
-     Four cells: the headline, the side cell with the claim and the two ways
-      in, the spectrogram, and a contents cell. The spectrogram is synthetic;
-     js/waveform.js draws it.
-
-
-     On desktop the hero sits in a two-screen scroll track (js/hero-scroll.js,
-     after mistral.ai's home hero): it pins for one screen while the left
-     column folds away and the side cell grows to fill the view, its lead
-     ending large and centred. Without JS, on phones and under reduced motion
-     the track is inert and the hero is the plain four-cell grid. -->
-<div class="sc-hero-track" data-hero-scroll="">
-<section class="sc-hero" aria-labelledby="heroTitle">
-  <div class="sc-hero__title">
-    <div>
-      <p class="sc-kicker sc-kicker--accent sc-kicker--live" data-i18n="hero_eyebrow">Medizinische Spracherkennung</p>
-      <h1 class="sc-display" id="heroTitle">
-        <span data-i18n="hero_h1_a">Jedes Wort zählt.</span><br>
-        <span data-i18n="hero_h1_b">Auch beim ersten Mal.</span>
-      </h1>
+  <section class="legal-hero">
+    <div class="wrap wrap--wide">
+      <div class="legal-hero__inner">
+        <p class="eyebrow" data-i18n="legal_eyebrow">Rechtliches</p>
+        <h1 class="legal-hero__title" data-i18n="legal_privacy_h1">Datenschutzerklärung</h1>
+        <p class="legal-hero__lead" data-i18n="legal_privacy_lead">Diese Website ist eine statische Seite ohne Cookies, ohne Analyse und ohne
+          Tracking. Hier erfahren Sie, welche Daten beim Aufruf technisch anfallen, warum
+          das so ist und welche Rechte Ihnen nach der Datenschutz-Grundverordnung zustehen.</p>
+        <p class="legal-meta">
+          <span class="legal-meta__item" data-i18n="legal_meta_updated">Stand: 6. September 2026</span>
+          <span class="legal-meta__item" data-i18n="legal_meta_gdpr">DSGVO · BDSG · TDDDG</span>
+        </p>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="sc-hero__side">
-    <p data-i18n="hero_lead">Wir bauen die nächste Generation der medizinischen Transkription: ein Modell
-          mit hoher Zero-Shot-Genauigkeit. Auf dem Gerät, in Echtzeit, auch ohne Netz.</p>
-    <div class="sc-cta__actions">
-      <a class="btn btn--primary" href="mitmachen.html">
-        <span data-i18n="nav_join">Mitmachen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="btn btn--ghost" href="#technologie" data-i18n="hero_cta_2">Wie es funktioniert</a>
-    </div>
-  </div>
+  <div class="wrap wrap--wide legal-layout">
 
-  <div class="sc-hero__art">
-    <canvas class="sc-waveform" aria-hidden="true" width="1152" height="644"></canvas>
-  </div>
-
-  <div class="sc-hero__aside">
-    <p class="sc-kicker" data-i18n="hero_index">Inhalt</p>
-    <nav class="sc-index" aria-label="Inhalt">
-      <a href="#technologie"><span data-i18n="nav_tech">Technologie</span><span>01</span></a>
-      <a href="krankenhaus.html"><span data-i18n="nav_hospital">Krankenhaus</span><span>02</span></a>
-      <a href="pflegedienst.html"><span data-i18n="nav_homecare">Pflegedienst</span><span>03</span></a>
-      <a href="katastrophenschutz.html"><span data-i18n="nav_disaster">Katastrophenschutz</span><span>04</span></a>
-      <a href="rettungsdienst.html"><span data-i18n="nav_ems">Rettungsdienst</span><span>05</span></a>
+    <nav class="legal-toc" aria-labelledby="tocTitle">
+      <h2 class="legal-toc__title" id="tocTitle" data-i18n="legal_toc_title">Auf dieser Seite</h2>
+      <ul class="legal-toc__list">
+        <li><a class="legal-toc__link" href="#ds-verantwortlicher" data-i18n="legal_privacy_h_controller">1. Verantwortlicher</a></li>
+          <li><a class="legal-toc__link" href="#ds-grundsatz" data-i18n="legal_privacy_h_static">2. Statische Website: was das bedeutet</a></li>
+        <li><a class="legal-toc__link" href="#ds-hosting" data-i18n="legal_privacy_h_hosting">3. Hosting und Server-Log-Dateien</a></li>
+        <li><a class="legal-toc__link" href="#ds-cookies" data-i18n="legal_privacy_h_cookies">4. Keine Cookies, keine Analyse, kein Tracking</a></li>
+        <li><a class="legal-toc__link" href="#ds-aufnahme" data-i18n="legal_privacy_h_audio">5. Sprachaufnahmen über SpeakPipe</a></li>
+        <li><a class="legal-toc__link" href="#ds-kontakt" data-i18n="legal_privacy_h_contact">6. Kontaktaufnahme</a></li>
+        <li><a class="legal-toc__link" href="#ds-links" data-i18n="legal_privacy_h_links">7. Externe Links und eigene Unterseiten</a></li>
+        <li><a class="legal-toc__link" href="#ds-speicherdauer" data-i18n="legal_privacy_h_retention">8. Speicherdauer</a></li>
+        <li><a class="legal-toc__link" href="#ds-rechte" data-i18n="legal_privacy_h_rights">9. Ihre Rechte</a></li>
+        <li><a class="legal-toc__link" href="#ds-beschwerde" data-i18n="legal_privacy_h_authority">10. Beschwerderecht</a></li>
+        <li><a class="legal-toc__link" href="#ds-aenderungen" data-i18n="legal_privacy_h_changes">11. Änderungen dieser Erklärung</a></li>
+      </ul>
     </nav>
-  </div>
-</section>
-</div>
 
-<!-- ============================== STATEMENT ============================== -->
-<section class="sc-statement sc-rule">
-  <p class="sc-kicker sc-kicker--accent reveal" data-i18n="st_kicker">Was wir bauen</p>
-        <p class="reveal" data-i18n="st_p">Ein Sprachmodell, das Medizin versteht: auch die Wörter, die es noch nie gehört hat.</p>
-</section>
+    <article class="legal-body">
 
-<!-- ============================== TECHNOLOGIE ==============================
-     The product, shown working. The panel is the same one the old hero
-      scrubbed; here js/scribe.js runs it in panel mode (no pinned track, the
-     sentence is spoken as the canvas comes up the viewport and the fields
-     resolve once it is in view. A worked example, not a recording: the
-     spoken form says "fünfhundert Milligramm" and "vierzehn Uhr sieben", the
-     fields say 500 mg and 14:07, which is the normalisation step the copy
-     claims and nothing more. -->
-<section class="sc-rule" id="technologie">
-  <header class="sc-head">
-    <div class="sc-head__text reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="tech_kicker">Technologie</p>
-      <h2 class="sc-h2" data-i18n="tech_h2">Vom gesprochenen Satz zum fertigen Eintrag</h2>
-      <p class="sc-lead" data-i18n="tech_lead">Gesprochen wird am Patienten. Transkribiert wird mit, während gesprochen wird,
-        und aus dem Text werden Felder, mit denen ein System danach weiterarbeiten kann.</p>
-    </div>
-    <a class="btn btn--ghost" href="mitmachen.html">
-      <span data-i18n="tech_cta">Ausprobieren</span>
-      <span class="btn__arrow" aria-hidden="true">→</span>
-    </a>
-  </header><div class="sc-canvas" data-stage="">
-    <canvas class="sc-waveform" aria-hidden="true" width="1068" height="828"></canvas>
-    <div class="scribe" data-scribe="">
-      <p class="scribe__meta">
-        <span class="scribe__dot" aria-hidden="true"></span>
-        <span data-i18n="scribe_live">Transkription · auf dem Gerät</span>
-      </p>
-
-      <div class="scribe__wave" aria-hidden="true"><span style="height: 18%"></span><span style="height: 18%"></span><span style="height: 20.8%"></span><span style="height: 25.6%"></span><span style="height: 30.6%"></span><span style="height: 34.5%"></span><span style="height: 36.2%"></span><span style="height: 35.9%"></span><span style="height: 34.5%"></span><span style="height: 33.5%"></span><span style="height: 34.5%"></span><span style="height: 38.2%"></span><span style="height: 44.1%"></span><span style="height: 50.8%"></span><span style="height: 55.9%"></span><span style="height: 56.8%"></span><span style="height: 51.4%"></span><span style="height: 39.3%"></span><span style="height: 21.5%"></span><span style="height: 35.2%"></span><span style="height: 55.1%"></span><span style="height: 70.1%"></span><span style="height: 77.3%"></span><span style="height: 75.4%"></span><span style="height: 64.9%"></span><span style="height: 48.6%"></span><span style="height: 30.2%"></span><span style="height: 22.2%"></span><span style="height: 33.4%"></span><span style="height: 38%"></span><span style="height: 36.2%"></span><span style="height: 30.5%"></span><span style="height: 23.8%"></span><span style="height: 19.7%"></span><span style="height: 20.3%"></span><span style="height: 26.4%"></span><span style="height: 37%"></span><span style="height: 49.4%"></span><span style="height: 60.5%"></span><span style="height: 67%"></span><span style="height: 67%"></span><span style="height: 60.1%"></span><span style="height: 47.6%"></span><span style="height: 32.1%"></span><span style="height: 19.4%"></span><span style="height: 32%"></span><span style="height: 39.9%"></span><span style="height: 42.7%"></span><span style="height: 41%"></span><span style="height: 36.6%"></span><span style="height: 31.3%"></span><span style="height: 26.5%"></span><span style="height: 22.9%"></span><span style="height: 20.3%"></span><span style="height: 18%"></span><span style="height: 18%"></span></div>
-
-      <p class="scribe__said" data-scribe-text="" data-i18n="scribe_said">Fünfhundert Milligramm Paracetamol intravenös, vierzehn Uhr sieben, Patient A7.</p>
-
-      <dl class="scribe__fields" data-scribe-fields="">
-        <div class="scribe__field">
-          <dt data-i18n="scribe_k1">Maßnahme</dt>
-          <dd data-i18n="scribe_v1">Paracetamol i.v.</dd>
-        </div>
-        <div class="scribe__field">
-          <dt data-i18n="scribe_k2">Dosis</dt>
-          <dd data-i18n="scribe_v2">500 mg</dd>
-        </div>
-        <div class="scribe__field">
-          <dt data-i18n="scribe_k3">Zeit</dt>
-          <dd data-i18n="scribe_v3">14:07</dd>
-        </div>
-        <div class="scribe__field">
-          <dt data-i18n="scribe_k4">Kennung</dt>
-          <dd data-i18n="scribe_v4">A7</dd>
-        </div>
-      </dl>
-    </div>
-  </div>
-
-
-
-  <ul class="sc-caps">
-    <li data-n="01" data-i18n="cap_1">Zero-Shot: Fachbegriffe ohne Training vor Ort</li>
-    <li data-n="02" data-i18n="cap_2">Inferenz auf dem Gerät</li>
-    <li data-n="03" data-i18n="cap_3">Transkription in Echtzeit</li>
-    <li data-n="04" data-i18n="cap_4">Strukturierte Felder statt Fließtext</li>
-    <li data-n="05" data-i18n="cap_5">Funktioniert ohne Netz</li>
-  </ul>
-  <div class="sc-gap" aria-hidden="true"></div>
-
-  <!-- Four principles. Same copy as the old bento, re-cut as cells of the
-       sheet rather than floating cards. -->
-  <div class="sc-cells sc-cells--4">
-    <article class="sc-cell reveal">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_1_chip">Zero-Shot</p>
-      <h3 class="sc-h3" data-i18n="sol_1_h">Versteht, was es nie gehört hat</h3>
-      <p data-i18n="sol_1_p">Ein neues Präparat, eine ungewohnte Abkürzung, ein anderer Dialekt: dafür
-        braucht das Modell kein Training vor Ort. Es überträgt, was es an medizinischer
-        Sprache gelernt hat, auf Wörter, die ihm zum ersten Mal begegnen.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:90ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="1.5"></rect><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_2_chip">Edge-KI</p>
-      <h3 class="sc-h3" data-i18n="sol_2_h">Läuft auf dem Gerät</h3>
-      <p data-i18n="sol_2_p">Keine Verbindung, keine Cloud, keine Aufnahme, die den Einsatzort verlässt.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:180ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_3_chip">Echtzeit</p>
-      <h3 class="sc-h3" data-i18n="sol_3_h">Mitschreiben statt Nachtragen</h3>
-      <p data-i18n="sol_3_p">Die Transkription läuft, während gesprochen wird. Am Ende der Maßnahme steht
-        sie schon da; niemand trägt sie später aus dem Gedächtnis nach.</p>
-    </article>
-    <article class="sc-cell reveal" style="--reveal-delay:270ms">
-      <span class="sc-cell__icon" aria-hidden="true">
-        <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h5M4 12h5M4 18h5M12 6h8M12 12h8M12 18h8"></path></svg>
-      </span>
-      <p class="sc-kicker" data-i18n="sol_4_chip">Strukturiert</p>
-      <h3 class="sc-h3" data-i18n="sol_4_h">Felder statt Fließtext</h3>
-      <p data-i18n="sol_4_p">Aus dem Gesprochenen werden Felder: Maßnahme, Dosis, Uhrzeit, Kennung. Das ist
-        der Unterschied zwischen einem Diktat und einer Dokumentation, mit der ein
-        System danach noch etwas anfangen kann.</p>
-    </article>
-  </div>
-</section>
-
-<!-- ============================== BEREICHE ==============================
-     Four doors, one per sector page. The statuses are deliberately not the
-     same, because they are not: Katastrophenschutz has a system built and
-     partners testing it, the other two are directions. Anything that levels
-     them up to look equally far along is a claim this project cannot back. -->
-<section class="sc-rule" id="bereiche">
-  <header class="sc-head">
-    <div class="sc-head__text reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="br_eyebrow">Einsatzbereiche</p>
-      <h2 class="sc-h2" data-i18n="br_h2">Vier Bereiche, dieselbe Sprache</h2>
-      <p class="sc-lead" data-i18n="br_lead">Überall dort, wo am Menschen gearbeitet und danach darüber geschrieben wird,
-        ist es dieselbe Aufgabe: Gesprochenes verlässlich festhalten, in der Sprache
-        des Fachs. Was sich unterscheidet, ist der Lärm, das Tempo und das Formular
-        am Ende.</p>
-    </div>
-  </header><div class="sc-sectors">
-    <a class="sc-sector reveal" href="krankenhaus.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">02</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_hospital_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_hospital_h">Krankenhaus</h3>
-        <p data-i18n="br_hospital_p">Dokumentation am Bett statt im Stationszimmer. Die Pflegekraft spricht, was
-          sie getan hat, während sie es tut, und muss es am Schichtende nicht aus dem
-          Gedächtnis rekonstruieren.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 90ms" href="pflegedienst.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">03</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_homecare_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_homecare_h">Pflegedienst</h3>
-        <p data-i18n="br_homecare_p">Dokumentation beim Patienten zuhause statt im Auto. Die Pflegekraft spricht, was
-          sie getan hat, während sie es tut, und muss es nach der Tour nicht aus dem
-          Gedächtnis rekonstruieren.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 180ms" href="katastrophenschutz.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">04</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker sc-kicker--accent sc-kicker--live" data-i18n="br_dis_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_dis_h">Katastrophenschutz</h3>
-        <p data-i18n="br_dis_p">Der Bereich, in dem das System schon steht: Einsatzhelm mit AR-Brille, Sichtung
-          im Blickfeld, Dokumentation über die Sprache. Hier laufen die Pilotprojekte mit
-          dem DRK, und von hier kommen die Sprachaufnahmen, an denen das Modell lernt.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-
-    <a class="sc-sector reveal" style="--reveal-delay: 270ms" href="rettungsdienst.html">
-      <div class="sc-sector__art">
-        <canvas class="sc-waveform" aria-hidden="true" width="1152" height="430"></canvas>
-        <span class="sc-tag" style="left:1rem; top:0.85rem">05</span>
-      </div>
-      <div class="sc-sector__body">
-        <p class="sc-kicker" data-i18n="br_ems_status">Voll einsatzbereit</p>
-        <h3 class="sc-h3" data-i18n="br_ems_h">Rettungsdienst</h3>
-        <p data-i18n="br_ems_p">Vom Einsatzort bis zur Übergabe in der Klinik entsteht ein Protokoll, das heute
-          größtenteils im Fahrzeug getippt wird. Gesprochen entsteht es dort, wo es
-          ohnehin gesprochen wird: am Patienten.</p>
-        <span class="sc-sector__more"><span data-i18n="sc_more">Mehr erfahren</span><span aria-hidden="true">→</span></span>
-      </div>
-    </a>
-  </div>
-
-
-</section>
-
-<!-- ============================== DEMO + MITMACHEN ============================== -->
-<section class="sc-split" id="demo">
-  <div class="reveal">
-    <p class="sc-kicker sc-kicker--accent" data-i18n="demo_eyebrow">Ausprobieren</p>
-    <h2 class="sc-h3" style="margin:var(--sp-4) 0" data-i18n="demo_h2">Sehen Sie J.A.R. in Aktion</h2>
-    <p class="sc-lead" data-i18n="demo_p">Die Oberfläche und der komplette Ablauf (von der Sichtung bis zur Übergabe)
-      stehen als interaktive Demo bereit. Kein Download, direkt im Browser.</p>
-    <div class="sc-cta__actions" style="margin-top:var(--sp-6)">
-      <a class="btn btn--primary" href="mitmachen.html">
-        <span data-i18n="nav_join">Mitmachen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="btn btn--ghost" href="/demo/paramedic/">
-        <span data-i18n="demo_cta_2">AR-Client öffnen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
-  </div>
-  <div class="reveal" id="mitmachen" style="--reveal-delay:90ms">
-    <p class="sc-kicker sc-kicker--accent" data-i18n="join_band_eyebrow">Mitmachen</p>
-    <h2 class="sc-h3" style="margin:var(--sp-4) 0" data-i18n="join_band_h">Fünf Minuten oder neunzig Sekunden</h2>
-    <p class="sc-lead" data-i18n="join_band_p">Wir haben kein Budget für Studien und keinen Zugriff auf echte Einsatzdaten.
-          Spielen Sie MediCraft, oder sprechen Sie uns acht kurze Funksprüche ein,
-      an denen die Spracherkennung lernt.</p>
-    <div class="sc-cta__actions" style="margin-top:var(--sp-6)">
-      <a class="btn btn--ghost" href="mitmachen.html">
-        <span data-i18n="join_band_cta">Zum Projekt beitragen</span>
-        <span class="btn__arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- ============================== PARTNER ============================== -->
-<section class="section partners" id="partner">
-  <div class="wrap">
-    <header class="sec-head reveal">
-      <p class="sc-kicker sc-kicker--accent" data-i18n="par_eyebrow">Partner</p>
-      <h2 class="sc-h2" style="margin:var(--sp-4) 0" data-i18n="par_h2">Und wir sind nicht allein</h2>
-      <p class="sc-lead" data-i18n="par_lead">Drei Organisationen begleiten das Projekt: mit Praxiswissen, mit Technik
-        und mit Daten, an die wir sonst nicht herankämen.</p>
-    </header>
-
-    <ul class="partners__grid">
-      <li class="partner card reveal">
-        <div class="partner__logo">
-          <img src="assets/partners/drk.png" alt="Deutsches Rotes Kreuz" width="519" height="190" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_drk_1">Pilotprojekte</li>
-          <li data-i18n="par_drk_2">Mentoring und fachlicher Input</li>
-          <li data-i18n="par_drk_3">Rückmeldung aus der Praxis</li>
+      <section aria-labelledby="ds-verantwortlicher">
+        <h2 id="ds-verantwortlicher" data-i18n="legal_privacy_h_controller">1. Verantwortlicher</h2>
+        <p data-i18n="legal_privacy_controller_p1">Verantwortlich für die Datenverarbeitung auf dieser Website im Sinne des
+          Art. 4 Nr. 7 DSGVO ist das J.A.R.-Projektteam:</p>
+        <address class="legal-address">
+        <span data-i18n="legal_imprint_provider_name">J.A.R. Medical: Projektteam</span><br>
+          <span data-i18n="legal_imprint_provider_people">Johannes Nirschl · Alexander Kluge · Jonas Kaindl</span><br>
+          <span data-i18n="legal_imprint_provider_street">Cramer-Klett-Straße 10</span><br>
+          <span data-i18n="legal_imprint_provider_city">85579 Neubiberg</span><br>
+          <span data-i18n="legal_imprint_provider_country">Deutschland</span>
+        </address>
+        <ul>
+          <li>
+            <span data-i18n="legal_imprint_contact_mail_label">E-Mail:</span>
+            <a href="mailto:al.kluge@campus.lmu.de">al.kluge@campus.lmu.de</a>
+          </li>
+          <li>
+            <span data-i18n="legal_imprint_contact_phone_label">Telefon:</span>
+            <a href="tel:+4917634305672">+49 176 34305672</a>
+          </li>
         </ul>
-      </li>
-      <li class="partner card reveal" style="--reveal-delay:90ms">
-        <div class="partner__logo">
-          <img src="assets/partners/tum.png" alt="Technische Universität München" width="266" height="150" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_tum_1">Technische Unterstützung (Hex Lab)</li>
-          <li data-i18n="par_tum_2">Zugang zu Geräten</li>
-          <li data-i18n="par_tum_3">Betreuung der Forschung</li>
-        </ul>
-      </li>
-      <li class="partner card reveal" style="--reveal-delay:180ms">
-        <div class="partner__logo">
-          <img src="assets/partners/dlr.png" alt="Deutsches Zentrum für Luft- und Raumfahrt" width="202" height="170" loading="lazy" decoding="async">
-        </div>
-        <ul class="partner__list">
-          <li data-i18n="par_dlr_1">Bildgebung nach dem Stand der Technik (Satellit, Drohne)</li>
-          <li data-i18n="par_dlr_2">Eigene Datenbestände</li>
-          <li data-i18n="par_dlr_3">Full-Stack-Integration</li>
-        </ul>
-      </li>
-    </ul>
-  </div>
-</section>
+        <p data-i18n="legal_privacy_controller_p2">Ein Datenschutzbeauftragter ist nicht bestellt, da die gesetzlichen
+          Voraussetzungen des Art. 37 DSGVO in Verbindung mit § 38 BDSG nicht vorliegen.
+          Bitte richten Sie datenschutzrechtliche Anliegen unmittelbar an die oben
+          genannten Kontaktdaten.</p>
+      </section>
 
-<!-- ============================== TEAM ============================== -->
-<section class="section" id="team">
-  <div class="wrap">
-    <div class="team">
-      <div class="team__intro reveal">
-        <p class="sc-kicker sc-kicker--accent" data-i18n="team_eyebrow">Das Team</p>
-        <h2 class="sc-h2" style="margin:var(--sp-4) 0" data-i18n="team_h2">Drei Schüler, eine Sprache</h2>
-        <p class="sc-lead" data-i18n="team_p">J.A.R. Medical entstand am Gymnasium Neubiberg und wird im UnternehmerTUM
-          Makerspace und an der LMU München weiterentwickelt. Wir bauen Modell, Hardware
-          und Software selbst, und suchen den Austausch mit allen, die am Menschen
-          arbeiten und danach darüber schreiben müssen.</p>
-        <a class="btn btn--ghost" href="mailto:al.kluge@campus.lmu.de">
-          <span data-i18n="team_cta">Kontakt aufnehmen</span>
+      <section aria-labelledby="ds-grundsatz">
+      <h2 id="ds-grundsatz" data-i18n="legal_privacy_h_static">2. Statische Website: was das bedeutet</h2>
+        <p data-i18n="legal_privacy_static_p1">Diese Website ist eine rein statische Seite. Sie besteht ausschließlich aus vorab
+          erzeugten HTML-, CSS-, JavaScript- und Bilddateien, die unverändert an Ihren
+          Browser ausgeliefert werden. Es gibt keine serverseitige Programmlogik, keine
+          Datenbank, keine Benutzerkonten, kein Kontaktformular, keinen Newsletter und
+          keine Kommentarfunktion.</p>
+        <p data-i18n="legal_privacy_static_p2">Wir selbst erheben, speichern und verarbeiten daher keine personenbezogenen Daten
+          über diese Website. Die einzige Verarbeitung, die beim Aufruf der Seite technisch
+          stattfindet, sind die Server-Log-Daten unseres Hosting-Anbieters; sie ist in
+          Abschnitt 3 beschrieben.</p>
+        <div class="legal-note">
+          <span class="legal-note__title" data-i18n="legal_note_label_short">Kurz gefasst</span>
+          <p data-i18n="legal_privacy_static_note">Keine Cookies, keine Reichweitenmessung, keine Werbe- oder Social-Media-Dienste,
+        keine Nutzerprofile. Ein Cookie-Banner gibt es deshalb nicht; es gäbe nichts,
+            dem Sie zustimmen müssten.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="ds-hosting">
+        <h2 id="ds-hosting" data-i18n="legal_privacy_h_hosting">3. Hosting und Server-Log-Dateien</h2>
+        <p data-i18n="legal_privacy_hosting_p1">Diese Website wird über GitHub Pages bereitgestellt, einen Hosting-Dienst der
+          GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. Beim
+          Abruf einer Seite überträgt Ihr Browser technisch notwendige Informationen an die
+          Server des Anbieters, die dort in Server-Log-Dateien verarbeitet werden.</p>
+        <p data-i18n="legal_privacy_hosting_p2">Dabei fallen insbesondere die folgenden Daten an:</p>
+        <ul>
+          <li data-i18n="legal_privacy_hosting_li1">die IP-Adresse des anfragenden Geräts,</li>
+          <li data-i18n="legal_privacy_hosting_li2">Datum und Uhrzeit des Zugriffs,</li>
+          <li data-i18n="legal_privacy_hosting_li3">Name und URL der abgerufenen Datei sowie die übertragene Datenmenge,</li>
+          <li data-i18n="legal_privacy_hosting_li4">Meldung über den erfolgreichen Abruf,</li>
+          <li data-i18n="legal_privacy_hosting_li5">Browsertyp und -version, Betriebssystem und gegebenenfalls die zuvor besuchte Seite (Referrer).</li>
+        </ul>
+        <p data-i18n="legal_privacy_hosting_p3">Diese Verarbeitung ist für die Auslieferung der Website technisch unerlässlich
+          und dient dem störungsfreien Betrieb sowie der Abwehr von Angriffen.
+          Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und stabilen
+          Betrieb der Website nach Art. 6 Abs. 1 lit. f DSGVO. Wir selbst
+          greifen auf diese Log-Dateien nicht zu, werten sie nicht aus und führen sie nicht
+          mit anderen Datenquellen zusammen.</p>
+        <h3 data-i18n="legal_privacy_hosting_h3_transfer">Übermittlung in Drittländer</h3>
+        <p data-i18n="legal_privacy_hosting_p4">GitHub, Inc. hat seinen Sitz in den USA und betreibt weltweit verteilte Server.
+          Eine Verarbeitung Ihrer IP-Adresse außerhalb der Europäischen Union lässt sich
+          deshalb nicht ausschließen. Die Übermittlung stützt sich auf die
+          Standardvertragsklauseln der Europäischen Kommission nach Art. 46 Abs. 2 lit. c
+          DSGVO sowie, soweit anwendbar, auf den Angemessenheitsbeschluss zum EU-US Data
+          Privacy Framework nach Art. 45 DSGVO.</p>
+        <p>
+          <span data-i18n="legal_privacy_hosting_link_label">Datenschutzerklärung des Hosting-Anbieters:</span>
+          <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement" rel="noopener noreferrer" target="_blank">docs.github.com/site-policy</a>
+        </p>
+      </section>
+
+      <section aria-labelledby="ds-cookies">
+        <h2 id="ds-cookies" data-i18n="legal_privacy_h_cookies">4. Keine Cookies, keine Analyse, kein Tracking</h2>
+        <p data-i18n="legal_privacy_cookies_p1">Diese Website setzt keine Cookies. Es sind keine Analyse- oder Statistikdienste
+          eingebunden, keine Werbenetzwerke, keine Social-Media-Plug-ins, keine
+          Karten-, Video- oder Schriftarten-Dienste Dritter. Sämtliche für die Darstellung
+          benötigten Dateien werden zusammen mit der Seite von unserem Hosting-Anbieter
+          ausgeliefert. Die einzige Ausnahme ist der Aufnahme-Rekorder auf der Seite
+          „Mitmachen“, der erst nach Ihrem ausdrücklichen Klick geladen wird und in
+          Abschnitt 5 gesondert beschrieben ist.</p>
+        <p data-i18n="legal_privacy_cookies_p2">Eine Profilbildung, eine websiteübergreifende Nachverfolgung sowie eine
+          automatisierte Entscheidungsfindung einschließlich Profiling im Sinne des
+          Art. 22 DSGVO finden nicht statt.</p>
+        <h3 data-i18n="legal_privacy_cookies_h3_language">Speicherung Ihrer Spracheinstellung</h3>
+        <p data-i18n="legal_privacy_cookies_p3">Über den Sprachumschalter können Sie zwischen Deutsch und Englisch wechseln. Ihre
+          Auswahl wird ausschließlich lokal in Ihrem Browser abgelegt (Local Storage),
+          damit die Seite beim nächsten Besuch in der gewählten Sprache erscheint. Diese
+          Information verlässt Ihr Gerät nicht, wird weder an uns noch an Dritte übertragen
+          und enthält keine personenbezogenen Daten.</p>
+        <p data-i18n="legal_privacy_cookies_p4">Die Speicherung ist erforderlich, um den von Ihnen ausdrücklich gewünschten
+          Dienst bereitzustellen, und daher nach § 25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei.
+          Sie können den Eintrag jederzeit über die Einstellungen Ihres Browsers löschen.</p>
+      </section>
+
+      <section aria-labelledby="ds-aufnahme">
+        <h2 id="ds-aufnahme" data-i18n="legal_privacy_h_audio">5. Sprachaufnahmen über SpeakPipe</h2>
+        <p data-i18n="legal_privacy_audio_p1">Auf der Seite „Mitmachen“ können Sie uns freiwillig eine kurze Sprachaufnahme
+          überlassen, in der Sie vorgegebene Funksprüche vorlesen. Für die Aufnahme
+          nutzen wir den Dienst SpeakPipe (speakpipe.com). Der Rekorder ist ein
+          eingebettetes Angebot eines Dritten.</p>
+        <div class="legal-note">
+          <span class="legal-note__title" data-i18n="legal_note_label_short">Kurz gefasst</span>
+          <p data-i18n="legal_privacy_audio_note">Solange Sie die Seite nur lesen, wird keine Verbindung zu SpeakPipe
+            aufgebaut. Der Rekorder lädt erst, wenn Sie die Schaltfläche „Rekorder
+        laden“ anklicken, und mit diesem Klick erteilen Sie Ihre Einwilligung.</p>
+        </div>
+        <p data-i18n="legal_privacy_audio_p2">Erst mit diesem Klick lädt Ihr Browser Inhalte von speakpipe.com und übermittelt
+          dabei technisch notwendige Verbindungsdaten, insbesondere Ihre IP-Adresse sowie
+          Angaben zu Browser und Betriebssystem. Nehmen Sie anschließend auf und senden
+          die Aufnahme ab, wird die Audiodatei auf den Servern von SpeakPipe gespeichert
+          und uns dort bereitgestellt.</p>
+        <p data-i18n="legal_privacy_audio_p3">Verarbeitet werden dabei: die Sprachaufnahme selbst, der Zeitpunkt der Aufnahme
+          sowie die genannten Verbindungsdaten. Eine Sprachaufnahme ist auch ohne Namen
+          ein personenbezogenes Datum, weil eine Stimme grundsätzlich einer Person
+          zugeordnet werden kann. Die Angabe von Namen oder E-Mail-Adresse ist nicht
+          erforderlich; wenn Sie sie freiwillig eintragen, verarbeiten wir sie mit.</p>
+        <h3 data-i18n="legal_privacy_audio_h3_provider">Anbieter des Rekorders</h3>
+        <p data-i18n="legal_privacy_audio_provider_p1">Empfänger der Aufnahmen ist der Dienst SpeakPipe, erreichbar unter
+        speakpipe.com. Weitergehende Unternehmensangaben (Firma, Rechtsform und
+        Anschrift) veröffentlicht der Anbieter auf seiner Website nicht. Als
+          Kontaktmöglichkeiten nennt er:</p>
+        <ul>
+          <li>
+            <span data-i18n="legal_privacy_audio_provider_li1">Allgemeine Anfragen:</span>
+            <a href="mailto:support@speakpipe.com">support@speakpipe.com</a>
+          </li>
+          <li>
+            <span data-i18n="legal_privacy_audio_provider_li2">Rechtliche Anfragen:</span>
+            <a href="mailto:legal@speakpipe.com">legal@speakpipe.com</a>
+          </li>
+        </ul>
+        <p data-i18n="legal_privacy_audio_provider_p2">Für Auskunft, Berichtigung oder Löschung Ihrer Aufnahme wenden Sie sich bitte
+        an die in Abschnitt 1 genannte Adresse. Wir bearbeiten Ihr Anliegen und
+          wenden uns dafür erforderlichenfalls an den Anbieter. Unabhängig davon steht
+          es Ihnen frei, sich direkt an die oben genannten Adressen des Anbieters zu
+          wenden.</p>
+        <p>
+          <span data-i18n="legal_privacy_audio_link_label">Datenschutzerklärung des Anbieters:</span>
+          <a href="https://www.speakpipe.com/privacy" rel="noopener noreferrer" target="_blank">speakpipe.com/privacy</a>
+        </p>
+
+        <h3 data-i18n="legal_privacy_audio_h3_purpose">Zweck und Rechtsgrundlage</h3>
+        <p data-i18n="legal_privacy_audio_p4">Wir verwenden die Aufnahmen ausschließlich, um die Spracherkennung von J.A.R.
+          zu entwickeln, zu trainieren und zu testen. Eine Veröffentlichung, eine
+          Weitergabe an Dritte zu deren eigenen Zwecken und ein Verkauf finden nicht
+          statt. Rechtsgrundlage ist Ihre Einwilligung nach
+          Art. 6 Abs. 1 lit. a DSGVO; für das Laden des Rekorders und
+          den damit verbundenen Zugriff auf Ihr Endgerät zusätzlich
+          § 25 Abs. 1 TDDDG.</p>
+        <h3 data-i18n="legal_privacy_audio_h3_revoke">Widerruf und Löschung</h3>
+        <p data-i18n="legal_privacy_audio_p5">Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen.
+          Eine formlose Nachricht an die in Abschnitt 1 genannte Adresse genügt; wir
+          löschen Ihre Aufnahme dann. Die Rechtmäßigkeit der bis zum Widerruf erfolgten
+          Verarbeitung bleibt unberührt. Da wir Aufnahmen ohne Namen erhalten, geben Sie
+          uns zum Wiederfinden bitte den ungefähren Zeitpunkt der Aufnahme an.</p>
+        <h3 data-i18n="legal_privacy_audio_h3_transfer">Drittlandübermittlung</h3>
+        <p data-i18n="legal_privacy_audio_p6">SpeakPipe wird außerhalb der Europäischen Union betrieben, eine Verarbeitung
+          Ihrer Daten in einem Drittland lässt sich daher nicht ausschließen. Es gelten
+          die Datenschutzbestimmungen des Anbieters.</p>
+      </section>
+
+      <section aria-labelledby="ds-kontakt">
+        <h2 id="ds-kontakt" data-i18n="legal_privacy_h_contact">6. Kontaktaufnahme</h2>
+        <p data-i18n="legal_privacy_contact_p1">Wenn Sie uns per E-Mail oder telefonisch kontaktieren, verarbeiten wir die von
+        Ihnen übermittelten Angaben (etwa Ihren Namen, Ihre E-Mail-Adresse oder
+        Telefonnummer und den Inhalt Ihrer Nachricht) ausschließlich zur Bearbeitung
+          Ihres Anliegens.</p>
+        <p data-i18n="legal_privacy_contact_p2">Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, soweit Ihre Anfrage auf den
+          Abschluss oder die Durchführung eines Vertrags oder auf vorvertragliche Maßnahmen
+          gerichtet ist, im Übrigen unser berechtigtes Interesse an der Beantwortung von
+          Anfragen nach Art. 6 Abs. 1 lit. f DSGVO beziehungsweise Ihre Einwilligung nach
+          Art. 6 Abs. 1 lit. a DSGVO.</p>
+        <p data-i18n="legal_privacy_contact_p3">Eine Weitergabe an Dritte findet nicht statt. Nach abschließender Bearbeitung
+          löschen wir Ihre Nachricht, sofern keine gesetzlichen Aufbewahrungspflichten
+          entgegenstehen. Bitte beachten Sie, dass die Übertragung unverschlüsselter
+          E-Mails Sicherheitslücken aufweisen kann.</p>
+      </section>
+
+      <section aria-labelledby="ds-links">
+        <h2 id="ds-links" data-i18n="legal_privacy_h_links">7. Externe Links und eigene Unterseiten</h2>
+        <p data-i18n="legal_privacy_links_p1">Diese Website verweist auf eigene Unterseiten, etwa die Live-Demo und den
+          AR-Client. Diese werden über denselben Hosting-Anbieter ausgeliefert;
+          es gelten die Angaben aus Abschnitt 3. Für den Aufnahme-Rekorder auf der Seite
+          „Mitmachen“ gilt Abschnitt 5.</p>
+        <p data-i18n="legal_privacy_links_p2">Für verlinkte Websites Dritter gilt ausschließlich deren jeweilige
+          Datenschutzerklärung. Auf deren Inhalte und Datenverarbeitung haben wir keinen
+          Einfluss. Beim Anklicken eines externen Links verlassen Sie unser Angebot.</p>
+      </section>
+
+      <section aria-labelledby="ds-speicherdauer">
+        <h2 id="ds-speicherdauer" data-i18n="legal_privacy_h_retention">8. Speicherdauer</h2>
+        <p data-i18n="legal_privacy_retention_p1">Wir selbst speichern aus dem bloßen Seitenaufruf keine personenbezogenen Daten.
+          Die Server-Log-Daten werden allein vom Hosting-Anbieter nach dessen eigenen
+          Fristen gespeichert und anschließend gelöscht oder anonymisiert.</p>
+        <p data-i18n="legal_privacy_retention_p2">Daten aus einer Kontaktaufnahme löschen wir, sobald der Zweck der Verarbeitung
+        entfällt, in der Regel unmittelbar nach abschließender Bearbeitung Ihres
+        Anliegens, und keine gesetzlichen Aufbewahrungsfristen entgegenstehen.</p>
+      </section>
+
+      <section aria-labelledby="ds-rechte">
+        <h2 id="ds-rechte" data-i18n="legal_privacy_h_rights">9. Ihre Rechte</h2>
+        <p data-i18n="legal_privacy_rights_p1">Als betroffene Person stehen Ihnen gegenüber dem Verantwortlichen die folgenden
+          Rechte zu:</p>
+        <ul>
+          <li data-i18n="legal_privacy_rights_li1">Auskunft über die zu Ihnen verarbeiteten personenbezogenen Daten (Art. 15 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li2">Berichtigung unrichtiger oder Vervollständigung unvollständiger Daten (Art. 16 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li3">Löschung Ihrer Daten, soweit kein gesetzlicher Ausnahmetatbestand greift (Art. 17 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li4">Einschränkung der Verarbeitung (Art. 18 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li5">Datenübertragbarkeit in einem strukturierten, gängigen und maschinenlesbaren Format (Art. 20 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li6">Widerspruch gegen eine Verarbeitung auf Grundlage berechtigter Interessen (Art. 21 DSGVO),</li>
+          <li data-i18n="legal_privacy_rights_li7">Widerruf einer erteilten Einwilligung mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO).</li>
+        </ul>
+        <p data-i18n="legal_privacy_rights_p2">Zur Ausübung Ihrer Rechte genügt eine formlose Nachricht an die in Abschnitt 1
+          genannte Adresse. Wir bearbeiten Ihre Anfrage unverzüglich und für Sie
+          kostenfrei.</p>
+      </section>
+
+      <section aria-labelledby="ds-beschwerde">
+        <h2 id="ds-beschwerde" data-i18n="legal_privacy_h_authority">10. Beschwerderecht</h2>
+        <p data-i18n="legal_privacy_authority_p1">Sie haben unbeschadet anderer Rechtsbehelfe das Recht, sich bei einer
+          Datenschutz-Aufsichtsbehörde über die Verarbeitung Ihrer personenbezogenen Daten
+          zu beschweren (Art. 77 DSGVO). Für uns zuständig ist:</p>
+        <address class="legal-address">
+          <span data-i18n="legal_privacy_authority_name">Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</span><br>
+          <span data-i18n="legal_privacy_authority_street">Promenade 27</span><br>
+          <span data-i18n="legal_privacy_authority_city">91522 Ansbach</span><br>
+          <span data-i18n="legal_imprint_provider_country">Deutschland</span>
+        </address>
+      </section>
+
+      <section aria-labelledby="ds-aenderungen">
+        <h2 id="ds-aenderungen" data-i18n="legal_privacy_h_changes">11. Änderungen dieser Erklärung</h2>
+        <p data-i18n="legal_privacy_changes_p1">Wir passen diese Datenschutzerklärung an, sobald Änderungen an der Website oder
+          an der Rechtslage dies erfordern. Es gilt jeweils die zum Zeitpunkt Ihres Besuchs
+          auf dieser Seite abrufbare Fassung.</p>
+      </section>
+
+      <div class="legal-crosslinks">
+        <a class="btn btn--ghost legal-crosslinks__btn" href="impressum.html">
+          <span data-i18n="foot_imprint">Impressum</span>
+          <span class="btn__arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="btn btn--ghost legal-crosslinks__btn" href="nutzungsbedingungen.html">
+          <span data-i18n="foot_terms">Nutzungsbedingungen</span>
           <span class="btn__arrow" aria-hidden="true">→</span>
         </a>
       </div>
 
-          <!-- Rollen/Kurzbiografien bewusst offen gelassen; vom Team zu ergänzen. -->
-      <ul class="team__people reveal" style="--reveal-delay:120ms">
-        <li class="team__person card"><span class="team__mono">JN</span><h3>Johannes Nirschl</h3></li>
-        <li class="team__person card"><span class="team__mono">AK</span><h3>Alexander Kluge</h3></li>
-        <li class="team__person card"><span class="team__mono">JK</span><h3>Jonas Kaindl</h3></li>
-      </ul>
-    </div>
+    </article>
   </div>
-</section>
-
-<!-- ============================== CLOSING ============================== -->
-<section class="sc-cta">
-  <h2 class="sc-h2" data-i18n="cta_h">Hören Sie selbst.</h2>
-  <div class="sc-cta__actions">
-    <a class="btn btn--primary" href="mitmachen.html">
-      <span data-i18n="nav_join">Mitmachen</span>
-      <span class="btn__arrow" aria-hidden="true">→</span>
-    </a>
-    <a class="btn btn--ghost" href="mailto:al.kluge@campus.lmu.de" data-i18n="team_cta">Kontakt aufnehmen</a>
-  </div>
-</section>
-
 </main>
 
 <!-- ============================== FOOTER ============================== -->
@@ -3421,12 +2578,12 @@ html {
       <nav class="foot__col" aria-labelledby="footNav1">
         <h4 id="footNav1" data-i18n="foot_h_site">Website</h4>
         <ul>
-          <li><a href="#technologie" data-i18n="nav_tech">Technologie</a></li>
+          <li><a href="index.html#technologie" data-i18n="nav_tech">Technologie</a></li>
           <li><a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a></li>
           <li><a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a></li>
           <li><a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a></li>
           <li><a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a></li>
-          <li><a href="#team" data-i18n="nav_team">Team</a></li>
+          <li><a href="index.html#team" data-i18n="nav_team">Team</a></li>
         </ul>
       </nav>
 
@@ -3453,14 +2610,12 @@ html {
       <p data-i18n="foot_copy">© 2026 J.A.R. Medical</p>
       <ul class="foot__legal">
         <li><a href="impressum.html" data-i18n="foot_imprint">Impressum</a></li>
-        <li><a href="datenschutz.html" data-i18n="foot_privacy">Datenschutz</a></li>
+        <li><a href="datenschutz.html" aria-current="page" data-i18n="foot_privacy">Datenschutz</a></li>
         <li><a href="nutzungsbedingungen.html" data-i18n="foot_terms">Nutzungsbedingungen</a></li>
       </ul>
     </div>
   </div>
 </footer>
-
-<div class="grain" aria-hidden="true"></div>
 
 <script>/* js/i18n.js */
 /* ==========================================================================
@@ -4093,516 +3248,6 @@ window.JAR_I18N = {
 
 };
 </script>
-<script>/* js/hero-scroll.js */
-/* ==========================================================================
-   J.A.R. — Hero scroll track
-   After mistral.ai's home hero (<mistral-section-hero-home>): the hero sits in
-   a two-screen track, pins for one, and as the visitor scrolls the left column
-   folds away while the side cell grows to fill the view. The lead ends large
-   and centred with the two ways in beneath it. Scrolling back reverses it.
-
-   Markup:  <div class="sc-hero-track" data-hero-scroll>
-              <section class="sc-hero"> …four cells… </section>
-            </div>
-
-   Same contract as waveform.js: one rAF-throttled scroll listener, scroll
-   position is the only input, nothing runs on a timer. The script writes a
-   single progress value, --p (0..1), on .sc-hero; the grid in showcase.css is
-   a function of it. The side cell's lead and buttons are the exception — they
-   are measured once in flow (like mistral's calcScrollEndPosition) and then
-   placed here, because their path from the corner to the centre can't be
-   expressed in CSS without reflowing the text.
-
-   The scrub is linear, as on mistral.ai (ease: none), so the sheet tracks the
-   scrollbar exactly. Below 1024px and under reduced motion the track is left
-   inert and the hero is the plain grid; the media query matches the one in
-   showcase.css.
-
-   Load order: before waveform.js, so the hero canvas already has its pinned
-   size when the mosaic paints for the first time.
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  var track = document.querySelector('[data-hero-scroll]');
-  if (!track || !window.matchMedia) return;
-
-  var hero = track.querySelector('.sc-hero');
-  var side = hero && hero.querySelector('.sc-hero__side');
-  var lead = side && side.querySelector(':scope > p');
-  var actions = side && side.querySelector(':scope > .sc-cta__actions');
-  if (!hero || !side || !lead || !actions) return;
-
-  var titleInner = hero.querySelector('.sc-hero__title > div');
-  var aside = hero.querySelector('.sc-hero__aside');
-  var canvas = hero.querySelector('.sc-hero__art .sc-waveform');
-
-  var mq = window.matchMedia('(min-width: 1024px) and (prefers-reduced-motion: no-preference)');
-
-  var geo = null;     // measured start/end geometry, null when inert
-  var lastP = -1;
-
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function clearPlacement() {
-    lead.style.translate = '';
-    lead.style.scale = '';
-    actions.style.translate = '';
-  }
-
-  /* Read the layout at p = 0 with the side cell's contents still in flow,
-     then lift them out. Offsets rather than bounding rects throughout: the
-     load animation is still translating these elements for the first second
-     and a rect would bake that offset in. */
-  function measure() {
-    track.classList.remove('is-measured');
-    clearPlacement();
-    lastP = -1;
-
-    if (!mq.matches) {
-      track.classList.remove('is-live');
-      hero.style.removeProperty('--p');
-      geo = null;
-      return;
-    }
-
-    track.classList.add('is-live');
-    hero.style.setProperty('--p', '0');
-
-    var padTop = parseFloat(getComputedStyle(hero).paddingTop) || 0;
-    var cw = hero.clientWidth;
-    var ch = hero.clientHeight - padTop;
-
-    var sideLeft = side.offsetLeft;
-    var sideTop = side.offsetTop;
-
-    var L0 = {
-      x: sideLeft + lead.offsetLeft,
-      y: sideTop + lead.offsetTop,
-      w: lead.offsetWidth,
-      h: lead.offsetHeight
-    };
-    var A0 = {
-      x: sideLeft + actions.offsetLeft,
-      y: sideTop + actions.offsetTop,
-      w: actions.offsetWidth,
-      h: actions.offsetHeight
-    };
-    if (L0.w < 1 || L0.h < 1) { geo = null; return; }
-
-    /* End state: the lead about three fifths of the sheet wide, never taller
-       than a bit over half of it, the buttons centred below. */
-    var s = Math.min(cw * 0.62, 960) / L0.w;
-    s = Math.min(s, (ch * 0.55) / L0.h);
-    s = Math.max(1, s);
-
-    var gap = Math.max(16, A0.y - (L0.y + L0.h)) * 1.5;
-    var groupH = L0.h * s + gap + A0.h;
-    var top = padTop + (ch - groupH) / 2;
-
-    /* The buttons wrap inside a box as wide as the side cell; centre what is
-       actually drawn, not the box, or they land left of the lead's axis.
-       A rect difference, because the load animation's held transform on the
-       wrapper changes which element the buttons' offsets are relative to —
-       and the same transform cancels out of the subtraction. */
-    var actVisible = 0;
-    var aLeft = actions.getBoundingClientRect().left;
-    for (var i = 0; i < actions.children.length; i++) {
-      actVisible = Math.max(actVisible, actions.children[i].getBoundingClientRect().right - aLeft);
-    }
-    if (!actVisible) actVisible = A0.w;
-
-    geo = {
-      sideLeft: sideLeft,
-      sideTop: sideTop,
-      s: s,
-      L0: L0,
-      L1: { x: (cw - L0.w * s) / 2, y: top },
-      A0: A0,
-      A1: { x: (cw - actVisible) / 2, y: top + L0.h * s + gap }
-    };
-
-    hero.style.setProperty('--lead-w', L0.w + 'px');
-    hero.style.setProperty('--act-w', Math.ceil(A0.w) + 'px');
-    hero.style.setProperty('--row2-h', (aside ? aside.offsetHeight : ch * 0.4) + 'px');
-    if (titleInner) hero.style.setProperty('--title-w', titleInner.offsetWidth + 'px');
-    if (canvas) {
-      hero.style.setProperty('--art-w', canvas.clientWidth + 'px');
-      hero.style.setProperty('--art-h', canvas.clientHeight + 'px');
-    }
-
-    track.classList.add('is-measured');
-  }
-
-  /* Positions are computed in hero coordinates and converted to the side
-     cell's, whose left edge moves with the folding column. */
-  function place(el, a, b, p, s) {
-    var x = lerp(a.x, b.x, p) - geo.sideLeft * (1 - p);
-    var y = lerp(a.y, b.y, p) - geo.sideTop;
-    el.style.translate = x.toFixed(2) + 'px ' + y.toFixed(2) + 'px';
-    if (s !== undefined) el.style.scale = s.toFixed(4);
-  }
-
-  function frame() {
-    queued = false;
-    if (!geo) return;
-
-    var total = track.offsetHeight - hero.offsetHeight;
-    var p = total > 0 ? -track.getBoundingClientRect().top / total : 0;
-    p = p < 0 ? 0 : p > 1 ? 1 : p;
-    if (p === lastP) return;
-    lastP = p;
-
-    hero.style.setProperty('--p', p.toFixed(4));
-    place(lead, geo.L0, geo.L1, p, lerp(1, geo.s, p));
-    place(actions, geo.A0, geo.A1, p);
-  }
-
-  var queued = false;
-  function request() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(frame);
-  }
-
-  var remeasureQueued = false;
-  function remeasure() {
-    if (remeasureQueued) return;
-    remeasureQueued = true;
-    requestAnimationFrame(function () {
-      remeasureQueued = false;
-      measure();
-      frame();
-    });
-  }
-
-  measure();
-  frame();
-
-  window.addEventListener('scroll', request, { passive: true });
-  window.addEventListener('resize', remeasure, { passive: true });
-  window.addEventListener('orientationchange', function () { setTimeout(remeasure, 120); });
-  if (mq.addEventListener) mq.addEventListener('change', remeasure);
-  else if (mq.addListener) mq.addListener(remeasure);
-
-  /* The lead's size depends on the webfont and on the language. i18n.js
-     swaps text in place without an event, so watch the side cell's text;
-     our own writes are style attributes and don't trigger this. */
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(remeasure);
-  if (document.fonts && document.fonts.addEventListener) {
-    document.fonts.addEventListener('loadingdone', remeasure);
-  }
-  if ('MutationObserver' in window) {
-    new MutationObserver(remeasure).observe(side, {
-      childList: true, characterData: true, subtree: true
-    });
-  }
-})();
-</script>
-<script>/* js/waveform.js */
-// js/waveform.js
-(function() {
-  const canvases = document.querySelectorAll('.sc-waveform');
-  if (!canvases.length) return;
-
-  const color = 'rgba(142, 199, 184, 0.8)';
-
-  canvases.forEach(canvas => {
-    const ctx = canvas.getContext('2d');
-    let width, height;
-
-    // Resize handler
-    function resize() {
-      // Get dimensions from the canvas itself (its CSS size)
-      const rect = canvas.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-
-      // High DPI support
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      ctx.scale(dpr, dpr);
-    }
-
-    // Observe canvas element size changes
-    const resizeObserver = new ResizeObserver(() => resize());
-    resizeObserver.observe(canvas);
-    resize();
-
-    // Animation variables
-    let time = 0;
-    const lines = 3;
-
-    function draw() {
-      ctx.clearRect(0, 0, width, height);
-
-      const cy = height / 2;
-
-      for (let i = 0; i < lines; i++) {
-        ctx.beginPath();
-        // The first line is bright and thicker, others are fainter for depth
-        ctx.lineWidth = i === 0 ? 2.5 : 1.5;
-
-        // Calculate dynamic alpha for breathing effect
-        const alphaPhase = Math.sin(time + i * Math.PI) * 0.1;
-        const baseAlpha = i === 0 ? 0.8 : (0.3 - i * 0.1);
-        const currentAlpha = Math.max(0.1, baseAlpha + alphaPhase);
-
-        ctx.strokeStyle = `rgba(142, 199, 184, ${currentAlpha})`;
-
-        // Morphing parameters
-        const frequency = 0.015 + i * 0.005;
-        // The amplitude varies smoothly to simulate speaking
-        const amplitudeModulation = (0.5 + Math.sin(time * 1.5) * 0.5) * (height * 0.3);
-        const amplitude = (height * 0.1) + amplitudeModulation * (1 - i * 0.2);
-        const phase = time * 2.5 + i * (Math.PI / 3);
-
-        ctx.moveTo(0, cy);
-
-        for (let x = 0; x <= width; x += 3) {
-          // Windowing function (Hann window) to taper ends smoothly to 0
-          const nx = x / width;
-          const windowFunc = Math.sin(nx * Math.PI);
-
-          // Organic combination of sine waves for a complex, non-repeating look
-          const wave1 = Math.sin(x * frequency + phase);
-          const wave2 = Math.sin(x * frequency * 1.7 + phase * 1.3) * 0.6;
-          const wave3 = Math.cos(x * frequency * 0.4 - phase * 0.8) * 0.3;
-
-          const y = cy + (wave1 + wave2 + wave3) * amplitude * windowFunc;
-
-          ctx.lineTo(x, y);
-        }
-
-        ctx.stroke();
-      }
-
-      time += 0.02;
-      requestAnimationFrame(draw);
-    }
-
-    draw();
-  });
-})();
-</script>
-<script>/* js/scribe.js */
-/* ==========================================================================
-   J.A.R. — Stage controller
-   Drives the opening: one sentence being transcribed and then resolved into
-   fields, scrubbed by scroll position, with the copy panels cross-fading
-   across the same progress value.
-
-   Same contract as the rest of the site: one rAF loop, and everything on the
-   stage is a pure function of one number, `progress` in [0, 1]. Nothing runs
-   on a timer, so the page is as still as the visitor leaves it.
-
-   There is no canvas and no WebGL here any more — the stage is DOM and CSS, so
-   there is nothing to fall back from. Without JS, or under reduced motion, the
-   stylesheet's own defaults show the finished state: the whole sentence, all
-   four fields, and the panels in normal document flow.
-
-   The words are wrapped in spans by this file rather than in the markup,
-   because js/i18n.js swaps the sentence by setting textContent and would wipe
-   them. It sets <html lang> last, after the text, so observing that attribute
-   is a re-split trigger that arrives at exactly the right moment and couples
-   the two files not at all.
-   Two ways to host it. On a page with a pinned stage (.stage__track inside
-   [data-stage]) progress is the pin's scroll travel and the copy panels are
-   scheduled against it. The landing page instead floats the panel on a
-   product canvas in normal flow — [data-stage] with no track — and there
-   progress is simply how far the canvas has come up the viewport: the sentence
-   is spoken as it arrives and resolved once it is well in view.
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  var stage = document.querySelector('[data-stage]');
-  if (!stage) return;
-
-  var scribe = stage.querySelector('[data-scribe]');
-  var said = stage.querySelector('[data-scribe-text]');
-  var fieldWrap = stage.querySelector('[data-scribe-fields]');
-  var panels = Array.prototype.slice.call(stage.querySelectorAll('[data-panel]'));
-  var track = stage.querySelector('.stage__track');
-  if (!scribe || !said || !fieldWrap) return;
-
-  var fields = Array.prototype.slice.call(fieldWrap.querySelectorAll('.scribe__field'));
-
-  /* Panel visibility windows, as [fadeInFrom, fadeInTo, fadeOutFrom, fadeOutTo]
-     against stage progress. Values outside [0,1] mean "already/still visible". */
-  var WINDOWS = [
-    [-1.00, -0.50, 0.14, 0.20],
-    [ 0.26,  0.33, 0.50, 0.56],
-    [ 0.62,  0.69, 0.86, 0.92]
-  ];
-
-  /* The sentence is spoken across this stretch and the fields resolve after
-     it, so the normalisation reads as a consequence rather than a parallel
-     animation: you see "vierzehn Uhr sieben" land before 14:07 appears. */
-  var SPEAK = [0.08, 0.66];
-  var RESOLVE = [0.70, 0.94];
-  var BARS = 56;
-
-  var reduceMotion = window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
-  function smoothstep(a, b, x) {
-    if (a === b) return x < a ? 0 : 1;
-    var t = clamp((x - a) / (b - a));
-    return t * t * (3 - 2 * t);
-  }
-
-  /* ---- The waveform ------------------------------------------------------
-     Heights are deterministic rather than random: the stage is a pure function
-     of scroll, and a shape that changed on every reload would be the one thing
-     on it that is not. */
-  var wave = stage.querySelector('.scribe__wave');
-  var bars = [];
-  (function buildWave() {
-    if (!wave) return;
-    var frag = document.createDocumentFragment();
-    for (var i = 0; i < BARS; i++) {
-      var t = i / (BARS - 1);
-      /* Three sines beating against each other, with an envelope that fades the
-         ends — it reads as speech rather than as a test pattern. */
-      var a = Math.sin(t * 11.3) * 0.5 + Math.sin(t * 27.7) * 0.3 + Math.sin(t * 5.1) * 0.2;
-      var env = Math.sin(Math.PI * clamp(t * 1.04 - 0.02));
-      var h = 0.18 + 0.82 * clamp(Math.abs(a) * env * 1.25);
-      var b = document.createElement('span');
-      b.style.height = (h * 100).toFixed(1) + '%';
-      frag.appendChild(b);
-      bars.push(b);
-    }
-    wave.appendChild(frag);
-  })();
-
-  /* ---- The sentence ------------------------------------------------------ */
-  var words = [];
-  function split() {
-    var text = (said.textContent || '').trim();
-    if (!text) return;
-    said.textContent = '';
-    words = [];
-    var parts = text.split(/\s+/);
-    for (var i = 0; i < parts.length; i++) {
-      var w = document.createElement('span');
-      w.className = 'scribe__word';
-      w.textContent = parts[i];
-      said.appendChild(w);
-      if (i < parts.length - 1) said.appendChild(document.createTextNode(' '));
-      words.push(w);
-    }
-  }
-  split();
-
-  /* js/i18n.js sets <html lang> after it has replaced the text, so this fires
-     once per language switch, after the new sentence is in place.
-
-     The `live` guard is load-bearing: without it this re-drew at progress 0
-     after the reduced-motion path had already bowed out, which set every word
-     and every field to opacity 0 and left the panel blank for exactly the
-     readers who need it not to be. Re-splitting is always right; re-drawing is
-     only right when this file is actually driving the stage. */
-  if (window.MutationObserver) {
-    new MutationObserver(function () {
-      if (!said.querySelector('.scribe__word')) {
-        split();
-        if (live) draw(current);
-      }
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-  }
-
-  /* ---- Paint ------------------------------------------------------------- */
-  function paintPanels(p) {
-    for (var n = 0; n < panels.length; n++) {
-      var w = WINDOWS[n] || WINDOWS[WINDOWS.length - 1];
-      var o = Math.min(smoothstep(w[0], w[1], p), 1 - smoothstep(w[2], w[3], p));
-      var el = panels[n];
-      el.style.opacity = o.toFixed(3);
-      el.style.transform = 'translate3d(0,' + ((1 - o) * 26).toFixed(1) + 'px,0)';
-      el.style.visibility = o < 0.01 ? 'hidden' : 'visible';
-      el.setAttribute('aria-hidden', o < 0.5 ? 'true' : 'false');
-    }
-  }
-
-  function paintScribe(p) {
-    var spoken = smoothstep(SPEAK[0], SPEAK[1], p);
-
-    for (var i = 0; i < bars.length; i++) {
-      /* A soft edge on the playhead rather than a hard one, so the bars light
-         up as it arrives instead of snapping. */
-      var at = bars.length > 1 ? i / (bars.length - 1) : 0;
-      bars[i].style.opacity = (0.28 + 0.72 * clamp((spoken - at) * 9 + 0.5)).toFixed(3);
-    }
-
-    for (var w = 0; w < words.length; w++) {
-      var share = words.length > 1 ? w / (words.length - 1) : 0;
-      words[w].style.opacity = clamp((spoken - share * 0.92) * 7).toFixed(3);
-    }
-
-    for (var f = 0; f < fields.length; f++) {
-      var lo = RESOLVE[0] + (RESOLVE[1] - RESOLVE[0]) * (f / Math.max(1, fields.length));
-      var hi = lo + (RESOLVE[1] - RESOLVE[0]) / Math.max(1, fields.length) * 1.5;
-      var o = smoothstep(lo, hi, p);
-      fields[f].style.opacity = o.toFixed(3);
-      fields[f].style.transform = 'translate3d(0,' + ((1 - o) * 10).toFixed(1) + 'px,0)';
-    }
-
-    scribe.style.setProperty('--scribe-spoken', spoken.toFixed(4));
-  }
-
-  /* ---- Progress ----------------------------------------------------------- */
-  var current = 0;
-  var live = false;
-  function measure() {
-    if (!track) {
-      /* Panel mode: 0 when the canvas top is at 90% of the viewport, 1 when
-         it has reached 20% — by then the whole panel is on screen. */
-      var b = stage.getBoundingClientRect();
-      var vh = window.innerHeight || 1;
-      return clamp((vh * 0.9 - b.top) / (vh * 0.7));
-    }
-    var r = track.getBoundingClientRect();
-    var travel = r.height - window.innerHeight;
-    if (travel <= 0) return 1;
-    return clamp(-r.top / travel);
-  }
-
-  function draw(p) {
-    current = p;
-    paintScribe(p);
-    stage.style.setProperty('--stage-p', p.toFixed(4));
-    paintPanels(p);
-  }
-
-  if (reduceMotion) {
-    /* Leave the stylesheet's finished state alone and stand the section down to
-       normal flow, the way the turn does. */
-    stage.classList.add('stage--static');
-    stage.setAttribute('data-static-reason', 'reduced-motion');
-    return;
-  }
-
-  stage.classList.add('stage--live');
-  live = true;
-
-  var queued = false;
-  function frame() { queued = false; draw(measure()); }
-  function request() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(frame);
-  }
-
-  window.addEventListener('scroll', request, { passive: true });
-  window.addEventListener('resize', request, { passive: true });
-  window.addEventListener('orientationchange', function () { setTimeout(request, 120); });
-
-  draw(measure());
-})();
-</script>
 <script>/* js/site.js */
 /* ==========================================================================
    J.A.R. — Site chrome
@@ -4825,484 +3470,6 @@ window.JAR_I18N = {
     else apply('de');
   })();
 
-})();
-</script>
-<!-- After site.js: the language switch snapshots the German text first. -->
-<script>/* js/scroll-fx.js */
-/* ==========================================================================
-   J.A.R. — Scroll effects on the landing page, below the hero
-   Everything after the first mosaic gets a scrubbed entrance: words that ink
-   in as they are "read", headlines that rise out of a mask, labels that
-   decode like a transcript settling, a product canvas that opens like an
-   aperture, rows that are underlined as they arrive, and cards that converge
-   from staggered depths. Some text is pinned: the statement holds still in
-   the middle of the screen while it inks in, and the Technologie and
-   Einsatzbereiche headings stay put while their content slides up over them.
-
-   Same contract as the other scroll pieces on this site: one rAF-throttled
-   scroll listener, scroll position is the only input, nothing runs on a
-   timer, and every frame is a pure function of where the page is. Scroll
-   back and it all plays in reverse.
-
-   Opt-in, never opt-out: this file adds html.fx-live when it takes over, and
-   css/scroll-fx.css only styles under that class. Without JS, or under
-   prefers-reduced-motion, nothing here runs and the page is exactly what it
-   was.
-
-   It stays out of the way of the existing pieces:
-     - .reveal owns `transform` and `opacity` on its elements, so this file
-       only ever writes the individual `translate` / `scale` / `rotate`
-       properties (they compose with transform) and custom properties.
-     - js/i18n.js swaps text by setting textContent, which wipes any spans
-       split in here. It sets <html lang> last, so a lang mutation is the
-       re-split trigger — the same approach js/scribe.js uses.
-     - The screen-reader text is never scrambled: decoding kickers keep the
-       real label in a visually-hidden span beside an aria-hidden overlay.
-
-   Load order: after js/site.js, so the language switch has snapshotted the
-   authored German before anything here restructures it.
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  if (!window.matchMedia || !window.requestAnimationFrame) return;
-
-  /* ---- Screen recordings ----------------------------------------------------------
-     video[data-inview-play] ships with controls, so without JS (or with
-     motion reduced) it is an ordinary video the visitor starts themselves.
-     Otherwise the controls go and it plays, muted, only while at least a
-     third of it is on screen — no decoding loop running off screen. If the
-     browser refuses to autoplay, the controls come back. */
-  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduced && 'IntersectionObserver' in window) {
-    Array.prototype.forEach.call(document.querySelectorAll('video[data-inview-play]'), function (v) {
-      v.muted = true;
-      v.removeAttribute('controls');
-      new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (en.isIntersecting) {
-            var pr = v.play();
-            if (pr && pr.catch) pr.catch(function () { v.setAttribute('controls', ''); });
-          } else {
-            v.pause();
-          }
-        });
-      }, { threshold: 0.35 }).observe(v);
-    });
-  }
-
-  if (reduced) return;
-
-  var main = document.getElementById('main');
-  if (!main) return;
-
-  var root = document.documentElement;
-
-  /* ---- Maths ---------------------------------------------------------------- */
-  function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
-  function ease(t) { t = clamp(t); return 1 - Math.pow(1 - t, 3); }       // out-cubic
-  function smooth(t) { t = clamp(t); return t * t * (3 - 2 * t); }
-  /* Sub-range of a progress value: 0 before a, 1 after b. */
-  function span(p, a, b) { return clamp((p - a) / (b - a)); }
-
-  /* Progress of an element's top edge moving from `from` to `to`, both given
-     as fractions of the viewport height (1 = bottom edge, 0 = top edge). */
-  function travel(rect, vh, from, to) {
-    return clamp((vh * from - rect.top) / (vh * (from - to)));
-  }
-
-  /* Everything below the hero. The hero has its own controller. */
-  function below(sel) {
-    var hero = document.querySelector('.sc-hero-track');
-    return Array.prototype.filter.call(main.querySelectorAll(sel), function (el) {
-      return !hero || !hero.contains(el);
-    });
-  }
-
-  /* ---- Splitting ---------------------------------------------------------------
-     Words become spans. Whitespace is kept as real text nodes so textContent
-     (which js/site.js reads) is unchanged apart from collapsed indentation. */
-  function splitWords(el, cls, wrapCls) {
-    var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-    if (!text) return [];
-    el.textContent = '';
-    var out = [];
-    var parts = text.split(' ');
-    for (var i = 0; i < parts.length; i++) {
-      var w = document.createElement('span');
-      w.className = cls;
-      w.textContent = parts[i];
-      if (wrapCls) {
-        var m = document.createElement('span');
-        m.className = wrapCls;
-        m.appendChild(w);
-        el.appendChild(m);
-      } else {
-        el.appendChild(w);
-      }
-      if (i < parts.length - 1) el.appendChild(document.createTextNode(' '));
-      out.push(w);
-    }
-    return out;
-  }
-
-  /* ---- Effects -------------------------------------------------------------------
-     Each effect is { el, setup(), draw(rect, vh, vw) }. setup() is re-run
-     after a language switch for the ones that split text. */
-  var fx = [];
-
-  /* 1. The statement is pinned to the middle of the screen for a stretch of
-        scroll and inks in word by word while it holds, like a line being
-        transcribed: unread words are faint, the word under the reading head
-        is mint. The section's children are moved into a sticky wrapper at
-        runtime; the markup is untouched. */
-  below('.sc-statement').forEach(function (sec) {
-    var p = sec.querySelector('p:not(.sc-kicker)');
-    if (!p) return;
-    var pin = document.createElement('div');
-    pin.className = 'fx-pin';
-    while (sec.firstChild) pin.appendChild(sec.firstChild);
-    sec.appendChild(pin);
-    sec.classList.add('fx-pinned');
-
-    var e = { el: sec, words: [], splits: true, splitEl: p };
-    e.setup = function () { e.words = splitWords(p, 'fx-ink'); };
-    e.draw = function (r, vh) {
-      /* 0 as the section's top passes mid-screen (the text is arriving), 1
-         a little before the pin lets go, so the line holds finished. */
-      var hold = Math.max(1, r.height - vh);
-      var t = clamp((vh * 0.5 - r.top) / (hold * 0.85 + vh * 0.5));
-      var n = e.words.length;
-      var head = t * (n + 2) - 1;            // reading head, in words
-      for (var i = 0; i < n; i++) {
-        var d = head - i;                    // >1 read, 0..1 being read
-        e.words[i].style.setProperty('--ink', clamp(d).toFixed(3));
-        e.words[i].classList.toggle('is-head', d > 0 && d < 1.15);
-      }
-      /* As the pin releases, the line recedes a touch. */
-      var out = smooth(clamp((-r.top - hold * 0.9) / (vh * 0.4)));
-      pin.style.scale = (1 - out * 0.06).toFixed(4);
-      pin.style.setProperty('--fx-out', out.toFixed(3));
-    };
-    fx.push(e);
-  });
-
-  /* 1b. Section headings that stay on screen while their content slides up
-         over them (desktop; see css/scroll-fx.css). The heading and the block
-         after it are wrapped at runtime so the sticky heading is released
-         exactly when that block has passed. As it is covered, the heading
-         settles back: smaller, dimmer, a little higher. */
-  /* Any section whose heading is followed by a canvas, the sector grid or a
-     row of cells — #technologie and #bereiche on the landing page, #aufgabe
-     (and a canvas #beispiel) on the sector pages. A heading followed by a
-     pinned 3D stage is left alone: a sticky inside a sticky fights itself. */
-  below('section > .sc-head').forEach(function (head) {
-    var sec = head.parentNode;
-    var next = head.nextElementSibling;
-    if (!next || !next.matches('.sc-canvas, .sc-sectors, .sc-cells')) return;
-    var stack = document.createElement('div');
-    stack.className = 'fx-stack';
-    sec.insertBefore(stack, head);
-    stack.appendChild(head);
-    stack.appendChild(next);
-    fx.push({
-      el: head,
-      draw: function (r) {
-        var n = next.getBoundingClientRect();
-        var cover = clamp((r.bottom - n.top) / Math.max(1, r.height));
-        var c = smooth(cover);
-        head.style.scale = (1 - c * 0.08).toFixed(4);
-        head.style.translate = '0 ' + (-c * 24).toFixed(1) + 'px';
-        head.style.opacity = (1 - c * 0.75).toFixed(3);
-      }
-    });
-  });
-
-  /* 2. Headlines rise out of a mask, word by word, staggered. */
-  below('.sc-h2').forEach(function (el) {
-    var e = { el: el, words: [], splits: true };
-    e.setup = function () { e.words = splitWords(el, 'fx-rise', 'fx-mask'); };
-    e.draw = function (r, vh) {
-      var p = travel(r, vh, 0.96, 0.6);
-      var n = e.words.length;
-      for (var i = 0; i < n; i++) {
-        var lo = n > 1 ? (i / (n - 1)) * 0.45 : 0;
-        var t = ease(span(p, lo, lo + 0.55));
-        e.words[i].style.translate = '0 ' + ((1 - t) * 105).toFixed(1) + '%';
-        e.words[i].style.rotate = ((1 - t) * 4).toFixed(2) + 'deg';
-      }
-    };
-    fx.push(e);
-  });
-
-  /* 3. Kickers decode: mono caps that settle from noise into the label, left
-        to right, as they arrive — a transcript resolving. Deterministic:
-        the noise is a hash of position and progress, not Math.random(). */
-  var GLYPHS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%/+=<>';
-  function glyph(i, k) {
-    var h = (i * 374761393 + k * 668265263) | 0;
-    h = (h ^ (h >>> 13)) * 1274126177;
-    h = (h ^ (h >>> 16)) >>> 0;
-    return GLYPHS.charAt(h % GLYPHS.length);
-  }
-  below('.sc-kicker').forEach(function (el) {
-    /* A caption under a phone screenshot sits a full phone height below where
-       the figure starts, so timed on its own it only decoded once the phone
-       was almost past. Those are timed on the figure instead, and start as
-       soon as the phone comes up into view. */
-    var fig = el.closest('.sc-app__item');
-    var e = { el: fig || el, text: '', shown: null, splits: true, splitEl: el };
-    e.setup = function () {
-      e.text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      el.textContent = '';
-      var real = document.createElement('span');
-      real.className = 'visually-hidden';
-      real.textContent = e.text;
-      e.shown = document.createElement('span');
-      e.shown.className = 'fx-decode';
-      e.shown.setAttribute('aria-hidden', 'true');
-      e.shown.textContent = e.text;
-      el.appendChild(real);
-      el.appendChild(e.shown);
-      e.last = '';
-    };
-    e.draw = function (r, vh) {
-      var p = fig ? travel(r, vh, 1.0, 0.7) : travel(r, vh, 0.92, 0.55);
-      var n = e.text.length;
-      var tick = Math.floor(p * 24);         // noise changes in steps
-      var out = '';
-      for (var i = 0; i < n; i++) {
-        var c = e.text.charAt(i);
-        var at = n > 1 ? (i / (n - 1)) * 0.7 : 0;
-        if (c === ' ' || p >= at + 0.3) out += c;
-        else if (p > at) out += glyph(i, tick);
-        else out += ' ';
-      }
-      if (out !== e.last) { e.shown.textContent = out; e.last = out; }
-      e.shown.style.setProperty('--decoded', p.toFixed(3));
-    };
-    fx.push(e);
-  });
-
-  /* 4. The product canvas opens like an aperture; the waveform behind the
-        panel settles from a slight zoom; the panel rises onto it. */
-  below('.sc-canvas').forEach(function (el) {
-    var wave = el.querySelector('.sc-waveform');
-    var panel = el.querySelector('.scribe');
-    fx.push({
-      el: el,
-      draw: function (r, vh, vw) {
-        var p = ease(travel(r, vh, 1.0, 0.25));
-        var ix = (1 - p) * Math.min(18, vw / 60);   // percent
-        var iy = (1 - p) * 14;
-        el.style.setProperty('--fx-clip', iy.toFixed(2) + '% ' + ix.toFixed(2) + '% round ' + ((1 - p) * 28).toFixed(1) + 'px');
-        if (wave) wave.style.scale = (1 + (1 - p) * 0.25).toFixed(4);
-        if (panel) {
-          var q = ease(travel(r, vh, 0.85, 0.35));
-          panel.style.translate = '0 ' + ((1 - q) * 70).toFixed(1) + 'px';
-          panel.style.scale = (0.94 + q * 0.06).toFixed(4);
-        }
-      }
-    });
-  });
-
-  /* 5. Capability rows: each slides in and is underlined in mint as it
-        arrives, one after the other. */
-  below('.sc-caps li').forEach(function (el, i) {
-    fx.push({
-      el: el,
-      draw: function (r, vh) {
-        var p = travel(r, vh, 0.95, 0.62);
-        var t = ease(p);
-        el.style.translate = ((1 - t) * -36).toFixed(1) + 'px 0';
-        el.style.setProperty('--fx-line', smooth(span(p, 0.15, 1)).toFixed(3));
-        el.style.setProperty('--fx-fade', t.toFixed(3));
-      }
-    });
-  });
-
-  /* 6. Principle cells converge from a staircase, and their icons draw
-        themselves stroke by stroke. */
-  below('.sc-cells .sc-cell').forEach(function (el, i, all) {
-    var paths = Array.prototype.slice.call(el.querySelectorAll('.sc-cell__icon svg > *'));
-    paths.forEach(function (pth) { pth.setAttribute('pathLength', '1'); });
-    var cols = 1, lastVw = -1;
-    fx.push({
-      el: el,
-      draw: function (r, vh, vw) {
-        var p = travel(r, vh, 1.0, 0.45);
-        /* Columns as actually rendered (4, 3, 2 or 1 depending on the grid
-           and the width), re-read only when the viewport width changes. */
-        if (lastVw !== vw) {
-          lastVw = vw;
-          cols = el.parentNode ? getComputedStyle(el.parentNode).gridTemplateColumns.split(' ').length : 1;
-        }
-        var step = cols > 1 ? i % cols : 0;
-        var t = ease(p);
-        el.style.translate = '0 ' + ((1 - t) * (40 + step * 46)).toFixed(1) + 'px';
-        var d = smooth(span(p, 0.35, 0.95));
-        for (var k = 0; k < paths.length; k++) {
-          paths[k].style.strokeDashoffset = (1 - d).toFixed(3);
-        }
-        el.style.setProperty('--fx-scan', smooth(span(p, 0.2, 0.9)).toFixed(3));
-      }
-    });
-  });
-
-  /* 7. Sector cards: each rises from its own depth so the row arrives as a
-        wave, and its art strip wipes open from the bottom. */
-  below('.sc-sector').forEach(function (el, i) {
-    var art = el.querySelector('.sc-sector__art');
-    fx.push({
-      el: el,
-      draw: function (r, vh, vw) {
-        var p = travel(r, vh, 1.05, 0.4);
-        var wide = vw >= 901;
-        var depth = wide ? 60 + (i % 2) * 70 : 50;
-        el.style.translate = '0 ' + ((1 - ease(p)) * depth).toFixed(1) + 'px';
-        if (art) {
-          var a = ease(span(p, wide ? 0.1 + (i % 2) * 0.12 : 0.1, 0.85));
-          art.style.setProperty('--fx-wipe', ((1 - a) * 100).toFixed(2) + '%');
-        }
-      }
-    });
-  });
-
-  /* 8. Demo and Mitmachen slide in from opposite sides and meet at the rule. */
-  below('.sc-split > *').forEach(function (el, i) {
-    fx.push({
-      el: el,
-      draw: function (r, vh, vw) {
-        var p = ease(travel(r, vh, 1.0, 0.55));
-        var dir = i % 2 ? 1 : -1;
-        el.style.translate = (dir * (1 - p) * Math.min(90, vw * 0.06)).toFixed(1) + 'px 0';
-      }
-    });
-  });
-
-  /* 8b. The status block on the sector pages: its frame closes in around the
-         copy as it arrives. */
-  below('.sc-status').forEach(function (el) {
-    fx.push({
-      el: el,
-      draw: function (r, vh) {
-        var p = ease(travel(r, vh, 1.0, 0.5));
-        el.style.scale = (0.94 + 0.06 * p).toFixed(4);
-        el.style.setProperty('--fx-frame', p.toFixed(3));
-      }
-    });
-  });
-
-  /* 8c. App phones: the outer two lean in from a fan and the middle one
-         comes forward, so the three land as one row. */
-  below('.sc-app__item').forEach(function (el, i, all) {
-    var phone = el.querySelector('.sc-phone');
-    if (!phone) return;
-    var mid = (all.length - 1) / 2;
-    var side = i - mid;                       // -1, 0, 1
-    fx.push({
-      el: el,
-      draw: function (r, vh, vw) {
-        var p = ease(travel(r, vh, 1.05, 0.4));
-        var wide = vw > 760;
-        var q = 1 - p;
-        phone.style.translate = (wide ? side * q * 40 : 0).toFixed(1) + 'px ' + (q * (side ? 120 : 70)).toFixed(1) + 'px';
-        phone.style.rotate = (wide ? side * q * 9 : 0).toFixed(2) + 'deg';
-        phone.style.scale = (side ? 1 : 0.9 + 0.1 * p).toFixed(4);
-      }
-    });
-  });
-
-  /* 9. Partner plates tip up out of the page. */
-  below('.partners__grid').forEach(function (grid) {
-    Array.prototype.forEach.call(grid.children, function (el, i) {
-      fx.push({
-        el: el,
-        draw: function (r, vh) {
-          var p = ease(travel(r, vh, 1.0, 0.5 - i * 0.04));
-          el.style.rotate = 'x ' + ((1 - p) * 38).toFixed(2) + 'deg';
-          el.style.translate = '0 ' + ((1 - p) * 50).toFixed(1) + 'px';
-        }
-      });
-    });
-  });
-
-  /* 10. Team members file in from the right, one after another. */
-  below('.team__person').forEach(function (el, i) {
-    fx.push({
-      el: el,
-      draw: function (r, vh) {
-        var p = ease(travel(r, vh, 0.98, 0.6));
-        el.style.translate = ((1 - p) * (56 + i * 28)).toFixed(1) + 'px 0';
-      }
-    });
-  });
-
-  /* 11. The closing line: a mint sweep crosses the band and the headline
-         comes forward out of the sheet. */
-  below('.sc-cta').forEach(function (el) {
-    var sweep = document.createElement('span');
-    sweep.className = 'fx-sweep';
-    sweep.setAttribute('aria-hidden', 'true');
-    el.insertBefore(sweep, el.firstChild);
-    var h = el.querySelector('.sc-h2');
-    fx.push({
-      el: el,
-      draw: function (r, vh) {
-        var p = travel(r, vh, 1.0, 0.4);
-        el.style.setProperty('--fx-sweep', smooth(span(p, 0.05, 0.8)).toFixed(3));
-        if (h) h.style.scale = (0.86 + 0.14 * ease(p)).toFixed(4);
-      }
-    });
-  });
-
-  /* ---- Go ------------------------------------------------------------------------- */
-  fx.forEach(function (e) { if (e.setup) e.setup(); });
-  root.classList.add('fx-live');
-
-  var queued = false;
-  function frame() {
-    queued = false;
-    var vh = window.innerHeight || 1;
-    var vw = window.innerWidth || 1;
-    var i;
-
-    /* Read every rect first, then write, so one frame is one layout. Skip the
-       writes for anything well off screen — its state cannot be seen. */
-    var rects = new Array(fx.length);
-    for (i = 0; i < fx.length; i++) rects[i] = fx[i].el.getBoundingClientRect();
-
-    for (i = 0; i < fx.length; i++) {
-      var r = rects[i];
-      if (r.bottom < -vh * 0.5 || r.top > vh * 1.5) continue;
-      fx[i].draw(r, vh, vw);
-    }
-
-  }
-
-  function request() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(frame);
-  }
-
-  window.addEventListener('scroll', request, { passive: true });
-  window.addEventListener('resize', request, { passive: true });
-  window.addEventListener('orientationchange', function () { setTimeout(request, 120); });
-
-  /* Language switch: js/i18n.js has replaced the text of every split element
-     with a plain string. Re-split those (and only those) and redraw. */
-  if (window.MutationObserver) {
-    new MutationObserver(function () {
-      fx.forEach(function (e) {
-        if (!e.splits) return;
-        if (!(e.splitEl || e.el).querySelector('.fx-ink, .fx-rise, .fx-decode')) e.setup();
-      });
-      request();
-    }).observe(root, { attributes: true, attributeFilter: ['lang'] });
-  }
-
-  frame();
 })();
 </script>
 

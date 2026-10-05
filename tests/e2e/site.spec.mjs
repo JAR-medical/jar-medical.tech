@@ -3,7 +3,7 @@ import { test, expect, expectClean, LANGUAGES } from './fixtures.mjs';
 import { readText, TOP_LEVEL_PAGES } from '../lib/repo.mjs';
 import { objectFromHtml, i18nKeys } from '../lib/html.mjs';
 
-const INDEX_SOURCE = readText('index.html');
+const INDEX_SOURCE = readText('website_old/index.html');
 const I18N = objectFromHtml(INDEX_SOURCE, 'I18N');
 const I18N_META = objectFromHtml(INDEX_SOURCE, 'I18N_META');
 const I18N_CONCEPT_IMAGES = objectFromHtml(INDEX_SOURCE, 'I18N_CONCEPT_IMAGES');
@@ -22,7 +22,7 @@ async function renderedCopy(page) {
 
 test.describe('homepage', () => {
   test('renders its hero, sections and footer', async ({ page, baseURL, pageProblems }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
 
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.locator('.site-title, header')).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('homepage', () => {
     // file, and the browser cancels the fetch already in flight. That costs a
     // partial download of a ~1 MB image on every first visit; it is recorded
     // here so the behaviour is visible rather than quietly swallowed.
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     await expect(page.locator('#conceptImage')).toBeVisible();
     for (const url of pageProblems.abortedRequests) {
       expect(url, 'something other than the concept diagram was cancelled')
@@ -56,7 +56,7 @@ test.describe('homepage', () => {
   });
 
   test('the concept image for the active language actually loads', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     const img = page.locator('#conceptImage');
     await expect(img).toBeVisible();
     // naturalWidth stays 0 for an image the browser could not decode.
@@ -65,7 +65,7 @@ test.describe('homepage', () => {
   });
 
   test('in-page navigation scrolls to the linked section', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     await page.locator('#mainNav a[href="#problem"]').click();
     await expect(page).toHaveURL(/#problem$/);
     const onScreen = await page.locator('#problem').evaluate((el) => {
@@ -77,7 +77,7 @@ test.describe('homepage', () => {
 
   test('the mobile menu toggle opens and closes the navigation', async ({ page, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 780 });
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     const toggle = page.locator('#menuToggle');
     const nav = page.locator('#mainNav');
     await expect(toggle).toBeVisible();
@@ -93,7 +93,7 @@ test.describe('homepage', () => {
 
 test.describe('language switcher', () => {
   test('every switcher button is present and labelled', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     for (const lang of LANGUAGES) {
       await expect(page.locator(`.lang-bar button[data-setlang="${lang.code}"]`))
         .toHaveText(lang.label);
@@ -102,7 +102,7 @@ test.describe('language switcher', () => {
 
   for (const lang of LANGUAGES) {
     test(`switching to ${lang.label} rewrites every translated node`, async ({ page, baseURL, pageProblems }) => {
-      await page.goto(`${baseURL}/`);
+      await page.goto(`${baseURL}/website_old/`);
       await page.locator(`.lang-bar button[data-setlang="${lang.code}"]`).click();
 
       // The page marks itself as the chosen language...
@@ -136,7 +136,7 @@ test.describe('language switcher', () => {
   }
 
   test('all seven languages render genuinely different copy', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     const snapshots = new Map();
     for (const lang of LANGUAGES) {
       await page.locator(`.lang-bar button[data-setlang="${lang.code}"]`).click();
@@ -155,7 +155,7 @@ test.describe('language switcher', () => {
   });
 
   test('switching back to German restores the original markup', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     await page.locator('.lang-bar button[data-setlang="de"]').click();
     const german = await renderedCopy(page);
     await page.locator('.lang-bar button[data-setlang="zh"]').click();
@@ -166,7 +166,7 @@ test.describe('language switcher', () => {
   });
 
   test('the chosen language survives a reload', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     await page.locator('.lang-bar button[data-setlang="it"]').click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'it');
     await page.reload();
@@ -175,7 +175,7 @@ test.describe('language switcher', () => {
   });
 
   test('the header toggle flips between German and English only', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     const toggle = page.locator('#langToggle');
     const label = page.locator('#langLabel');
 
@@ -196,7 +196,7 @@ test.describe('language switcher', () => {
 test.describe('every page of the site', () => {
   for (const page_ of TOP_LEVEL_PAGES) {
     test(`${page_} loads cleanly`, async ({ page, baseURL, pageProblems }) => {
-      const response = await page.goto(`${baseURL}/${page_}`);
+      const response = await page.goto(`${baseURL}/website_old/${page_}`);
       expect(response.status(), `${page_} did not return 200`).toBe(200);
       await expect(page.locator('h1').first()).toBeVisible();
       const text = await page.locator('body').innerText();
@@ -207,7 +207,7 @@ test.describe('every page of the site', () => {
 
   test('the legal pages link back to the homepage and to each other', async ({ page, baseURL }) => {
     for (const legal of ['imprint.html', 'privacy.html', 'terms.html']) {
-      await page.goto(`${baseURL}/${legal}`);
+      await page.goto(`${baseURL}/website_old/${legal}`);
       const targets = await page.locator('a[href]').evaluateAll((els) =>
         els.map((el) => el.getAttribute('href')));
       expect(targets, `${legal} does not link home`).toContain('index.html');
@@ -215,13 +215,13 @@ test.describe('every page of the site', () => {
   });
 
   test('every internal link on the homepage resolves to a real page', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     const hrefs = await page.locator('a[href]').evaluateAll((els) =>
       els.map((el) => el.getAttribute('href'))
         .filter((h) => h && !/^(https?:|mailto:|tel:|#)/.test(h)));
     expect(hrefs.length, 'the homepage has no internal links at all').toBeGreaterThan(3);
     for (const href of new Set(hrefs)) {
-      const res = await page.request.get(new URL(href, `${baseURL}/`).toString());
+      const res = await page.request.get(new URL(href, `${baseURL}/website_old/`).toString());
       expect(res.status(), `${href} is a dead link`).toBe(200);
     }
   });
@@ -236,26 +236,26 @@ test.describe('every page of the site', () => {
 
 test.describe('the call to action', () => {
   test('"Zur Live-Demo der App" opens the TriARge demo', async ({ page, baseURL, context }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     await page.locator('.lang-bar button[data-setlang="de"]').click();
 
     const cta = page.getByRole('link', { name: /Zur Live-Demo der App/ });
     await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute('href', 'demo/');
+    await expect(cta).toHaveAttribute('href', '/demo/');
     await expect(cta).toHaveAttribute('target', '_blank');
     await expect(cta).toHaveAttribute('rel', /noopener/);
 
     const [demo] = await Promise.all([context.waitForEvent('page'), cta.click()]);
-    await demo.waitForLoadState('domcontentloaded');
+    await demo.waitForURL(/\/demo\//, { waitUntil: 'domcontentloaded' });
     expect(demo.url()).toContain('/demo/');
     await expect(demo.locator('#app')).toBeVisible();
     await demo.close();
   });
 
   test('the hero and nav demo links point at the same demo', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`);
+    await page.goto(`${baseURL}/website_old/`);
     for (const selector of ['.nav-cta', '.hero .btn-primary', '.btn-outline']) {
-      await expect(page.locator(selector).first()).toHaveAttribute('href', 'demo/');
+      await expect(page.locator(selector).first()).toHaveAttribute('href', '/demo/');
     }
   });
 });

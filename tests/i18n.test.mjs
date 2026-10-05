@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { htmlFiles, readText, exists, LANGUAGES } from './lib/repo.mjs';
 import { i18nKeys, i18nKeyOccurrences, i18nMarkupText, normalize, objectFromHtml } from './lib/html.mjs';
 
-const INDEX = readText('index.html');
+const INDEX = readText('website_old/index.html');
 
 // The dictionaries as shipped. `de` is not in the literal: index.html builds it
 // at runtime by harvesting the German innerHTML out of the markup.
@@ -182,16 +182,16 @@ describe('i18n metadata', () => {
 describe('i18n coverage across every page of the site', () => {
   // The other pages are monolingual today. If somebody adds data-i18n to one of
   // them without shipping a dictionary, the attribute would be inert - catch it.
-  const pagesWithKeys = htmlFiles().filter((f) => i18nKeys(readText(f)).length > 0);
+  const pagesWithKeys = htmlFiles().filter((f) => f.startsWith('website_old/')).filter((f) => i18nKeys(readText(f)).length > 0);
 
   test('index.html is the only page using data-i18n', () => {
-    assert.deepEqual(pagesWithKeys, ['index.html'],
+    assert.deepEqual(pagesWithKeys, ['website_old/index.html'],
       `these pages use data-i18n but have no dictionary: ${pagesWithKeys.filter((p) => p !== 'index.html').join(', ')}`);
   });
 
   for (const page of ['imprint.html', 'privacy.html', 'terms.html']) {
     test(`${page} declares a language and a title`, () => {
-      const html = readText(page);
+      const html = readText(`website_old/${page}`);
       assert.match(html, /<html[^>]*\slang\s*=\s*"[a-z]{2}"/, `${page} has no <html lang>`);
       assert.match(html, /<title>[^<]{5,}<\/title>/, `${page} has no usable <title>`);
     });
