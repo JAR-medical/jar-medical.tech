@@ -8,10 +8,13 @@
 //
 // The backend sends Access-Control-Allow-Origin: *, so cross-origin is fine.
 //
-// NOTE: the URL below is a Cloudflare quick tunnel to the workstation that holds
-// the GPU. Quick-tunnel hostnames are regenerated whenever the tunnel restarts,
-// so if voice stops working this is the line to update. For a permanent address,
-// deploy the backend (see medicraft/DEPLOY.md — render.yaml is ready to go) and
-// put that hostname here instead.
-window.MEDICRAFT_API_BASES = ["https://desktop-tt1pi2m.tailb58b58.ts.net"];
+// Both entries are Tailscale Funnel hosts on Alex's GPU workstations. They are
+// probed in order and the first whose /api/health answers wins. elrsisbest is
+// the machine that also serves the recording page (mitmachen-aufnahme.html);
+// desktop-tt1pi2m was the original host and stays listed as a fallback. If
+// voice stops working, check `tailscale status` for which machine is online.
+window.MEDICRAFT_API_BASES = [
+  "https://elrsisbest.tailb58b58.ts.net",
+  "https://desktop-tt1pi2m.tailb58b58.ts.net",
+];
 window.MEDICRAFT_API_BASE = window.MEDICRAFT_API_BASES[0];

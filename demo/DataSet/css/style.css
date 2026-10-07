@@ -787,15 +787,6 @@ body.touch-device #hotbar-help { display: none; }
 .feedback-line.good { color: var(--green); }
 .feedback-line.bad { color: var(--red); }
 
-.fallback-row { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
-#fallback-input {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--panel-border);
-  color: var(--text);
-  padding: 0.5rem 0.7rem;
-  font-family: inherit;
-}
 .hint-line { color: var(--muted); font-size: 0.82rem; }
 
 #end-stats { text-align: left; margin: 1.2rem auto; width: fit-content; font-family: "Courier New", monospace; line-height: 1.9; }
@@ -1108,9 +1099,6 @@ body.touch-device .desktop-only { display: none; }
   .transcript-loading-head { font-size: 0.66rem; }
   .voice-output { max-height: 24dvh; margin-top: 0.5rem; }
   #verdict-box { max-height: 16dvh; }
-  .fallback-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.45rem; }
-  #fallback-input { width: 100%; min-width: 0; min-height: 44px; }
-  #fallback-send { width: auto; min-width: 64px; min-height: 44px; }
   .hint-line { margin-bottom: 0; line-height: 1.35; }
 
   #toasts { top: calc(64px + var(--safe-top)); max-width: calc(100vw - 24px); }

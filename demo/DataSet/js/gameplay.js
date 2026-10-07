@@ -375,6 +375,17 @@ export class Game {
     };
   }
 
+  // The backend never produced a transcript for this patient's clip. The clip
+  // itself stays on the server; the patient goes back to needing a report so
+  // the player is not stuck with a patient that can never close.
+  releaseVoiceClip(patientId) {
+    const run = this.byPatientId.get(patientId);
+    if (!run || run.resolved || run.acceptedVoiceClips.length === 0) return false;
+    run.acceptedVoiceClips = [];
+    run.voiceStage = 0;
+    return true;
+  }
+
   _isFullyTreated(run) {
     const requiredTreatment = (run.template.required || []).filter(
       (group) => (group.base_key || group.key) !== "transport"

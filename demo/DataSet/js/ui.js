@@ -145,9 +145,6 @@ export class UI {
       voiceAudio: $("voice-audio"),
       voiceRawMeta: $("voice-raw-meta"),
       verdictBox: $("verdict-box"),
-      fallbackInput: $("fallback-input"),
-      fallbackSend: $("fallback-send"),
-      fallbackRow: document.querySelector("#chart-panel .fallback-row"),
       chartClose: $("chart-close"),
       touchLook: $("touch-look"),
       touchJoystick: $("touch-joystick"),
@@ -237,7 +234,6 @@ export class UI {
     window.addEventListener("keydown", (e) => {
       if (e.repeat) return;
       const activeElement = document.activeElement;
-      const typingInFallback = activeElement === this.el.fallbackInput;
       // A field can remain focused after its menu is hidden (notably when a run
       // starts via Enter). Only a visible editor should suppress shortcuts.
       const typingAnywhere =
@@ -267,7 +263,7 @@ export class UI {
       // Chart shortcuts stay behind the settings panel: it covers the chart, so
       // a keypress meant for the panel must not start a recording underneath.
       if (this._settingsOpen) return;
-      if ((e.key === "v" || e.key === "V") && this._chartOpen && !typingInFallback) {
+      if ((e.key === "v" || e.key === "V") && this._chartOpen && !typingAnywhere) {
         this._vDown = true;
         this._requestRecordStart();
       }
@@ -421,20 +417,6 @@ export class UI {
       h.onNextLevel?.();
     });
     this.el.chartClose.addEventListener("click", () => h.onCloseChart());
-    const submitTyped = () => {
-      const value = this.el.fallbackInput.value.trim();
-      if (!value) return;
-      this.el.fallbackInput.value = "";
-      this.el.fallbackInput.blur();
-      h.onSubmitTyped(value);
-    };
-    this.el.fallbackSend.addEventListener("click", submitTyped);
-    this.el.fallbackInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        submitTyped();
-      }
-    });
     for (const slot of this.el.slots) {
       slot.addEventListener("click", () => {
         const index = Number(slot.dataset.index);
@@ -1518,8 +1500,6 @@ export class UI {
       text: view.hint,
     });
     this.el.chartRecord?.classList.toggle("hidden", !contributionMode);
-    this.el.fallbackRow?.classList.toggle("hidden", contributionMode);
-    if (!contributionMode && this.el.fallbackInput) this.el.fallbackInput.value = "";
     this.el.chartActions.innerHTML = "";
     if (view.usedItems?.length) {
       const itemsById = new Map(HOTBAR_ITEMS.map((item) => [item.id, item]));
@@ -1889,7 +1869,6 @@ export class UI {
     this.setTranscriptionLoading(false);
     this.setRecordingUI(false, false);
     this.clearVoiceOutput();
-    if (this.el.fallbackInput === document.activeElement) this.el.fallbackInput.blur();
   }
 
   // Kept because the frozen contract has main.js calling it; it now routes

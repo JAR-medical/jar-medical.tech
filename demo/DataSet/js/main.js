@@ -4,9 +4,9 @@ import { apiBase } from "./api.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260825-clinic-tunnel2";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js?v=20260824-consent10";
-import { SpeechClient } from "./stt.js?v=20260825-voice-resilience1";
-import { UI } from "./ui.js?v=20260825-funny4";
+import { Game } from "./gameplay.js?v=20261007-voiceonly1";
+import { SpeechClient } from "./stt.js?v=20261007-voiceonly1";
+import { UI } from "./ui.js?v=20261007-voiceonly1";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
@@ -222,10 +222,9 @@ export class App {
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
 
-    // The health probe is informative, not a prerequisite for starting: typed
-    // reports work without STT and a slow/offline upstream must not hold the
-    // first screen behind a spinner. checkHealth updates the badge when it
-    // finishes in the background.
+    // The health probe must not hold the first screen behind a spinner: it
+    // updates the badge when it finishes in the background, and the consent
+    // button checks the backend for real before a run starts.
     $("loading-overlay").classList.add("hidden");
     this.mode = "start";
     this.ui.showStart(null);
@@ -341,7 +340,6 @@ export class App {
       onStart: () => this.showBriefing(),
       onConsentAccepted: () => this.startMission(),
       onInteract: (patientId) => this.openChart(patientId),
-      onSubmitTyped: (text) => this.submitReport(text),
       onCloseChart: () => this.closeChart(),
       onRestart: () => {
         this.ui.setMedicContextSelected(false);
@@ -459,7 +457,7 @@ export class App {
       }
       if (!this.contributions.session) {
         this.audio.duck("recording", false);
-        const message = "Beitragssitzung nicht erreichbar — bitte kurz warten oder den Bericht tippen.";
+        const message = "Beitragssitzung nicht erreichbar — bitte kurz warten und erneut aufnehmen.";
         this.ui.setSttStatus("error", message);
         this.ui.toast(message, "bad");
         return;
@@ -528,18 +526,27 @@ export class App {
     });
 
     // The clip is stored and consented; only its transcript is still missing,
-    // because the GPU behind validation is busy, queued or offline. Release the
-    // chart so the player can type the report and carry on — nothing is lost,
-    // and the clip is still validated in the background.
-    on("stt:clip-pending", ({ context = {} }) => {
+    // because the GPU behind validation is busy or queued. The record button
+    // stays locked for this patient (a second take would be a duplicate clip),
+    // polling continues, and the patient closes in the background the moment
+    // the transcript lands.
+    on("stt:clip-pending", () => {
+      this.ui.toast(
+        "Die Auswertung dauert gerade länger. Die Aufnahme ist gespeichert — der Patient wird automatisch abgeschlossen, sobald die Transkription da ist.",
+        "warn",
+      );
+    });
+
+    // Thirty minutes without a verdict: the GPU is gone. The clip is still safe
+    // on the server, but this patient can no longer close in this run, so the
+    // lock comes off and the player may record the report again.
+    on("stt:clip-timeout", ({ context = {} }) => {
+      const reopened = this.game.releaseVoiceClip?.(context.patientId);
       if (this.mode === "chart" && this.currentPatientId === context.patientId) {
         this.ui.setVoiceSubmissionPending(false);
         this.ui.setTranscriptionLoading(false);
       }
-      this.ui.toast(
-        "Die Auswertung dauert gerade länger. Die Aufnahme ist gespeichert — schreibe den Bericht solange selbst.",
-        "warn",
-      );
+      if (reopened) this.ui.toast("Keine Transkription erhalten — bitte den Bericht für diesen Patienten erneut aufnehmen.", "bad");
     });
 
     on("stt:clip-status", ({ validationState, contributionUnits, context = {} }) => {
@@ -876,7 +883,6 @@ export class App {
   }
 
   async startMission() {
-    let contributionMode = true;
     try {
       const session = await this.contributions.startSession({
         ageBand: "16+",
@@ -887,30 +893,24 @@ export class App {
       this.trainingReadyClips = Number(session.summary?.training_ready_clips) || 0;
       this.ui.renderContributionSummary(session.summary, session.recovery_code);
     } catch (error) {
-      if (isContributionServiceUnavailable(error)) {
-        // A static copy must remain playable when its remote API or tunnel is
-        // unreachable. The consent was still required to reach this point;
-        // only the upload/session part is unavailable, so use local typed
-        // reports and never attempt to send voice data in this mode.
-        contributionMode = false;
-        this.trainingReadyClips = 0;
-        this.ui.renderContributionSummary({});
-        this.ui.toast?.("Server nicht erreichbar — Offline-Spiel gestartet. Sprachdaten werden nicht übertragen.", "warn");
-      } else {
-        this.showBriefing();
-        this.ui.showConsentError?.(
-          `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
-        );
-        return;
-      }
+      // Spoken reports are the only input, and without the backend they can be
+      // neither stored nor transcribed. Starting anyway would leave every
+      // patient impossible to close, so stay on the briefing and say why.
+      this.showBriefing();
+      this.ui.showConsentError?.(
+        isContributionServiceUnavailable(error)
+          ? "Der Aufnahme-Server ist gerade nicht erreichbar. Ohne ihn können keine Sprachberichte gespeichert werden — bitte in einer Minute erneut versuchen."
+          : `Beitragssitzung konnte nicht gestartet werden: ${String(error?.message || error)}`,
+      );
+      return;
     }
-    if (contributionMode && this.medicContext) {
+    if (this.medicContext) {
       void this.contributions.track("profile_context_selected", {
         medic: true,
         selection_source: "start_screen",
       });
     }
-    this.beginMission({ contributionMode });
+    this.beginMission({ contributionMode: true });
   }
 
   beginMission({ contributionMode = true } = {}) {
