@@ -161,7 +161,7 @@ export function apiOrigin() {
 }
 
 // Static hosting means /api/* is simply absent unless a base is configured.
-// Callers use this to degrade to typed reports instead of retrying forever.
+// Callers use this to stop retrying a backend that cannot exist.
 export function hasBackend() {
   return apiBase() !== "" || (typeof location !== "undefined" && location.protocol !== "file:");
 }

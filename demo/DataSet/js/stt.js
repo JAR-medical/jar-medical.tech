@@ -16,9 +16,13 @@ const UPLOAD_MAX_DELAY_MS = 10_000;
 // problem is not the session and minting more would only shed the identity.
 const MAX_SESSION_RENEWALS = 2;
 // Validation runs on a GPU that is shared, queued, and occasionally offline.
-// The clip is already durable on the server by this point, so this deadline
-// only decides how long the chart waits before letting the player move on.
-const CLIP_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+// The clip is already durable on the server by this point. After the notice
+// deadline the player is told it is taking long; polling carries on in the
+// background until the hard deadline, because a spoken report is the only way
+// to close a patient and its transcript must still arrive.
+const CLIP_POLL_NOTICE_MS = 2 * 60 * 1000;
+const CLIP_POLL_TIMEOUT_MS = 30 * 60 * 1000;
+const CLIP_POLL_BACKGROUND_MS = 10_000;
 const CLIP_POLL_FAST_ATTEMPTS = 4;
 const CLIP_POLL_FAST_MS = 750;
 const CLIP_POLL_SLOW_MS = 1500;
@@ -157,7 +161,7 @@ export class SpeechClient {
       const insecure = window.isSecureContext === false;
       const message = insecure
         ? `Mikrofon braucht HTTPS. Diese Seite läuft über ${location.protocol}//${location.host} — `
-          + "öffne sie über https:// oder http://localhost. Der getippte Bericht funktioniert weiterhin."
+          + "öffne sie über https:// oder http://localhost."
         : "Kein Mikrofon-Zugriff möglich (Browser-API fehlt).";
       emit("stt:error", { message, context: { ...this._recordingContext } });
       emit("stt:status", { state: "error", detail: message });
@@ -465,7 +469,9 @@ export class SpeechClient {
   async _pollContributionClip(clipId, context) {
     if (!clipId) return;
     const terminal = new Set(["training_ready", "review_required", "rejected", "deleted"]);
+    const noticeAt = Date.now() + CLIP_POLL_NOTICE_MS;
     const deadline = Date.now() + CLIP_POLL_TIMEOUT_MS;
+    let noticed = false;
     let poll = { ...context };
     let attempt = 0;
     let renewals = 0;
@@ -474,7 +480,14 @@ export class SpeechClient {
     // throttled to about one a minute, and counting attempts there would give
     // up hours later instead of five minutes later.
     while (Date.now() < deadline) {
-      await sleep(attempt < CLIP_POLL_FAST_ATTEMPTS ? CLIP_POLL_FAST_MS : CLIP_POLL_SLOW_MS);
+      if (!noticed && Date.now() >= noticeAt) {
+        noticed = true;
+        emit("stt:clip-pending", { clipId, validationState: lastState, context });
+      }
+      await sleep(
+        noticed ? CLIP_POLL_BACKGROUND_MS
+          : attempt < CLIP_POLL_FAST_ATTEMPTS ? CLIP_POLL_FAST_MS : CLIP_POLL_SLOW_MS,
+      );
       attempt += 1;
       let response;
       try {
@@ -539,9 +552,9 @@ export class SpeechClient {
       });
       return;
     }
-    // No verdict inside the deadline. The recording is safe on the server and
-    // will still be validated; the chart just must not keep waiting on it.
-    emit("stt:clip-pending", { clipId, validationState: lastState, context });
+    // No verdict inside the hard deadline. The recording is safe on the server
+    // and will still be validated there; this tab just stops waiting.
+    emit("stt:clip-timeout", { clipId, validationState: lastState, context });
   }
 
   abort() {
