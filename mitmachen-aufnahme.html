@@ -3,20 +3,20 @@
 <html lang="de"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sprachaufnahme: 90 Sekunden für die Spracherkennung | J.A.R. Medical</title>
+  <title>Funkspruch einsprechen für die Spracherkennung | J.A.R. Medical</title>
 <!-- Page identity for the language switch: js/site.js looks up
      meta_title_<id> / meta_desc_<id> in js/i18n.js and falls back to the
      landing page's pair. Without it every page inherited the landing
      page's title the moment a visitor switched to English. -->
 <meta name="jar:page" content="record">
-<meta name="description" content="Lesen Sie acht kurze Funksprüche aus der Vorsichtung nach mSTaRT vor und nehmen Sie sie direkt im Browser auf. Rund 90 Sekunden, kein Konto, kein Name.">
+<meta name="description" content="Lesen Sie einen zufällig zusammengestellten Funkspruch aus der Vorsichtung nach mSTaRT vor und nehmen Sie ihn direkt im Browser auf. Wenige Sekunden pro Text, kein Konto, kein Name.">
 <meta name="theme-color" content="#19183b">
 <link rel="canonical" href="https://jar-medical.tech/mitmachen-aufnahme.html">
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jar-medical.tech/mitmachen-aufnahme.html">
-  <meta property="og:title" content="90 Sekunden für die Spracherkennung | J.A.R. Medical">
-<meta property="og:description" content="Acht kurze Funksprüche aus der Vorsichtung nach mSTaRT vorlesen und direkt im Browser aufnehmen.">
+  <meta property="og:title" content="Funkspruch einsprechen | J.A.R. Medical">
+<meta property="og:description" content="Einen zufälligen Funkspruch aus der Vorsichtung nach mSTaRT vorlesen und direkt im Browser aufnehmen.">
 <meta property="og:image" content="https://jar-medical.tech/assets/og.png">
 <meta property="og:locale" content="de_DE">
 <meta name="twitter:card" content="summary_large_image">
@@ -2184,23 +2184,6 @@ ul, ol { list-style: none; padding: 0; }
   color: var(--ink-faint);
 }
 
-/* The embed is only inserted after the visitor asks for it. */
-.contrib-embed {
-  margin-top: var(--sp-6);
-  border-radius: var(--r-md);
-  overflow: hidden;
-  /* The SpeakPipe widget renders on white, so on a white card it would melt
-     into the page — give it a real edge and a tint so it reads as a tool. */
-  background: var(--bg-light);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-  outline: 6px solid var(--bg-base);
-}
-.contrib-embed iframe {
-  display: block;
-  width: 100%;
-  min-height: 200px;
-  border: 0;
-}
 
 .contrib-fallback {
   padding: var(--sp-6);
@@ -2269,9 +2252,173 @@ ul, ol { list-style: none; padding: 0; }
 }
 </style>
 <style>
-/* Keep this hero on the same navy surface as the rest of the dark page. */
-.theme-dark .contrib-hero {
+/* ==========================================================================
+   Recorder page. The record button sits at the top; the passage to read sits
+   directly under it and grows while the microphone is open.
+   ========================================================================== */
+.rec {
+  padding-block: calc(var(--nav-h) + var(--sp-6)) var(--sp-9);
   background: radial-gradient(120% 92% at 76% 18%, rgba(142, 199, 184, .08) 0%, #14132f 44%, #19183b 100%);
+  border-bottom: 1px solid var(--line);
+}
+.rec__wrap { max-width: 46rem; }
+.rec__h {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--t-h3);
+  letter-spacing: var(--track-head);
+}
+
+.rec__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-4) var(--sp-5);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-mint);
+  color: var(--brand-navy);
+  font: inherit;
+  font-size: var(--t-lead);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.rec__btn:hover { background: #a3d5c8; }
+.rec__btn:active { transform: scale(0.99); }
+.rec__btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.rec__btn:disabled { cursor: progress; opacity: 0.7; }
+.rec__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--brand-navy);
+  color: var(--brand-mint);
+}
+.rec__icon svg { width: 1.25rem; height: 1.25rem; }
+.rec__icon .rec__stop { display: none; width: 0.9rem; height: 0.9rem; border-radius: 3px; background: currentColor; }
+.rec__label { flex: 1; text-align: left; }
+.rec__time { font-family: var(--font-mono); font-size: var(--t-small); font-variant-numeric: tabular-nums; opacity: 0.75; }
+
+.rec[data-state="recording"] .rec__btn { background: var(--sig-red); color: #fff; }
+.rec[data-state="recording"] .rec__icon { color: var(--sig-red); background: #fff; animation: rec-pulse 1.4s var(--ease-in-out) infinite; }
+.rec[data-state="recording"] .rec__icon svg { display: none; }
+.rec[data-state="recording"] .rec__icon .rec__stop { display: block; }
+@keyframes rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
+}
+
+.rec__meter {
+  height: 4px;
+  margin: var(--sp-3) var(--sp-5) 0;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+.rec[data-state="recording"] .rec__meter { opacity: 1; }
+.rec__meter span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--sig-green);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 90ms linear;
+}
+
+.rec__prompt {
+  margin: var(--sp-5) 0 0;
+  padding: var(--sp-5) var(--sp-6);
+  border-radius: var(--r-lg);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+.rec[data-state="recording"] .rec__prompt { box-shadow: inset 0 0 0 2px var(--sig-red), var(--shadow-lift); }
+.rec__tag {
+  display: block;
+  margin-bottom: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.rec__say {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.1rem + 1.2vw, 2rem);
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--ink);
+  transition: font-size var(--dur) var(--ease-out);
+}
+.rec[data-state="recording"] .rec__say { font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.35rem); }
+
+.rec__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  font-size: var(--t-micro);
+  color: var(--ink-faint);
+}
+.rec__link {
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--t-small);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rec__link:hover { color: var(--ink); }
+.rec__link:disabled { opacity: 0.4; cursor: default; }
+
+.rec__status { min-height: 1.5em; margin-top: var(--sp-4); font-size: var(--t-small); color: var(--ink-soft); }
+.rec__status[data-kind="ok"] { color: var(--sig-green); }
+.rec__status[data-kind="warn"] { color: var(--sig-amber); }
+.rec__status[data-kind="error"] { color: var(--sig-red); }
+.rec__fail { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
+.rec__fail[hidden] { display: none; }
+
+.rec__consent {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.rec__consent input { flex-shrink: 0; width: 1.15rem; height: 1.15rem; margin-top: 0.2em; accent-color: var(--brand-mint); }
+.rec__consent a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.rec.is-nudge .rec__consent { animation: rec-nudge 0.5s var(--ease-out); color: var(--ink); }
+@keyframes rec-nudge {
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.rec__code { margin-top: var(--sp-4); font-size: var(--t-micro); color: var(--ink-faint); }
+.rec__code strong { font-family: var(--font-mono); color: var(--ink-soft); }
+.rec__fine { margin-top: var(--sp-4); font-size: var(--t-micro); color: var(--ink-faint); }
+.rec .contrib-back { margin-top: var(--sp-6); }
+
+@media (max-width: 560px) {
+  .rec { padding-top: calc(var(--nav-h) + var(--sp-5)); }
+  .rec__btn { padding: var(--sp-3) var(--sp-4); }
+  .rec__prompt { padding: var(--sp-5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec[data-state="recording"] .rec__icon, .rec.is-nudge .rec__consent { animation: none; }
 }
 </style>
 </head><body class="theme-dark page--dark">
@@ -2327,228 +2474,58 @@ ul, ol { list-style: none; padding: 0; }
 
 <main id="main">
 
-  <section class="contrib-hero">
-    <div class="wrap">
-      <div class="contrib-hero__inner">
-        <p class="eyebrow" data-i18n="rec_eyebrow">90 Sekunden</p>
-        <h1 class="contrib-hero__title" data-i18n="rec_h1">Acht Funksprüche einsprechen</h1>
-        <p class="contrib-hero__lead" data-i18n="rec_lead">Lesen Sie die acht Sätze unten laut vor und nehmen Sie sie in einem Stück auf.
-            Es sind typische Meldungen aus der Vorsichtung nach mSTaRT, genau die Sprache,
-          die die Spracherkennung von J.A.R. verstehen muss.</p>
-        <p class="contrib-meta">
-          <span class="contrib-meta__item" data-i18n="rec_meta_1">Rund 90 Sekunden</span>
-          <span class="contrib-meta__item" data-i18n="rec_meta_2">Kein Konto, kein Name</span>
-          <span class="contrib-meta__item" data-i18n="rec_meta_3">Dialekt erwünscht</span>
-        </p>
+  <!-- The recorder posts to our own contribution API on Alex PC. Nothing is
+       sent before consent is ticked and a recording is stopped. -->
+  <section class="rec" id="aufnahme" data-rec="" data-state="idle" data-api="https://elrsisbest.tailb58b58.ts.net">
+    <div class="wrap rec__wrap">
+      <h1 class="rec__h" data-i18n="rec_h1">Funkspruch einsprechen</h1>
+
+      <button class="rec__btn" type="button" data-rec-btn="" aria-describedby="recPrompt">
+        <span class="rec__icon" aria-hidden="true">
+          <svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+          <span class="rec__stop"></span>
+        </span>
+        <span class="rec__label" data-rec-label="">Aufnahme starten</span>
+        <span class="rec__time" data-rec-time="">0:00</span>
+      </button>
+      <div class="rec__meter" aria-hidden="true"><span data-rec-level=""></span></div>
+
+      <!-- The passage stays German in every interface language: it is what a
+           volunteer reads to train a German recogniser. -->
+      <figure class="rec__prompt" id="recPrompt" lang="de">
+        <figcaption class="rec__tag" data-rec-tag="">Kritische Blutung</figcaption>
+        <blockquote class="rec__say" data-rec-text="">„Kritische Blutung am rechten Oberschenkel. Tourniquet angelegt, vierzehn Uhr sieben. Sichtungskategorie eins.“</blockquote>
+      </figure>
+      <div class="rec__row">
+        <button class="rec__link" type="button" data-rec-shuffle="" data-i18n="rec_shuffle">Anderen Text zeigen</button>
+        <span data-rec-count=""></span>
       </div>
-    </div>
-  </section>
 
-  <!-- ---------- How it works ---------- -->
-  <section class="section">
-    <div class="wrap">
-      <header class="sec-head reveal">
-        <p class="eyebrow" data-i18n="rec_how_eyebrow">So geht es</p>
-        <h2 class="sec-head__h" data-i18n="rec_how_h">Drei Schritte</h2>
-      </header>
-
-      <ol class="contrib-steps reveal">
-        <li class="contrib-step">
-          <span class="contrib-step__n">01</span>
-          <h3 data-i18n="rec_step_1_h">Einmal durchlesen</h3>
-          <p data-i18n="rec_step_1_p">Gehen Sie die acht Sätze einmal still durch, damit Sie beim Sprechen nicht
-            stocken. Zahlen bitte so lesen, wie sie dastehen.</p>
-        </li>
-        <li class="contrib-step">
-          <span class="contrib-step__n">02</span>
-          <h3 data-i18n="rec_step_2_h">Aufnahme starten</h3>
-          <p data-i18n="rec_step_2_p">Unten den Rekorder laden, Mikrofon freigeben und alle acht Sätze am Stück
-            vorlesen. Eine kurze Pause zwischen den Sätzen ist gut.</p>
-        </li>
-        <li class="contrib-step">
-          <span class="contrib-step__n">03</span>
-          <h3 data-i18n="rec_step_3_h">Anhören und abschicken</h3>
-          <p data-i18n="rec_step_3_p">Vor dem Absenden können Sie die Aufnahme anhören und bei Bedarf neu
-            aufnehmen. Erst mit dem Absenden geht sie an uns.</p>
-        </li>
-      </ol>
-
-      <div class="contrib-note reveal" style="margin-top: var(--sp-7); max-width: 46rem">
-        <span class="contrib-note__title" data-i18n="rec_tip_title">Was eine gute Aufnahme ausmacht</span>
-        <p data-i18n="rec_tip_p">Sprechen Sie in normalem Tempo, so wie Sie es über Funk tun würden; nicht
-          übertrieben deutlich. Hintergrundgeräusche sind kein Problem, im Gegenteil:
-          eine Einsatzstelle ist auch nicht leise. Dialekt, Akzent und eine raue Stimme
-          sind für uns wertvoller als Hochdeutsch aus dem Tonstudio.</p>
+      <p class="rec__status" role="status" aria-live="polite" data-rec-status=""></p>
+      <div class="rec__fail" data-rec-fail="" hidden="">
+        <button class="btn btn--primary" type="button" data-rec-retry="" data-i18n="rec_retry">Erneut senden</button>
+        <a class="btn btn--ghost" href="#aufnahme" data-rec-download="" data-i18n="rec_download">Als WAV speichern</a>
       </div>
-    </div>
-  </section>
 
-  <!-- ---------- The passages ---------- -->
-  <section class="section section--tint">
-    <div class="wrap">
-      <header class="sec-head reveal">
-        <p class="eyebrow" data-i18n="rec_lines_eyebrow">Der Text</p>
-        <h2 class="sec-head__h" data-i18n="rec_lines_h">Diese acht Sätze bitte vorlesen</h2>
-        <p class="sec-head__p" data-i18n="rec_lines_p">Der Ablauf folgt der Vorsichtung nach mSTaRT: erst die Gehfähigkeit, dann
-          Atmung, Blutung, Kreislauf und Bewusstsein, am Ende die Meldung an die
-          Einsatzleitung.</p>
-      </header>
+      <label class="rec__consent">
+        <input type="checkbox" data-rec-consent="">
+        <span><span data-i18n="rec_consent">Ich bin mindestens 16 Jahre alt und willige ein, dass meine Aufnahme zusammen
+          mit dem angezeigten Text an J.A.R. Medical übertragen und zur Entwicklung unserer
+          Spracherkennung gespeichert wird. Widerruf jederzeit möglich.</span>
+          <a href="datenschutz.html#ds-aufnahme" data-i18n="rec_consent_link">Datenschutz</a></span>
+      </label>
 
-      <!-- The eight passages carry no data-i18n and are marked lang="de" on
-           purpose: they are the German text a volunteer reads aloud to train a
-           German recogniser, so they must stay German even when the interface is
-            switched to English, and a screen reader should pronounce them as
-           German on the English page. Only their labels above translate. -->
-      <ol class="contrib-lines reveal">
-        <li class="contrib-line">
-          <span class="contrib-line__n">1</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l1_tag">Gehfähigkeit</span>
-            <p class="contrib-line__say" lang="de">
-              „Achtung, hier spricht der Sichtungstrupp. Wer gehen kann, kommt bitte zu
-              mir und sammelt sich an der grünen Fahne.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">2</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l2_tag">Atemwege</span>
-            <p class="contrib-line__say" lang="de">
-              „Patient sieben: keine Atmung. Ich mache die Atemwege frei. Atmung setzt
-              ein. Sichtungskategorie eins, rot, Sofortbehandlung.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">3</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l3_tag">Atemfrequenz</span>
-            <p class="contrib-line__say" lang="de">
-              „Patient zwölf: Atemfrequenz über dreißig pro Minute, Radialispuls tastbar.
-              Sichtungskategorie eins.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">4</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l4_tag">Kritische Blutung</span>
-            <p class="contrib-line__say" lang="de">
-              „Kritische Blutung am rechten Oberschenkel. Tourniquet angelegt, vierzehn
-              Uhr sieben. Sichtungskategorie eins.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">5</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l5_tag">Kreislauf</span>
-            <p class="contrib-line__say" lang="de">
-              „Patient drei: Rekapillarisierungszeit über zwei Sekunden, Puls fadenförmig,
-              Haut blass und kalt. Sichtungskategorie eins.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">6</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l6_tag">Bewusstsein</span>
-            <p class="contrib-line__say" lang="de">
-              „Patient neunzehn: Atmung normal, Radialispuls tastbar, befolgt einfache
-              Aufforderungen nicht. Sichtungskategorie eins.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">7</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l7_tag">Sichtungskategorie zwei</span>
-            <p class="contrib-line__say" lang="de">
-              „Patient vierundzwanzig: Atmung normal, Kreislauf stabil, ansprechbar.
-              Verdacht auf Unterschenkelfraktur links. Sichtungskategorie zwei, gelb.“
-            </p>
-          </div>
-        </li>
-        <li class="contrib-line">
-          <span class="contrib-line__n">8</span>
-          <div>
-            <span class="contrib-line__tag" data-i18n="rec_l8_tag">Meldung an die Einsatzleitung</span>
-            <p class="contrib-line__say" lang="de">
-              „Einsatzleitung von Sichtungstrupp zwei: Abschnitt Nord vollständig
-              gesichtet. Sechs mal rot, elf mal gelb, neunzehn mal grün, zwei Tote.“
-            </p>
-          </div>
-        </li>
-      </ol>
-    </div>
-  </section>
+      <p class="rec__code" data-rec-code="" hidden=""></p>
+      <p class="rec__fine" data-i18n="rec_fine">Kein Konto, kein Name. Dialekt und Hintergrundgeräusche sind willkommen.
+        Die Sätze sind Sprachmaterial, kein medizinischer Rat: Im Notfall 112.</p>
 
-  <!-- ---------- Recorder ---------- -->
-  <section class="section" id="aufnahme">
-    <div class="wrap">
-      <div class="contrib-recorder reveal" data-recorder="" data-speakpipe-widget="h6pj373c9swa7oy7cl4f6h8k8puvoupl">
-
-        <p class="eyebrow" data-i18n="rec_rec_eyebrow">Aufnahme</p>
-        <h2 class="contrib-recorder__h" data-i18n="rec_rec_h">Rekorder laden und aufnehmen</h2>
-
-        <p class="contrib-recorder__p" data-i18n="rec_rec_p">Die Aufnahme läuft über SpeakPipe, einen externen Dienst. Damit beim bloßen
-          Lesen dieser Seite nichts an Dritte geht, wird der Rekorder erst geladen,
-          wenn Sie es hier ausdrücklich verlangen. Mit dem Klick auf „Rekorder laden“
-          willigen Sie in Folgendes ein:</p>
-
-        <ul class="contrib-recorder__list">
-          <li data-i18n="rec_consent_1">Ihr Browser baut eine Verbindung zu speakpipe.com auf und überträgt dabei
-            technisch notwendige Daten, darunter Ihre IP-Adresse.</li>
-          <li data-i18n="rec_consent_2">Ihre Aufnahme wird auf den Servern von SpeakPipe gespeichert und uns dort
-            zur Verfügung gestellt.</li>
-          <li data-i18n="rec_consent_3">Wir nutzen die Aufnahme ausschließlich, um die Spracherkennung von J.A.R.
-            zu entwickeln und zu testen. Sie wird nicht veröffentlicht und nicht
-            weiterverkauft.</li>
-          <li data-i18n="rec_consent_4">Name und E-Mail-Adresse sind nicht erforderlich. Sie können die Einwilligung
-            jederzeit widerrufen. Eine formlose E-Mail an uns genügt, dann löschen wir
-            Ihre Aufnahme.</li>
-        </ul>
-
-        <div class="contrib-recorder__actions">
-          <button class="btn btn--primary" type="button" data-recorder-load="">
-            <span data-i18n="rec_load_cta">Rekorder laden</span>
-            <span class="btn__arrow" aria-hidden="true">→</span>
-          </button>
-          <span class="contrib-recorder__hint" data-i18n="rec_load_hint">Erst danach wird eine Verbindung zu SpeakPipe aufgebaut.</span>
+      <noscript>
+        <div class="contrib-fallback" style="margin-top: var(--sp-5)">
+          <strong>Ohne JavaScript keine Aufnahme.</strong>
+          Schicken Sie uns den Text gern als Sprachnachricht an
+          <a href="mailto:al.kluge@campus.lmu.de">al.kluge@campus.lmu.de</a>.
         </div>
-
-        <!-- The widget is injected here by js/contribute.js, never before. -->
-        <div class="contrib-embed" data-recorder-mount="" hidden=""></div>
-
-        <noscript>
-          <div class="contrib-fallback" style="margin-top: var(--sp-6)">
-            <strong>Ohne JavaScript kein Rekorder.</strong>
-            Der Aufnahme-Rekorder braucht JavaScript und die Mikrofonfreigabe Ihres
-            Browsers. Sie können uns die acht Sätze stattdessen als Sprachnachricht oder
-            Audiodatei an
-            <a href="mailto:al.kluge@campus.lmu.de">al.kluge@campus.lmu.de</a> schicken.
-          </div>
-        </noscript>
-      </div>
-
-      <div class="contrib-note reveal" style="margin-top: var(--sp-7); max-width: 46rem">
-        <span class="contrib-note__title" data-i18n="rec_privacy_title">Datenschutz</span>
-        <p data-i18n="rec_privacy_p">Eine Sprachaufnahme ist ein personenbezogenes Datum, auch ohne Namen.
-          Rechtsgrundlage ist Ihre Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO,
-          die Sie jederzeit für die Zukunft widerrufen können. Details stehen in
-          Abschnitt 5 unserer Datenschutzerklärung.</p>
-        <p>
-          <a href="datenschutz.html#ds-aufnahme" data-i18n="rec_privacy_link">Zur Datenschutzerklärung</a>
-        </p>
-      </div>
-
-      <div class="contrib-note reveal" style="margin-top: var(--sp-5); max-width: 46rem">
-        <span class="contrib-note__title" data-i18n="rec_medical_title">Kein medizinischer Rat</span>
-        <p data-i18n="rec_medical_p">Die Sätze oben sind Sprachmaterial für die Erkennung, keine Handlungsanweisung.
-          J.A.R. ersetzt nicht die ärztliche Beurteilung. Im Notfall
-          wählen Sie bitte unverzüglich die 112.</p>
-      </div>
+      </noscript>
 
       <a class="contrib-back" href="mitmachen.html">
         <span aria-hidden="true">←</span>
@@ -2635,9 +2612,9 @@ window.JAR_I18N = {
        moment the visitor switched language. meta_title / meta_desc above stay
        the landing page's, and the fallback for any page with no entry here. */
     meta_title_join: 'Contribute to the project | J.A.R. Medical',
-    meta_desc_join: 'Help make J.A.R. better: play MediCraft, or record eight short radio calls for the speech recognition in 90 seconds.',
-    meta_title_record: 'Voice recording: 90 seconds for the speech recognition | J.A.R. Medical',
-    meta_desc_record: 'Read out eight short radio calls from mSTaRT pre-triage and record them straight in the browser. About 90 seconds, no account, no name.',
+    meta_desc_join: 'Help make J.A.R. better: play MediCraft, or read out short radio calls for the speech recognition.',
+    meta_title_record: 'Record a radio call for the speech recognition | J.A.R. Medical',
+    meta_desc_record: 'Read out a randomly assembled mSTaRT radio call and record it straight in the browser. A few seconds per text, no account, no name.',
     meta_title_imprint: 'Imprint | J.A.R. Medical',
     meta_desc_imprint: 'Provider identification under § 5 DDG, contact details and liability notices for the website of J.A.R. Medical.',
     meta_title_privacy: 'Privacy policy | J.A.R. Medical',
@@ -2976,7 +2953,7 @@ window.JAR_I18N = {
     foot_join: 'Take part',
     join_band_eyebrow: 'Take part',
     join_band_h: 'Five minutes, or ninety seconds',
-    join_band_p: 'We have no budget for studies and no access to real incident data. Play MediCraft, or record eight short radio calls for us, the ones the speech recognition learns from.',
+    join_band_p: 'We have no budget for studies and no access to real incident data. Play MediCraft, or read out short radio calls for us, the ones the speech recognition learns from.',
     join_band_cta: 'Contribute to the project',
 
     join_eyebrow: 'Take part',
@@ -2995,9 +2972,9 @@ window.JAR_I18N = {
     join_a_li3: 'The longer you play, the more voice adds up',
     join_a_cta: 'Open MediCraft',
 
-    join_b_unit: 'seconds',
-    join_b_h: 'Read us eight radio calls',
-    join_b_p: 'You read out eight short sentences of the kind actually spoken during mSTaRT pre-triage. They are what the speech recognition learns from: the one that runs directly on the responder’s device.',
+    join_b_unit: 'seconds per text',
+    join_b_h: 'Read out radio calls',
+    join_b_p: 'You read out short, randomly assembled radio calls of the kind spoken during mSTaRT pre-triage, as many as you like. They are what the speech recognition learns from: the one that runs directly on the responder’s device.',
     join_b_li1: 'Records straight in the browser, no account',
     join_b_li2: 'Regional accents are explicitly welcome',
     join_b_li3: 'No name, no address: just your voice',
@@ -3008,80 +2985,49 @@ window.JAR_I18N = {
     join_back: 'Back to the home page',
 
     /* ---- participation: recording page ---- */
-    rec_eyebrow: '90 seconds',
-    rec_h1: 'Read us eight radio calls',
-    rec_lead: 'Read the eight sentences below out loud and record them in one take. They are typical messages from mSTaRT pre-triage: exactly the speech J.A.R.’s speech recognition has to understand.',
-    rec_meta_1: 'About 90 seconds',
-    rec_meta_2: 'No account, no name',
-    rec_meta_3: 'Accents welcome',
-
-    rec_how_eyebrow: 'How it works',
-    rec_how_h: 'Three steps',
-    rec_step_1_h: 'Read it through once',
-    rec_step_1_p: 'Go through the eight sentences silently first so you do not stumble. Read numbers exactly as they are written.',
-    rec_step_2_h: 'Start recording',
-    rec_step_2_p: 'Load the recorder below, allow microphone access, and read all eight sentences in one take. A short pause between them is good.',
-    rec_step_3_h: 'Listen back and send',
-    rec_step_3_p: 'Before sending you can play the recording back and record it again if you want. It only reaches us once you send it.',
-
-    rec_tip_title: 'What makes a good recording',
-    rec_tip_p: 'Speak at a normal pace, the way you would over the radio, not over-enunciated. Background noise is no problem; an incident scene is not quiet either. A regional accent or a rough voice is worth more to us than studio-clean standard German.',
-
-    rec_lines_eyebrow: 'The text',
-    rec_lines_h: 'Please read these eight sentences',
-    rec_lines_p: 'The order follows mSTaRT pre-triage: first the ability to walk, then breathing, bleeding, circulation and consciousness, and finally the report to incident command.',
-
-    rec_l1_tag: 'Ability to walk',
-    rec_l2_tag: 'Airway',
-    rec_l3_tag: 'Respiratory rate',
-    rec_l4_tag: 'Critical bleeding',
-    rec_l5_tag: 'Circulation',
-    rec_l6_tag: 'Consciousness',
-    rec_l7_tag: 'Triage category two',
-    rec_l8_tag: 'Report to incident command',
-
-    rec_rec_eyebrow: 'Recording',
-    rec_rec_h: 'Load the recorder and record',
-    rec_rec_p: 'The recording runs through SpeakPipe, an external service. So that merely reading this page sends nothing to a third party, the recorder is only loaded when you explicitly ask for it here. By clicking “Load recorder” you consent to the following:',
-    rec_consent_1: 'Your browser opens a connection to speakpipe.com and transmits technically necessary data in doing so, including your IP address.',
-    rec_consent_2: 'Your recording is stored on SpeakPipe’s servers and made available to us there.',
-    rec_consent_3: 'We use the recording solely to develop and test J.A.R.’s speech recognition. It will not be published and not sold on.',
-    rec_consent_4: 'No name or e-mail address is required. You can withdraw your consent at any time; an informal e-mail is enough and we will delete your recording.',
-    rec_load_cta: 'Load recorder',
-    rec_load_hint: 'Only then is a connection to SpeakPipe opened.',
-    rec_loaded: 'Recorder loaded',
-    rec_loaded_hint: 'Allow the microphone, read all eight sentences in one take, listen back, send.',
-    rec_frame_title: 'Voice recording (SpeakPipe)',
-    rec_err_https_h: 'Recording needs HTTPS.',
-    rec_err_https_p: 'Your browser only releases the microphone on encrypted pages. Open this page over https://, or send us the sentences as an audio file to ',
-    rec_err_cfg_h: 'Recorder not configured yet.',
-    rec_err_cfg_p: 'The SpeakPipe widget ID is missing in ',
-
-    rec_privacy_title: 'Data protection',
-    rec_privacy_p: 'A voice recording is personal data even without a name. The legal basis is your consent under Art. 6(1)(a) GDPR, which you may withdraw at any time with effect for the future. The details are in section 5 of our privacy notice.',
-    rec_privacy_link: 'Go to the privacy notice',
-    rec_medical_title: 'Not medical advice',
-    rec_medical_p: 'The sentences above are speech material for the recognition, not instructions for treatment. J.A.R. does not replace professional medical judgment. In an emergency, call 112 without delay.',
+    rec_h1: 'Record a radio call',
+    rec_shuffle: 'Show a different text',
+    rec_retry: 'Send again',
+    rec_download: 'Save as WAV',
+    rec_consent: 'I am at least 16 years old and consent to my recording being transmitted to J.A.R. Medical together with the text shown, and stored to develop our speech recognition. I can withdraw at any time.',
+    rec_consent_link: 'Privacy',
+    rec_fine: 'No account, no name. Accents and background noise are welcome. The sentences are speech material, not medical advice: in an emergency call 112.',
     rec_back: 'Back to the options',
+    /* set by js/record.js, not by markup */
+    rec_btn_start: 'Start recording',
+    rec_btn_starting: 'Opening the microphone …',
+    rec_btn_stop: 'Stop recording',
+    rec_btn_sending: 'Sending …',
+    rec_count: 'Sent:',
+    rec_code: 'Your deletion code:',
+    rec_code_hint: 'Note it down in case you want your recordings deleted later.',
+    rec_st_consent: 'Please confirm the consent below first.',
+    rec_st_unsupported: 'This browser cannot record here. Please open the page via https:// in a current browser.',
+    rec_st_rec: 'Recording. Read the text aloud, then tap the button.',
+    rec_st_denied: 'No access to the microphone. Please allow it in your browser settings and tap again.',
+    rec_st_nomic: 'No microphone found, or another app is using it.',
+    rec_st_short: 'Too short. Please read the whole text.',
+    rec_st_sending: 'Sending …',
+    rec_st_rejected: 'Received, but too quiet or unclear. Please record the same text once more.',
+    rec_st_done: 'Saved, thank you! Here is the next text.',
+    rec_st_fail: 'Sending failed. Your recording is still here: send it again or save it as a file.',
 
-    /* ---- privacy: the SpeakPipe section ---- */
-    legal_privacy_h_audio: '5. Voice recordings via SpeakPipe',
-    legal_privacy_audio_p1: 'On the “Take part” page you can voluntarily give us a short voice recording in which you read out set radio calls. We use the service SpeakPipe (speakpipe.com) for the recording. The recorder is an embedded third-party offering.',
-    legal_privacy_audio_note: 'As long as you are only reading the page, no connection to SpeakPipe is opened. The recorder loads only when you click the “Load recorder” button, and with that click you give your consent.',
-    legal_privacy_audio_p2: 'Only with that click does your browser load content from speakpipe.com, transmitting technically necessary connection data in the process, in particular your IP address along with details of your browser and operating system. If you then record and send the recording, the audio file is stored on SpeakPipe’s servers and made available to us there.',
-    legal_privacy_audio_p3: 'The data processed are: the voice recording itself, the time of the recording, and the connection data named above. A voice recording is personal data even without a name, because a voice can in principle be attributed to a person. Giving a name or e-mail address is not required; if you enter them voluntarily, we process them as well.',
-    legal_privacy_audio_h3_provider: 'The recorder’s provider',
-    legal_privacy_audio_provider_p1: 'The recipient of the recordings is the service SpeakPipe, reachable at speakpipe.com. The provider does not publish further corporate details (company name, legal form and postal address) on its website. It gives the following contact options:',
-    legal_privacy_audio_provider_li1: 'General enquiries:',
-    legal_privacy_audio_provider_li2: 'Legal enquiries:',
-    legal_privacy_audio_provider_p2: 'For access to, correction of, or deletion of your recording, please write to the address given in section 1. We will handle your request and approach the provider where that is necessary. You are of course also free to contact the provider directly at the addresses above.',
-    legal_privacy_audio_h3_purpose: 'Purpose and legal basis',
-    legal_privacy_audio_p4: 'We use the recordings solely to develop, train and test J.A.R.’s speech recognition. They are not published, not passed to third parties for their own purposes, and not sold. The legal basis is your consent under Art. 6(1)(a) GDPR; for loading the recorder and the associated access to your device, additionally § 25(1) TDDDG.',
+    /* ---- privacy: the voice recording section ---- */
+    legal_privacy_h_audio: '5. Voice recordings',
+    legal_privacy_audio_p1: 'On the “Take part” page you can voluntarily give us short voice recordings in which you read out randomly assembled radio calls. The recording is made directly in your browser; no third-party service is embedded for it.',
+    legal_privacy_audio_note: 'As long as you are only reading the page, nothing is transmitted. Only once you tick the consent box, start a recording and stop it again does your browser send that recording to our server.',
+    legal_privacy_audio_p2: 'For this, your browser asks for access to your microphone. The recording is converted locally into an audio file into which the text read out, an identifier of that text, the time of recording and the version of this consent are written as metadata. Your browser transmits this file in encrypted form to a computer we operate ourselves. A pseudonymous identifier, held only in your browser tab, links further recordings to the same session; no cookie is set.',
+    legal_privacy_audio_p3: 'The data processed are: the voice recording, the text read out and its identifier, the time and length of the recording, the version of the consent, your confirmation that you are at least 16, a pseudonymous identifier, and technically necessary connection data such as your IP address. A voice recording is personal data even without a name, because a voice can in principle be attributed to a person. We do not ask for a name or e-mail address.',
+    legal_privacy_audio_h3_provider: 'Where the recordings are stored',
+    legal_privacy_audio_provider_p1: 'The recordings are stored on a computer we operate ourselves and analysed automatically there by a speech recognition that also runs locally. This computer is reached through the Tailscale Funnel service of Tailscale Inc. Tailscale only forwards the encrypted connection; encryption ends on our computer, so Tailscale cannot see the content of a recording, but it can see connection data such as your IP address.',
+    legal_privacy_audio_provider_p2: 'For access to, correction of, or deletion of your recordings, please write to the address given in section 1.',
+    legal_privacy_audio_link_label: 'Tailscale’s privacy policy:',
+    legal_privacy_audio_h3_purpose: 'Purpose, legal basis and retention',
+    legal_privacy_audio_p4: 'We use the recordings solely to develop, train and test J.A.R.’s speech recognition. They are not published, not passed to third parties for their own purposes, and not sold. The legal basis is your consent under Art. 6(1)(a) GDPR, and additionally § 25(1) TDDDG for access to your device’s microphone. We keep recordings for at most 24 months.',
     legal_privacy_audio_h3_revoke: 'Withdrawal and deletion',
-    legal_privacy_audio_p5: 'You may withdraw your consent at any time with effect for the future. An informal message to the address given in section 1 is enough and we will delete your recording. The lawfulness of processing carried out up to the withdrawal is unaffected. Because we receive recordings without a name, please tell us roughly when you made the recording so we can find it.',
+    legal_privacy_audio_p5: 'You may withdraw your consent at any time with effect for the future. After your first recording the page shows you a deletion code; with that code, or an informal message to the address given in section 1, we delete your recordings. Without the code, please tell us roughly when you recorded so we can find them. Withdrawal does not affect the lawfulness of processing carried out before it.',
     legal_privacy_audio_h3_transfer: 'Transfer to third countries',
-    legal_privacy_audio_p6: 'SpeakPipe is operated outside the European Union, so processing of your data in a third country cannot be ruled out. The provider’s own data protection terms apply.',
-    legal_privacy_audio_link_label: 'The provider’s privacy policy:',
+    legal_privacy_audio_p6: 'The recordings themselves do not leave our computer. The connection may be routed through Tailscale servers outside the European Union; only connection data, not the content of a recording, is visible to Tailscale there.',
 
     /* ---- legal: shared ---- */
     legal_eyebrow: 'Legal',
@@ -3469,98 +3415,525 @@ window.JAR_I18N = {
 
 })();
 </script>
-<script>/* js/contribute.js */
+<script>/* js/record.js */
 /* ==========================================================================
-   J.A.R. — SpeakPipe recorder, behind a consent gate
-   The recorder is a third-party embed. Nothing is requested from speakpipe.com
-   until the visitor asks for it, so simply reading the page contacts no one but
-   our own host — which is what datenschutz.html promises.
+   J.A.R. — in-browser recorder for the speech dataset
+   One randomly generated mSTaRT radio call per take. Each take is encoded as
+   a 16 kHz mono PCM16 WAV whose RIFF INFO chunk carries the exact text read
+   (INAM) and its full provenance as JSON (ICMT), then uploaded to our own
+   contribution API, which keeps the file byte for byte. Nothing is requested
+   from any server before consent is ticked and a recording is stopped.
    ========================================================================== */
 (function () {
   'use strict';
 
-  var root = document.querySelector('[data-recorder]');
+  var root = document.querySelector('[data-rec]');
   if (!root) return;
 
-  var button = root.querySelector('[data-recorder-load]');
-  var mount = root.querySelector('[data-recorder-mount]');
-  var widget = (root.getAttribute('data-speakpipe-widget') || '').trim();
-  if (!button || !mount) return;
+  var API = (root.getAttribute('data-api') || '').replace(/\/+$/, '');
+  var API_CONSENT = '2026-08-25-v3';   /* the version the contribution API accepts */
+  var WEB_CONSENT = 'web-2026-10-07';  /* the consent text shown on this page */
+  var RECORDER = 'jar-medical.tech/mitmachen-aufnahme v2';
+  var RATE = 16000, MAX_SECONDS = 60, MIN_SECONDS = 1;
 
-  var T = ((window.JAR_I18N || {})[document.documentElement.lang] || {});
-  function t(key, fallback) { return T[key] || fallback; }
+  function $(s) { return root.querySelector(s); }
+  var btn = $('[data-rec-btn]'), label = $('[data-rec-label]'), clock = $('[data-rec-time]');
+  var level = $('[data-rec-level]'), consent = $('[data-rec-consent]');
+  var tagEl = $('[data-rec-tag]'), textEl = $('[data-rec-text]'), shuffle = $('[data-rec-shuffle]');
+  var statusEl = $('[data-rec-status]'), fail = $('[data-rec-fail]'), retry = $('[data-rec-retry]');
+  var download = $('[data-rec-download]'), codeEl = $('[data-rec-code]'), countEl = $('[data-rec-count]');
 
-  function fail(html) {
-    mount.hidden = false;
-    mount.className = 'contrib-fallback';
-    mount.innerHTML = html;
-    button.disabled = true;
-    button.style.opacity = '0.5';
+  function t(key, de) {
+    var dict = (window.JAR_I18N || {})[document.documentElement.lang];
+    return (dict && dict[key]) || de;
   }
 
-  button.addEventListener('click', function () {
-    button.disabled = true;
+  /* sessionStorage keeps the session across reloads; memory covers private
+     modes where storage throws. */
+  var memory = {};
+  function load(key) {
+    try { var v = sessionStorage.getItem('jar.rec.' + key); if (v !== null) return v; } catch (e) { /* private mode */ }
+    return memory[key] === undefined ? null : memory[key];
+  }
+  function save(key, value) {
+    memory[key] = value;
+    try {
+      if (value === null) sessionStorage.removeItem('jar.rec.' + key);
+      else sessionStorage.setItem('jar.rec.' + key, value);
+    } catch (e) { /* private mode */ }
+  }
 
-    /* Recording needs getUserMedia, which browsers only grant on a secure
-       origin. Say so plainly rather than letting the widget fail silently. */
-    if (!window.isSecureContext) {
-      fail(
-        '<strong>' + t('rec_err_https_h', 'Aufnahme braucht HTTPS.') + '</strong> ' +
-        t('rec_err_https_p',
-          'Ihr Browser gibt das Mikrofon nur auf verschlüsselten Seiten frei. ' +
-          'Rufen Sie diese Seite über https:// auf, oder schicken Sie uns die Sätze ' +
-          'als Audiodatei an ') +
-        '<a href="mailto:al.kluge@campus.lmu.de">al.kluge@campus.lmu.de</a>.'
-      );
+  /* ----------------------------------------------------------------------
+     Random passages. Numbers are written out so the expected text matches
+     what is actually said. Bump a template's version when its wording changes.
+     ---------------------------------------------------------------------- */
+  function rand() {
+    if (window.crypto && crypto.getRandomValues) {
+      var a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296;
+    }
+    return Math.random();
+  }
+  function between(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
+  function pick(list) { return list[Math.floor(rand() * list.length)]; }
+
+  var ONES = ['null', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn',
+    'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn'];
+  var TENS = ['', '', 'zwanzig', 'dreißig', 'vierzig', 'fünfzig', 'sechzig', 'siebzig', 'achtzig', 'neunzig'];
+  function words(n) {
+    if (n >= 100) return 'hundert' + (n % 100 ? words(n % 100) : '');
+    if (n < 20) return ONES[n];
+    var unit = n % 10, ten = TENS[Math.floor(n / 10)];
+    return unit ? (unit === 1 ? 'ein' : ONES[unit]) + 'und' + ten : ten;
+  }
+  function times(n) { return n === 1 ? 'einmal' : words(n) + ' mal'; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  var SIDE = ['rechten', 'linken'];
+  var LIMB = ['Oberschenkel', 'Unterschenkel', 'Oberarm', 'Unterarm'];
+  var INJURY = ['Unterschenkelfraktur links', 'Unterschenkelfraktur rechts', 'Unterarmfraktur links',
+    'Unterarmfraktur rechts', 'Rippenserienfraktur', 'Sprunggelenksfraktur', 'Schlüsselbeinfraktur',
+    'Verbrennung zweiten Grades am Unterarm'];
+  var MINOR = ['Schnittwunde an der rechten Hand', 'Schnittwunde an der linken Hand', 'Prellung am Knie',
+    'Schürfwunden an beiden Unterarmen', 'Platzwunde an der Stirn'];
+  var SECTION = ['Nord', 'Süd', 'Ost', 'West'];
+  var PLACE = ['Sammelpunkt Nord', 'Sammelpunkt Süd', 'Haupteingang', 'Bahnsteig zwei', 'Parkplatz Ost'];
+
+  function patient(s) { s.patient = between(1, 60); return 'Patient ' + words(s.patient); }
+  function clockTime(s) {
+    s.hour = between(6, 23); s.minute = between(1, 59);
+    return words(s.hour) + ' Uhr ' + words(s.minute);
+  }
+  function trupp(s) { s.trupp = between(1, 6); return words(s.trupp); }
+
+  var TEMPLATES = [
+    { id: 'walk', v: 1, tag: 'Gehfähigkeit', make: function (s) {
+      return 'Achtung, hier spricht Sichtungstrupp ' + trupp(s) + '. Wer gehen kann, kommt bitte zu mir und sammelt sich an der grünen Fahne.';
+    } },
+    { id: 'airway', v: 1, tag: 'Atemwege', make: function (s) {
+      return patient(s) + ': keine Atmung. Ich mache die Atemwege frei. Atmung setzt ein. Sichtungskategorie eins, rot, Sofortbehandlung.';
+    } },
+    { id: 'apnoe', v: 1, tag: 'Atemwege', make: function (s) {
+      return patient(s) + ': keine Atmung, auch nach Freimachen der Atemwege nicht. Keine Lebenszeichen.';
+    } },
+    { id: 'resp-rate', v: 1, tag: 'Atemfrequenz', make: function (s) {
+      s.rate = between(31, 44);
+      return patient(s) + ': Atemfrequenz ' + words(s.rate) + ' pro Minute, Radialispuls tastbar. Sichtungskategorie eins.';
+    } },
+    { id: 'bleeding', v: 1, tag: 'Kritische Blutung', make: function (s) {
+      s.side = pick(SIDE); s.limb = pick(LIMB);
+      return 'Kritische Blutung am ' + s.side + ' ' + s.limb + '. Tourniquet angelegt, ' + clockTime(s) + '. Sichtungskategorie eins.';
+    } },
+    { id: 'circulation', v: 1, tag: 'Kreislauf', make: function (s) {
+      return patient(s) + ': Rekapillarisierungszeit über zwei Sekunden, Puls fadenförmig, Haut blass und kalt. Sichtungskategorie eins.';
+    } },
+    { id: 'conscious', v: 1, tag: 'Bewusstsein', make: function (s) {
+      return patient(s) + ': Atmung normal, Radialispuls tastbar, befolgt einfache Aufforderungen nicht. Sichtungskategorie eins.';
+    } },
+    { id: 'yellow', v: 1, tag: 'Sichtungskategorie zwei', make: function (s) {
+      s.injury = pick(INJURY);
+      return patient(s) + ': Atmung normal, Kreislauf stabil, ansprechbar. Verdacht auf ' + s.injury + '. Sichtungskategorie zwei, gelb.';
+    } },
+    { id: 'green', v: 1, tag: 'Sichtungskategorie drei', make: function (s) {
+      s.injury = pick(MINOR);
+      return patient(s) + ': gehfähig, ' + s.injury + '. Sichtungskategorie drei, grün.';
+    } },
+    { id: 'reassess', v: 1, tag: 'Nachsichtung', make: function (s) {
+      return patient(s) + ' nachgesichtet: Zustand verschlechtert, Atemfrequenz jetzt über dreißig. Hochstufen auf Sichtungskategorie eins, rot.';
+    } },
+    { id: 'vitals', v: 1, tag: 'Vitalwerte', make: function (s) {
+      s.sys = between(85, 180); s.dia = between(45, Math.min(110, s.sys - 25));
+      s.pulse = between(48, 150); s.spo2 = between(82, 99);
+      return patient(s) + ': Blutdruck ' + words(s.sys) + ' zu ' + words(s.dia) + ', Puls ' + words(s.pulse) +
+        ', Sauerstoffsättigung ' + words(s.spo2) + ' Prozent.';
+    } },
+    { id: 'gcs', v: 1, tag: 'Bewusstsein', make: function (s) {
+      s.gcs = between(6, 14);
+      return patient(s) + ': Glasgow Coma Scale ' + words(s.gcs) + ', Pupillen isokor, reagiert auf Schmerzreiz.';
+    } },
+    { id: 'report', v: 1, tag: 'Meldung an die Einsatzleitung', make: function (s) {
+      s.section = pick(SECTION);
+      s.red = between(1, 12); s.yellow = between(2, 20); s.green = between(3, 40); s.dead = between(0, 3);
+      var dead = s.dead === 0 ? 'keine Toten' : s.dead === 1 ? 'ein Toter' : words(s.dead) + ' Tote';
+      return 'Einsatzleitung von Sichtungstrupp ' + trupp(s) + ': Abschnitt ' + s.section + ' vollständig gesichtet. ' +
+        cap(times(s.red)) + ' rot, ' + times(s.yellow) + ' gelb, ' + times(s.green) + ' grün, ' + dead + '.';
+    } },
+    { id: 'request', v: 1, tag: 'Nachforderung', make: function (s) {
+      s.stretchers = between(2, 8); s.place = pick(PLACE);
+      return 'Sichtungstrupp ' + trupp(s) + ' an Einsatzleitung: Wir brauchen ' + words(s.stretchers) +
+        ' Tragen und einen Notarzt am ' + s.place + '.';
+    } },
+    { id: 'handover', v: 1, tag: 'Übergabe', make: function (s) {
+      s.rtw = between(2, 9); s.injury = pick(INJURY);
+      return 'Übergabe an Rettungswagen ' + words(s.rtw) + ': ' + patient(s) + ', Sichtungskategorie zwei, Verdacht auf ' +
+        s.injury + ', ansprechbar und kreislaufstabil.';
+    } },
+    { id: 'transport', v: 1, tag: 'Abtransport', make: function (s) {
+      s.rtw = between(2, 9);
+      return patient(s) + ' abtransportiert mit Rettungswagen ' + words(s.rtw) + ' ins Klinikum, Abfahrt ' + clockTime(s) + '.';
+    } }
+  ];
+
+  /* Avoid showing a template the visitor saw in their last few takes. */
+  function nextPrompt() {
+    var recent = (load('recent') || '').split(',').filter(Boolean);
+    var fresh = TEMPLATES.filter(function (tpl) { return recent.indexOf(tpl.id) < 0; });
+    var tpl = pick(fresh.length ? fresh : TEMPLATES);
+    var slots = {};
+    var text = tpl.make(slots);
+    save('recent', recent.concat(tpl.id).slice(-6).join(','));
+    return { id: 'web-' + tpl.id + '-v' + tpl.v, template: tpl.id, tag: tpl.tag, text: text, slots: slots };
+  }
+
+  var prompt = null;
+  function showPrompt(p) {
+    prompt = p;
+    tagEl.textContent = p.tag;
+    textEl.textContent = '„' + p.text + '“';
+  }
+
+  /* ----------------------------------------------------------------------
+     WAV with a LIST/INFO chunk ahead of the samples. INFO is read as Latin-1
+     by Finder, Explorer and most editors, which covers German; ICMT holds the
+     same facts as JSON escaped to plain ASCII, so the exact text survives any
+     reader. Values are NUL-terminated; sub-chunks are padded to even length.
+     ---------------------------------------------------------------------- */
+  function encodeWav(samples, rate, info) {
+    var fields = info.map(function (f) {
+      var value = f[1] + '\0', bytes = new Uint8Array(value.length);
+      for (var i = 0; i < value.length; i++) bytes[i] = value.charCodeAt(i) < 256 ? value.charCodeAt(i) : 63;
+      return { id: f[0], bytes: bytes };
+    });
+    var listSize = 4;
+    fields.forEach(function (f) { listSize += 8 + f.bytes.length + (f.bytes.length & 1); });
+    var dataSize = samples.length * 2;
+    var total = 12 + 24 + 8 + listSize + 8 + dataSize;
+    var buf = new ArrayBuffer(total), view = new DataView(buf), bytes = new Uint8Array(buf), o = 0;
+    function tag(s) { for (var i = 0; i < 4; i++) view.setUint8(o++, s.charCodeAt(i)); }
+    function u32(n) { view.setUint32(o, n, true); o += 4; }
+    function u16(n) { view.setUint16(o, n, true); o += 2; }
+    tag('RIFF'); u32(total - 8); tag('WAVE');
+    tag('fmt '); u32(16); u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16);
+    tag('LIST'); u32(listSize); tag('INFO');
+    fields.forEach(function (f) {
+      tag(f.id); u32(f.bytes.length); bytes.set(f.bytes, o); o += f.bytes.length + (f.bytes.length & 1);
+    });
+    tag('data'); u32(dataSize);
+    for (var i = 0; i < samples.length; i++, o += 2) {
+      var x = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true);
+    }
+    return new Blob([buf], { type: 'audio/wav' });
+  }
+
+  function metadata(p, seconds, recordedAt) {
+    var meta = {
+      text: p.text, prompt_id: p.id, template: p.template, slots: p.slots, tag: p.tag, language: 'de-DE',
+      recorded_at: recordedAt.toISOString(), duration_seconds: Math.round(seconds * 100) / 100,
+      sample_rate: RATE, consent: WEB_CONSENT, recorder: RECORDER
+    };
+    return [
+      ['INAM', p.text],
+      ['ISBJ', p.tag],
+      ['ISRC', p.id],
+      ['ICMT', JSON.stringify(meta).replace(/[\u007f-\uffff]/g, function (c) {
+        return '\\u' + ('000' + c.charCodeAt(0).toString(16)).slice(-4);
+      })],
+      ['ICRD', meta.recorded_at.slice(0, 10)],
+      ['ISFT', RECORDER]
+    ];
+  }
+
+  /* Proper resampling where OfflineAudioContext exists, box-filter otherwise. */
+  function resample(data, from) {
+    if (from === RATE) return Promise.resolve(data);
+    try {
+      var Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      var off = new Offline(1, Math.ceil(data.length * RATE / from), RATE);
+      var buffer = off.createBuffer(1, data.length, from);
+      buffer.getChannelData(0).set(data);
+      var src = off.createBufferSource();
+      src.buffer = buffer; src.connect(off.destination); src.start(0);
+      return off.startRendering().then(function (out) { return out.getChannelData(0); });
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+  function decimate(data, from) {
+    var ratio = from / RATE, n = Math.floor(data.length / ratio), out = new Float32Array(n);
+    for (var i = 0; i < n; i++) {
+      var a = Math.floor(i * ratio), b = Math.max(a + 1, Math.min(data.length, Math.floor((i + 1) * ratio))), sum = 0;
+      for (var j = a; j < b; j++) sum += data[j];
+      out[i] = sum / (b - a);
+    }
+    return out;
+  }
+
+  /* ----------------------------------------------------------------------
+     UI state: idle → starting → recording → sending → idle | failed
+     ---------------------------------------------------------------------- */
+  var lastStatus = null;
+  function say(key, de, kind) {
+    lastStatus = key ? { key: key, de: de, kind: kind } : null;
+    statusEl.textContent = key ? t(key, de) : '';
+    if (kind) statusEl.setAttribute('data-kind', kind); else statusEl.removeAttribute('data-kind');
+  }
+
+  function render() {
+    var state = root.getAttribute('data-state');
+    var labels = {
+      idle: ['rec_btn_start', 'Aufnahme starten'],
+      starting: ['rec_btn_starting', 'Mikrofon wird geöffnet …'],
+      recording: ['rec_btn_stop', 'Aufnahme beenden'],
+      sending: ['rec_btn_sending', 'Wird gesendet …'],
+      failed: ['rec_btn_start', 'Aufnahme starten']
+    }[state];
+    label.textContent = t(labels[0], labels[1]);
+    btn.disabled = state === 'starting' || state === 'sending';
+    btn.setAttribute('aria-pressed', state === 'recording' ? 'true' : 'false');
+    shuffle.disabled = state !== 'idle' && state !== 'failed';
+    var count = +(load('count') || 0);
+    countEl.textContent = count ? t('rec_count', 'Gesendet:') + ' ' + count : '';
+    var code = load('code');
+    codeEl.hidden = !code;
+    if (code) {
+      codeEl.textContent = '';
+      codeEl.appendChild(document.createTextNode(t('rec_code', 'Ihr Löschcode:') + ' '));
+      var strong = document.createElement('strong'); strong.textContent = code; codeEl.appendChild(strong);
+      codeEl.appendChild(document.createTextNode(' ' + t('rec_code_hint',
+        'Notieren Sie ihn, falls Sie Ihre Aufnahmen später löschen lassen möchten.')));
+    }
+    if (lastStatus) statusEl.textContent = t(lastStatus.key, lastStatus.de);
+  }
+  function setState(state) { root.setAttribute('data-state', state); render(); }
+
+  function showClock(seconds) {
+    var s = Math.floor(seconds);
+    clock.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+  }
+
+  /* ----------------------------------------------------------------------
+     Capture
+     ---------------------------------------------------------------------- */
+  var rec = null;
+  var pending = null;
+  var downloadUrl = null;
+
+  function release(r) {
+    if (!r) return;
+    clearInterval(r.timer);
+    try { r.source.disconnect(); r.node.disconnect(); r.mute.disconnect(); } catch (e) { /* already gone */ }
+    r.stream.getTracks().forEach(function (track) { track.stop(); });
+    if (r.ctx.state !== 'closed') r.ctx.close();
+    level.style.transform = 'scaleX(0)';
+  }
+
+  function start() {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      say('rec_st_unsupported', 'Dieser Browser kann hier nicht aufnehmen. Bitte die Seite über https:// in einem aktuellen Browser öffnen.', 'error');
       return;
     }
+    setState('starting');
+    say(null);
+    fail.hidden = true;
+    var r = null;
+    navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true }
+    }).then(function (stream) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx();
+      r = { stream: stream, ctx: ctx, chunks: [], length: 0, level: 0, started: Date.now(), timer: 0 };
+      r.source = ctx.createMediaStreamSource(stream);
+      r.node = ctx.createScriptProcessor(4096, 1, 1);
+      r.mute = ctx.createGain();
+      r.mute.gain.value = 0;
+      r.node.onaudioprocess = function (e) {
+        var d = e.inputBuffer.getChannelData(0), sum = 0;
+        r.chunks.push(new Float32Array(d));
+        r.length += d.length;
+        for (var i = 0; i < d.length; i += 4) sum += d[i] * d[i];
+        r.level = Math.sqrt(sum / (d.length / 4));
+      };
+      r.source.connect(r.node); r.node.connect(r.mute); r.mute.connect(ctx.destination);
+      stream.getTracks().forEach(function (track) {
+        track.addEventListener('ended', function () { if (rec === r) stop(); });
+      });
+      return ctx.resume ? ctx.resume() : null;
+    }).then(function () {
+      rec = r;
+      r.started = Date.now();
+      r.timer = setInterval(function () {
+        var elapsed = (Date.now() - r.started) / 1000;
+        showClock(elapsed);
+        level.style.transform = 'scaleX(' + Math.min(1, r.level * 6).toFixed(3) + ')';
+        if (elapsed >= MAX_SECONDS) stop();
+      }, 100);
+      setState('recording');
+      say('rec_st_rec', 'Aufnahme läuft. Lesen Sie den Text vor und tippen Sie danach auf den Knopf.');
+    }).catch(function (err) {
+      release(r);
+      setState('idle');
+      var denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+      if (denied) say('rec_st_denied', 'Kein Zugriff auf das Mikrofon. Bitte in den Browser-Einstellungen erlauben und erneut tippen.', 'error');
+      else say('rec_st_nomic', 'Kein Mikrofon gefunden oder es wird gerade von einer anderen App benutzt.', 'error');
+    });
+  }
 
-    if (!widget) {
-      fail(
-        '<strong>' + t('rec_err_cfg_h', 'Rekorder noch nicht konfiguriert.') + '</strong> ' +
-        t('rec_err_cfg_p', 'Es fehlt die SpeakPipe-Widget-ID in ') +
-        ' <code>mitmachen-aufnahme.html</code> ' +
-        '(<code>data-speakpipe-widget</code>).'
-      );
+  function stop() {
+    var r = rec;
+    if (!r) return;
+    rec = null;
+    var rate = r.ctx.sampleRate, seconds = r.length / rate;
+    var data = new Float32Array(r.length), o = 0;
+    r.chunks.forEach(function (c) { data.set(c, o); o += c.length; });
+    release(r);
+    showClock(0);
+    if (seconds < MIN_SECONDS) {
+      setState('idle');
+      say('rec_st_short', 'Zu kurz. Bitte den ganzen Text vorlesen.', 'warn');
       return;
     }
+    var p = prompt, recordedAt = new Date();
+    setState('sending');
+    say('rec_st_sending', 'Wird gesendet …');
+    resample(data, rate).catch(function () { return decimate(data, rate); }).then(function (samples) {
+      pending = {
+        blob: encodeWav(samples, RATE, metadata(p, seconds, recordedAt)),
+        prompt: p,
+        key: newKey()
+      };
+      send();
+    });
+  }
 
-    var frame = document.createElement('iframe');
-    frame.src = 'https://www.speakpipe.com/widget/inline/' + encodeURIComponent(widget);
-    frame.setAttribute('allow', 'microphone');
-    frame.setAttribute('title', t('rec_frame_title', 'Sprachaufnahme (SpeakPipe)'));
-    frame.setAttribute('width', '100%');
-    frame.setAttribute('height', '200');
-    frame.setAttribute('frameborder', '0');
+  function newKey() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    var a = new Uint32Array(4); crypto.getRandomValues(a);
+    return Array.prototype.map.call(a, function (n) { return ('0000000' + n.toString(16)).slice(-8); }).join('');
+  }
 
-    mount.hidden = false;
-    mount.appendChild(frame);
+  /* ----------------------------------------------------------------------
+     Upload
+     ---------------------------------------------------------------------- */
+  function readJson(res) {
+    return res.json().catch(function () { return {}; }).then(function (body) {
+      if (!res.ok) {
+        var e = new Error(body.detail || ('HTTP ' + res.status)); e.status = res.status; throw e;
+      }
+      return body;
+    });
+  }
 
-    /* SpeakPipe's loader resizes the iframe to fit its own content. */
-    if (!document.querySelector('script[data-speakpipe-loader]')) {
-      var loader = document.createElement('script');
-      loader.async = true;
-      loader.charset = 'utf-8';
-      loader.src = 'https://www.speakpipe.com/widget/loader.js';
-      loader.setAttribute('data-speakpipe-loader', '');
-      document.body.appendChild(loader);
+  function session() {
+    var token = load('token'), id = load('session');
+    if (token && id) return Promise.resolve({ token: token, id: id });
+    return fetch(API + '/api/contribution-sessions', {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ consent_version: API_CONSENT, age_band: '16+', locale: 'de-DE', mode: 'shift' })
+    }).then(readJson).then(function (body) {
+      save('token', body.contributor_token);
+      save('session', body.session_id);
+      if (body.recovery_code) save('code', body.recovery_code);
+      return { token: body.contributor_token, id: body.session_id };
+    });
+  }
+
+  function upload(s, job, retried) {
+    return fetch(API + '/api/clips', {
+      method: 'POST',
+      credentials: 'omit',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'X-Medicraft-Contributor-Token': s.token,
+        'X-Medicraft-Session-Id': s.id,
+        'X-Medicraft-Scenario-Id': 'website-recorder',
+        'X-Medicraft-Prompt-Id': job.prompt.id,
+        'X-Medicraft-Task-Type': 'read_aloud',
+        'X-Medicraft-Expected-Text': encodeURIComponent(job.prompt.text),
+        'Idempotency-Key': job.key
+      },
+      body: job.blob
+    }).then(function (res) {
+      if ((res.status === 401 || res.status === 403) && !retried) {
+        save('token', null); save('session', null);
+        return session().then(function (fresh) { return upload(fresh, job, true); });
+      }
+      return readJson(res);
+    });
+  }
+
+  function send() {
+    var job = pending;
+    if (!job) return;
+    setState('sending');
+    say('rec_st_sending', 'Wird gesendet …');
+    fail.hidden = true;
+    session().then(function (s) { return upload(s, job); }).then(function (clip) {
+      pending = null;
+      if (clip.validation_state === 'rejected') {
+        setState('idle');
+        say('rec_st_rejected', 'Angekommen, aber zu leise oder undeutlich. Bitte denselben Text noch einmal aufnehmen.', 'warn');
+        return;
+      }
+      save('count', String(+(load('count') || 0) + 1));
+      showPrompt(nextPrompt());
+      setState('idle');
+      say('rec_st_done', 'Gespeichert, danke! Hier ist der nächste Text.', 'ok');
+    }).catch(function () {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      downloadUrl = URL.createObjectURL(job.blob);
+      download.href = downloadUrl;
+      download.setAttribute('download', job.prompt.id + '.wav');
+      fail.hidden = false;
+      setState('failed');
+      say('rec_st_fail', 'Senden hat nicht geklappt. Ihre Aufnahme ist noch hier: erneut senden oder als Datei speichern.', 'error');
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Wiring
+     ---------------------------------------------------------------------- */
+  btn.addEventListener('click', function () {
+    var state = root.getAttribute('data-state');
+    if (state === 'recording') { stop(); return; }
+    if (state !== 'idle' && state !== 'failed') return;
+    if (!consent.checked) {
+      say('rec_st_consent', 'Bitte zuerst unten die Einwilligung bestätigen.', 'warn');
+      root.classList.remove('is-nudge');
+      void root.offsetWidth;
+      root.classList.add('is-nudge');
+      consent.focus();
+      return;
     }
-
-    /* Swap the call to action for a state, and move focus to the recorder so
-       keyboard and screen-reader users land on what just appeared. */
-    var label = button.querySelector('[data-i18n]');
-    if (label) label.textContent = t('rec_loaded', 'Rekorder geladen');
-    button.style.opacity = '0.5';
-
-    var hint = root.querySelector('.contrib-recorder__hint');
-    if (hint) {
-      hint.textContent = t('rec_loaded_hint',
-        'Mikrofon freigeben, alle acht Sätze am Stück vorlesen, anhören, absenden.');
-    }
-
-    mount.setAttribute('tabindex', '-1');
-    mount.focus({ preventScroll: true });
+    if (state === 'failed') { pending = null; fail.hidden = true; }
+    start();
   });
+
+  if (load('consent') === WEB_CONSENT) consent.checked = true;
+  consent.addEventListener('change', function () {
+    save('consent', consent.checked ? WEB_CONSENT : null);
+    if (consent.checked && lastStatus && lastStatus.key === 'rec_st_consent') say(null);
+  });
+
+  shuffle.addEventListener('click', function () {
+    if (shuffle.disabled) return;
+    showPrompt(nextPrompt());
+  });
+
+  retry.addEventListener('click', send);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && rec) stop();
+  });
+
+  /* The language switch rewrites data-i18n nodes; the dynamic ones follow. */
+  if (window.MutationObserver) {
+    new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  }
+
+  showPrompt(nextPrompt());
+  setState('idle');
 })();
 </script>
 
