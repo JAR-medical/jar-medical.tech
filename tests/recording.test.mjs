@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { readText } from './lib/repo.mjs';
+import { buildCorpus, corpusSource, COUNT, PER_PASSAGE } from '../tools/record-sentences.mjs';
 
 const source = readText('mitmachen-aufnahme.html');
 const recorder = source.match(/<script>\/\* js\/record\.js \*\/([\s\S]*?)<\/script>/)[1];
@@ -14,7 +15,8 @@ const api = source.match(/data-api="([^"]+)"/)[1];
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function settle() { for (let i = 0; i < 20; i++) await tick(); }
 
-function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0 } = {}) {
+// `storage` stands in for the tab's sessionStorage; pass one in to simulate a reload.
+function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0, storage = new Map() } = {}) {
   class Element {
     hidden = false; disabled = false; checked = false; textContent = ''; href = '';
     attrs = {}; handlers = {}; children = []; style = {};
@@ -43,7 +45,6 @@ function harness({ consented = false, clipState = 'basic_accepted', failUploads 
     createScriptProcessor() { const node = { connect() {}, disconnect() {}, onaudioprocess: null }; state.processors.push(node); return node; }
     createGain() { return { gain: {}, connect() {}, disconnect() {} }; }
   }
-  const storage = new Map();
   const sandbox = {
     document: {
       documentElement: { lang: 'de' },
@@ -131,35 +132,65 @@ test('nothing is requested and the microphone stays closed without consent', asy
   assert.equal(h.el('consent').focused, true);
 });
 
-test('a random passage is shown before recording, with numbers spelled out', () => {
+const PASSAGES = COUNT / PER_PASSAGE;
+const shownText = (h) => h.el('text').textContent.slice(1, -1);
+const passageOf = (h) => +h.storage.get('jar.rec.passage');
+
+test('the page ships the generated corpus of 800 sentences, unedited', () => {
+  const corpus = buildCorpus();
+  const shipped = source.match(/\/\* sentences:begin \*\/\n([\s\S]*?)  \/\* sentences:end \*\//)[1];
+  assert.equal(shipped, corpusSource(corpus), 'run `node tools/record-sentences.mjs` and bump CORPUS');
+  assert.equal(corpus.length, 800);
+  assert.equal(new Set(corpus).size, corpus.length, 'a sentence appears twice');
+  for (const s of corpus) {
+    assert.doesNotMatch(s, /\d/, `digits would not match what is said: ${s}`);
+    assert.match(s, /^[\x20-\x7e\u00a0-\u00ff]+$/, `INAM is Latin-1: ${s}`);
+    assert.match(s, /^[A-ZÄÖÜ][^.!?]*[.!?]$/, `not exactly one sentence: ${s}`);
+  }
+  // Until the script runs, the markup shows the first passage.
+  const fallback = source.match(/data-rec-text="">„([^<]*)“</)[1];
+  assert.equal(fallback, corpus.slice(0, PER_PASSAGE).join(' '));
+});
+
+test('a random passage of eight sentences is shown before recording', () => {
   const seen = new Set();
   for (let i = 0; i < 40; i++) {
     const h = harness();
     const text = h.el('text').textContent;
     assert.match(text, /^„.+“$/);
-    assert.doesNotMatch(text, /\d/, 'digits would not match what is actually said');
-    assert.ok(h.el('tag').textContent);
+    assert.equal(shownText(h).match(/[.!?](?= |$)/g).length, 8);
+    assert.equal(h.el('tag').textContent, `Text ${passageOf(h) + 1} von ${PASSAGES}`);
     seen.add(text);
   }
   assert.ok(seen.size > 10, `only ${seen.size} distinct passages in 40 page loads`);
 });
 
-test('"another text" does not repeat the template just shown', () => {
+test('"another text" rotates through all 800 sentences before repeating one', () => {
   const h = harness();
-  const templates = [];
-  for (let i = 0; i < 6; i++) {
-    templates.push(h.storage.get('jar.rec.recent').split(',').at(-1));
+  const start = passageOf(h), said = [];
+  for (let i = 0; i < PASSAGES; i++) {
+    assert.equal(passageOf(h), (start + i) % PASSAGES);
+    said.push(shownText(h));
     h.el('shuffle').fire('click');
   }
-  assert.equal(new Set(templates).size, templates.length);
+  assert.equal(passageOf(h), start, 'after the last passage it wraps round to the first');
+  assert.equal(new Set(said).size, PASSAGES);
+  assert.equal(said.join(' '), [...buildCorpus().slice(start * 8), ...buildCorpus().slice(0, start * 8)].join(' '));
+});
+
+test('a reload keeps the passage that was on screen', () => {
+  const storage = new Map();
+  const first = harness({ storage });
+  const shown = shownText(first);
+  assert.equal(shownText(harness({ storage })), shown);
 });
 
 test('a take is uploaded as 16 kHz mono PCM16 with the read text in its metadata', async () => {
   const h = harness({ consented: true });
-  const shown = h.el('text').textContent.slice(1, -1);
+  const shown = shownText(h), at = passageOf(h);
   h.click(); await settle();
   assert.equal(h.root.getAttribute('data-state'), 'recording');
-  h.speak(2.5);
+  h.speak(6.5);
   h.click(); await settle();
 
   const [session] = h.state.requests;
@@ -175,13 +206,13 @@ test('a take is uploaded as 16 kHz mono PCM16 with the read text in its metadata
   assert.equal(clip.headers['X-Medicraft-Session-Id'], 'ses_test');
   assert.equal(clip.headers['X-Medicraft-Task-Type'], 'read_aloud');
   assert.equal(decodeURIComponent(clip.headers['X-Medicraft-Expected-Text']), shown);
-  assert.match(clip.headers['X-Medicraft-Prompt-Id'], /^web-[a-z-]+-v\d+$/);
+  assert.equal(clip.headers['X-Medicraft-Prompt-Id'], `web-mstart-800-v1-p${String(at + 1).padStart(3, '0')}`);
   assert.ok(clip.headers['Idempotency-Key']);
 
   const wav = await parseWav(clip.body);
   assert.deepEqual(wav.chunks, ['fmt ', 'LIST', 'data'], 'INFO must precede data so streaming readers see it');
   assert.deepEqual(wav.fmt, { format: 1, channels: 1, rate: 16000, bits: 16 });
-  assert.ok(Math.abs(wav.dataBytes / 2 / 16000 - 2.5) < 0.3);
+  assert.ok(Math.abs(wav.dataBytes / 2 / 16000 - 6.5) < 0.3);
   assert.equal(wav.info.INAM, shown);
   assert.equal(wav.info.ISRC, clip.headers['X-Medicraft-Prompt-Id']);
   assert.match(wav.info.ICMT, /^[\x20-\x7e]+$/, 'ICMT JSON stays plain ASCII');
@@ -190,41 +221,51 @@ test('a take is uploaded as 16 kHz mono PCM16 with the read text in its metadata
   assert.equal(meta.prompt_id, clip.headers['X-Medicraft-Prompt-Id']);
   assert.equal(meta.language, 'de-DE');
   assert.equal(meta.sample_rate, 16000);
-  assert.ok(meta.template && meta.slots && meta.recorded_at && meta.consent);
+  assert.ok(meta.recorded_at && meta.consent);
+  // Every sentence read, with its corpus id, in the order it was shown.
+  assert.equal(meta.corpus, 'mstart-800-v1');
+  assert.equal(meta.passage, at + 1);
+  assert.deepEqual(meta.sentences.map((x) => x.id),
+    Array.from({ length: 8 }, (_, i) => 's' + String(at * 8 + i + 1).padStart(3, '0')));
+  assert.deepEqual(meta.sentences.map((x) => x.text), buildCorpus().slice(at * 8, at * 8 + 8));
+  assert.equal(meta.sentences.map((x) => x.text).join(' '), shown);
   assert.equal(h.state.tracksStopped, 1, 'the microphone is released after the take');
 
-  // Accepted: a new passage, a counter, and the deletion code.
+  // Accepted: the next passage, a counter, and the deletion code.
   assert.equal(h.root.getAttribute('data-state'), 'idle');
-  assert.notEqual(h.el('text').textContent.slice(1, -1), shown);
+  assert.equal(passageOf(h), (at + 1) % PASSAGES);
+  assert.notEqual(shownText(h), shown);
   assert.equal(h.el('code').hidden, false);
   assert.equal(h.el('status').getAttribute('data-kind'), 'ok');
 });
 
 test('the second take reuses the session', async () => {
   const h = harness({ consented: true });
-  for (let i = 0; i < 2; i++) { h.click(); await settle(); h.speak(1.5); h.click(); await settle(); }
+  for (let i = 0; i < 2; i++) { h.click(); await settle(); h.speak(5.5); h.click(); await settle(); }
   assert.equal(h.state.requests.filter((r) => r.url.endsWith('/contribution-sessions')).length, 1);
   assert.equal(uploads(h).length, 2);
 });
 
-test('a take shorter than a second is discarded locally', async () => {
+test('a take too short to hold the passage is discarded locally', async () => {
   const h = harness({ consented: true });
-  h.click(); await settle(); h.speak(0.4); h.click(); await settle();
+  const shown = shownText(h);
+  h.click(); await settle(); h.speak(3); h.click(); await settle();
   assert.equal(h.state.requests.length, 0);
+  assert.equal(shownText(h), shown);
   assert.equal(h.el('status').getAttribute('data-kind'), 'warn');
 });
 
 test('a rejected take keeps the same passage for another try', async () => {
   const h = harness({ consented: true, clipState: 'rejected' });
   const shown = h.el('text').textContent;
-  h.click(); await settle(); h.speak(1.5); h.click(); await settle();
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   assert.equal(h.el('text').textContent, shown);
   assert.equal(h.el('status').getAttribute('data-kind'), 'warn');
 });
 
 test('a failed upload keeps the take for retry or download, with the same idempotency key', async () => {
   const h = harness({ consented: true, failUploads: 1 });
-  h.click(); await settle(); h.speak(1.5); h.click(); await settle();
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   assert.equal(h.root.getAttribute('data-state'), 'failed');
   assert.equal(h.el('fail').hidden, false);
   assert.match(h.el('download').getAttribute('download'), /^web-.+\.wav$/);

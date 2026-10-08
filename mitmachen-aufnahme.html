@@ -9,7 +9,7 @@
      landing page's pair. Without it every page inherited the landing
      page's title the moment a visitor switched to English. -->
 <meta name="jar:page" content="record">
-<meta name="description" content="Lesen Sie einen zufällig zusammengestellten Funkspruch aus der Vorsichtung nach mSTaRT vor und nehmen Sie ihn direkt im Browser auf. Wenige Sekunden pro Text, kein Konto, kein Name.">
+<meta name="description" content="Lesen Sie acht kurze Funksprüche aus der Vorsichtung nach mSTaRT vor und nehmen Sie sie direkt im Browser auf. Unter einer Minute pro Text, kein Konto, kein Name.">
 <meta name="theme-color" content="#19183b">
 <link rel="canonical" href="https://jar-medical.tech/mitmachen-aufnahme.html">
 
@@ -2353,15 +2353,16 @@ ul, ol { list-style: none; padding: 0; }
   text-transform: uppercase;
   color: var(--accent);
 }
+/* Eight sentences have to fit beside the button without scrolling, and the
+   size stays put while recording so the lines do not reflow mid-read. */
 .rec__say {
   margin: 0;
-  font-size: clamp(1.35rem, 1.1rem + 1.2vw, 2rem);
-  line-height: 1.35;
+  font-size: clamp(1rem, 0.94rem + 0.3vw, 1.1875rem);
+  line-height: 1.6;
   font-weight: 500;
   color: var(--ink);
-  transition: font-size var(--dur) var(--ease-out);
+  overflow-wrap: break-word;
 }
-.rec[data-state="recording"] .rec__say { font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.35rem); }
 
 .rec__row {
   display: flex;
@@ -2496,8 +2497,8 @@ ul, ol { list-style: none; padding: 0; }
       <!-- The passage stays German in every interface language: it is what a
            volunteer reads to train a German recogniser. -->
       <figure class="rec__prompt" id="recPrompt" lang="de">
-        <figcaption class="rec__tag" data-rec-tag="">Kritische Blutung</figcaption>
-        <blockquote class="rec__say" data-rec-text="">„Kritische Blutung am rechten Oberschenkel. Tourniquet angelegt, vierzehn Uhr sieben. Sichtungskategorie eins.“</blockquote>
+        <figcaption class="rec__tag" data-rec-tag="">Text 1 von 100</figcaption>
+        <blockquote class="rec__say" data-rec-text="">„Patientin hundertzwei nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei. Sichtungstrupp zwei übernimmt ab sofort den Bereich am Bahnsteig zwei. Fordere drei Rettungswagen und einen Notarzt für Abschnitt Ost nach. Der Notarzt stuft Patient einundsiebzig in Sichtungskategorie vier ein, blau, abwartende Behandlung. Patientin siebzehn ohne Lebenszeichen, als verstorben gekennzeichnet. Patient zweiundvierzig: Atemfrequenz zwanzig pro Minute, Atmung unauffällig. Patientin einundsechzig: Prellmarken am Brustkorb, Schmerzen beim Atmen. Patientin neunundsechzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte vierundzwanzig Minuten.“</blockquote>
       </figure>
       <div class="rec__row">
         <button class="rec__link" type="button" data-rec-shuffle="" data-i18n="rec_shuffle">Anderen Text zeigen</button>
@@ -2617,7 +2618,7 @@ window.JAR_I18N = {
     meta_title_join: 'Contribute to the project | J.A.R. Medical',
     meta_desc_join: 'Help make J.A.R. better: play MediCraft, or read out short radio calls for the speech recognition.',
     meta_title_record: 'Record a radio call for the speech recognition | J.A.R. Medical',
-    meta_desc_record: 'Read out a randomly assembled mSTaRT radio call and record it straight in the browser. A few seconds per text, no account, no name.',
+    meta_desc_record: 'Read out eight short mSTaRT radio calls and record them straight in the browser. Under a minute per text, no account, no name.',
     meta_title_imprint: 'Imprint | J.A.R. Medical',
     meta_desc_imprint: 'Provider identification under § 5 DDG, contact details and liability notices for the website of J.A.R. Medical.',
     meta_title_privacy: 'Privacy policy | J.A.R. Medical',
@@ -3421,9 +3422,10 @@ window.JAR_I18N = {
 <script>/* js/record.js */
 /* ==========================================================================
    J.A.R. — in-browser recorder for the speech dataset
-   One randomly generated mSTaRT radio call per take. Each take is encoded as
-   a 16 kHz mono PCM16 WAV whose RIFF INFO chunk carries the exact text read
-   (INAM) and its full provenance as JSON (ICMT), then uploaded to our own
+   One passage of eight mSTaRT radio sentences per take, rotating through a
+   fixed set of 800. Each take is encoded as a 16 kHz mono PCM16 WAV whose
+   RIFF INFO chunk carries the exact text read (INAM) and its full provenance
+   as JSON (ICMT), every sentence with its id included, then uploaded to our own
    contribution API, which keeps the file byte for byte. Nothing is requested
    from any server before consent is ticked and a recording is stopped.
    ========================================================================== */
@@ -3436,8 +3438,10 @@ window.JAR_I18N = {
   var API = (root.getAttribute('data-api') || '').replace(/\/+$/, '');
   var API_CONSENT = '2026-08-25-v3';   /* the version the contribution API accepts */
   var WEB_CONSENT = 'web-2026-10-07';  /* the consent text shown on this page */
-  var RECORDER = 'jar-medical.tech/mitmachen-aufnahme v2';
-  var RATE = 16000, MAX_SECONDS = 60, MIN_SECONDS = 1;
+  var RECORDER = 'jar-medical.tech/mitmachen-aufnahme v3';
+  /* The contribution API rejects takes over 90 s; eight sentences take thirty
+     to fifty seconds, so anything under five cannot be the whole text. */
+  var RATE = 16000, MAX_SECONDS = 88, MIN_SECONDS = 5;
 
   function $(s) { return root.querySelector(s); }
   var btn = $('[data-rec-btn]'), label = $('[data-rec-label]'), clock = $('[data-rec-time]');
@@ -3467,124 +3471,850 @@ window.JAR_I18N = {
   }
 
   /* ----------------------------------------------------------------------
-     Random passages. Numbers are written out so the expected text matches
-     what is actually said. Bump a template's version when its wording changes.
+     Passages. SENTENCES is written by tools/record-sentences.mjs: 800
+     sentences with every number spelled out, so the expected text matches
+     what is said. A passage is eight consecutive sentences. Each tab starts
+     at a random passage and moves on by one after every take or "another
+     text", so all 800 sentences come round before any repeats; a reload
+     keeps the passage on screen. Regenerate rather than hand-edit, and bump
+     CORPUS whenever the wording changes.
      ---------------------------------------------------------------------- */
+  var CORPUS = 'mstart-800-v1';
+  var PER_PASSAGE = 8;
+  /* sentences:begin */
+  var SENTENCES = [
+    'Patientin hundertzwei nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Sichtungstrupp zwei übernimmt ab sofort den Bereich am Bahnsteig zwei.',
+    'Fordere drei Rettungswagen und einen Notarzt für Abschnitt Ost nach.',
+    'Der Notarzt stuft Patient einundsiebzig in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Patientin siebzehn ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Patient zweiundvierzig: Atemfrequenz zwanzig pro Minute, Atmung unauffällig.',
+    'Patientin einundsechzig: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Patientin neunundsechzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte vierundzwanzig Minuten.',
+    'Angehörige werden zur Betreuungsstelle im Bus vor dem Eingang gebracht.',
+    'Nachsichtung am Sammelpunkt Nord abgeschlossen, keine Änderungen.',
+    'Behandlungsplatz von Sichtungstrupp vier, kommen.',
+    'Achtung, verdächtiger Gegenstand an der Einfahrt Süd, Bereich sofort räumen!',
+    'Zweites Tourniquet am linken Oberschenkel angelegt, die Blutung ist jetzt gestoppt.',
+    'Anhängekarte für Patient drei ausgefüllt und am rechten Handgelenk befestigt.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zur Tribüne Nord.',
+    'Patientin siebenundsechzig: venöser Zugang gelegt und Bein geschient, Zustand unverändert.',
+    'Patientin sechzehn: Atemfrequenz fünfunddreißig pro Minute, Sichtungskategorie eins, rot.',
+    'Hier Sichtungstrupp drei, ich höre, kommen.',
+    'Zweite Nachsichtung bei Patient einundsechzig um zwölf Uhr vierundvierzig, Puls jetzt hundert.',
+    'Bitte sechs Schaufeltragen und vier Vakuummatratzen zur Einfahrt Süd.',
+    'Patientenablage drei ist voll, neue Patienten bitte zur Ablage vier.',
+    'Guedeltubus bei Patientin fünf eingelegt, die Atmung ist jetzt ruhiger.',
+    'Vorrang für NEF drei, alle anderen bitte Funkdisziplin halten.',
+    'Abschnitt Süd meldet zwei Tote und sechs Schwerverletzte.',
+    'Übergabe an RTW sechs: Patient hundertdreizehn, Sichtungskategorie zwei, kreislaufstabil.',
+    'Patientin hundertzwei hat noch keine Anhängekarte, bitte nachsichten.',
+    'Fordere fünf Rettungswagen und einen Notarzt für Abschnitt Süd nach.',
+    'Wir brauchen dringend vier Tourniquets und Verbandmaterial im hinteren Bus.',
+    'Nehmen Sie regelmäßig Medikamente, zum Beispiel Blutverdünner?',
+    'Patientin zehn: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort ins Festzelt.',
+    'Bitte einen Krankentransportwagen für vier Leichtverletzte zum Vorplatz.',
+    'Patient einundsiebzig: Puls hunderteinundfünfzig pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Patient siebenundvierzig hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Einsatzleitung von Sichtungstrupp sechs: Abschnitt Ost vollständig gesichtet.',
+    'Patientin neunundachtzig: Pfählungsverletzung am rechten Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Patient fünfundachtzig ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Patientin dreiundsechzig: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Die Betreuungsstelle für Unverletzte ist im Feuerwehrhaus eingerichtet.',
+    'Erste Lagemeldung: Massenkarambolage im Nebel, etwa hundertdreizehn Verletzte.',
+    'Patient neunzehn: Puls hundertvierundfünfzig pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Meldung verstanden, wir sind in vierzehn Minuten bei Ihnen.',
+    'Hier Sichtungstrupp vier, ich höre, kommen.',
+    'Gefahrenbereich am Busbahnhof, Betreten nur mit Atemschutz.',
+    'Patient hundert reagiert nur auf Schmerzreiz, Pupillen weit.',
+    'Angehörige werden zur Betreuungsstelle im Feuerwehrhaus gebracht.',
+    'Der Rettungshubschrauber landet in sechs Minuten auf dem Parkplatz Ost.',
+    'Patient vierundzwanzig: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Abschnittsleitung Mitte an Einsatzleitung: Das Personal reicht nicht aus.',
+    'Starke Blutung am Hals bei Patient fünfundvierzig, manuelle Kompression läuft.',
+    'Gefahrenbereich im zweiten Waggon, Betreten nur mit Atemschutz.',
+    'Patientin vierundneunzig: offene Fraktur am rechten Oberschenkel, Wunde steril abgedeckt.',
+    'Patientin einundvierzig: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort zum Parkplatz Ost.',
+    'Patientin siebenundsiebzig ist verwirrt und weiß nicht, wo sie sich befindet.',
+    'Achtung, verdächtiger Gegenstand am Ausgang West, Bereich sofort räumen!',
+    'Die Leichtverletzten im hinteren Bus werden von vier Helfern betreut.',
+    'Patientin sechsundneunzig: Atemfrequenz neunzehn pro Minute, Atmung unauffällig.',
+    'Patientin neunundfünfzig: Atemfrequenz fünfunddreißig pro Minute, Sichtungskategorie eins, rot.',
+    'Hier Sichtungstrupp neun, ich höre, kommen.',
+    'Patient hundertvier: Puls hundertvierundfünfzig pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Patient hundertzwei: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Patient siebzig: Blutzucker zweihundertzweiundzwanzig Milligramm pro Deziliter.',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patientin einunddreißig wieder ein.',
+    'Kind, etwa elf Jahre alt, weint, ist ansprechbar und atmet normal.',
+    'Bitte bei allen Patienten im hinteren Bus auf Wärmeerhalt achten.',
+    'Patient fünfundachtzig wird ins Verbrennungszentrum gebracht, die Voranmeldung ist erfolgt.',
+    'Der Rettungshubschrauber landet in vier Minuten auf der gesperrten Fahrbahn.',
+    'Patient zweiundsechzig, etwa neununddreißig Jahre alt, unruhig.',
+    'Wir brauchen dringend fünf Tourniquets und Verbandmaterial in der Tiefgarage.',
+    'Patient zweiundachtzig: Blutdruck hundertvierundachtzig zu hundertacht, Puls sechsundachtzig.',
+    'Patientin neunundachtzig: Glasgow Coma Scale dreizehn, Verdacht auf Schädel-Hirn-Trauma.',
+    'Zweite Nachsichtung bei Patient dreiundzwanzig um zwölf Uhr fünfzehn, Puls jetzt hundertsechzehn.',
+    'Patient neunundzwanzig: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Bitte eine kurze Lagemeldung für Abschnitt West, kommen.',
+    'Patientin fünfzig ist schwanger, etwa im neunten Monat, und hat Bauchschmerzen.',
+    'Patientin sechs: Glasgow Coma Scale sieben, Verdacht auf Schädel-Hirn-Trauma.',
+    'Patient achtundvierzig trägt einen Herzschrittmacher, der Ausweis liegt vor.',
+    'Patient achtunddreißig: Amputationsverletzung am rechten Unterarm, das Amputat ist gesichert.',
+    'Ich bestätige fünf Patienten am Busbahnhof, kommen.',
+    'Patientin einundneunzig: Blutdruck hundertzweiunddreißig zu siebenundfünfzig, Puls hundertvierzig, Sättigung siebenundachtzig Prozent.',
+    'Patient zweiundsechzig: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Patientin hundertzwanzig: spritzende Blutung am rechten Sprunggelenk, ein Druckverband reicht nicht aus.',
+    'Venöser Zugang bei Patient neunzig liegt, die Infusion läuft.',
+    'Patient sechzehn: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort zum Vorplatz.',
+    'Patient einunddreißig abtransportiert mit RTW eins in die Kinderklinik, Abfahrt neun Uhr zehn.',
+    'Patient neunundvierzig: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Patient dreiundfünfzig nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Gefahrenbereich am Haupteingang, Betreten nur mit Atemschutz.',
+    'Patientin neunundneunzig: Blutzucker hundertvierzig Milligramm pro Deziliter.',
+    'Patient neunundachtzig: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Patientin siebenunddreißig trägt einen Herzschrittmacher, der Ausweis liegt vor.',
+    'Patient neunundvierzig: Körpertemperatur neununddreißig Komma sieben Grad.',
+    'Venöser Zugang bei Patientin acht liegt, die Infusion läuft.',
+    'Wir brauchen sechs Helfer zum Tragen an der Bühne.',
+    'Der Behandlungsplatz ist betriebsbereit, Kapazität einundvierzig Patienten.',
+    'Patient zwei wird in die Unfallklinik gebracht, die Voranmeldung ist erfolgt.',
+    'Bitte drei Schaufeltragen und zwei Vakuummatratzen zur Fußgängerbrücke.',
+    'Patient achtundachtzig: Blutdruck hundertzwölf zu siebzig, Puls achtundsiebzig.',
+    'Transportpriorität eins für Patientin vier, Zielklinik ist das Klinikum Nord.',
+    'Halswirbelsäule bei Patient einundzwanzig manuell stabilisiert, Zervikalstütze angelegt.',
+    'Rettungswagen vier ist wieder frei und meldet sich am Rettungsmittelhalteplatz.',
+    'Fordere sieben Rettungswagen und einen Notarzt für Abschnitt Süd nach.',
+    'Patientin achtunddreißig hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Patient fünfundsechzig: Verbrennungen an beiden Armen, etwa neununddreißig Prozent der Körperoberfläche.',
+    'Die Einsatzstelle ist abgesperrt, Zufahrt nur über die Nordseite.',
+    'Gehfähige werden im Festzelt registriert und betreut.',
+    'Patientin siebenundzwanzig: Körpertemperatur fünfunddreißig Komma sechs Grad.',
+    'Patientin vierzig wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Patientin dreiundsiebzig abtransportiert mit Rettungswagen zwei in die Kreisklinik, Abfahrt acht Uhr sechzehn.',
+    'Patientin einundzwanzig: Blutzucker hundertsiebzehn Milligramm pro Deziliter.',
+    'Kind ohne Begleitperson in der Sporthalle, bitte Betreuung schicken.',
+    'Nachsichtung an der Bühne abgeschlossen, keine Änderungen.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patientin zwei spricht nur Ukrainisch.',
+    'Bitte eine kurze Lagemeldung für Abschnitt Süd, kommen.',
+    'Patientin einundvierzig: Sauerstoffsättigung zweiundneunzig Prozent unter Raumluft.',
+    'Patient neunundzwanzig: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Patientin achtzehn: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Patientin vierundachtzig: Amputationsverletzung am rechten Unterarm, das Amputat ist gesichert.',
+    'Die Feuerwehr gibt den Bereich an der Bühne wieder frei.',
+    'Patientin fünfundzwanzig ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Patientin neunundzwanzig gibt Schmerzen von zehn auf einer Skala bis zehn an, vor allem im Kopf.',
+    'Die Einsatzstelle ist abgesperrt, Zufahrt nur über die Bahnhofstraße.',
+    'Patientin einundneunzig trägt einen Herzschrittmacher, der Ausweis liegt vor.',
+    'Gehfähige werden an der Bühne registriert und betreut.',
+    'Bitte eine kurze Lagemeldung für Abschnitt Nord, kommen.',
+    'Patient fünfundzwanzig: Glasgow Coma Scale zwölf, Verdacht auf Schädel-Hirn-Trauma.',
+    'Achtung, alle, die gehen können, sammeln sich bitte am Bahnsteig zwei!',
+    'Bisher sieben rote, sieben gelbe und vierzig grüne Patienten registriert.',
+    'Hallo, ich bin von der Feuerwehr, können Sie mich hören?',
+    'Patient neunundfünfzig: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Patient zweiundzwanzig nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Patientin sechsundfünfzig: Blutdruck hundertachtundfünfzig zu vierundfünfzig, Puls neunundsiebzig, Sättigung sechsundneunzig Prozent.',
+    'Patient siebzig bekommt zehn Liter Sauerstoff pro Minute über eine Maske.',
+    'Bitte fünf Schaufeltragen und vier Vakuummatratzen zum hinteren Bus.',
+    'Patientin achtzehn ist verwirrt und weiß nicht, wo sie sich befindet.',
+    'Wir haben insgesamt siebenunddreißig Verletzte, davon siebzehn schwer.',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patientin hundertneunzehn wieder ein.',
+    'Der Behandlungsplatz ist betriebsbereit, Kapazität fünfzig Patienten.',
+    'Nachsichtung am Bahnsteig zwei abgeschlossen, keine Änderungen.',
+    'Patientenablage eins ist voll, neue Patienten bitte zur Ablage zwei.',
+    'Patient zweiundvierzig: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Patient dreiundsechzig: gehfähig, Prellung an der Schulter, Sichtungskategorie drei, grün.',
+    'Patientin dreiundachtzig: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Alle Sichtungstrupps bitte um zehn Uhr achtundfünfzig zur Lagebesprechung.',
+    'Bitte einen Rettungshubschrauber für Patientin siebenundsechzig anfordern.',
+    'Patient elf: Puls dreiundvierzig pro Minute, sehr langsam und unregelmäßig.',
+    'Die Funkverbindung am Ausgang West ist schlecht, ich melde mich gleich erneut.',
+    'Patient zweiundneunzig: Atemfrequenz sechsunddreißig pro Minute, Sichtungskategorie eins, rot.',
+    'RTW vier mit Patientin vierundneunzig unterwegs, Eintreffen in fünf Minuten.',
+    'Patientin hundertzwölf: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Patientin einundsiebzig: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Fordere sieben Rettungswagen und einen Notarzt für Abschnitt Ost nach.',
+    'Guedeltubus bei Patientin dreiundzwanzig eingelegt, die Atmung ist jetzt ruhiger.',
+    'Patientenablage zwei ist voll, neue Patienten bitte zur Ablage eins.',
+    'Patientin eins nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Haben Sie Allergien gegen Medikamente?',
+    'Das Klinikum Nord kann noch neun Patienten aufnehmen.',
+    'Johannes Neubiberg dreiundsechzig sieben von Rotkreuz Unterhaching elf fünf, kommen.',
+    'Leitstelle von Sichtungstrupp sieben, kommen.',
+    'Bitte Material für Brandverletzte und Kühlung ins Treppenhaus.',
+    'Sichtungstrupp fünf übernimmt ab sofort den Bereich am Sammelpunkt Süd.',
+    'Patient zwanzig: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Patientin fünfundzwanzig trägt einen Herzschrittmacher, der Ausweis liegt vor.',
+    'Atemgeräusch rechts abgeschwächt, Patientin fünfzig bleibt Sichtungskategorie eins.',
+    'Ich bestätige drei Patienten am Bahnsteig vier, kommen.',
+    'Halswirbelsäule bei Patientin siebenundvierzig manuell stabilisiert, Zervikalstütze angelegt.',
+    'Wir brauchen Beleuchtung im hinteren Bus, es wird dunkel.',
+    'Patientin dreiundsechzig: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Patient zweiundsechzig ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Patient neunundneunzig: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Patient einundneunzig wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Achtung, verdächtiger Gegenstand in der Tiefgarage, Bereich sofort räumen!',
+    'Patient siebenundzwanzig: Sichtungskategorie eins, rot, Transport sofort.',
+    'Patient achtundsiebzig hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Rettungswagen drei mit Patientin dreiundsiebzig unterwegs, Eintreffen in dreizehn Minuten.',
+    'Patient dreiundachtzig: Verbrennungen an beiden Armen, etwa sechsundzwanzig Prozent der Körperoberfläche.',
+    'Patient einundfünfzig: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Patient hundertdrei: Atemfrequenz achtzehn pro Minute, Atmung unauffällig.',
+    'Rettungswagen fünf mit Patient hundertdrei unterwegs, Eintreffen in acht Minuten.',
+    'Patient sechsundsiebzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte zweiundzwanzig Minuten.',
+    'Wir haben insgesamt neunundvierzig Verletzte, davon neunzehn schwer.',
+    'Patient zwölf: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Patient hundertdrei: Blutdruck siebenundachtzig zu neunundfünfzig, Puls achtundsiebzig, Sättigung achtundneunzig Prozent.',
+    'Achtung, Gasgeruch am Haupteingang, alle sofort zurück!',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patient einundzwanzig wieder ein.',
+    'Die Leichtverletzten an der Tribüne Nord werden von sechs Helfern betreut.',
+    'Gefahrenbereich in der Unterführung, Betreten nur mit Atemschutz.',
+    'Patientin hunderteins wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Patient sechsundachtzig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Die Funkverbindung auf dem Vorplatz ist schlecht, ich melde mich gleich erneut.',
+    'Patient achtzig: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Patient sieben hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Zweite Nachsichtung bei Patient hundertvier um dreiundzwanzig Uhr zwölf, Puls jetzt achtundsechzig.',
+    'Patient siebenundachtzig: Blutzucker hundertdreiundzwanzig Milligramm pro Deziliter.',
+    'Die Kreisklinik meldet: Schockraum belegt, Aufnahme erst in siebenundfünfzig Minuten.',
+    'Bitte einen Krankentransportwagen für vier Leichtverletzte zur Fußgängerbrücke.',
+    'Patientin neunundneunzig: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Abschnittsleitung West an Einsatzleitung: Das Personal reicht nicht aus.',
+    'Patientin vierundsiebzig nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Patient hundertacht nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Tourniquet bei Patient vierundzwanzig sitzt, die Blutung steht, Anlagezeit zwanzig Uhr siebenunddreißig.',
+    'Patientin zwanzig: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Patientin vierundvierzig ist schwanger, etwa im neunten Monat, und hat Bauchschmerzen.',
+    'Patient zehn atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Zwischenstand Abschnitt Nord: viermal rot, vierzehnmal gelb, einundzwanzigmal grün.',
+    'Rotkreuz Unterhaching zweiundachtzig fünf von Malteser Haar sechzehn vier, kommen.',
+    'Patient fünfundachtzig ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Bitte bei allen Patienten im zweiten Waggon auf Wärmeerhalt achten.',
+    'Patient vierundvierzig: Puls sechsundvierzig pro Minute, sehr langsam und unregelmäßig.',
+    'Patientin zwei nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Patientin siebenundvierzig: spritzende Blutung am linken Sprunggelenk, ein Druckverband reicht nicht aus.',
+    'Bitte wiederholen Sie die letzte Meldung, ich habe nur die Hälfte verstanden.',
+    'Halswirbelsäule bei Patientin hundertzwanzig manuell stabilisiert, Zervikalstütze angelegt.',
+    'Patient hundertsechzehn: Verbrennungen an beiden Armen, etwa zwölf Prozent der Körperoberfläche.',
+    'Patient acht hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Bitte bleiben Sie hier sitzen, gleich kommt jemand zu Ihnen.',
+    'Starke Rauchentwicklung an der Rolltreppe, der Bereich wird geräumt.',
+    'Wir brauchen zehn Helfer zum Tragen im hinteren Bus.',
+    'Florian Unterhaching zweiundvierzig sieben von Johannes Putzbrunn siebenundneunzig acht, kommen.',
+    'Patientin dreiundsechzig: Blutdruck hunderteinundzwanzig zu fünfundneunzig, Puls achtundvierzig, Sättigung fünfundneunzig Prozent.',
+    'Bisher sechs rote, vier gelbe und achtundzwanzig grüne Patienten registriert.',
+    'An der Einfahrt Süd liegen noch vierzehn Patienten, die nicht gesichtet sind.',
+    'Die Einsatzstelle ist abgesperrt, Zufahrt nur über die Südseite.',
+    'Rettungswagen sechs ist wieder frei und meldet sich am Rettungsmittelhalteplatz.',
+    'Patientin sechsundvierzig: Puls hundertfünfundfünfzig pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zum hinteren Bus.',
+    'An der Einfahrt Süd liegen noch fünf Patienten, die nicht gesichtet sind.',
+    'Sichtungstrupp neun übernimmt ab sofort den Bereich am Parkplatz Ost.',
+    'Patient vier: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Patient fünfundsiebzig hat noch keine Anhängekarte, bitte nachsichten.',
+    'Die Kinderklinik kann noch vier Patienten aufnehmen.',
+    'Das Verbrennungszentrum meldet: Schockraum belegt, Aufnahme erst in fünfunddreißig Minuten.',
+    'Patientin zweiundsiebzig: Puls fünfzig pro Minute, sehr langsam und unregelmäßig.',
+    'Patientin achtundsechzig: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Patientin sechsundneunzig: Glasgow Coma Scale neun, Verdacht auf Schädel-Hirn-Trauma.',
+    'Patientin hundertzwölf war eingeklemmt, die Befreiung durch die Feuerwehr dauerte siebenundzwanzig Minuten.',
+    'Bitte bei allen Patienten am Ausgang West auf Wärmeerhalt achten.',
+    'Patient zwölf: keine Atmung, ich mache die Atemwege frei.',
+    'Gehfähige werden am Bahnsteig vier registriert und betreut.',
+    'Alle Einheiten bitte auf Kanal vierundvierzig wechseln.',
+    'Hier Sichtungstrupp eins, ich höre, kommen.',
+    'Starke Blutung am Hals bei Patient dreiundfünfzig, manuelle Kompression läuft.',
+    'Patient eins ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Bitte Material für Brandverletzte und Kühlung zum zweiten Waggon.',
+    'Meldung verstanden, wir sind in vier Minuten bei Ihnen.',
+    'Patientin elf: Sichtungskategorie drei, grün, Transport nachrangig.',
+    'Patient zwölf gibt Schmerzen von vier auf einer Skala bis zehn an, vor allem im Nacken.',
+    'Guedeltubus bei Patientin vierundzwanzig eingelegt, die Atmung ist jetzt ruhiger.',
+    'Patientenanhängekarte für Patientin fünfzig ausgefüllt und am linken Handgelenk befestigt.',
+    'Patient siebenundsiebzig ist gehfähig und geht selbstständig zur Sporthalle.',
+    'Patientin siebenundvierzig: Blutdruck hunderteinunddreißig zu fünfundsiebzig, Puls neunundneunzig.',
+    'Patient fünfundsiebzig ist verwirrt und weiß nicht, wo er sich befindet.',
+    'Patientin sechsundsiebzig reagiert nur auf Schmerzreiz, Pupillen anisokor.',
+    'Patient neunundneunzig: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Starke Blutung am Hals bei Patient elf, manuelle Kompression läuft.',
+    'Kind, etwa sechs Jahre alt, weint, ist ansprechbar und atmet normal.',
+    'Gefahrenbereich an der Tribüne Nord, Betreten nur mit Atemschutz.',
+    'Bitte einen Rettungshubschrauber für Patientin hundertzehn anfordern.',
+    'Wir brauchen drei Helfer zum Tragen auf dem Schulhof.',
+    'Patientin achtundsechzig nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Patientin vierzig ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Patientin hundertsechs: Puls hundertdreizehn pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Die Leichtverletzten am Bahnsteig zwei werden von drei Helfern betreut.',
+    'Alle Einheiten bitte auf Kanal neununddreißig wechseln.',
+    'Alle Sichtungstrupps bitte um acht Uhr sechsundfünfzig zur Lagebesprechung.',
+    'Wir brauchen zwölf weitere Tragen an der Tribüne Nord.',
+    'Patientin neunundsechzig: spritzende Blutung am linken Unterarm, ein Druckverband reicht nicht aus.',
+    'Patientenablage zwei ist voll, neue Patienten bitte zur Ablage drei.',
+    'Patientin hundertvierzehn: Pfählungsverletzung am linken Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patientin fünfzig wird engmaschig überwacht.',
+    'Wir brauchen dringend acht Tourniquets und Verbandmaterial im hinteren Bus.',
+    'Patient sieben: Arm geschient und Infusion angehängt, Zustand unverändert.',
+    'Kritische Blutung am rechten Oberschenkel, Tourniquet angelegt um zwölf Uhr achtunddreißig.',
+    'Wir haben insgesamt dreiundsechzig Verletzte, davon drei schwer.',
+    'Patient fünfundvierzig: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Kind, etwa zwölf Jahre alt, weint, ist ansprechbar und atmet normal.',
+    'Patient dreiundvierzig: Verdacht auf Schlüsselbeinfraktur, Sichtungskategorie zwei, gelb.',
+    'Achtung, Gasgeruch im Treppenhaus, alle sofort zurück!',
+    'Abschnitt Mitte meldet vier Tote und sechs Schwerverletzte.',
+    'Patient vierzig: keine Atmung, ich mache die Atemwege frei.',
+    'Vorrang für Notarzt sechs, alle anderen bitte Funkdisziplin halten.',
+    'Patient hundertzehn: Verbrennungen an beiden Armen, etwa vierunddreißig Prozent der Körperoberfläche.',
+    'Patientin zweiundneunzig: Pfählungsverletzung am linken Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Abschnittsleitung West von Sichtungstrupp fünf, kommen.',
+    'Venöser Zugang bei Patient zweiundfünfzig liegt, die Infusion läuft.',
+    'Atemgeräusch rechts abgeschwächt, Patient vierzig bleibt Sichtungskategorie eins.',
+    'Patientin achtundfünfzig: Puls vierzig pro Minute, sehr langsam und unregelmäßig.',
+    'Patient hundertsieben ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Patient hundertsieben war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Patientin sieben: Atemfrequenz zweiunddreißig pro Minute, Sichtungskategorie eins, rot.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patient fünfundsechzig wird engmaschig überwacht.',
+    'Patient sechsundvierzig ist Diabetiker und hat seit Stunden nichts gegessen.',
+    'Übergabe an Rettungswagen drei: Patientin dreiundachtzig, Sichtungskategorie eins, kreislaufstabil.',
+    'Patientin siebenundvierzig nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Meldung verstanden, wir sind in zwei Minuten bei Ihnen.',
+    'Zwischenstand Abschnitt Mitte: siebenmal rot, dreimal gelb, elfmal grün.',
+    'Patientin siebenundzwanzig: Körpertemperatur fünfunddreißig Komma fünf Grad.',
+    'Am Ausgang West liegen noch sechs Patienten, die nicht gesichtet sind.',
+    'Erste Lagemeldung: Busunfall auf der Autobahn, etwa fünfundvierzig Verletzte.',
+    'Wir brauchen Beleuchtung am Sammelpunkt Nord, es wird dunkel.',
+    'Patient vierzehn wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Übergabe an Rettungswagen drei: Patient drei, Sichtungskategorie eins, kreislaufstabil.',
+    'Abschnitt Mitte meldet zwei Tote und neun Schwerverletzte.',
+    'Patient hundertzwei: gehfähig, Kratzer im Gesicht, Sichtungskategorie drei, grün.',
+    'Einsturzgefahr im hinteren Bus, Rettungskräfte bitte zurückziehen.',
+    'Patientin siebenundvierzig: Körpertemperatur achtunddreißig Komma eins Grad.',
+    'Die Leichtverletzten im Treppenhaus werden von zwei Helfern betreut.',
+    'Patient hunderteins ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Die Sichtung im Abschnitt Mitte dauert noch etwa zwanzig Minuten.',
+    'Patientin fünfundsiebzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte neunzehn Minuten.',
+    'Der Notarzt stuft Patientin hundertzwanzig in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Einsatzleitung von Sichtungstrupp fünf: Abschnitt Mitte vollständig gesichtet.',
+    'Alle Sichtungstrupps bitte um zwölf Uhr fünfunddreißig zur Lagebesprechung.',
+    'Patient zwanzig: Verdacht auf Handgelenksfraktur, Sichtungskategorie zwei, gelb.',
+    'Bitte einen Rettungshubschrauber für Patient neunzig anfordern.',
+    'Fordere acht Rettungswagen und einen Notarzt für Abschnitt West nach.',
+    'Patientin siebzig: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Bitte einen Krankentransportwagen für zwei Leichtverletzte ins Treppenhaus.',
+    'Nachsichtung im zweiten Waggon abgeschlossen, keine Änderungen.',
+    'Patientin vierundfünfzig bekommt sechs Liter Sauerstoff pro Minute über eine Maske.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patientin dreißig wird engmaschig überwacht.',
+    'Patientin dreiunddreißig hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Ich bestätige zehn Patienten in der Tiefgarage, kommen.',
+    'Patient fünfundzwanzig: keine Atmung, ich mache die Atemwege frei.',
+    'Transportpriorität eins für Patientin zweiundzwanzig, Zielklinik ist die Kinderklinik.',
+    'Bisher elf rote, drei gelbe und dreizehn grüne Patienten registriert.',
+    'Patientin sechsunddreißig reagiert nur auf Schmerzreiz, Pupillen isokor.',
+    'Patient fünfundsiebzig: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Wir bringen Sie jetzt in ein Krankenhaus, ein Kollege bleibt bei Ihnen.',
+    'Patientin dreiundachtzig: gehfähig, Schnittwunde an der rechten Hand, Sichtungskategorie drei, grün.',
+    'Patientin hundertdreizehn ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Wir brauchen dringend sieben Tourniquets und Verbandmaterial am Busbahnhof.',
+    'Bitte einen Rettungshubschrauber für Patientin hundertzwei anfordern.',
+    'Patientin fünfundzwanzig reagiert nur auf Schmerzreiz, Pupillen eng.',
+    'Patient achtundachtzig atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Patientin einundneunzig ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Patientin sechsundvierzig: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Patient siebzehn nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Patientin fünfundvierzig nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Patient einundachtzig: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patient achtundsechzig wieder ein.',
+    'Verstanden, Sichtungstrupp eins geht zum Sammelpunkt Süd, Ende.',
+    'Atemgeräusch links abgeschwächt, Patientin vierundvierzig bleibt Sichtungskategorie eins.',
+    'Patient dreiundsiebzig: Sauerstoffsättigung fünfundneunzig Prozent unter Raumluft.',
+    'Patientin hundertsechs: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Atemgeräusch rechts abgeschwächt, Patientin achtundsiebzig bleibt Sichtungskategorie eins.',
+    'Patientin hundertzehn ist verwirrt und weiß nicht, wo sie sich befindet.',
+    'Einsatzleitung von Sichtungstrupp zwei, kommen.',
+    'Patient hundertdrei: Atemfrequenz vierzehn pro Minute, Atmung unauffällig.',
+    'Patient neunundfünfzig hat noch keine Anhängekarte, bitte nachsichten.',
+    'Wir brauchen fünf Helfer zum Tragen im Festzelt.',
+    'Patientin siebenunddreißig: Sauerstoffsättigung neunundachtzig Prozent unter Raumluft.',
+    'Die Sichtung im Abschnitt Süd dauert noch etwa vierundzwanzig Minuten.',
+    'Neununddreißig gehfähige Verletzte im zweiten Waggon, alle Sichtungskategorie drei, grün.',
+    'Wir brauchen Beleuchtung an der Einfahrt Süd, es wird dunkel.',
+    'Patient hundertzwanzig: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Abschnittsleitung Nord an Einsatzleitung: Das Personal reicht nicht aus.',
+    'Patient fünfundachtzig: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Patient zweiunddreißig war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Patient sechsundachtzig: offene Fraktur am rechten Unterarm, Wunde steril abgedeckt.',
+    'Patientin zweiundvierzig ist Diabetikerin und hat seit Stunden nichts gegessen.',
+    'Erste Lagemeldung: Brand in einer Lagerhalle, etwa fünfundvierzig Verletzte.',
+    'Patientin sechsundsiebzig: keine Atmung, ich mache die Atemwege frei.',
+    'Die Betreuungsstelle für Unverletzte ist im Gemeindehaus eingerichtet.',
+    'Halswirbelsäule bei Patient hundertdrei manuell stabilisiert, Zervikalstütze angelegt.',
+    'Rettungswagen zwei ist wieder frei und meldet sich am Rettungsmittelhalteplatz.',
+    'Patientin sechsunddreißig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Meldung verstanden, wir sind in fünf Minuten bei Ihnen.',
+    'Patient zweiundachtzig: Verbrennungen an beiden Armen, etwa dreizehn Prozent der Körperoberfläche.',
+    'Patient einundzwanzig: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Patient vierunddreißig: Amputationsverletzung am rechten Unterarm, das Amputat ist gesichert.',
+    'Patientin achtundzwanzig nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Am Behandlungsplatz wird ein zusätzlicher Notarzt benötigt.',
+    'RTW vier mit Patient dreiundsiebzig unterwegs, Eintreffen in sieben Minuten.',
+    'Patient hundertelf nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patient zweiundvierzig spricht nur Russisch.',
+    'Die Sichtung im Abschnitt Ost dauert noch etwa zwanzig Minuten.',
+    'Patientin hunderteins nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Patientin zweiundfünfzig: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Siebzehn gehfähige Verletzte am Parkplatz Ost, alle Sichtungskategorie drei, grün.',
+    'Bisher zehn rote, zwölf gelbe und zweiunddreißig grüne Patienten registriert.',
+    'Patientin sechsundvierzig: Blutzucker hundertvierundsiebzig Milligramm pro Deziliter.',
+    'Patient fünfundsechzig: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Kritische Blutung am linken Oberarm, Tourniquet angelegt um sechzehn Uhr dreizehn.',
+    'Patient achtundzwanzig: Sauerstoffsättigung neunundneunzig Prozent unter Raumluft.',
+    'Patientin sechsundachtzig: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Patient siebenundneunzig: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Patient siebenundsiebzig: Blutdruck hundertfünf zu fünfundvierzig, Puls zweiundfünfzig.',
+    'Atemgeräusch rechts abgeschwächt, Patient dreizehn bleibt Sichtungskategorie eins.',
+    'Der Rettungshubschrauber landet in acht Minuten auf der Wiese hinter der Halle.',
+    'Patient fünfundzwanzig war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Patientin hundertacht ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Die Funkverbindung an der Tribüne Nord ist schlecht, ich melde mich gleich erneut.',
+    'Patientin siebenundsechzig: spritzende Blutung am rechten Oberarm, ein Druckverband reicht nicht aus.',
+    'Achtung, Gasgeruch im zweiten Waggon, alle sofort zurück!',
+    'Patientin hundertachtzehn: keine Atmung, ich mache die Atemwege frei.',
+    'Meldung verstanden, wir sind in zwölf Minuten bei Ihnen.',
+    'Bitte Material für Brandverletzte und Kühlung ins Festzelt.',
+    'Patientin siebenundachtzig nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Starke Blutung am Hals bei Patientin zwei, manuelle Kompression läuft.',
+    'Sichtungstrupp acht übernimmt ab sofort den Bereich am Haupteingang.',
+    'Starke Rauchentwicklung an der Bühne, der Bereich wird geräumt.',
+    'Die Einsatzstelle ist abgesperrt, Zufahrt nur über die Hauptstraße.',
+    'Rettungswagen elf ist wieder frei und meldet sich am Rettungsmittelhalteplatz.',
+    'Patientin hundert: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort ins Festzelt.',
+    'Alle Sichtungstrupps bitte um dreiundzwanzig Uhr vierundzwanzig zur Lagebesprechung.',
+    'Patient sieben: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Patient vierundvierzig, etwa sechsunddreißig Jahre alt, eingetrübt.',
+    'Patient sechzehn gibt Schmerzen von acht auf einer Skala bis zehn an, vor allem in der Brust.',
+    'Patient zwei ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Patient vier: Körpertemperatur vierunddreißig Komma vier Grad.',
+    'Patient einundfünfzig ist Diabetiker und hat seit Stunden nichts gegessen.',
+    'Kind ohne Begleitperson im hinteren Bus, bitte Betreuung schicken.',
+    'Patientin hundertvier: Sichtungskategorie zwei, gelb, Transport dringend.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patient sechsundzwanzig wird engmaschig überwacht.',
+    'Patientin neununddreißig war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Der Rettungshubschrauber landet in elf Minuten auf der gesperrten Fahrbahn.',
+    'Patient neunundfünfzig: Verdacht auf Kohlenmonoxidvergiftung, Sichtungskategorie zwei, gelb.',
+    'Patientin hundertfünf bekommt zwölf Liter Sauerstoff pro Minute über eine Maske.',
+    'Der Notarzt hat Patientin vierundsechzig ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Einsatzleitung von Sichtungstrupp neun, kommen.',
+    'Patient hundertdrei: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Patient zweiundachtzig: Glasgow Coma Scale elf, Verdacht auf Schädel-Hirn-Trauma.',
+    'Bitte bei allen Patienten auf dem Vorplatz auf Wärmeerhalt achten.',
+    'Patient achtundneunzig trägt einen Herzschrittmacher, der Ausweis liegt vor.',
+    'Patient einundfünfzig bekommt neun Liter Sauerstoff pro Minute über eine Maske.',
+    'Patientin fünfundzwanzig: Blutdruck hundertachtundsechzig zu sechsundfünfzig, Puls sechsundneunzig.',
+    'Bitte fünf Schaufeltragen und vier Vakuummatratzen zum Haupteingang.',
+    'Transportpriorität eins für Patientin hundertdreizehn, Zielklinik ist das Klinikum Nord.',
+    'Patient vierundsiebzig: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Vorrang für Notarzt vier, alle anderen bitte Funkdisziplin halten.',
+    'Patient zehn: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Die Feuerwehr gibt den Bereich am Bahnsteig zwei wieder frei.',
+    'Patientin sechzehn ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Patientin zweiunddreißig: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Patient neunundzwanzig hat noch keine Anhängekarte, bitte nachsichten.',
+    'Wir brauchen vier weitere Tragen am Bahnsteig zwei.',
+    'Patientenanhängekarte für Patient zweiundvierzig ausgefüllt und am rechten Handgelenk befestigt.',
+    'Wie heißen Sie, und wissen Sie, wo Sie gerade sind?',
+    'Patientin sechzig atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Bitte eine kurze Lagemeldung für Abschnitt Mitte, kommen.',
+    'Patient siebzig: Amputationsverletzung am linken Unterarm, das Amputat ist gesichert.',
+    'Patient hundertvier nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Anhängekarte für Patientin fünfunddreißig ausgefüllt und am rechten Handgelenk befestigt.',
+    'Patient siebenundzwanzig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Tourniquet bei Patient fünfundzwanzig sitzt, die Blutung steht, Anlagezeit dreiundzwanzig Uhr vier.',
+    'Patient hundertsechs reagiert nur auf Schmerzreiz, Pupillen weit.',
+    'Patient hundertneunzehn: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Abschnittsleitung Süd an Einsatzleitung: Das Personal reicht nicht aus.',
+    'Patientin siebzehn: Blutdruck achtundachtzig zu achtundvierzig, Puls achtzig, Sättigung einundneunzig Prozent.',
+    'Patientin fünfundneunzig wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Patient hundertneunzehn ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Patientin hundertachtzehn, etwa sechsunddreißig Jahre alt, unruhig.',
+    'Die Funkverbindung am Sammelpunkt Nord ist schlecht, ich melde mich gleich erneut.',
+    'Patientin acht hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Patientin hundertfünf hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Patientin neunundachtzig: Sichtungskategorie zwei, gelb, Transport dringend.',
+    'Die Funkverbindung an der Bühne ist schlecht, ich melde mich gleich erneut.',
+    'Alle Einheiten bitte auf Kanal neunundneunzig wechseln.',
+    'Bitte zwei Schaufeltragen und sechs Vakuummatratzen zur Tribüne Nord.',
+    'Kritische Blutung am rechten Oberarm, Tourniquet angelegt um sechzehn Uhr sechsunddreißig.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zum Sammelpunkt Süd.',
+    'Einsturzgefahr am Busbahnhof, Rettungskräfte bitte zurückziehen.',
+    'Patient achtundfünfzig: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Patient achtundvierzig gibt Schmerzen von neun auf einer Skala bis zehn an, vor allem in der Brust.',
+    'Patientin einundzwanzig: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Wir haben insgesamt einunddreißig Verletzte, davon sieben schwer.',
+    'Wir brauchen Beleuchtung am Sammelpunkt Süd, es wird dunkel.',
+    'Alle Einheiten bitte auf Kanal achtundneunzig wechseln.',
+    'Patientenanhängekarte für Patient einundvierzig ausgefüllt und am rechten Handgelenk befestigt.',
+    'Der Notarzt stuft Patient achtundsiebzig in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Gefahrenbereich im hinteren Bus, Betreten nur mit Atemschutz.',
+    'Sichtungstrupp neun an Einsatzleitung, wir sind in der Unterführung eingetroffen.',
+    'Am Parkplatz Ost liegen noch zwei Patienten, die nicht gesichtet sind.',
+    'Venöser Zugang bei Patientin sechsundsiebzig liegt, die Infusion läuft.',
+    'Patientin neunzehn: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Patientin einundneunzig wird in die Kinderklinik gebracht, die Voranmeldung ist erfolgt.',
+    'Tourniquet bei Patientin vierzig sitzt, die Blutung steht, Anlagezeit sechzehn Uhr dreiundvierzig.',
+    'Einsturzgefahr in der Tiefgarage, Rettungskräfte bitte zurückziehen.',
+    'Patientin sechsundsechzig ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Patientin hundertsechzehn: spritzende Blutung am rechten Fuß, ein Druckverband reicht nicht aus.',
+    'Sichtungstrupp zwei wird abgelöst und geht zur Pause in den Bereitstellungsraum.',
+    'Patient achtunddreißig nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Kritische Blutung am rechten Oberarm, Tourniquet angelegt um elf Uhr zwanzig.',
+    'Patient zweiundfünfzig: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Bitte Material für Brandverletzte und Kühlung zur Fußgängerbrücke.',
+    'Patientin dreiunddreißig: Atemfrequenz neunzehn pro Minute, Atmung unauffällig.',
+    'Der Rettungshubschrauber landet in fünf Minuten auf dem Sportplatz.',
+    'Patientin vierundsiebzig: gehfähig, Schürfwunden an beiden Unterarmen, Sichtungskategorie drei, grün.',
+    'Das Klinikum Süd kann noch zwei Patienten aufnehmen.',
+    'Patientin sechsundsechzig: Verbrennungen an beiden Armen, etwa dreißig Prozent der Körperoberfläche.',
+    'Zwei gehfähige Verletzte auf dem Schulhof, alle Sichtungskategorie drei, grün.',
+    'Achtung, alle, die gehen können, sammeln sich bitte am Sammelpunkt Süd!',
+    'Einsturzgefahr auf dem Schulhof, Rettungskräfte bitte zurückziehen.',
+    'Zwischenstand Abschnitt Mitte: sechsmal rot, siebenmal gelb, dreizehnmal grün.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zum Sammelpunkt Nord.',
+    'Der Notarzt hat Patientin siebenundzwanzig ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Patient hundertdrei: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Patient achtundachtzig: Pfählungsverletzung am linken Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Gehfähige werden im Treppenhaus registriert und betreut.',
+    'Atmen Sie ruhig und gleichmäßig, wir sind bei Ihnen.',
+    'Alle Einheiten bitte auf Kanal sechzig wechseln.',
+    'Hallo, ich bin vom Rettungsdienst, können Sie mich hören?',
+    'Der Notarzt stuft Patientin drei in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Abschnittsleitung Ost an Einsatzleitung: Das Personal reicht nicht aus.',
+    'Sichtungstrupp vier übernimmt ab sofort den Bereich auf der Fußgängerbrücke.',
+    'Wir brauchen drei weitere Tragen am Sammelpunkt Süd.',
+    'Patientin achtzehn: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Wir brauchen acht Helfer zum Tragen am Bahnsteig vier.',
+    'Die Kinderklinik kann noch acht Patienten aufnehmen.',
+    'Patientin vierzig: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Patientin vier: Rauchgasinhalation, hustet stark, die Stimme ist heiser.',
+    'Sichtungstrupp neun an Einsatzleitung, wir sind auf dem Schulhof eingetroffen.',
+    'Das Universitätsklinikum kann noch acht Patienten aufnehmen.',
+    'Bitte bei allen Patienten auf der Fußgängerbrücke auf Wärmeerhalt achten.',
+    'Patient hundertvierzehn: offene Fraktur am rechten Unterschenkel, Wunde steril abgedeckt.',
+    'Die Feuerwehr gibt den Bereich im zweiten Waggon wieder frei.',
+    'Erste Lagemeldung: Massenkarambolage im Nebel, etwa zweiundsechzig Verletzte.',
+    'Einsatzleitung von Sichtungstrupp drei: Abschnitt Süd vollständig gesichtet.',
+    'Das Universitätsklinikum meldet: Schockraum belegt, Aufnahme erst in sechsundfünfzig Minuten.',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patient vierzehn wieder ein.',
+    'Hier Sichtungstrupp sechs, ich höre, kommen.',
+    'Patientin achtundsiebzig: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Patientin dreiundzwanzig hat noch keine Anhängekarte, bitte nachsichten.',
+    'Starke Rauchentwicklung auf der Fußgängerbrücke, der Bereich wird geräumt.',
+    'Patientin zwölf bekommt zehn Liter Sauerstoff pro Minute über eine Maske.',
+    'Die Sichtung im Abschnitt Süd dauert noch etwa neunundzwanzig Minuten.',
+    'Patientin vierundneunzig hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Wir brauchen vier weitere Tragen an der Rolltreppe.',
+    'Tourniquet bei Patientin neunundzwanzig sitzt, die Blutung steht, Anlagezeit sechs Uhr zwanzig.',
+    'Fordere sieben Rettungswagen und einen Notarzt für Abschnitt Nord nach.',
+    'Patientin sechsundachtzig: Atemfrequenz siebzehn pro Minute, Atmung unauffällig.',
+    'Patient neunundsiebzig: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Zwischenstand Abschnitt Mitte: sechsmal rot, zehnmal gelb, zwölfmal grün.',
+    'Patientin sechzig: spritzende Blutung am rechten Sprunggelenk, ein Druckverband reicht nicht aus.',
+    'Abschnitt Süd meldet fünf Tote und drei Schwerverletzte.',
+    'Vorrang für NEF eins, alle anderen bitte Funkdisziplin halten.',
+    'Patientin drei ist schwanger, etwa im sechsten Monat, und hat Bauchschmerzen.',
+    'Patientin hundertneun war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Bitte Material für Brandverletzte und Kühlung zur Rolltreppe.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patientin hundertdrei spricht nur Russisch.',
+    'Achtung, alle, die gehen können, sammeln sich bitte im Festzelt!',
+    'Der Notarzt hat Patientin hundertzehn ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Verstanden, Sichtungstrupp sieben geht zur Tiefgarage, Ende.',
+    'Sichtungstrupp vier wird abgelöst und geht zur Pause in den Bereitstellungsraum.',
+    'Patient vierundzwanzig: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Ich bestätige fünfzehn Patienten an der Rolltreppe, kommen.',
+    'Patientin siebenundfünfzig nachgesichtet: Atemfrequenz jetzt über dreißig, Kategorie rot.',
+    'Patient hundertfünfzehn gibt Schmerzen von neun auf einer Skala bis zehn an, vor allem in der Brust.',
+    'Bitte einen Rettungshubschrauber für Patient siebenundsiebzig anfordern.',
+    'Patientin dreiunddreißig: Verdacht auf Handgelenksfraktur, Sichtungskategorie zwei, gelb.',
+    'Patient fünfundvierzig: Pfählungsverletzung am linken Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Patient neununddreißig abtransportiert mit Rettungswagen fünf in die Unfallklinik, Abfahrt neun Uhr fünfundvierzig.',
+    'Meldung verstanden, wir sind in sechs Minuten bei Ihnen.',
+    'Achtundzwanzig gehfähige Verletzte im zweiten Waggon, alle Sichtungskategorie drei, grün.',
+    'Wir haben insgesamt sechsunddreißig Verletzte, davon elf schwer.',
+    'Sichtungstrupp fünf wird abgelöst und geht zur Pause in den Bereitstellungsraum.',
+    'Der Notarzt hat Patientin sechsundfünfzig ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Patient hundertvierzehn ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Die Kinderklinik meldet: Schockraum belegt, Aufnahme erst in sechsundvierzig Minuten.',
+    'Patientin neunundsechzig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Erste Lagemeldung: Teileinsturz einer Tribüne, etwa siebzehn Verletzte.',
+    'Starke Rauchentwicklung auf dem Vorplatz, der Bereich wird geräumt.',
+    'Patientin neunundneunzig: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Der Notarzt stuft Patientin fünfundsechzig in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Halswirbelsäule bei Patientin sechsundsechzig manuell stabilisiert, Zervikalstütze angelegt.',
+    'Die Sichtung im Abschnitt Ost dauert noch etwa dreizehn Minuten.',
+    'Patientin siebenundneunzig: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Achtung, alle, die gehen können, sammeln sich bitte an der Einfahrt Süd!',
+    'Patientin elf abtransportiert mit Rettungswagen zehn in die Kreisklinik, Abfahrt dreizehn Uhr dreiundvierzig.',
+    'Patientin sechsundsechzig: Blutdruck hundertvierundzwanzig zu neunzig, Puls sechsundneunzig.',
+    'Der Notarzt hat Patientin achtundvierzig ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Einsatzleitung von Sichtungstrupp acht: Abschnitt West vollständig gesichtet.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zum Ausgang West.',
+    'Patientin einundsechzig nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Ich bestätige dreizehn Patienten an der Bühne, kommen.',
+    'Patient dreizehn: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort zur Rolltreppe.',
+    'Bitte bei allen Patienten an der Rolltreppe auf Wärmeerhalt achten.',
+    'Zweite Nachsichtung bei Patient siebenundsiebzig um sechzehn Uhr sieben, Puls jetzt zweiundsechzig.',
+    'Nachsichtung am Parkplatz Ost abgeschlossen, keine Änderungen.',
+    'Achtung, verdächtiger Gegenstand am Sammelpunkt Süd, Bereich sofort räumen!',
+    'Abschnitt Ost meldet zwei Tote und vier Schwerverletzte.',
+    'Patient dreiundachtzig: Verdacht auf Wirbelsäulenverletzung, Sichtungskategorie zwei, gelb.',
+    'Patient hundertvierzehn nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Patient neunundsechzig: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Verstanden, Sichtungstrupp sechs geht zur Fußgängerbrücke, Ende.',
+    'Patientin neunundsiebzig ist Diabetikerin und hat seit Stunden nichts gegessen.',
+    'Patient dreiundvierzig, etwa achtzehn Jahre alt, unruhig.',
+    'Kind, etwa fünf Jahre alt, weint, ist ansprechbar und atmet normal.',
+    'Patientin sechzig ist verwirrt und weiß nicht, wo sie sich befindet.',
+    'Patient hundertsieben: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Achtung, verdächtiger Gegenstand in der Unterführung, Bereich sofort räumen!',
+    'Patientin dreiundzwanzig wird ins Klinikum Süd gebracht, die Voranmeldung ist erfolgt.',
+    'Patient vierzig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Patientin hundertzwölf: Verdacht auf Spannungspneumothorax, Notarzt bitte sofort zur Tribüne Nord.',
+    'Achtung, alle, die gehen können, sammeln sich bitte am Haupteingang!',
+    'Patient einundvierzig: Blutzucker zweihundertzweiundzwanzig Milligramm pro Deziliter.',
+    'Der Behandlungsplatz ist betriebsbereit, Kapazität siebenundsiebzig Patienten.',
+    'Starke Rauchentwicklung am Parkplatz Ost, der Bereich wird geräumt.',
+    'Patientin fünf: Sichtungskategorie drei, grün, Transport nachrangig.',
+    'Patient siebenundvierzig: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Gehfähige werden im zweiten Waggon registriert und betreut.',
+    'Der Behandlungsplatz ist betriebsbereit, Kapazität dreiundachtzig Patienten.',
+    'Patient neun, etwa vierundneunzig Jahre alt, ist gestürzt und kann nicht aufstehen.',
+    'Sama Taufkirchen zweiundsechzig vier von Rotkreuz Neubiberg vierundzwanzig sechs, kommen.',
+    'Am Sammelpunkt Süd liegen noch vierzehn Patienten, die nicht gesichtet sind.',
+    'Bitte einen Rettungshubschrauber für Patientin sechs anfordern.',
+    'Wir brauchen acht weitere Tragen im Festzelt.',
+    'Patientin einundzwanzig wird mit roter Markierung sofort zum Behandlungsplatz getragen.',
+    'Hier Sichtungstrupp sieben, ich höre, kommen.',
+    'Patientin fünfzig ist gehfähig und geht selbstständig zum Sammelpunkt Süd.',
+    'Kritische Blutung am linken Oberschenkel, Tourniquet angelegt um acht Uhr siebenundzwanzig.',
+    'Venöser Zugang bei Patientin siebzehn liegt, die Infusion läuft.',
+    'Übergabe an RTW fünf: Patientin dreiundneunzig, Sichtungskategorie eins, kreislaufstabil.',
+    'Die Leichtverletzten am Sammelpunkt Süd werden von zwei Helfern betreut.',
+    'Patientin fünfundneunzig ohne Lebenszeichen, als verstorben gekennzeichnet.',
+    'Patient zweiundachtzig ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Patientin vierundvierzig, etwa zweiundneunzig Jahre alt, ist gestürzt und kann nicht aufstehen.',
+    'Der Behandlungsplatz ist betriebsbereit, Kapazität neununddreißig Patienten.',
+    'Patient einundvierzig: Schnittverletzung durch Glas, Blutung mit Druckverband gestillt.',
+    'Der Notarzt hat Patient sechsundneunzig ein Schmerzmittel gegeben, die Schmerzen lassen nach.',
+    'Transportpriorität eins für Patient neunzehn, Zielklinik ist die Kinderklinik.',
+    'Wir haben insgesamt fünfzehn Verletzte, davon sechs schwer.',
+    'Patient siebenundfünfzig bekommt neun Liter Sauerstoff pro Minute über eine Maske.',
+    'Patientin sechzehn: Amputationsverletzung am rechten Unterarm, das Amputat ist gesichert.',
+    'Florian Taufkirchen dreiundsiebzig eins von Malteser Ottobrunn neununddreißig fünf, kommen.',
+    'Patientin einunddreißig, etwa fünfundneunzig Jahre alt, ist gestürzt und kann nicht aufstehen.',
+    'Patient zweiundsechzig nachgesichtet: Zustand verschlechtert, hochstufen auf Sichtungskategorie eins.',
+    'Patientin neunzig: keine Atmung, ich mache die Atemwege frei.',
+    'Patientin sechsundvierzig: Rekapillarisierungszeit unter zwei Sekunden, Radialispuls gut tastbar.',
+    'Kind ohne Begleitperson auf dem Schulhof, bitte Betreuung schicken.',
+    'Zwischenstand Abschnitt West: dreimal rot, neunmal gelb, sechsmal grün.',
+    'Patient hundertsechs hat einen Krampfanfall, die Umgebung ist gesichert.',
+    'Kind ohne Begleitperson am Sammelpunkt Süd, bitte Betreuung schicken.',
+    'Drücken Sie bitte meine Hand, so fest Sie können.',
+    'Patientin hundertsiebzehn, etwa dreiundsechzig Jahre alt, stark verängstigt.',
+    'Patient hundertvierzehn ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Alle Sichtungstrupps bitte um acht Uhr vierundfünfzig zur Lagebesprechung.',
+    'Achtung, Stromleitung am Boden, bitte Abstand halten!',
+    'Tourniquet bei Patient hundertelf sitzt, die Blutung steht, Anlagezeit elf Uhr dreiundzwanzig.',
+    'Achtung, alle, die gehen können, sammeln sich bitte an der Bühne!',
+    'Sichtungstrupp sieben an Einsatzleitung, wir sind im zweiten Waggon eingetroffen.',
+    'Patient dreiunddreißig ist gehfähig und geht selbstständig zur Rolltreppe.',
+    'Patientin dreiundneunzig: Arm geschient und Brandwunden gekühlt, Zustand unverändert.',
+    'Wir brauchen Beleuchtung auf der Fußgängerbrücke, es wird dunkel.',
+    'Patient fünfzig: Puls hundertachtundzwanzig pro Minute, fadenförmig, Verdacht auf Schock.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patientin neunundfünfzig spricht nur Türkisch.',
+    'Patient dreizehn: Amputationsverletzung am linken Unterarm, das Amputat ist gesichert.',
+    'Übergabe an Rettungswagen neun: Patientin siebenundneunzig, Sichtungskategorie zwei, kreislaufstabil.',
+    'Bisher zehn rote, siebzehn gelbe und dreiunddreißig grüne Patienten registriert.',
+    'Die Betreuungsstelle für Unverletzte ist in der Turnhalle eingerichtet.',
+    'Atemgeräusch links abgeschwächt, Patient hundertvierzehn bleibt Sichtungskategorie eins.',
+    'Bitte einen Krankentransportwagen für vier Leichtverletzte zum Ausgang West.',
+    'Tourniquet bei Patientin vierundsiebzig sitzt, die Blutung steht, Anlagezeit elf Uhr zwölf.',
+    'Zweite Nachsichtung bei Patient zehn um neunzehn Uhr fünfundfünfzig, Puls jetzt hundertdreizehn.',
+    'Sichtungstrupp eins an Einsatzleitung, wir sind im Festzelt eingetroffen.',
+    'Patient achtundneunzig nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Halswirbelsäule bei Patientin sechsunddreißig manuell stabilisiert, Zervikalstütze angelegt.',
+    'Patient neunzehn: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Patient hundertsieben: Beine hochgelagert und Arm geschient, Zustand unverändert.',
+    'Patientin fünfundneunzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte siebenundzwanzig Minuten.',
+    'Patient sechsundsechzig: offene Fraktur am linken Unterarm, Wunde steril abgedeckt.',
+    'Patient dreiunddreißig wird in die Kinderklinik gebracht, die Voranmeldung ist erfolgt.',
+    'Sichtungstrupp drei wird abgelöst und geht zur Pause in den Bereitstellungsraum.',
+    'Patient fünfundfünfzig befolgt einfache Aufforderungen nicht, Sichtungskategorie eins, rot.',
+    'Patient vierundvierzig abtransportiert mit RTW vier in die Kinderklinik, Abfahrt elf Uhr einunddreißig.',
+    'Wir brauchen dringend zehn Tourniquets und Verbandmaterial am Haupteingang.',
+    'Patient sechsundfünfzig reagiert nur auf Schmerzreiz, Pupillen isokor.',
+    'Ich bestätige einundzwanzig Patienten am Sammelpunkt Nord, kommen.',
+    'Kind, etwa acht Jahre alt, weint, ist ansprechbar und atmet normal.',
+    'Patient hundertacht: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Patientenablage vier ist voll, neue Patienten bitte zur Ablage zwei.',
+    'Bisher sieben rote, dreizehn gelbe und drei grüne Patienten registriert.',
+    'Die Einsatzstelle ist abgesperrt, Zufahrt nur über die Feuerwehrzufahrt.',
+    'Patient zweiundsechzig: Sichtungskategorie zwei, gelb, Transport dringend.',
+    'Die Feuerwehr gibt den Bereich auf der Fußgängerbrücke wieder frei.',
+    'Guedeltubus bei Patient dreiundfünfzig eingelegt, die Atmung ist jetzt ruhiger.',
+    'Patient zwölf: Sauerstoffsättigung dreiundachtzig Prozent unter Raumluft.',
+    'Haben Sie Schmerzen, und wenn ja, wo genau?',
+    'Patient siebenundsechzig: Blutdruck hundertvierzig zu hunderteins, Puls hundertsechs, Sättigung neunundachtzig Prozent.',
+    'Zweites Tourniquet am rechten Oberschenkel angelegt, die Blutung ist jetzt gestoppt.',
+    'Patientin siebenundzwanzig ist auf der Vakuummatratze gelagert und transportbereit.',
+    'Patientin zwanzig: Pfählungsverletzung am rechten Oberschenkel, der Fremdkörper bleibt stecken.',
+    'Patient einundvierzig nachgesichtet: deutlich gebessert, herabstufen auf Sichtungskategorie drei.',
+    'Patient dreißig: Beine hochgelagert und venöser Zugang gelegt, Zustand unverändert.',
+    'Kind ohne Begleitperson im zweiten Waggon, bitte Betreuung schicken.',
+    'Bitte eine kurze Lagemeldung für Abschnitt Ost, kommen.',
+    'Patientin siebzig ist gehfähig und geht selbstständig ins Treppenhaus.',
+    'Wir brauchen sieben Helfer zum Tragen im hinteren Bus.',
+    'Patientin hundertvier: Sauerstoffsättigung fünfundachtzig Prozent unter Raumluft.',
+    'Bitte einen Krankentransportwagen für drei Leichtverletzte zum Sammelpunkt Nord.',
+    'Gehfähige werden am Sammelpunkt Nord registriert und betreut.',
+    'Patientin dreiundvierzig ist verwirrt und weiß nicht, wo sie sich befindet.',
+    'Patientin hundertelf, etwa neunundsiebzig Jahre alt, ist gestürzt und kann nicht aufstehen.',
+    'Sichtungstrupp vier an Einsatzleitung, wir sind an der Rolltreppe eingetroffen.',
+    'Guedeltubus bei Patientin zweiundvierzig eingelegt, die Atmung ist jetzt ruhiger.',
+    'Transportpriorität eins für Patientin zweiundzwanzig, Zielklinik ist die Unfallklinik.',
+    'Anhängekarte für Patient neunzehn ausgefüllt und am linken Handgelenk befestigt.',
+    'Patientin vierundachtzig ist schwanger, etwa im achten Monat, und hat Bauchschmerzen.',
+    'Patientin neun: offene Fraktur am linken Unterschenkel, Wunde steril abgedeckt.',
+    'Drei gehfähige Verletzte im zweiten Waggon, alle Sichtungskategorie drei, grün.',
+    'Patient fünfundachtzig ist wach, orientiert und befolgt alle Aufforderungen.',
+    'Patient hundertzwölf: Atmung normal, Kreislauf stabil, ansprechbar, Sichtungskategorie zwei, gelb.',
+    'Die Funkverbindung am Sammelpunkt Süd ist schlecht, ich melde mich gleich erneut.',
+    'Vorrang für Notarzt fünf, alle anderen bitte Funkdisziplin halten.',
+    'Patient achtundvierzig: Puls neununddreißig pro Minute, sehr langsam und unregelmäßig.',
+    'Sichtungstrupp neun an Einsatzleitung, wir sind im zweiten Waggon eingetroffen.',
+    'Zweite Nachsichtung bei Patientin einundneunzig um zwanzig Uhr neunundzwanzig, Puls jetzt sechsundsechzig.',
+    'Wir brauchen dringend sechs Tourniquets und Verbandmaterial am Haupteingang.',
+    'Patientin zweiundsechzig ist gehfähig und geht selbstständig zur Fußgängerbrücke.',
+    'Patient dreizehn: Blutdruck nicht messbar, Puls nur an der Halsschlagader tastbar.',
+    'Können Sie mir sagen, was passiert ist?',
+    'Patientin fünfundvierzig, etwa einundsiebzig Jahre alt, ist gestürzt und kann nicht aufstehen.',
+    'Verstanden, Sichtungstrupp zwei geht ins Treppenhaus, Ende.',
+    'Patientin fünfunddreißig: Verdacht auf Sprunggelenksfraktur, Sichtungskategorie zwei, gelb.',
+    'Patientin hundert: Rekapillarisierungszeit über zwei Sekunden, Sichtungskategorie eins.',
+    'Im Festzelt liegen noch fünfzehn Patienten, die nicht gesichtet sind.',
+    'Patient dreizehn: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Patient vierundachtzig: Atemfrequenz zweiundvierzig pro Minute, Sichtungskategorie eins, rot.',
+    'Patientin achtzehn: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Wir brauchen sieben weitere Tragen in der Sporthalle.',
+    'Patient siebzehn ist Diabetiker und hat seit Stunden nichts gegessen.',
+    'Vorrang für Notarzt eins, alle anderen bitte Funkdisziplin halten.',
+    'Der Leitende Notarzt ist eingetroffen und übernimmt die medizinische Leitung.',
+    'Patientin achtundzwanzig: Arm geschient und Druckverband angelegt, Zustand unverändert.',
+    'Patientin hundertneun ist schwanger, etwa im achten Monat, und hat Bauchschmerzen.',
+    'Die Betreuungsstelle für Unverletzte ist im Bus vor dem Eingang eingerichtet.',
+    'Bitte bewegen Sie den Kopf nicht, wir stabilisieren Ihren Nacken.',
+    'Kritische Blutung am rechten Oberarm, Tourniquet angelegt um zwanzig Uhr achtzehn.',
+    'Achtung, Gasgeruch im Festzelt, alle sofort zurück!',
+    'Das Städtische Krankenhaus meldet: Schockraum belegt, Aufnahme erst in neunundfünfzig Minuten.',
+    'Starke Rauchentwicklung auf dem Schulhof, der Bereich wird geräumt.',
+    'Die Feuerwehr gibt den Bereich am Sammelpunkt Nord wieder frei.',
+    'Alle Einheiten bitte auf Kanal vierundfünfzig wechseln.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patient siebenundvierzig spricht nur Russisch.',
+    'RTW zwölf mit Patientin neunundneunzig unterwegs, Eintreffen in elf Minuten.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patientin achtundachtzig wird engmaschig überwacht.',
+    'Patient fünfunddreißig: gehfähig, Verstauchung am linken Fuß, Sichtungskategorie drei, grün.',
+    'Einsatzleitung von Sichtungstrupp zwei: Abschnitt Ost vollständig gesichtet.',
+    'Venöser Zugang bei Patientin neunzig liegt, die Infusion läuft.',
+    'Patient zweiundvierzig: Platzwunde an der Stirn, kurzzeitig bewusstlos.',
+    'Patient sechsundfünfzig ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Bitte vier Schaufeltragen und vier Vakuummatratzen zum Sammelpunkt Süd.',
+    'Erste Lagemeldung: Straßenbahnunfall an einer Haltestelle, etwa achtzehn Verletzte.',
+    'Patientin einundfünfzig ist gehfähig und geht selbstständig zum Schulhof.',
+    'Patient hundertacht atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Patientin hundertvierzehn: Puls siebenundvierzig pro Minute, sehr langsam und unregelmäßig.',
+    'Leitstelle von Sichtungstrupp vier, kommen.',
+    'Patient dreißig: Verdacht auf Beckenfraktur, Beckenschlinge angelegt.',
+    'Fünfzehn gehfähige Verletzte im Festzelt, alle Sichtungskategorie drei, grün.',
+    'Die Leichtverletzten auf dem Schulhof werden von vier Helfern betreut.',
+    'Patient neun ist bewusstlos, atmet normal und liegt in stabiler Seitenlage.',
+    'Starke Blutung am Hals bei Patientin dreiundneunzig, manuelle Kompression läuft.',
+    'Nach Freimachen der Atemwege setzt die Atmung bei Patientin vierundzwanzig wieder ein.',
+    'Verstanden, Sichtungstrupp sechs geht zum Bahnsteig zwei, Ende.',
+    'Patient achtundsiebzig: gehfähig, Zerrung im Oberschenkel, Sichtungskategorie drei, grün.',
+    'Patient achtundsiebzig hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Patientin siebenundsechzig: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Angehörige werden zur Betreuungsstelle im Gemeindehaus gebracht.',
+    'Bitte einen Dolmetscher zum Behandlungsplatz, Patientin hundertsiebzehn spricht nur Polnisch.',
+    'Patient dreiundachtzig atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Patientin neunundachtzig: starke Blutung am Kopf, mit Druckverband beherrschbar.',
+    'Zwischenstand Abschnitt Nord: einmal rot, achtmal gelb, fünfzehnmal grün.',
+    'Können Sie aufstehen und ein paar Schritte zu mir kommen?',
+    'RTW zwei ist wieder frei und meldet sich am Rettungsmittelhalteplatz.',
+    'Patientin zweiundsiebzig gibt Schmerzen von sieben auf einer Skala bis zehn an, vor allem im Rücken.',
+    'Patientin zweiundfünfzig: Bauch hart und druckschmerzhaft, Verdacht auf innere Blutung.',
+    'Jeder Patient wird beim Verlassen der Einsatzstelle registriert.',
+    'Angehörige werden zur Betreuungsstelle in der Turnhalle gebracht.',
+    'Patientin elf hat starke Atemnot, die Lippen sind bläulich verfärbt.',
+    'Patient siebenundzwanzig: Prellmarken am Brustkorb, Schmerzen beim Atmen.',
+    'Nachsichtung im Treppenhaus abgeschlossen, keine Änderungen.',
+    'Patient hundertneunzehn: Körpertemperatur fünfunddreißig Komma sechs Grad.',
+    'Sama Neubiberg neunundsechzig drei von Sama Unterhaching zweiundfünfzig vier, kommen.',
+    'Beine hochgelagert und Rettungsdecke angelegt, Patientin zehn wird engmaschig überwacht.',
+    'Patient fünfzehn hat noch keine Anhängekarte, bitte nachsichten.',
+    'Patientin achtundvierzig: offene Fraktur am rechten Oberschenkel, Wunde steril abgedeckt.',
+    'Übergabe an RTW zehn: Patient vierundsiebzig, Sichtungskategorie zwei, kreislaufstabil.',
+    'Abschnitt Süd meldet fünf Tote und fünf Schwerverletzte.',
+    'Starke Blutung am Hals bei Patientin siebenundvierzig, manuelle Kompression läuft.',
+    'Einsturzgefahr an der Bühne, Rettungskräfte bitte zurückziehen.',
+    'Die Sichtung im Abschnitt West dauert noch etwa fünfzehn Minuten.',
+    'Patient achtundsechzig war kurz bewusstlos und kann sich an den Unfall nicht erinnern.',
+    'Hallo, ich bin vom Roten Kreuz, können Sie mich hören?',
+    'Patient dreiundsechzig nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei.',
+    'Guedeltubus bei Patientin fünfundfünfzig eingelegt, die Atmung ist jetzt ruhiger.',
+    'Sichtungstrupp eins wird abgelöst und geht zur Pause in den Bereitstellungsraum.',
+    'Patient fünfundfünfzig atmet auch nach Freimachen der Atemwege nicht, keine Lebenszeichen.',
+    'Wir brauchen Beleuchtung im Festzelt, es wird dunkel.',
+    'Patient neunundsechzig: Radialispuls nicht tastbar, Haut blass und kaltschweißig.',
+    'Patient achtundzwanzig: Atemfrequenz sechsunddreißig pro Minute, Sichtungskategorie eins, rot.',
+    'Bitte Material für Brandverletzte und Kühlung zur Bühne.',
+    'Der Notarzt stuft Patient hundertvierzehn in Sichtungskategorie vier ein, blau, abwartende Behandlung.',
+    'Patient neununddreißig abtransportiert mit Rettungswagen eins ins Klinikum Nord, Abfahrt zwanzig Uhr sechzehn.',
+    'Patientin elf: Verbrennung im Gesicht, Verdacht auf Inhalationstrauma.',
+    'Verstanden, Sichtungstrupp sechs geht zur Unterführung, Ende.',
+    'Patientin fünfundachtzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte sechsundzwanzig Minuten.',
+    'Einsatzleitung von Sichtungstrupp neun: Abschnitt Nord vollständig gesichtet.',
+    'Die Rettungsdecken gehen aus, bitte Nachschub zum Schulhof.',
+    'Achtung, Gasgeruch am Parkplatz Ost, alle sofort zurück!',
+    'Patient achtundsiebzig: Glasgow Coma Scale acht, Verdacht auf Schädel-Hirn-Trauma.'
+  ];
+  /* sentences:end */
+  var PASSAGES = SENTENCES.length / PER_PASSAGE;
+
   function rand() {
     if (window.crypto && crypto.getRandomValues) {
       var a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296;
     }
     return Math.random();
   }
-  function between(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
-  function pick(list) { return list[Math.floor(rand() * list.length)]; }
+  function pad(n) { return ('00' + n).slice(-3); }
 
-  var ONES = ['null', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn',
-    'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn'];
-  var TENS = ['', '', 'zwanzig', 'dreißig', 'vierzig', 'fünfzig', 'sechzig', 'siebzig', 'achtzig', 'neunzig'];
-  function words(n) {
-    if (n >= 100) return 'hundert' + (n % 100 ? words(n % 100) : '');
-    if (n < 20) return ONES[n];
-    var unit = n % 10, ten = TENS[Math.floor(n / 10)];
-    return unit ? (unit === 1 ? 'ein' : ONES[unit]) + 'und' + ten : ten;
+  function passage(n) {
+    var sentences = SENTENCES.slice(n * PER_PASSAGE, (n + 1) * PER_PASSAGE).map(function (text, i) {
+      return { id: 's' + pad(n * PER_PASSAGE + i + 1), text: text };
+    });
+    return {
+      id: 'web-' + CORPUS + '-p' + pad(n + 1),
+      passage: n + 1,
+      tag: 'Text ' + (n + 1) + ' von ' + PASSAGES,
+      sentences: sentences,
+      text: sentences.map(function (s) { return s.text; }).join(' ')
+    };
   }
-  function times(n) { return n === 1 ? 'einmal' : words(n) + ' mal'; }
-  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  var SIDE = ['rechten', 'linken'];
-  var LIMB = ['Oberschenkel', 'Unterschenkel', 'Oberarm', 'Unterarm'];
-  var INJURY = ['Unterschenkelfraktur links', 'Unterschenkelfraktur rechts', 'Unterarmfraktur links',
-    'Unterarmfraktur rechts', 'Rippenserienfraktur', 'Sprunggelenksfraktur', 'Schlüsselbeinfraktur',
-    'Verbrennung zweiten Grades am Unterarm'];
-  var MINOR = ['Schnittwunde an der rechten Hand', 'Schnittwunde an der linken Hand', 'Prellung am Knie',
-    'Schürfwunden an beiden Unterarmen', 'Platzwunde an der Stirn'];
-  var SECTION = ['Nord', 'Süd', 'Ost', 'West'];
-  var PLACE = ['Sammelpunkt Nord', 'Sammelpunkt Süd', 'Haupteingang', 'Bahnsteig zwei', 'Parkplatz Ost'];
-
-  function patient(s) { s.patient = between(1, 60); return 'Patient ' + words(s.patient); }
-  function clockTime(s) {
-    s.hour = between(6, 23); s.minute = between(1, 59);
-    return words(s.hour) + ' Uhr ' + words(s.minute);
-  }
-  function trupp(s) { s.trupp = between(1, 6); return words(s.trupp); }
-
-  var TEMPLATES = [
-    { id: 'walk', v: 1, tag: 'Gehfähigkeit', make: function (s) {
-      return 'Achtung, hier spricht Sichtungstrupp ' + trupp(s) + '. Wer gehen kann, kommt bitte zu mir und sammelt sich an der grünen Fahne.';
-    } },
-    { id: 'airway', v: 1, tag: 'Atemwege', make: function (s) {
-      return patient(s) + ': keine Atmung. Ich mache die Atemwege frei. Atmung setzt ein. Sichtungskategorie eins, rot, Sofortbehandlung.';
-    } },
-    { id: 'apnoe', v: 1, tag: 'Atemwege', make: function (s) {
-      return patient(s) + ': keine Atmung, auch nach Freimachen der Atemwege nicht. Keine Lebenszeichen.';
-    } },
-    { id: 'resp-rate', v: 1, tag: 'Atemfrequenz', make: function (s) {
-      s.rate = between(31, 44);
-      return patient(s) + ': Atemfrequenz ' + words(s.rate) + ' pro Minute, Radialispuls tastbar. Sichtungskategorie eins.';
-    } },
-    { id: 'bleeding', v: 1, tag: 'Kritische Blutung', make: function (s) {
-      s.side = pick(SIDE); s.limb = pick(LIMB);
-      return 'Kritische Blutung am ' + s.side + ' ' + s.limb + '. Tourniquet angelegt, ' + clockTime(s) + '. Sichtungskategorie eins.';
-    } },
-    { id: 'circulation', v: 1, tag: 'Kreislauf', make: function (s) {
-      return patient(s) + ': Rekapillarisierungszeit über zwei Sekunden, Puls fadenförmig, Haut blass und kalt. Sichtungskategorie eins.';
-    } },
-    { id: 'conscious', v: 1, tag: 'Bewusstsein', make: function (s) {
-      return patient(s) + ': Atmung normal, Radialispuls tastbar, befolgt einfache Aufforderungen nicht. Sichtungskategorie eins.';
-    } },
-    { id: 'yellow', v: 1, tag: 'Sichtungskategorie zwei', make: function (s) {
-      s.injury = pick(INJURY);
-      return patient(s) + ': Atmung normal, Kreislauf stabil, ansprechbar. Verdacht auf ' + s.injury + '. Sichtungskategorie zwei, gelb.';
-    } },
-    { id: 'green', v: 1, tag: 'Sichtungskategorie drei', make: function (s) {
-      s.injury = pick(MINOR);
-      return patient(s) + ': gehfähig, ' + s.injury + '. Sichtungskategorie drei, grün.';
-    } },
-    { id: 'reassess', v: 1, tag: 'Nachsichtung', make: function (s) {
-      return patient(s) + ' nachgesichtet: Zustand verschlechtert, Atemfrequenz jetzt über dreißig. Hochstufen auf Sichtungskategorie eins, rot.';
-    } },
-    { id: 'vitals', v: 1, tag: 'Vitalwerte', make: function (s) {
-      s.sys = between(85, 180); s.dia = between(45, Math.min(110, s.sys - 25));
-      s.pulse = between(48, 150); s.spo2 = between(82, 99);
-      return patient(s) + ': Blutdruck ' + words(s.sys) + ' zu ' + words(s.dia) + ', Puls ' + words(s.pulse) +
-        ', Sauerstoffsättigung ' + words(s.spo2) + ' Prozent.';
-    } },
-    { id: 'gcs', v: 1, tag: 'Bewusstsein', make: function (s) {
-      s.gcs = between(6, 14);
-      return patient(s) + ': Glasgow Coma Scale ' + words(s.gcs) + ', Pupillen isokor, reagiert auf Schmerzreiz.';
-    } },
-    { id: 'report', v: 1, tag: 'Meldung an die Einsatzleitung', make: function (s) {
-      s.section = pick(SECTION);
-      s.red = between(1, 12); s.yellow = between(2, 20); s.green = between(3, 40); s.dead = between(0, 3);
-      var dead = s.dead === 0 ? 'keine Toten' : s.dead === 1 ? 'ein Toter' : words(s.dead) + ' Tote';
-      return 'Einsatzleitung von Sichtungstrupp ' + trupp(s) + ': Abschnitt ' + s.section + ' vollständig gesichtet. ' +
-        cap(times(s.red)) + ' rot, ' + times(s.yellow) + ' gelb, ' + times(s.green) + ' grün, ' + dead + '.';
-    } },
-    { id: 'request', v: 1, tag: 'Nachforderung', make: function (s) {
-      s.stretchers = between(2, 8); s.place = pick(PLACE);
-      return 'Sichtungstrupp ' + trupp(s) + ' an Einsatzleitung: Wir brauchen ' + words(s.stretchers) +
-        ' Tragen und einen Notarzt am ' + s.place + '.';
-    } },
-    { id: 'handover', v: 1, tag: 'Übergabe', make: function (s) {
-      s.rtw = between(2, 9); s.injury = pick(INJURY);
-      return 'Übergabe an Rettungswagen ' + words(s.rtw) + ': ' + patient(s) + ', Sichtungskategorie zwei, Verdacht auf ' +
-        s.injury + ', ansprechbar und kreislaufstabil.';
-    } },
-    { id: 'transport', v: 1, tag: 'Abtransport', make: function (s) {
-      s.rtw = between(2, 9);
-      return patient(s) + ' abtransportiert mit Rettungswagen ' + words(s.rtw) + ' ins Klinikum, Abfahrt ' + clockTime(s) + '.';
-    } }
-  ];
-
-  /* Avoid showing a template the visitor saw in their last few takes. */
-  function nextPrompt() {
-    var recent = (load('recent') || '').split(',').filter(Boolean);
-    var fresh = TEMPLATES.filter(function (tpl) { return recent.indexOf(tpl.id) < 0; });
-    var tpl = pick(fresh.length ? fresh : TEMPLATES);
-    var slots = {};
-    var text = tpl.make(slots);
-    save('recent', recent.concat(tpl.id).slice(-6).join(','));
-    return { id: 'web-' + tpl.id + '-v' + tpl.v, template: tpl.id, tag: tpl.tag, text: text, slots: slots };
+  /* step 0: the passage this tab is on, a random one the first time;
+     step 1: the next one, wrapping round after the last. */
+  function turn(step) {
+    var at = parseInt(load('passage'), 10);
+    at = at >= 0 && at < PASSAGES ? (at + step) % PASSAGES : Math.floor(rand() * PASSAGES);
+    save('passage', String(at));
+    return passage(at);
   }
 
   var prompt = null;
@@ -3628,9 +4358,12 @@ window.JAR_I18N = {
     return new Blob([buf], { type: 'audio/wav' });
   }
 
+  /* `p` is the passage on screen when the take was stopped: the full text,
+     and each sentence with its corpus id, travel with the audio. */
   function metadata(p, seconds, recordedAt) {
     var meta = {
-      text: p.text, prompt_id: p.id, template: p.template, slots: p.slots, tag: p.tag, language: 'de-DE',
+      text: p.text, prompt_id: p.id, corpus: CORPUS, passage: p.passage, sentences: p.sentences,
+      tag: p.tag, language: 'de-DE',
       recorded_at: recordedAt.toISOString(), duration_seconds: Math.round(seconds * 100) / 100,
       sample_rate: RATE, consent: WEB_CONSENT, recorder: RECORDER
     };
@@ -3880,7 +4613,7 @@ window.JAR_I18N = {
         return;
       }
       save('count', String(+(load('count') || 0) + 1));
-      showPrompt(nextPrompt());
+      showPrompt(turn(1));
       setState('idle');
       say('rec_st_done', 'Gespeichert, danke! Hier ist der nächste Text.', 'ok');
     }).catch(function () {
@@ -3921,7 +4654,7 @@ window.JAR_I18N = {
 
   shuffle.addEventListener('click', function () {
     if (shuffle.disabled) return;
-    showPrompt(nextPrompt());
+    showPrompt(turn(1));
   });
 
   retry.addEventListener('click', send);
@@ -3935,7 +4668,7 @@ window.JAR_I18N = {
     new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
   }
 
-  showPrompt(nextPrompt());
+  showPrompt(turn(0));
   setState('idle');
 })();
 </script>
