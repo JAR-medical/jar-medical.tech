@@ -4,9 +4,9 @@ import { apiBase } from "./api.js";
 import { World } from "./world.js?v=20260824-transcript1";
 import { Player } from "./player.js?v=20260825-clinic-tunnel2";
 import { PatientManager } from "./entities.js";
-import { Game } from "./gameplay.js?v=20261007-voiceonly1";
-import { SpeechClient } from "./stt.js?v=20261007-voiceonly1";
-import { UI } from "./ui.js?v=20261007-voiceonly1";
+import { Game } from "./gameplay.js?v=20261008-storeonly1";
+import { SpeechClient } from "./stt.js?v=20261008-storeonly1";
+import { UI } from "./ui.js?v=20261008-storeonly1";
 import { OtherMode } from "./other_mode.js?v=20260825-funny3";
 import { GameAudio } from "./audio.js";
 import { HOTBAR_ITEMS } from "./items.js";
@@ -415,7 +415,7 @@ export class App {
       // while the immutable take is uploaded and transcribed in the background.
       this.audio.duck("recording", state === "recording");
       if (state === "transcribing") {
-        this.ui.toast("Transkription läuft — das Fenster bleibt geöffnet.", "info");
+        this.ui.toast("Aufnahme wird gespeichert — das Fenster bleibt geöffnet.", "info");
       }
     });
 
@@ -512,7 +512,6 @@ export class App {
         this.ui.showVoiceRawData({ audioBlob: detail.audioBlob, audioInfo: detail.audioInfo });
         this.ui.showVoiceAccepted(result);
         this.ui.setVoiceSubmissionPending(true);
-        this.ui.setTranscriptionLoading(true, "Transkription wird berechnet …");
       }
       this.ui.scorePop("AUFNAHME GESPEICHERT", "good");
     });
@@ -564,12 +563,24 @@ export class App {
       }, 250);
     });
 
-    on("stt:result", ({ text, seconds, audioBlob, audioInfo, context = {} }) => {
+    on("stt:result", ({ text, seconds, audioBlob, audioInfo, storedOnly = false, context = {} }) => {
       if (context.contributionMode) {
         if (this.playMode !== "campaign") return;
         const patientId = context.patientId || null;
         const sameChart = this.mode === "chart" && this.currentPatientId === context.patientId;
         if (sameChart) this.ui.setTranscriptionLoading(false);
+        if (storedOnly) {
+          this.submitReport("", {
+            source: "audio",
+            keepChart: true,
+            background: !sameChart,
+            patientId,
+            scenarioId: context.scenarioId || null,
+            allowEmpty: true,
+            storedOnly: true,
+          });
+          return;
+        }
         if (sameChart && text) this.ui.appendTranscript(text);
         if (!text || !text.trim()) {
           const result = this.submitReport("", {

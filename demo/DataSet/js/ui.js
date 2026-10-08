@@ -1232,7 +1232,7 @@ export class UI {
     button.classList.toggle("recording", Boolean(isRecording));
     button.setAttribute("aria-pressed", String(Boolean(isRecording)));
     button.textContent = busy
-      ? "⏳ Transkription läuft …"
+      ? "⏳ Aufnahme wird gespeichert …"
       : this._voiceSubmissionPending
         ? "✔ Aufnahme gespeichert"
       : isRecording
@@ -1555,7 +1555,7 @@ export class UI {
     const line = document.createElement("div");
     line.className = "feedback-line good";
     line.textContent = uploaded
-      ? "AUFNAHME GESPEICHERT — GENAUIGKEIT WIRD BERECHNET"
+      ? "AUFNAHME GESPEICHERT ✔"
       : completed
         ? "BERICHT ABGESCHLOSSEN ✔"
         : "AUFNAHME GESPEICHERT ✔";

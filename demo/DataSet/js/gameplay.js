@@ -559,7 +559,9 @@ export class Game {
 
     // How close the spoken words came to the script on the chart. Kept per
     // patient so re-reading a report can only improve the recorded accuracy.
-    const accuracy = scoreAccuracy(run.template.hint_de, normalizedTranscript);
+    const accuracy = options?.storedOnly
+      ? scoreAccuracy("", "")
+      : scoreAccuracy(run.template.hint_de, normalizedTranscript);
     if (accuracy.scored && (!Number.isFinite(run.bestAccuracy) || accuracy.score > run.bestAccuracy)) {
       run.bestAccuracy = accuracy.score;
     }
@@ -573,7 +575,7 @@ export class Game {
         missingKeys: [],
         forbiddenHits: [],
         feedback: [
-          normalizedTranscript.trim()
+          normalizedTranscript.trim() || options?.storedOnly
             ? "Audio-Bericht aufgenommen — Patient dokumentiert."
             : "Audio-Bericht gespeichert — keine Transkription erkannt; Genauigkeit 0%.",
         ],

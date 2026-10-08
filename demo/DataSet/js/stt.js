@@ -308,7 +308,7 @@ export class SpeechClient {
       return headers;
     };
     this.transcribing = true;
-    emit("stt:status", { state: "transcribing", context: recordingContext });
+    emit("stt:status", { state: "transcribing", detail: "Aufnahme wird gespeichert …", context: recordingContext });
     try {
       const endpoint = recordingContext.contributionMode ? "/api/clips" : "/api/transcribe";
       let headers = buildHeaders(recordingContext);
@@ -419,7 +419,22 @@ export class SpeechClient {
         }
         if (detail.basicAccepted) {
           emit("stt:clip-accepted", detail);
-          this._pollContributionClip(detail.clipId, recordingContext).catch(() => {});
+          // The backend only stores recordings now and never transcribes them,
+          // so there is no verdict to wait for: the saved clip is the report.
+          emit("stt:result", {
+            text: "",
+            seconds: null,
+            audioBlob: null,
+            audioInfo: null,
+            audioFile: null,
+            verbatim: "",
+            model: null,
+            modelConfidence: null,
+            wordConfidences: [],
+            storedOnly: true,
+            contribution: data,
+            context: recordingContext,
+          });
         } else {
           const reason = detail.qc?.reasons?.[0] || "Aufnahme erfüllt die Qualitätsprüfung nicht.";
           emit("stt:clip-rejected", { ...detail, reason });
