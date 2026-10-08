@@ -159,10 +159,15 @@ test('a random passage of eight sentences is shown before recording', () => {
     const text = h.el('text').textContent;
     assert.match(text, /^„.+“$/);
     assert.equal(shownText(h).match(/[.!?](?= |$)/g).length, 8);
-    assert.equal(h.el('tag').textContent, `Text ${passageOf(h) + 1} von ${PASSAGES}`);
+    assert.equal(h.el('text').textContent.slice(1, -1), shownText(h));
     seen.add(text);
   }
   assert.ok(seen.size > 10, `only ${seen.size} distinct passages in 40 page loads`);
+});
+
+test('no "Text N von 100" label is shown; the text just changes after each saved take', () => {
+  assert.doesNotMatch(source, /data-rec-tag|rec__tag/, 'the passage label is gone from the markup and styles');
+  assert.doesNotMatch(source.replace(/<script>[\s\S]*?<\/script>/g, ''), /von 100/);
 });
 
 test('"another text" rotates through all 800 sentences before repeating one', () => {

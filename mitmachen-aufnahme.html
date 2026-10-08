@@ -2344,15 +2344,6 @@ ul, ol { list-style: none; padding: 0; }
   transition: box-shadow var(--dur) var(--ease-out);
 }
 .rec[data-state="recording"] .rec__prompt { box-shadow: inset 0 0 0 2px var(--sig-red), var(--shadow-lift); }
-.rec__tag {
-  display: block;
-  margin-bottom: var(--sp-3);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
 /* Eight sentences have to fit beside the button without scrolling, and the
    size stays put while recording so the lines do not reflow mid-read. */
 .rec__say {
@@ -2497,7 +2488,6 @@ ul, ol { list-style: none; padding: 0; }
       <!-- The passage stays German in every interface language: it is what a
            volunteer reads to train a German recogniser. -->
       <figure class="rec__prompt" id="recPrompt" lang="de">
-        <figcaption class="rec__tag" data-rec-tag="">Text 1 von 100</figcaption>
         <blockquote class="rec__say" data-rec-text="">„Patientin hundertzwei nachgesichtet: Zustand stabil, bleibt Sichtungskategorie zwei. Sichtungstrupp zwei übernimmt ab sofort den Bereich am Bahnsteig zwei. Fordere drei Rettungswagen und einen Notarzt für Abschnitt Ost nach. Der Notarzt stuft Patient einundsiebzig in Sichtungskategorie vier ein, blau, abwartende Behandlung. Patientin siebzehn ohne Lebenszeichen, als verstorben gekennzeichnet. Patient zweiundvierzig: Atemfrequenz zwanzig pro Minute, Atmung unauffällig. Patientin einundsechzig: Prellmarken am Brustkorb, Schmerzen beim Atmen. Patientin neunundsechzig war eingeklemmt, die Befreiung durch die Feuerwehr dauerte vierundzwanzig Minuten.“</blockquote>
       </figure>
       <div class="rec__row">
@@ -3446,7 +3436,7 @@ window.JAR_I18N = {
   function $(s) { return root.querySelector(s); }
   var btn = $('[data-rec-btn]'), label = $('[data-rec-label]'), clock = $('[data-rec-time]');
   var level = $('[data-rec-level]'), consent = $('[data-rec-consent]');
-  var tagEl = $('[data-rec-tag]'), textEl = $('[data-rec-text]'), shuffle = $('[data-rec-shuffle]');
+  var textEl = $('[data-rec-text]'), shuffle = $('[data-rec-shuffle]');
   var statusEl = $('[data-rec-status]'), fail = $('[data-rec-fail]'), retry = $('[data-rec-retry]');
   var download = $('[data-rec-download]'), codeEl = $('[data-rec-code]'), countEl = $('[data-rec-count]');
 
@@ -4320,7 +4310,6 @@ window.JAR_I18N = {
   var prompt = null;
   function showPrompt(p) {
     prompt = p;
-    tagEl.textContent = p.tag;
     textEl.textContent = '„' + p.text + '“';
   }
 

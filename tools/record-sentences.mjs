@@ -395,7 +395,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   page = page.replace(block, (_, open, close) => open + corpusSource(sentences) + close);
   // The markup shows the first passage until the script picks one.
   const first = sentences.slice(0, PER_PASSAGE).join(' ');
-  page = page.replace(/(data-rec-tag="">)[^<]*(<\/figcaption>)/, `$1Text 1 von ${COUNT / PER_PASSAGE}$2`);
   page = page.replace(/(data-rec-text="">)[^<]*(<\/blockquote>)/, `$1„${first}“$2`);
   fs.writeFileSync(PAGE, page);
 
