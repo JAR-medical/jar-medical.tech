@@ -6,17 +6,26 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createHash, webcrypto } from 'node:crypto';
 import { readText } from './lib/repo.mjs';
-import { buildCorpus, corpusSource, COUNT, PER_PASSAGE } from '../tools/record-sentences.mjs';
+import { buildCorpus, corpusFile, CORPUS_NAME, COUNT, PER_PASSAGE } from '../tools/record-sentences.mjs';
 
 const source = readText('mitmachen-aufnahme.html');
 const recorder = source.match(/<script>\/\* js\/record\.js \*\/([\s\S]*?)<\/script>/)[1];
 const api = source.match(/data-api="([^"]+)"/)[1];
 
+// The corpus as the page loads it: the file sets window.JAR_SENTENCES.
+function loadCorpusFile() {
+  const sandbox = { window: {} };
+  vm.runInNewContext(readText(`assets/corpus/${CORPUS_NAME}.js`), sandbox);
+  return sandbox.window.JAR_SENTENCES;
+}
+// Copied into this realm: deepStrictEqual rejects arrays from another vm context.
+const SHIPPED = [...loadCorpusFile()];
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function settle() { for (let i = 0; i < 20; i++) await tick(); }
 
 // `storage` stands in for the tab's sessionStorage; pass one in to simulate a reload.
-function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0, storage = new Map(), hangUploads = false } = {}) {
+function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0, storage = new Map(), hangUploads = false, corpus = SHIPPED } = {}) {
   class Element {
     hidden = false; disabled = false; checked = false; textContent = ''; href = '';
     attrs = {}; handlers = {}; children = []; style = {};
@@ -35,6 +44,7 @@ function harness({ consented = false, clipState = 'basic_accepted', failUploads 
   root.querySelector = (sel) => { if (!nodes.has(sel)) nodes.set(sel, new Element()); return nodes.get(sel); };
   const el = (name) => root.querySelector(`[data-rec-${name}]`);
   el('consent').checked = consented;
+  el('medic').setAttribute('aria-pressed', 'false'); // as the markup has it
 
   const state = { requests: [], mediaCalls: 0, tracksStopped: 0, processors: [], failUploads };
   class AudioContext {
@@ -86,7 +96,7 @@ function harness({ consented = false, clipState = 'basic_accepted', failUploads 
       return { ok: status < 400, status, json: async () => body };
     },
   };
-  sandbox.window = { AudioContext, isSecureContext: true, crypto: webcrypto, JAR_I18N: {}, ...(hangUploads ? { AbortController } : {}) };
+  sandbox.window = { AudioContext, isSecureContext: true, crypto: webcrypto, JAR_I18N: {}, JAR_SENTENCES: corpus, ...(hangUploads ? { AbortController } : {}) };
   vm.runInNewContext(recorder, sandbox);
 
   // Feed `seconds` of a 220 Hz tone at 48 kHz through the live processor.
@@ -143,10 +153,10 @@ const PASSAGES = COUNT / PER_PASSAGE;
 const shownText = (h) => h.el('text').textContent.slice(1, -1);
 const passageOf = (h) => +h.storage.get('jar.rec.passage');
 
-test('the page ships the generated corpus of 4,000 sentences, unedited', () => {
+test('the shipped corpus file is the generator output, unedited, with 4,000 sentences', () => {
   const corpus = buildCorpus();
-  const shipped = source.match(/\/\* sentences:begin \*\/\n([\s\S]*?)  \/\* sentences:end \*\//)[1];
-  assert.equal(shipped, corpusSource(corpus), 'run `node tools/record-sentences.mjs` and bump CORPUS');
+  assert.equal(readText(`assets/corpus/${CORPUS_NAME}.js`), corpusFile(corpus), 'run `node tools/record-sentences.mjs` and bump CORPUS_NAME');
+  assert.deepEqual(SHIPPED, corpus);
   assert.equal(corpus.length, 4000);
   assert.equal(new Set(corpus).size, corpus.length, 'a sentence appears twice');
   for (const s of corpus) {
@@ -157,6 +167,21 @@ test('the page ships the generated corpus of 4,000 sentences, unedited', () => {
   // Until the script runs, the markup shows the first passage.
   const fallback = source.match(/data-rec-text="">„([^<]*)“</)[1];
   assert.equal(fallback, corpus.slice(0, PER_PASSAGE).join(' '));
+});
+
+test('the page loads the corpus file before its recorder and names the same corpus', () => {
+  const load = source.indexOf(`<script src="assets/corpus/${CORPUS_NAME}.js"></script>`);
+  const recorder = source.indexOf('<script>/* js/record.js */');
+  assert.ok(load > 0 && load < recorder, 'the corpus must be defined before the recorder runs');
+  assert.equal(source.match(/var CORPUS = '([^']+)'/)[1], CORPUS_NAME);
+  assert.doesNotMatch(source, /sentences:begin/, 'the sentences no longer live inline');
+});
+
+test('without the corpus file the recorder stays off and says why', () => {
+  const h = harness({ consented: true, corpus: [] });
+  assert.equal(h.el('btn').disabled, true);
+  assert.equal(h.el('status').getAttribute('data-kind'), 'error');
+  assert.match(h.el('status').textContent, /konnte nicht geladen werden/);
 });
 
 test('a random passage of eight sentences is shown before recording', () => {
@@ -260,9 +285,9 @@ test('the second take reuses the session', async () => {
 
 const icmt = async (upload) => JSON.parse((await parseWav(upload.body)).info.ICMT);
 
-test('the medical box is off by default and nothing optional is invented', async () => {
+test('the medical button is off by default and nothing optional is invented', async () => {
   const h = harness({ consented: true });
-  assert.equal(h.el('medic').checked, false);
+  assert.equal(h.el('medic').getAttribute('aria-pressed'), 'false');
   assert.equal(h.el('role-wrap').hidden, true);
   h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   const body = JSON.parse(h.state.requests[0].body);
@@ -274,34 +299,37 @@ test('the medical box is off by default and nothing optional is invented', async
   assert.equal(meta.consent, 'web-2026-10-09');
 });
 
-test('the medical box travels with the session and is written into the take', async () => {
+test('pressing the medical button goes into the session and the take', async () => {
   const h = harness({ consented: true });
-  h.el('medic').checked = true;
+  h.el('medic').fire('click');
+  assert.equal(h.el('medic').getAttribute('aria-pressed'), 'true');
+  assert.equal(h.el('role-wrap').hidden, false, 'the field picker appears once the button is pressed');
   h.el('role').value = 'rettungsdienst';
-  h.el('medic').fire('change');
-  assert.equal(h.el('role-wrap').hidden, false, 'the field picker appears once the box is ticked');
   h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   assert.equal(JSON.parse(h.state.requests[0].body).medic_context, true);
   assert.deepEqual((await icmt(uploads(h)[0])).speaker, { medic: true, medic_role: 'rettungsdienst' });
 });
 
-test('ticking the medical box later opens a new session for the same contributor', async () => {
+test('pressing the button again takes the mark back and opens a new session for the same contributor', async () => {
   const h = harness({ consented: true });
+  h.el('medic').fire('click');
   h.click(); await settle(); h.speak(5.5); h.click(); await settle();
-  h.el('medic').checked = true; h.el('medic').fire('change');
+  h.el('medic').fire('click');
+  assert.equal(h.el('medic').getAttribute('aria-pressed'), 'false');
+  assert.equal(h.el('role-wrap').hidden, true);
   h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   const sessions = h.state.requests.filter((r) => r.url.endsWith('/contribution-sessions'));
   assert.equal(sessions.length, 2);
   assert.equal(sessions[0].headers['X-Medicraft-Contributor-Token'], undefined);
   assert.equal(sessions[1].headers['X-Medicraft-Contributor-Token'], 'ctr_test.token', 'same contributor, same deletion code');
-  assert.equal(JSON.parse(sessions[1].body).medic_context, true);
-  assert.equal(uploads(h).length, 2);
+  assert.equal(JSON.parse(sessions[1].body).medic_context, false);
+  assert.deepEqual((await icmt(uploads(h)[1])).speaker, { medic: false });
 });
 
 test('optional answers go into the metadata and unanswered ones are left out', async () => {
   const h = harness({ consented: true });
   h.el('age').value = '18-29'; h.el('region').value = 'bayern'; h.el('mic').value = 'handy';
-  h.el('role').value = 'pflege';   // ignored while the medical box is not ticked
+  h.el('role').value = 'pflege';   // ignored while the medical button is not pressed
   h.el('age').fire('change');
   h.click(); await settle(); h.speak(5.5); h.click(); await settle();
   assert.equal(JSON.parse(h.state.requests[0].body).age_band, '18+');
@@ -312,10 +340,12 @@ test('optional answers go into the metadata and unanswered ones are left out', a
 test('the optional answers survive a reload of the tab', () => {
   const storage = new Map();
   const first = harness({ storage });
-  first.el('medic').checked = true; first.el('role').value = 'notarzt'; first.el('gender').value = 'divers';
-  first.el('medic').fire('change');
+  first.el('medic').fire('click');
+  first.el('role').value = 'notarzt';
+  first.el('gender').value = 'divers';
+  first.el('gender').fire('change');
   const second = harness({ storage });
-  assert.equal(second.el('medic').checked, true);
+  assert.equal(second.el('medic').getAttribute('aria-pressed'), 'true');
   assert.equal(second.el('role').value, 'notarzt');
   assert.equal(second.el('gender').value, 'divers');
   assert.equal(second.el('role-wrap').hidden, false);
@@ -401,6 +431,11 @@ test('sentence ids stay three digits up to s999 and are unpadded above, with no 
   }
   const all = buildCorpus();
   assert.equal(new Set(all).size, all.length);
+});
+
+test('the medical mark is a button that starts unpressed and reveals the field picker', () => {
+  assert.match(source, /<button class="rec__toggle" type="button" data-rec-medic="" aria-pressed="false" aria-controls="recRole">/);
+  assert.match(source, /<label class="rec__field" id="recRole" data-rec-role-wrap="" hidden="">/);
 });
 
 test('the privacy page describes the recorder actually used', () => {
