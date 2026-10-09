@@ -2402,6 +2402,38 @@ ul, ol { list-style: none; padding: 0; }
   40%, 80% { transform: translateX(5px); }
 }
 
+.rec__about {
+  min-width: 0;
+  margin: var(--sp-5) 0 0;
+  padding: var(--sp-4) var(--sp-5);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+.rec__about legend { float: left; width: 100%; margin-bottom: var(--sp-3); padding: 0; font-weight: 600; color: var(--ink); }
+.rec__about legend + * { clear: both; }
+.rec__check { display: flex; gap: var(--sp-3); cursor: pointer; }
+.rec__check input { flex-shrink: 0; width: 1.15rem; height: 1.15rem; margin-top: 0.2em; accent-color: var(--brand-mint); }
+.rec__field { display: grid; gap: var(--sp-1); margin-top: var(--sp-3); }
+.rec__field[hidden] { display: none; }
+.rec__field select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-raise-2);
+  color: var(--ink);
+  font: inherit;
+}
+.rec__more { margin-top: var(--sp-4); }
+.rec__more summary { cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.rec__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); column-gap: var(--sp-4); }
+.rec__about-note { margin-top: var(--sp-3); font-size: var(--t-micro); color: var(--ink-faint); }
+
 .rec__code { margin-top: var(--sp-4); font-size: var(--t-micro); color: var(--ink-faint); }
 .rec__code strong { font-family: var(--font-mono); color: var(--ink-soft); }
 .rec__fine { margin-top: var(--sp-4); font-size: var(--t-micro); color: var(--ink-faint); }
@@ -2504,10 +2536,105 @@ ul, ol { list-style: none; padding: 0; }
       <label class="rec__consent">
         <input type="checkbox" data-rec-consent="">
         <span><span data-i18n="rec_consent">Ich bin mindestens 16 Jahre alt und willige ein, dass meine Aufnahme zusammen
-          mit dem angezeigten Text an J.A.R. Medical übertragen und zur Entwicklung unserer
-          Spracherkennung gespeichert wird. Widerruf jederzeit möglich.</span>
+          mit dem angezeigten Text und meinen freiwilligen Angaben an J.A.R. Medical übertragen und
+          zur Entwicklung unserer Spracherkennung gespeichert wird. Widerruf jederzeit möglich.</span>
           <a href="datenschutz.html#ds-aufnahme" data-i18n="rec_consent_link">Datenschutz</a></span>
       </label>
+
+      <!-- Optional facts that make the dataset useful for training: who speaks
+           (medical background, age group, gender, first language, region) and
+           how (place, microphone). All optional; nothing is sent before consent
+           and a stopped take. They travel in the WAV's ICMT metadata, and the
+           medical flag also in the contribution session. -->
+      <fieldset class="rec__about" data-rec-about="">
+        <legend data-i18n="rec_about_h">Freiwillige Angaben</legend>
+        <label class="rec__check">
+          <input type="checkbox" data-rec-medic="">
+          <span data-i18n="rec_medic">Ich bin medizinisch tätig oder in Ausbildung dafür (z. B. Rettungsdienst,
+            Sanitätsdienst, Pflege, Medizin).</span>
+        </label>
+        <label class="rec__field" data-rec-role-wrap="" hidden="">
+          <span data-i18n="rec_role">Bereich</span>
+          <select data-rec-role="">
+            <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+            <option value="rettungsdienst" data-i18n="rec_role_ems">Rettungsdienst (z. B. NotSan, RettSan)</option>
+            <option value="notarzt" data-i18n="rec_role_ems_doc">Notärztin / Notarzt</option>
+            <option value="arzt" data-i18n="rec_role_doc">Ärztin / Arzt</option>
+            <option value="pflege" data-i18n="rec_role_nurse">Pflege</option>
+            <option value="sanitaetsdienst" data-i18n="rec_role_san">Sanitäts- oder Schulsanitätsdienst</option>
+            <option value="leitstelle" data-i18n="rec_role_dispatch">Leitstelle</option>
+            <option value="feuerwehr_thw" data-i18n="rec_role_fire">Feuerwehr, THW, Katastrophenschutz</option>
+            <option value="studium_ausbildung" data-i18n="rec_role_student">Medizinstudium oder Ausbildung</option>
+            <option value="andere" data-i18n="rec_role_other">Anderer Gesundheitsberuf</option>
+          </select>
+        </label>
+        <details class="rec__more">
+          <summary data-i18n="rec_more">Weitere Angaben, die der Spracherkennung helfen</summary>
+          <div class="rec__grid">
+            <label class="rec__field"><span data-i18n="rec_age">Alter</span>
+              <select data-rec-age="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="16-17">16–17</option>
+                <option value="18-29">18–29</option>
+                <option value="30-44">30–44</option>
+                <option value="45-59">45–59</option>
+                <option value="60+">60+</option>
+              </select></label>
+            <label class="rec__field"><span data-i18n="rec_gender">Geschlecht</span>
+              <select data-rec-gender="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="weiblich" data-i18n="rec_gender_f">weiblich</option>
+                <option value="maennlich" data-i18n="rec_gender_m">männlich</option>
+                <option value="divers" data-i18n="rec_gender_d">divers</option>
+              </select></label>
+            <label class="rec__field"><span data-i18n="rec_l1">Erstsprache</span>
+              <select data-rec-l1="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="deutsch" data-i18n="rec_l1_de">Deutsch</option>
+                <option value="deutsch_und_andere" data-i18n="rec_l1_bi">Deutsch und eine weitere Sprache</option>
+                <option value="andere" data-i18n="rec_l1_other">Eine andere Sprache</option>
+              </select></label>
+            <label class="rec__field"><span data-i18n="rec_region">Aufgewachsen in</span>
+              <select data-rec-region="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="bayern" data-i18n="rec_reg_by">Bayern</option>
+                <option value="baden-wuerttemberg" data-i18n="rec_reg_bw">Baden-Württemberg</option>
+                <option value="hessen" data-i18n="rec_reg_he">Hessen</option>
+                <option value="rheinland-pfalz_saarland" data-i18n="rec_reg_rp">Rheinland-Pfalz / Saarland</option>
+                <option value="nordrhein-westfalen" data-i18n="rec_reg_nw">Nordrhein-Westfalen</option>
+                <option value="niedersachsen_bremen" data-i18n="rec_reg_ni">Niedersachsen / Bremen</option>
+                <option value="hamburg_schleswig-holstein" data-i18n="rec_reg_sh">Hamburg / Schleswig-Holstein</option>
+                <option value="mecklenburg-vorpommern" data-i18n="rec_reg_mv">Mecklenburg-Vorpommern</option>
+                <option value="berlin_brandenburg" data-i18n="rec_reg_bb">Berlin / Brandenburg</option>
+                <option value="sachsen" data-i18n="rec_reg_sn">Sachsen</option>
+                <option value="sachsen-anhalt" data-i18n="rec_reg_st">Sachsen-Anhalt</option>
+                <option value="thueringen" data-i18n="rec_reg_th">Thüringen</option>
+                <option value="oesterreich" data-i18n="rec_reg_at">Österreich</option>
+                <option value="schweiz" data-i18n="rec_reg_ch">Schweiz</option>
+                <option value="anderes_land" data-i18n="rec_reg_other">Anderes Land</option>
+              </select></label>
+            <label class="rec__field"><span data-i18n="rec_place">Aufnahmeort</span>
+              <select data-rec-place="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="ruhig" data-i18n="rec_place_quiet">Ruhiger Raum</option>
+                <option value="geraeusche" data-i18n="rec_place_noisy">Raum mit Hintergrundgeräuschen</option>
+                <option value="draussen" data-i18n="rec_place_out">Draußen</option>
+                <option value="fahrzeug" data-i18n="rec_place_vehicle">Im Fahrzeug</option>
+                <option value="dienst" data-i18n="rec_place_work">Im Dienst (Wache, Station, Leitstelle)</option>
+              </select></label>
+            <label class="rec__field"><span data-i18n="rec_mic">Mikrofon</span>
+              <select data-rec-mic="">
+                <option value="" data-i18n="rec_opt_none">Keine Angabe</option>
+                <option value="handy" data-i18n="rec_mic_phone">Handy</option>
+                <option value="eingebaut" data-i18n="rec_mic_builtin">Im Laptop oder PC eingebaut</option>
+                <option value="headset" data-i18n="rec_mic_headset">Headset oder Kopfhörer</option>
+                <option value="extern" data-i18n="rec_mic_ext">Externes Mikrofon</option>
+              </select></label>
+          </div>
+        </details>
+        <p class="rec__about-note" data-i18n="rec_about_note">Alle Angaben sind freiwillig und werden nur zusammen mit
+          Ihren Aufnahmen gespeichert. Sie helfen uns, dass die Erkennung jede Stimme gleich gut versteht.</p>
+      </fieldset>
 
       <p class="rec__code" data-rec-code="" hidden=""></p>
       <p class="rec__fine" data-i18n="rec_fine">Kein Konto, kein Name. Dialekt und Hintergrundgeräusche sind willkommen.
@@ -2983,10 +3110,61 @@ window.JAR_I18N = {
     rec_shuffle: 'Show a different text',
     rec_retry: 'Send again',
     rec_download: 'Save as WAV',
-    rec_consent: 'I am at least 16 years old and consent to my recording being transmitted to J.A.R. Medical together with the text shown, and stored to develop our speech recognition. I can withdraw at any time.',
+    rec_consent: 'I am at least 16 years old and consent to my recording being transmitted to J.A.R. Medical together with the text shown and my optional details, and stored to develop our speech recognition. I can withdraw at any time.',
     rec_consent_link: 'Privacy',
     rec_fine: 'No account, no name. Accents and background noise are welcome. The sentences are speech material, not medical advice: in an emergency call 112.',
     rec_back: 'Back to the options',
+    rec_about_h: 'Optional details',
+    rec_medic: 'I work in a medical field or am training for one (e.g. emergency medical services, first-aid service, nursing, medicine).',
+    rec_role: 'Field',
+    rec_opt_none: 'No answer',
+    rec_role_ems: 'Emergency medical services (e.g. paramedic, EMT)',
+    rec_role_ems_doc: 'Emergency physician',
+    rec_role_doc: 'Physician',
+    rec_role_nurse: 'Nursing',
+    rec_role_san: 'First-aid or school first-aid service',
+    rec_role_dispatch: 'Emergency dispatch centre',
+    rec_role_fire: 'Fire service, THW, civil protection',
+    rec_role_student: 'Medical studies or training',
+    rec_role_other: 'Other health profession',
+    rec_more: 'More details that help the speech recognition',
+    rec_age: 'Age',
+    rec_gender: 'Gender',
+    rec_gender_f: 'female',
+    rec_gender_m: 'male',
+    rec_gender_d: 'diverse',
+    rec_l1: 'First language',
+    rec_l1_de: 'German',
+    rec_l1_bi: 'German and another language',
+    rec_l1_other: 'Another language',
+    rec_region: 'Grew up in',
+    rec_reg_by: 'Bavaria',
+    rec_reg_bw: 'Baden-Württemberg',
+    rec_reg_he: 'Hesse',
+    rec_reg_rp: 'Rhineland-Palatinate / Saarland',
+    rec_reg_nw: 'North Rhine-Westphalia',
+    rec_reg_ni: 'Lower Saxony / Bremen',
+    rec_reg_sh: 'Hamburg / Schleswig-Holstein',
+    rec_reg_mv: 'Mecklenburg-Western Pomerania',
+    rec_reg_bb: 'Berlin / Brandenburg',
+    rec_reg_sn: 'Saxony',
+    rec_reg_st: 'Saxony-Anhalt',
+    rec_reg_th: 'Thuringia',
+    rec_reg_at: 'Austria',
+    rec_reg_ch: 'Switzerland',
+    rec_reg_other: 'Another country',
+    rec_place: 'Recording place',
+    rec_place_quiet: 'Quiet room',
+    rec_place_noisy: 'Room with background noise',
+    rec_place_out: 'Outdoors',
+    rec_place_vehicle: 'In a vehicle',
+    rec_place_work: 'On duty (station, ward, dispatch centre)',
+    rec_mic: 'Microphone',
+    rec_mic_phone: 'Phone',
+    rec_mic_builtin: 'Built into laptop or PC',
+    rec_mic_headset: 'Headset or earphones',
+    rec_mic_ext: 'External microphone',
+    rec_about_note: 'All details are optional and are stored only together with your recordings. They help the recognition understand every voice equally well.',
     /* set by js/record.js, not by markup */
     rec_btn_start: 'Start recording',
     rec_btn_starting: 'Opening the microphone …',
@@ -3010,8 +3188,8 @@ window.JAR_I18N = {
     legal_privacy_h_audio: '5. Voice recordings',
     legal_privacy_audio_p1: 'On the “Take part” page you can voluntarily give us short voice recordings in which you read out randomly assembled radio calls. The recording is made directly in your browser; no third-party service is embedded for it.',
     legal_privacy_audio_note: 'As long as you are only reading the page, nothing is transmitted. Only once you tick the consent box, start a recording and stop it again does your browser send that recording to our server.',
-    legal_privacy_audio_p2: 'For this, your browser asks for access to your microphone. The recording is converted locally into an audio file into which the text read out, an identifier of that text, the time of recording and the version of this consent are written as metadata. Your browser transmits this file in encrypted form to a computer we operate ourselves. A pseudonymous identifier, held only in your browser tab, links further recordings to the same session; no cookie is set.',
-    legal_privacy_audio_p3: 'The data processed are: the voice recording, the text read out and its identifier, the time and length of the recording, the version of the consent, your confirmation that you are at least 16, a pseudonymous identifier, and technically necessary connection data such as your IP address. A voice recording is personal data even without a name, because a voice can in principle be attributed to a person. We do not ask for a name or e-mail address.',
+    legal_privacy_audio_p2: 'For this, your browser asks for access to your microphone. The recording is converted locally into an audio file into which the text read out, an identifier of that text, the time of recording, the version of this consent, technical details of the recording and your optional details are written as metadata. Your browser transmits this file in encrypted form to a computer we operate ourselves. A pseudonymous identifier, held only in your browser tab, links further recordings to the same session; no cookie is set.',
+    legal_privacy_audio_p3: 'The data processed are: the voice recording, the text read out and its identifier, the time and length of the recording, the version of the consent, your confirmation that you are at least 16, a pseudonymous identifier, and technically necessary connection data such as your IP address. In addition: technical details of the recording (device type, operating system and browser family, the browser’s microphone settings, sample rate, level and noise values) and, only if you give them, your optional details: whether and in which field you work in medicine, age group, gender, first language, region you grew up in, recording place and type of microphone. A voice recording is personal data even without a name, because a voice can in principle be attributed to a person. We do not ask for a name or e-mail address.',
     legal_privacy_audio_h3_provider: 'Where the recordings are stored',
     legal_privacy_audio_provider_p1: 'The recordings are stored on a computer we operate ourselves and analysed automatically there by a speech recognition that also runs locally. This computer is reached through the Tailscale Funnel service of Tailscale Inc. Tailscale only forwards the encrypted connection; encryption ends on our computer, so Tailscale cannot see the content of a recording, but it can see connection data such as your IP address.',
     legal_privacy_audio_provider_p2: 'For access to, correction of, or deletion of your recordings, please write to the address given in section 1.',
@@ -3427,8 +3605,8 @@ window.JAR_I18N = {
 
   var API = (root.getAttribute('data-api') || '').replace(/\/+$/, '');
   var API_CONSENT = '2026-08-25-v3';   /* the version the contribution API accepts */
-  var WEB_CONSENT = 'web-2026-10-07';  /* the consent text shown on this page */
-  var RECORDER = 'jar-medical.tech/mitmachen-aufnahme v3';
+  var WEB_CONSENT = 'web-2026-10-09';  /* the consent text shown on this page */
+  var RECORDER = 'jar-medical.tech/mitmachen-aufnahme v4';
   /* The contribution API rejects takes over 90 s; eight sentences take thirty
      to fifty seconds, so anything under five cannot be the whole text. */
   var RATE = 16000, MAX_SECONDS = 88, MIN_SECONDS = 5;
@@ -3439,6 +3617,14 @@ window.JAR_I18N = {
   var textEl = $('[data-rec-text]'), shuffle = $('[data-rec-shuffle]');
   var statusEl = $('[data-rec-status]'), fail = $('[data-rec-fail]'), retry = $('[data-rec-retry]');
   var download = $('[data-rec-download]'), codeEl = $('[data-rec-code]'), countEl = $('[data-rec-count]');
+  var medic = $('[data-rec-medic]'), roleWrap = $('[data-rec-role-wrap]');
+  /* Optional, self-reported facts. An empty value means "no answer" and is
+     left out of the metadata altogether. */
+  var FIELDS = {
+    medic_role: $('[data-rec-role]'), age_group: $('[data-rec-age]'), gender: $('[data-rec-gender]'),
+    first_language: $('[data-rec-l1]'), region: $('[data-rec-region]'), environment: $('[data-rec-place]'),
+    microphone: $('[data-rec-mic]')
+  };
 
   function t(key, de) {
     var dict = (window.JAR_I18N || {})[document.documentElement.lang];
@@ -3458,6 +3644,36 @@ window.JAR_I18N = {
       if (value === null) sessionStorage.removeItem('jar.rec.' + key);
       else sessionStorage.setItem('jar.rec.' + key, value);
     } catch (e) { /* private mode */ }
+  }
+
+  /* The optional answers live in the tab like the consent does. */
+  function profile() {
+    var p = { medic: !!medic.checked };
+    Object.keys(FIELDS).forEach(function (k) {
+      var v = FIELDS[k] && FIELDS[k].value;
+      if (v && (k !== 'medic_role' || p.medic)) p[k] = String(v).slice(0, 40);
+    });
+    return p;
+  }
+  function keepProfile() {
+    roleWrap.hidden = !medic.checked;
+    save('profile', JSON.stringify(profile()));
+  }
+  (function restoreProfile() {
+    var stored = null;
+    try { stored = JSON.parse(load('profile') || 'null'); } catch (e) { stored = null; }
+    if (stored && typeof stored === 'object') {
+      medic.checked = stored.medic === true;
+      Object.keys(FIELDS).forEach(function (k) {
+        if (FIELDS[k] && typeof stored[k] === 'string') FIELDS[k].value = stored[k];
+      });
+    }
+    roleWrap.hidden = !medic.checked;
+  })();
+  /* The contribution API knows three age bands; the finer group stays in ICMT. */
+  function ageBand() {
+    var group = FIELDS.age_group && FIELDS.age_group.value;
+    return group === '16-17' ? '16-17' : group ? '18+' : '16+';
   }
 
   /* ----------------------------------------------------------------------
@@ -4349,12 +4565,14 @@ window.JAR_I18N = {
 
   /* `p` is the passage on screen when the take was stopped: the full text,
      and each sentence with its corpus id, travel with the audio. */
-  function metadata(p, seconds, recordedAt) {
+  function metadata(p, seconds, recordedAt, take) {
     var meta = {
       text: p.text, prompt_id: p.id, corpus: CORPUS, passage: p.passage, sentences: p.sentences,
       tag: p.tag, language: 'de-DE',
       recorded_at: recordedAt.toISOString(), duration_seconds: Math.round(seconds * 100) / 100,
-      sample_rate: RATE, consent: WEB_CONSENT, recorder: RECORDER
+      sample_rate: RATE, consent: WEB_CONSENT, recorder: RECORDER,
+      speaker: take.speaker, capture: take.capture, levels: take.levels, attempt: take.attempt,
+      ui_language: document.documentElement.lang || 'de'
     };
     return [
       ['INAM', p.text],
@@ -4366,6 +4584,50 @@ window.JAR_I18N = {
       ['ICRD', meta.recorded_at.slice(0, 10)],
       ['ISFT', RECORDER]
     ];
+  }
+
+  /* What the browser actually did to the signal, without the raw user agent. */
+  function captureInfo(r, rate) {
+    var s = r.settings || {}, info = { input_sample_rate: rate, device: 'desktop' };
+    ['echoCancellation', 'noiseSuppression', 'autoGainControl', 'channelCount', 'sampleRate', 'sampleSize', 'latency']
+      .forEach(function (k) {
+        if (typeof s[k] === 'boolean' || typeof s[k] === 'number') {
+          info[k.replace(/[A-Z]/g, function (c) { return '_' + c.toLowerCase(); })] = s[k];
+        }
+      });
+    try { if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) info.device = 'touch'; } catch (e) { /* old browser */ }
+    var ua = navigator.userAgent || '';
+    info.os = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : /Mac OS X/.test(ua) ? 'macos'
+      : /Windows/.test(ua) ? 'windows' : /CrOS/.test(ua) ? 'chromeos' : /Linux/.test(ua) ? 'linux' : 'other';
+    info.browser = /Edg\//.test(ua) ? 'edge' : /OPR\//.test(ua) ? 'opera' : /Firefox\/|FxiOS/.test(ua) ? 'firefox'
+      : /SamsungBrowser/.test(ua) ? 'samsung' : /Chrome\/|CriOS/.test(ua) ? 'chrome' : /Safari\//.test(ua) ? 'safari' : 'other';
+    return info;
+  }
+
+  /* Level, noise floor and clipping of the take as sent, in dBFS: lets the
+     training side sort clean from noisy material without listening first. */
+  function levels(samples) {
+    var n = samples.length, frame = Math.round(RATE * 0.02), frames = [], peak = 0, sum = 0, clipped = 0, i;
+    for (i = 0; i < n; i++) {
+      var x = samples[i] < 0 ? -samples[i] : samples[i];
+      if (x > peak) peak = x;
+      if (x >= 0.99) clipped++;
+      sum += x * x;
+    }
+    for (var o = 0; o + frame <= n; o += frame) {
+      var e = 0;
+      for (i = o; i < o + frame; i++) e += samples[i] * samples[i];
+      frames.push(Math.sqrt(e / frame));
+    }
+    frames.sort(function (a, b) { return a - b; });
+    function db(v) { return v > 0 ? Math.max(-120, Math.round(200 * Math.log(v) / Math.LN10) / 10) : -120; }
+    var floor = frames.length ? frames[Math.floor(0.2 * (frames.length - 1))] : 0;
+    var loud = frames.length ? frames[Math.floor(0.95 * (frames.length - 1))] : 0;
+    return {
+      peak_dbfs: db(peak), rms_dbfs: db(Math.sqrt(sum / Math.max(1, n))),
+      noise_floor_dbfs: db(floor), speech_dbfs: db(loud), snr_db: Math.round((db(loud) - db(floor)) * 10) / 10,
+      clipping_ratio: Math.round(clipped / Math.max(1, n) * 1e5) / 1e5
+    };
   }
 
   /* Proper resampling where OfflineAudioContext exists, box-filter otherwise. */
@@ -4442,6 +4704,7 @@ window.JAR_I18N = {
   var rec = null;
   var pending = null;
   var downloadUrl = null;
+  var attempts = {};   /* takes per passage in this tab, so repeats can be told apart */
 
   function release(r) {
     if (!r) return;
@@ -4467,6 +4730,8 @@ window.JAR_I18N = {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       var ctx = new Ctx();
       r = { stream: stream, ctx: ctx, chunks: [], length: 0, level: 0, started: Date.now(), timer: 0 };
+      var track = stream.getAudioTracks ? stream.getAudioTracks()[0] : null;
+      try { r.settings = track && track.getSettings ? track.getSettings() : {}; } catch (e) { r.settings = {}; }
       r.source = ctx.createMediaStreamSource(stream);
       r.node = ctx.createScriptProcessor(4096, 1, 1);
       r.mute = ctx.createGain();
@@ -4518,11 +4783,14 @@ window.JAR_I18N = {
       return;
     }
     var p = prompt, recordedAt = new Date();
+    attempts[p.id] = (attempts[p.id] || 0) + 1;
+    var take = { speaker: profile(), capture: captureInfo(r, rate), attempt: attempts[p.id] };
     setState('sending');
     say('rec_st_sending', 'Wird gesendet …');
     resample(data, rate).catch(function () { return decimate(data, rate); }).then(function (samples) {
+      take.levels = levels(samples);
       pending = {
-        blob: encodeWav(samples, RATE, metadata(p, seconds, recordedAt)),
+        blob: encodeWav(samples, RATE, metadata(p, seconds, recordedAt, take)),
         prompt: p,
         key: newKey()
       };
@@ -4548,17 +4816,25 @@ window.JAR_I18N = {
     });
   }
 
+  /* The API stores the medical flag per session. Changing it opens a new
+     session for the same contributor (same token, same deletion code). */
   function session() {
-    var token = load('token'), id = load('session');
-    if (token && id) return Promise.resolve({ token: token, id: id });
+    var token = load('token'), id = load('session'), flag = medic.checked ? '1' : '0';
+    if (token && id && load('session_medic') === flag) return Promise.resolve({ token: token, id: id });
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['X-Medicraft-Contributor-Token'] = token;
     return fetch(API + '/api/contribution-sessions', {
       method: 'POST',
       credentials: 'omit',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ consent_version: API_CONSENT, age_band: '16+', locale: 'de-DE', mode: 'shift' })
+      headers: headers,
+      body: JSON.stringify({
+        consent_version: API_CONSENT, age_band: ageBand(), locale: 'de-DE',
+        mode: 'website_read_aloud', medic_context: !!medic.checked
+      })
     }).then(readJson).then(function (body) {
       save('token', body.contributor_token);
       save('session', body.session_id);
+      save('session_medic', flag);
       if (body.recovery_code) save('code', body.recovery_code);
       return { token: body.contributor_token, id: body.session_id };
     });
@@ -4639,6 +4915,13 @@ window.JAR_I18N = {
   consent.addEventListener('change', function () {
     save('consent', consent.checked ? WEB_CONSENT : null);
     if (consent.checked && lastStatus && lastStatus.key === 'rec_st_consent') say(null);
+  });
+
+  medic.addEventListener('change', keepProfile);
+  Object.keys(FIELDS).forEach(function (k) { if (FIELDS[k]) FIELDS[k].addEventListener('change', keepProfile); });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && rec) stop();
   });
 
   shuffle.addEventListener('click', function () {

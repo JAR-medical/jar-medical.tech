@@ -251,6 +251,91 @@ test('the second take reuses the session', async () => {
   assert.equal(uploads(h).length, 2);
 });
 
+const icmt = async (upload) => JSON.parse((await parseWav(upload.body)).info.ICMT);
+
+test('the medical box is off by default and nothing optional is invented', async () => {
+  const h = harness({ consented: true });
+  assert.equal(h.el('medic').checked, false);
+  assert.equal(h.el('role-wrap').hidden, true);
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  const body = JSON.parse(h.state.requests[0].body);
+  assert.equal(body.medic_context, false);
+  assert.equal(body.mode, 'website_read_aloud');
+  assert.equal(body.age_band, '16+');
+  const meta = await icmt(uploads(h)[0]);
+  assert.deepEqual(meta.speaker, { medic: false });
+  assert.equal(meta.consent, 'web-2026-10-09');
+});
+
+test('the medical box travels with the session and is written into the take', async () => {
+  const h = harness({ consented: true });
+  h.el('medic').checked = true;
+  h.el('role').value = 'rettungsdienst';
+  h.el('medic').fire('change');
+  assert.equal(h.el('role-wrap').hidden, false, 'the field picker appears once the box is ticked');
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  assert.equal(JSON.parse(h.state.requests[0].body).medic_context, true);
+  assert.deepEqual((await icmt(uploads(h)[0])).speaker, { medic: true, medic_role: 'rettungsdienst' });
+});
+
+test('ticking the medical box later opens a new session for the same contributor', async () => {
+  const h = harness({ consented: true });
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  h.el('medic').checked = true; h.el('medic').fire('change');
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  const sessions = h.state.requests.filter((r) => r.url.endsWith('/contribution-sessions'));
+  assert.equal(sessions.length, 2);
+  assert.equal(sessions[0].headers['X-Medicraft-Contributor-Token'], undefined);
+  assert.equal(sessions[1].headers['X-Medicraft-Contributor-Token'], 'ctr_test.token', 'same contributor, same deletion code');
+  assert.equal(JSON.parse(sessions[1].body).medic_context, true);
+  assert.equal(uploads(h).length, 2);
+});
+
+test('optional answers go into the metadata and unanswered ones are left out', async () => {
+  const h = harness({ consented: true });
+  h.el('age').value = '18-29'; h.el('region').value = 'bayern'; h.el('mic').value = 'handy';
+  h.el('role').value = 'pflege';   // ignored while the medical box is not ticked
+  h.el('age').fire('change');
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  assert.equal(JSON.parse(h.state.requests[0].body).age_band, '18+');
+  assert.deepEqual((await icmt(uploads(h)[0])).speaker,
+    { medic: false, age_group: '18-29', region: 'bayern', microphone: 'handy' });
+});
+
+test('the optional answers survive a reload of the tab', () => {
+  const storage = new Map();
+  const first = harness({ storage });
+  first.el('medic').checked = true; first.el('role').value = 'notarzt'; first.el('gender').value = 'divers';
+  first.el('medic').fire('change');
+  const second = harness({ storage });
+  assert.equal(second.el('medic').checked, true);
+  assert.equal(second.el('role').value, 'notarzt');
+  assert.equal(second.el('gender').value, 'divers');
+  assert.equal(second.el('role-wrap').hidden, false);
+});
+
+test('each take carries its capture settings and levels', async () => {
+  const h = harness({ consented: true });
+  h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+  const meta = await icmt(uploads(h)[0]);
+  assert.equal(meta.capture.input_sample_rate, 48000);
+  assert.ok(['desktop', 'touch'].includes(meta.capture.device));
+  assert.equal(meta.attempt, 1);
+  assert.equal(meta.ui_language, 'de');
+  // A 0.3 sine: peak about -10.5 dBFS, RMS about -13.5 dBFS, nothing clipped.
+  assert.ok(Math.abs(meta.levels.peak_dbfs + 10.5) < 0.5, JSON.stringify(meta.levels));
+  assert.ok(Math.abs(meta.levels.rms_dbfs + 13.5) < 0.5, JSON.stringify(meta.levels));
+  assert.equal(meta.levels.clipping_ratio, 0);
+});
+
+test('a repeated passage is numbered as the next attempt', async () => {
+  const h = harness({ consented: true, clipState: 'rejected' });
+  for (let i = 0; i < 2; i++) { h.click(); await settle(); h.speak(5.5); h.click(); await settle(); }
+  const metas = await Promise.all(uploads(h).map(icmt));
+  assert.equal(metas[0].prompt_id, metas[1].prompt_id);
+  assert.deepEqual(metas.map((m) => m.attempt), [1, 2]);
+});
+
 test('a take too short to hold the passage is discarded locally', async () => {
   const h = harness({ consented: true });
   const shown = shownText(h);
@@ -286,4 +371,11 @@ test('the privacy page describes the recorder actually used', () => {
   assert.match(privacy, /tailscale\.com\/privacy-policy/);
   assert.doesNotMatch(privacy.replace(/<script>[\s\S]*?<\/script>/g, ''), /speakpipe/i);
   assert.doesNotMatch(source, /speakpipe/i);
+  // Every optional detail the recorder can send is named in the privacy text.
+  const section = privacy.match(/<section aria-labelledby="ds-aufnahme">([\s\S]*?)<\/section>/)[1];
+  for (const word of ['medizinisch tätig', 'Altersgruppe', 'Geschlecht', 'Erstsprache', 'Herkunftsregion', 'Aufnahmeort',
+    'Mikrofonart', 'Mikrofoneinstellungen', 'Pegel']) {
+    assert.ok(section.includes(word), `privacy text does not mention ${word}`);
+  }
+  assert.match(source, /data-i18n="rec_consent">[^<]*freiwilligen Angaben/);
 });
