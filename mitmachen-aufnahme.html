@@ -2306,7 +2306,13 @@ ul, ol { list-style: none; padding: 0; }
 .rec__label { flex: 1; text-align: left; }
 .rec__time { font-family: var(--font-mono); font-size: var(--t-small); font-variant-numeric: tabular-nums; opacity: 0.75; }
 
-.rec[data-state="recording"] .rec__btn { background: var(--sig-red); color: #fff; }
+.rec[data-state="recording"] .rec__btn {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--sp-2));
+  z-index: 5;
+  background: var(--sig-red);
+  color: var(--brand-navy);
+}
 .rec[data-state="recording"] .rec__icon { color: var(--sig-red); background: #fff; animation: rec-pulse 1.4s var(--ease-in-out) infinite; }
 .rec[data-state="recording"] .rec__icon svg { display: none; }
 .rec[data-state="recording"] .rec__icon .rec__stop { display: block; }
@@ -2448,10 +2454,11 @@ ul, ol { list-style: none; padding: 0; }
   .rec[data-state="recording"] .rec__icon, .rec.is-nudge .rec__consent { animation: none; }
 }
 </style>
+<noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
 </head><body class="theme-dark page--dark">
 
 <!-- ============================== HEADER ============================== -->
-<a class="skip-link" href="index.html#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
+<a class="skip-link" href="#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
 
 <header class="nav" id="nav">
   <div class="nav__inner wrap wrap--wide">
@@ -4723,12 +4730,13 @@ window.JAR_I18N = {
     setState('starting');
     say(null);
     fail.hidden = true;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    var ctx = new Ctx();
+    if (ctx.resume) ctx.resume();
     var r = null;
     navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true }
     }).then(function (stream) {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      var ctx = new Ctx();
       r = { stream: stream, ctx: ctx, chunks: [], length: 0, level: 0, started: Date.now(), timer: 0 };
       var track = stream.getAudioTracks ? stream.getAudioTracks()[0] : null;
       try { r.settings = track && track.getSettings ? track.getSettings() : {}; } catch (e) { r.settings = {}; }
@@ -4760,7 +4768,8 @@ window.JAR_I18N = {
       setState('recording');
       say('rec_st_rec', 'Aufnahme läuft. Lesen Sie den Text vor und tippen Sie danach auf den Knopf.');
     }).catch(function (err) {
-      release(r);
+      if (r) release(r);
+      else if (ctx.state !== 'closed') ctx.close();
       setState('idle');
       var denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
       if (denied) say('rec_st_denied', 'Kein Zugriff auf das Mikrofon. Bitte in den Browser-Einstellungen erlauben und erneut tippen.', 'error');
@@ -4807,6 +4816,15 @@ window.JAR_I18N = {
   /* ----------------------------------------------------------------------
      Upload
      ---------------------------------------------------------------------- */
+  function timedFetch(url, options, ms) {
+    var Ctrl = window.AbortController;
+    if (!Ctrl) return fetch(url, options);
+    var ctrl = new Ctrl(), timer = setTimeout(function () { ctrl.abort(); }, ms);
+    options.signal = ctrl.signal;
+    return fetch(url, options).then(function (res) { clearTimeout(timer); return res; },
+      function (err) { clearTimeout(timer); throw err; });
+  }
+
   function readJson(res) {
     return res.json().catch(function () { return {}; }).then(function (body) {
       if (!res.ok) {
@@ -4823,7 +4841,7 @@ window.JAR_I18N = {
     if (token && id && load('session_medic') === flag) return Promise.resolve({ token: token, id: id });
     var headers = { 'Content-Type': 'application/json' };
     if (token) headers['X-Medicraft-Contributor-Token'] = token;
-    return fetch(API + '/api/contribution-sessions', {
+    return timedFetch(API + '/api/contribution-sessions', {
       method: 'POST',
       credentials: 'omit',
       headers: headers,
@@ -4831,7 +4849,7 @@ window.JAR_I18N = {
         consent_version: API_CONSENT, age_band: ageBand(), locale: 'de-DE',
         mode: 'website_read_aloud', medic_context: !!medic.checked
       })
-    }).then(readJson).then(function (body) {
+    }, 20000).then(readJson).then(function (body) {
       save('token', body.contributor_token);
       save('session', body.session_id);
       save('session_medic', flag);
@@ -4841,7 +4859,7 @@ window.JAR_I18N = {
   }
 
   function upload(s, job, retried) {
-    return fetch(API + '/api/clips', {
+    return timedFetch(API + '/api/clips', {
       method: 'POST',
       credentials: 'omit',
       headers: {
@@ -4855,7 +4873,7 @@ window.JAR_I18N = {
         'Idempotency-Key': job.key
       },
       body: job.blob
-    }).then(function (res) {
+    }, 90000).then(function (res) {
       if ((res.status === 401 || res.status === 403) && !retried) {
         save('token', null); save('session', null);
         return session().then(function (fresh) { return upload(fresh, job, true); });

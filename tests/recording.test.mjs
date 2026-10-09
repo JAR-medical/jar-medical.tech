@@ -16,7 +16,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function settle() { for (let i = 0; i < 20; i++) await tick(); }
 
 // `storage` stands in for the tab's sessionStorage; pass one in to simulate a reload.
-function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0, storage = new Map() } = {}) {
+function harness({ consented = false, clipState = 'basic_accepted', failUploads = 0, storage = new Map(), hangUploads = false } = {}) {
   class Element {
     hidden = false; disabled = false; checked = false; textContent = ''; href = '';
     attrs = {}; handlers = {}; children = []; style = {};
@@ -65,9 +65,16 @@ function harness({ consented = false, clipState = 'basic_accepted', failUploads 
     crypto: webcrypto, TextEncoder, Blob, Float32Array, Uint8Array, Uint32Array, ArrayBuffer, DataView,
     JSON, Math, Date, Promise, Error, String, Array, encodeURIComponent,
     URL: { createObjectURL: () => 'blob:test', revokeObjectURL() {} },
-    setInterval: () => 1, clearInterval() {}, setTimeout, clearTimeout,
+    setInterval: () => 1, clearInterval() {}, clearTimeout,
+    // With hanging uploads the request timeouts fire at once instead of after 90 s.
+    setTimeout: hangUploads ? (fn, ms) => setTimeout(fn, Math.min(ms, 1)) : setTimeout,
     async fetch(url, options) {
       state.requests.push({ url, ...options });
+      if (hangUploads && url.endsWith('/api/clips')) {
+        return new Promise((resolve, reject) => {
+          options.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+        });
+      }
       let status = 200, body;
       if (url.endsWith('/api/contribution-sessions')) {
         body = { ok: true, contributor_token: 'ctr_test.token', session_id: 'ses_test', recovery_code: 'AAA-BBB' };
@@ -79,7 +86,7 @@ function harness({ consented = false, clipState = 'basic_accepted', failUploads 
       return { ok: status < 400, status, json: async () => body };
     },
   };
-  sandbox.window = { AudioContext, isSecureContext: true, crypto: webcrypto, JAR_I18N: {} };
+  sandbox.window = { AudioContext, isSecureContext: true, crypto: webcrypto, JAR_I18N: {}, ...(hangUploads ? { AbortController } : {}) };
   vm.runInNewContext(recorder, sandbox);
 
   // Feed `seconds` of a 220 Hz tone at 48 kHz through the live processor.
@@ -363,6 +370,17 @@ test('a failed upload keeps the take for retry or download, with the same idempo
   const [first, second] = uploads(h);
   assert.equal(first.headers['Idempotency-Key'], second.headers['Idempotency-Key']);
   assert.equal(h.root.getAttribute('data-state'), 'idle');
+});
+
+test('an upload that hangs ends in the retry state instead of freezing the button', async () => {
+  const h = harness({ consented: true, hangUploads: true });
+  h.click(); await settle(); h.speak(5.5); h.click();
+  for (let i = 0; i < 10; i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  await settle();
+  assert.equal(uploads(h).length, 1);
+  assert.ok(uploads(h)[0].signal, 'the upload carries an abort signal');
+  assert.equal(h.root.getAttribute('data-state'), 'failed');
+  assert.equal(h.el('fail').hidden, false, 'retry and download are offered');
 });
 
 test('the privacy page describes the recorder actually used', () => {
