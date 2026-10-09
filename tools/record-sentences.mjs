@@ -1,5 +1,6 @@
-// The read-aloud corpus of mitmachen-aufnahme.html: 800 German sentences in
-// the style of mSTaRT pre-triage radio traffic, served as 100 passages of 8.
+// The read-aloud corpus of mitmachen-aufnahme.html: 4,000 German sentences in
+// the style of mSTaRT pre-triage radio traffic, served as 500 passages of 8.
+// The first 800 are the original corpus and keep their ids (s001 to s800).
 //
 //   node tools/record-sentences.mjs    rewrite the corpus inlined in the page
 //
@@ -12,9 +13,11 @@
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const COUNT = 800;
+export const COUNT = 4000;
+export const BASE_COUNT = 800;
 export const PER_PASSAGE = 8;
 const SEED = 0x4a4152; // "JAR"
+const EXTENSION_SEED = 0x4a4153;
 const PAGE = fileURLToPath(new URL('../mitmachen-aufnahme.html', import.meta.url));
 
 function mulberry32(seed) {
@@ -326,6 +329,211 @@ function templates(rand) {
   ];
 }
 
+// Extension: 3,200 more sentences from their own bank of templates and seed.
+// They follow the original 800, which keep their ids (s001 to s800).
+const X_UNITS = ['Rettungswagen', 'Notarztwagen', 'Krankentransportwagen', 'Löschzug', 'Sichtungstrupp',
+  'Behandlungstrupp', 'Transporttrupp', 'Erkundungstrupp'];
+const X_REPORTS = ['Einsatzstelle erreicht', 'Zufahrt ist frei', 'Zufahrt ist blockiert',
+  'erste Patienten werden versorgt', 'Ablage ist eingerichtet', 'Lage unter Kontrolle',
+  'Material wird dringend benötigt', 'Rettungsmittel wird abgezogen', 'Kräfte reichen nicht aus',
+  'bitte um Ablösung', 'Einsatzstelle ist gesichert', 'Behandlungsplatz steht', 'Lage ist unverändert',
+  'Patienten sind verladen', 'Transport läuft', 'keine weiteren Verletzten gefunden',
+  'Suche im Gebäude abgeschlossen', 'Brandstelle ist abgelöscht', 'Übergabe am Haupteingang abgeschlossen',
+  'wir benötigen einen zweiten Notarzt'];
+const X_STATES = ['wir sind eingetroffen', 'wir sind wieder frei', 'wir sind auf dem Rückweg',
+  'wir warten am Sammelpunkt', 'wir sind einsatzbereit', 'wir haben Sichtkontakt zur Einsatzleitung'];
+const X_ORDERS = ['Funkdisziplin halten', 'Rettungsgasse freihalten', 'nur Notfälle über Funk melden',
+  'Zufahrten nicht blockieren', 'Material nur auf Anforderung bringen', 'Anhängekarten vollständig ausfüllen',
+  'Warnwesten dauerhaft tragen', 'Sprechpausen einhalten'];
+const X_TRIAGE = [
+  ['eins', 'rot', 'Atemnot mit bläulichen Lippen'],
+  ['eins', 'rot', 'starke Blutung und Schocksymptome'],
+  ['eins', 'rot', 'bewusstlos, Atmung flach'],
+  ['eins', 'rot', 'Kreislaufversagen, Puls nicht tastbar'],
+  ['zwei', 'gelb', 'Verdacht auf Knochenbruch, starke Schmerzen'],
+  ['zwei', 'gelb', 'Brandverletzungen an den Händen'],
+  ['zwei', 'gelb', 'Bauchschmerzen, Kreislauf stabil'],
+  ['zwei', 'gelb', 'Verdacht auf Gehirnerschütterung, ansprechbar'],
+  ['drei', 'grün', 'Schnittwunde, gehfähig'],
+  ['drei', 'grün', 'Schürfwunden und Prellungen, ansprechbar'],
+  ['drei', 'grün', 'leichte Verstauchung, selbstständig unterwegs'],
+  ['vier', 'blau', 'schwerste Verletzungen, abwartende Behandlung'],
+];
+const X_RESIGHT = ['Atmung ruhiger, Kategorie verbessert', 'Kreislauf instabil, Kategorie angehoben',
+  'Schmerzen nehmen zu, bitte erneut prüfen', 'Zustand unverändert, bleibt im Bereich',
+  'Verletzung größer als gedacht, sofort zum Transport', 'Puls kräftiger, Kategorie um eine Stufe gesenkt',
+  'Bewusstsein klarer, Anhängekarte aktualisiert', 'Blutung steht, Verband kontrolliert'];
+const X_BREATH = ['flach und schnell', 'ruhig und gleichmäßig', 'pfeifend beim Ausatmen',
+  'nur mit Hilfe der Atemhilfsmuskulatur', 'mit längeren Pausen', 'nach der Beutelbeatmung wieder ruhiger'];
+const X_PULSE = ['regelmäßig und kräftig', 'unregelmäßig', 'schwach tastbar', 'gut gefüllt',
+  'nur an der Halsschlagader tastbar', 'auffällig schnell'];
+const X_PROCEDURES = ['eine Beatmung mit dem Beutel', 'eine Lagerung in Schocklage', 'eine Wiederbelebung',
+  'eine Thoraxdrainage', 'eine Entlastungspunktion', 'eine Schmerzbehandlung',
+  'eine Stabilisierung der Wirbelsäule', 'eine Kühlung der Brandwunden'];
+const X_MEDICATION = ['ein Schmerzmittel über die Vene', 'eine Infusion mit Kochsalzlösung',
+  'ein Mittel gegen Übelkeit', 'Traubenzucker über die Vene', 'ein Mittel zur Beruhigung',
+  'ein krampflösendes Medikament'];
+const X_DRESSINGS = [
+  ['Kompressionsverband am linken Oberschenkel', 'Blutung steht'],
+  ['Wundauflage an der rechten Schulter', 'Blutung sickert noch'],
+  ['Verband um den Brustkorb', 'Atmung ist frei'],
+  ['Schiene am linken Unterarm', 'Durchblutung ist gut'],
+  ['Vakuumverband auf der Wunde am Rücken', 'Blutung ist gestillt'],
+  ['Druckverband am Hals', 'Blutung ist gestoppt'],
+  ['Kühlkompresse auf dem Gesicht', 'Schwellung geht zurück'],
+];
+const X_INJURIES = ['Verdacht auf Hüftfraktur, Bein verkürzt und nach außen gedreht',
+  'Verdacht auf Speichenbruch, Hand blass und kalt', 'Schultereckgelenk verletzt, Arm wird geschont',
+  'Schädelprellung über dem rechten Ohr, Erbrechen', 'Verdacht auf Brustbeinbruch, Schmerzen beim Atmen',
+  'Quetschung am Unterschenkel, Haut gespannt', 'Stichverletzung am Oberarm, Blutung gering',
+  'Augenverletzung links, Sehen eingeschränkt', 'Kieferprellung, Zähne locker',
+  'Verletzung am Knie, Bein kann nicht belastet werden', 'Fingerkuppe abgetrennt, Stumpf verbunden',
+  'Verdacht auf Nasenbeinbruch, Nasenbluten', 'Bisswunde am Unterarm, Blutung mit Druckverband gestillt',
+  'Verdacht auf Bänderriss am Sprunggelenk, Fuß geschwollen',
+  'Verdacht auf Ellenbogenluxation, Arm in Schonhaltung'];
+const X_BURNS = ['am Rücken', 'an beiden Händen', 'im Gesicht', 'am Oberkörper', 'an beiden Beinen',
+  'an den Unterarmen'];
+const X_UNDER = ['einer Holzplatte', 'einem Betonteil', 'einem umgestürzten Regal', 'einem Fahrzeug',
+  'einem Gerüst', 'einem Stromkasten'];
+const X_ITEMS = ['Decken', 'Wärmefolien', 'Wasserflaschen', 'Tragen', 'Vakuummatratzen', 'Verbandpäckchen',
+  'Infusionsbeutel', 'Sauerstoffflaschen', 'Schienen', 'Halskrägen', 'Rettungsdecken', 'Einmalhandschuhe'];
+const X_DESTINATIONS = ['zum Behandlungsplatz', 'an die Einsatzstelle', 'zur Patientenablage',
+  'in den Bereitstellungsraum', 'zum Sammelpunkt Nord', 'zur Betreuungsstelle'];
+const X_SUPPLY = ['Stromversorgung', 'Wasserversorgung', 'Beleuchtung', 'Heizung', 'Funkverbindung'];
+const X_STAFF = ['Helfer', 'Sanitäter', 'Pflegekräfte', 'Feuerwehrleute', 'Notfallsanitäter', 'Ärzte', 'Dolmetscher'];
+const X_STAFF_FOR = ['für die Sichtung', 'am Behandlungsplatz', 'zur Betreuung der Angehörigen',
+  'für den Transport', 'in der Patientenablage'];
+const X_RELATIVES = [['Die Mutter', 'ihr Kind'], ['Der Vater', 'seinen Sohn'], ['Die Großmutter', 'ihren Enkel'],
+  ['Die Nachbarin', 'ihre Tochter'], ['Der Großvater', 'seine Enkelin'], ['Die Ehefrau', 'ihren Mann']];
+const X_SHELTERS = ['Gemeindehaus', 'Bürgerhaus', 'Rathaus', 'Kindergarten', 'Bahnhof', 'Stadion'];
+const X_DANGER = ['Glatteis', 'Hochspannung', 'austretendes Benzin', 'Rauch', 'herabfallende Teile', 'Rutschgefahr'];
+const X_HAZARD_PLACES = ['am Haupteingang', 'am Parkplatz Ost', 'im Treppenhaus', 'in der Tiefgarage',
+  'auf dem Vorplatz', 'an der Einfahrt Süd', 'in der Unterführung', 'auf der Fußgängerbrücke', 'im Keller',
+  'am Ausgang West'];
+const X_ROUTES = ['die Hauptstraße', 'die Bahnhofstraße', 'die Nordseite', 'die Südseite', 'den Feldweg', 'die Brücke'];
+const X_LANGUAGES = ['Arabisch', 'Englisch', 'Französisch', 'Türkisch', 'Polnisch', 'Ukrainisch', 'Spanisch',
+  'Rumänisch', 'Italienisch', 'Russisch', 'Serbisch', 'Griechisch', 'Persisch', 'Vietnamesisch', 'Kurdisch'];
+const X_ASKS = ['mir Ihren Namen nennen', 'mir sagen, welcher Tag heute ist', 'die Augen öffnen',
+  'mit den Zehen wackeln', 'mir zeigen, wo es wehtut', 'kurz tief einatmen', 'Ihre Finger bewegen',
+  'mir sagen, ob Sie Blut verloren haben', 'mir Ihre Adresse sagen', 'mit mir sprechen', 'die Hand heben',
+  'mir sagen, was passiert ist', 'mir Ihr Geburtsdatum nennen', 'die Schulter bewegen',
+  'mir sagen, wo Sie sich gerade befinden'];
+
+function extensionTemplates(rand) {
+  const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
+  const n = (lo, hi) => words(int(lo, hi));
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+  const pat = () => (rand() < 0.5 ? 'Patient ' : 'Patientin ') + n(1, 120);
+  const at = () => pick(PLACES)[0];
+  const to = () => pick(PLACES)[1];
+  const hazard = () => pick(X_HAZARD_PLACES);
+  const section = () => pick(SECTIONS);
+  const unit = () => pick(X_UNITS) + ' ' + n(2, 40);
+  const rtw = () => 'Rettungswagen ' + n(2, 30);
+  const hosp = () => pick(HOSPITALS);
+  const time = () => n(6, 23) + ' Uhr ' + n(10, 59);
+
+  return [
+    // Radio: reports, states, orders and requests
+    () => `${unit()} an Einsatzleitung: ${pick(X_REPORTS)}, kommen.`,
+    () => `${unit()} ${pick(['fährt', 'kommt', 'geht'])} ${to()}, Ende.`,
+    () => `Bitte ${pick(['Verbindung prüfen', 'Rückruf bestätigen', 'Meldung wiederholen'])}, ${unit()} hat seit ${n(2, 9)} Minuten keine Rückmeldung gegeben, kommen.`,
+    () => `Hier ${unit()}, ${pick(X_STATES)}, kommen.`,
+    () => `Einsatzleitung an alle Einheiten auf Kanal ${n(10, 99)}: ${pick(X_ORDERS)}, bitte bestätigen, kommen.`,
+    () => `${unit()} wechselt auf Kanal ${n(10, 99)}, ${pick(['bitte kurz warten', 'bitte um Bestätigung'])}, Ende.`,
+    () => `Die Verbindung ${pick(['zur Leitstelle', 'zum Krankenhaus', 'zum Abschnitt Nord', 'zum Hubschrauber'])} ist seit ${n(2, 30)} Minuten ${pick(['gestört', 'unterbrochen'])}, bitte Meldungen kurz halten.`,
+    () => `${unit()} meldet ${n(2, 12)} Einsatzkräfte im Abschnitt ${section()}, ${pick(['alle einsatzbereit', 'zwei davon in Pause', 'eine Person fehlt noch'])}.`,
+    () => `${unit()}: ${pick(['Patientenübergabe abgeschlossen', 'Fahrzeug einsatzbereit', 'Einsatzstelle geräumt', 'Lage stabil', 'Abtransport gestartet'])}, ${pick(['weitere Meldung folgt', 'bitte um Rückmeldung'])}, kommen.`,
+    () => `Hier spricht ${pick(['die Einsatzleitung', 'der Abschnittsleiter Nord', 'der Leitende Notarzt', 'die Leitstelle'])}, ${pick(['alle Einheiten bitte melden', 'Sichtung beginnt sofort', 'Lage wird neu bewertet', 'Funkkanal bleibt frei'])}, Rückmeldung bis ${time()}, kommen.`,
+
+    // Triage and re-triage
+    () => { const t = pick(X_TRIAGE); return `${pat()}: Sichtungskategorie ${t[0]}, ${t[1]}, ${t[2]}.`; },
+    () => { const t = pick(X_TRIAGE); return `${pat()} wird vorläufig als Sichtungskategorie ${t[0]} eingestuft, ${t[2]}.`; },
+    () => `${pat()} nachgesichtet: ${pick(X_RESIGHT)}.`,
+
+    // Vital signs
+    () => `${pat()}: Atemfrequenz ${n(8, 40)} pro Minute, ${pick(X_BREATH)}.`,
+    () => `${pat()}: Puls ${n(40, 150)} pro Minute, ${pick(X_PULSE)}.`,
+    () => `${pat()}: Sauerstoffsättigung ${n(70, 99)} Prozent ${pick(['unter Raumluft', 'mit Nasensonde', 'mit Sauerstoffmaske'])}.`,
+    () => `${pat()}: Blutzucker ${n(30, 380)} Milligramm pro Deziliter, ${pick(['ansprechbar', 'eingetrübt', 'verwirrt', 'müde'])}.`,
+    () => `${pat()} hat ${n(35, 40)} Komma ${n(1, 9)} Grad Körpertemperatur, ${pick(['Schüttelfrost', 'kalte Haut', 'trockene Schleimhäute', 'starkes Schwitzen'])}.`,
+    () => `${pat()}: Glasgow Coma Scale ${n(3, 15)}, Pupillen ${pick(['gleich weit', 'ungleich weit', 'eng', 'weit'])}, ${pick(['Reaktion auf Licht vorhanden', 'keine Reaktion auf Licht'])}.`,
+    () => `${pat()} gibt Schmerzen von ${n(1, 10)} auf einer Skala bis zehn an, ${pick(['im Brustkorb', 'im Bauch', 'im rechten Knie', 'im unteren Rücken', 'im linken Handgelenk'])}.`,
+
+    // Measures
+    () => `Bei ${pat()} wurde ${pick(X_PROCEDURES)} durchgeführt, ${pick(['die Wirkung wird beobachtet', 'Zustand danach stabil', 'Dokumentation folgt'])}.`,
+    () => `${pat()} erhält ${pick(X_MEDICATION)}, ${pick(['Dosierung nach Vorgabe', 'Gabe bitte dokumentieren', 'Wirkung in fünf Minuten prüfen'])}.`,
+    () => `Defibrillator bei ${pat()} angeschlossen, ${pick(['kein Schock indiziert', 'Rhythmus wird analysiert', 'Schock wurde abgegeben', 'Herzmassage läuft'])}.`,
+    () => `${pat()}: Zugang ${pick(['in der rechten Ellenbeuge', 'am linken Unterarm', 'am Handrücken', 'an der rechten Hand'])} gelegt, ${pick(['Infusion läuft', 'Infusion ist beendet', 'Flüssigkeit wird nachgegeben'])}.`,
+    () => { const d = pick(X_DRESSINGS); return `${pat()}: ${d[0]}, ${d[1]}.`; },
+
+    // Injuries and conditions
+    () => `${pat()}: ${pick(X_INJURIES)}.`,
+    () => `${pat()}: Verbrennungen ${pick(X_BURNS)}, etwa ${n(3, 30)} Prozent der Körperoberfläche.`,
+    () => `${pat()} ist unter ${pick(X_UNDER)} eingeklemmt, ${pick(['das Bein ist taub', 'der Arm ist blass', 'die Hand ist kalt', 'der Fuß ist kühl'])}.`,
+    () => `${pat()} hat eine Unterzuckerung, ${pick(['ist ansprechbar', 'bekommt Traubenzucker', 'ist schweißig und unruhig'])}, der Blutzucker wird gemessen.`,
+    () => `${pat()}: Verdacht auf Herzinfarkt, ${pick(['Oberkörper kalt und schweißig', 'Kreislauf instabil', 'Schmerzmittel gegeben'])}.`,
+    () => `${pat()} hat Brustschmerzen, die ${pick(['in den linken Arm ausstrahlen', 'bei Belastung auftreten', 'seit dem Morgen anhalten'])}.`,
+    () => `${pat()} hat einen Krampfanfall, ${pick(['der Anfall ist vorbei', 'der Atemweg ist frei'])}.`,
+    () => `${pat()} hat eine allergische Reaktion, ${pick(['Schwellung im Gesicht', 'Atemnot und Hautausschlag', 'Juckreiz am ganzen Körper'])}, ${pick(['Notarzt informiert', 'Antiallergikum gegeben', 'Zustand wird beobachtet'])}.`,
+
+    // Children, older people, pregnancy
+    () => `Kind, etwa ${n(2, 14)} Jahre alt, ${pick(['weint stark', 'ist still und blass', 'ruft nach den Eltern', 'hat einen Sturz erlebt'])}, ${pick(['Begleitperson wird gesucht', 'Eltern sind informiert', 'Betreuung übernommen'])}.`,
+    () => `${pat()}, etwa ${n(65, 95)} Jahre alt, ${pick(['ist verwirrt', 'hat Brustschmerzen', 'ist im Badezimmer gestürzt', 'nimmt mehrere Medikamente ein'])}.`,
+    () => `Patientin ${n(18, 45)} ist schwanger, ${pick(['im dritten Trimenon', 'in der Frühschwangerschaft', 'etwa im siebten Monat'])}, ${pick(['hat Blutungen', 'hat Bauchschmerzen', 'klagt über Kreislaufbeschwerden'])}.`,
+
+    // Logistics and organisation
+    () => `Bitte ${n(2, 20)} ${pick(X_ITEMS)} ${pick(X_DESTINATIONS)} ${pick(['bringen', 'schicken'])}.`,
+    () => `Die ${pick(X_SUPPLY)} ist seit ${n(10, 90)} Minuten ${pick(['ausgefallen', 'nur eingeschränkt verfügbar', 'gestört'])}.`,
+    () => `Wir brauchen ${n(2, 12)} ${pick(X_STAFF)} ${pick(X_STAFF_FOR)}.`,
+    () => `${unit()} wird um ${time()} abgelöst, die Ablösung ist ${pick(['schon unterwegs', 'bereits eingetroffen', 'noch nicht erreichbar'])}.`,
+    () => `Bitte die ersten ${n(5, 40)} Anhängekarten ${pick(['vollständig ausfüllen', 'gegenzeichnen', 'kontrollieren'])} und ${pick(['am Handgelenk befestigen', 'in die Ablage legen'])}.`,
+    () => `Die Anhängekarte Nummer ${words(int(100, 999))} ist ${pick(['ausgegeben', 'eingezogen', 'verloren gegangen'])}.`,
+    () => `Von ${n(10, 99)} gemeldeten Verletzten sind ${n(2, 9)} ${pick(['bereits im Krankenhaus', 'noch nicht gefunden', 'schon entlassen'])}.`,
+    () => `Bisher ${n(10, 40)} Anhängekarten ausgegeben, ${n(2, 9)} davon ${pick(['für Kinder', 'für Senioren', 'mit roter Markierung'])}.`,
+
+    // Relatives, shelter and counts
+    () => { const t = pick(X_RELATIVES); return `${t[0]} sucht ${t[1]}, zuletzt gesehen um ${time()}, bitte ${pick(['Namen melden', 'Beschreibung aufnehmen', 'an die Betreuungsstelle verweisen'])}.`; },
+    () => `Vor dem ${pick(X_SHELTERS)} warten ${n(5, 60)} Personen auf Informationen, ${pick(['sie werden registriert', 'eine Ansprechperson kommt', 'die Betreuung läuft'])}.`,
+    () => `Die Liste der Vermissten wird in der ${pick(['Betreuungsstelle', 'Leitstelle', 'Auskunft'])} ${pick(['geführt', 'abgeglichen', 'erstellt'])}, ${n(2, 40)} Namen sind schon eingetragen.`,
+    () => `Insgesamt ${n(10, 90)} Personen sind im Bereich ${section()} ${pick(['registriert', 'gesichtet', 'betreut'])}, davon ${n(2, 9)} ${pick(['Kinder', 'Senioren', 'Angehörige'])}.`,
+    () => `Zwischenstand ${at()}: ${n(2, 20)} ${pick(['Patienten versorgt', 'Patienten transportiert', 'Patienten noch in Behandlung'])}, ${n(2, 15)} ${pick(['warten noch', 'sind unterwegs', 'warten auf Transport'])}.`,
+    () => `Im Abschnitt ${section()} fehlen noch ${n(2, 12)} Personen, die Suche läuft ${pick(['weiter', 'mit zwei Trupps', 'seit einer Stunde', 'in den Kellerräumen'])}.`,
+
+    // Safety and environment
+    () => `Achtung, ${pick(X_DANGER)} ${hazard()}!`,
+    () => `${pick(['Die Feuerwehr', 'Die Polizei', 'Die Leitstelle'])} meldet ${pick(['Gasgeruch', 'einen Schwelbrand', 'eine Ölspur', 'eine beschädigte Stromleitung', 'einen Erdrutsch'])} ${hazard()}, ${pick(['der Bereich wird weiträumig umgangen', 'Zugang nur mit Atemschutz', 'Einsatzkräfte bitte zurückhalten'])}.`,
+    () => `Gefahrenbereich ${hazard()}, ${pick(['Betreten nur mit Schutzausrüstung', 'Zugang nur für Rettungskräfte', 'Abstand mindestens fünfzig Meter halten'])}.`,
+    () => `Starker ${pick(['Regen', 'Wind', 'Schneefall', 'Nebel', 'Hagel'])} erschwert die Sichtung ${at()}, ${pick(['die Zelte bitte sichern', 'die Patienten bitte zudecken', 'mehr Material nachfordern'])}.`,
+    () => `Die Temperatur liegt bei etwa ${n(1, 30)} Grad, ${pick(['die Patienten brauchen Wärme', 'Wärmefolien bereithalten', 'Patienten bitte im Windschutz lagern', 'die Decken nachfordern'])}.`,
+    () => `Die Zufahrt über ${pick(X_ROUTES)} ist ${pick(['frei', 'gesperrt', 'nur für Rettungsfahrzeuge befahrbar', 'einspurig passierbar'])}, ${pick(['Fahrzeuge bitte umleiten', 'Lotsen sind eingewiesen', 'Rettungsgasse bitte freihalten'])}.`,
+    () => `${unit()} meldet, dass die Straße ${pick(['hinter der Tankstelle', 'vor dem Friedhof', 'neben dem Spielplatz', 'an der Kreuzung'])} ${pick(['blockiert ist', 'frei ist', 'nur einspurig passierbar ist'])}.`,
+    () => `In der ${pick(['Turnhalle', 'Aula', 'Mensa', 'Cafeteria', 'Sporthalle'])} der ${pick(['Grundschule', 'Realschule', 'Berufsschule'])} sind ${n(6, 80)} Personen untergebracht, ${pick(['die Lehrer bleiben bei ihnen', 'eine Betreuung ist vorhanden', 'alle sind unverletzt'])}.`,
+
+    // Transport and handover
+    () => `${unit()} übernimmt ${n(2, 4)} Patienten aus dem Bereich ${section()}, Abfahrt in ${n(3, 20)} Minuten.`,
+    () => `Das Ziel für ${pat()} ist ${hosp()[0]}, ${pick(['die Voranmeldung ist erfolgt', 'die Voranmeldung läuft noch', 'die Klinik ist informiert'])}.`,
+    () => `${hosp()[0]} meldet: ${pick(['Notaufnahme voll', 'Kinderstation aufnahmebereit', 'CT ist verfügbar', 'Intensivbett frei', 'Hubschrauberlandeplatz gesperrt', 'OP ist vorbereitet'])}.`,
+    () => `Der Rettungshubschrauber ${pick(['ist im Anflug auf den Parkplatz Ost', 'landet auf dem Sportplatz'])}, Ankunft in ${n(3, 25)} Minuten.`,
+    () => `Bitte ${n(2, 6)} Leichtverletzte mit einem ${pick(['Krankentransportwagen', 'Bus', 'Kleinbus'])} ${to()} bringen, ${pick(['Begleitung ist nicht nötig', 'Angehörige dürfen mitfahren'])}.`,
+    () => `${rtw()} ${pick(['kommt ohne Patienten zurück', 'bleibt bis zur Ablösung am Sammelpunkt', 'wird am Rettungsmittelhalteplatz eingewiesen'])}.`,
+
+    // Talking to patients
+    () => `Können Sie ${pick(X_ASKS)}?`,
+    () => `${pick(['Bitte bleiben Sie liegen', 'Bitte bleiben Sie ruhig sitzen', 'Bitte bewegen Sie sich nicht'])}, ${pick(['wir kümmern uns gleich um Sie', 'ein Kollege kommt gleich zu Ihnen', 'die Versorgung läuft schon'])}.`,
+    () => `Ihre ${pick(['Verletzung', 'Wunde', 'Verbrennung'])} ${pick(['wird gerade versorgt', 'ist gut versorgt', 'sieht nicht gefährlich aus'])}, ${pick(['es dauert nicht mehr lange', 'Sie sind in guten Händen', 'bitte haben Sie noch etwas Geduld'])}.`,
+    () => `Wie ${pick(['geht es Ihnen', 'fühlen Sie sich'])} ${pick(['jetzt', 'im Moment'])}?`,
+    () => `Haben Sie ${pick(['Schwindel', 'Übelkeit', 'Kopfschmerzen', 'Atemnot', 'Schmerzen im Brustkorb', 'Taubheitsgefühl in den Händen'])}?`,
+
+    // Patient-specific situations
+    () => `${pat()} möchte ${pick(['nicht ins Krankenhaus', 'die Angehörigen anrufen', 'die Medikamente holen', 'nach Hause gehen'])}, ${pick(['bitte ruhig mit der Person sprechen', 'die Entscheidung wird dokumentiert', 'der Notarzt wird informiert'])}.`,
+    () => `${pat()} verweigert ${pick(['die Untersuchung', 'den Transport', 'die Schmerzbehandlung', 'die Halskrause'])}, ${pick(['die Einwilligung wird geprüft', 'der Notarzt ist informiert', 'die Situation wird beobachtet'])}.`,
+    () => `${pat()} ist ${pick(['sehr unruhig', 'stark verängstigt', 'aggressiv gegenüber dem Personal', 'still und apathisch'])}, ${pick(['behutsam ansprechen', 'eine Begleitperson bleibt in der Nähe', 'Sicherheit ist gewährleistet'])}.`,
+    () => `${pat()} hat ${pick(['keine Papiere', 'keinen Ausweis', 'eine Adresse im Ausland'])} dabei, ${pick(['die Personalien werden später aufgenommen', 'die Polizei ist informiert'])}.`,
+    () => `${pat()} spricht nur ${pick(X_LANGUAGES)}, ${pick(['ein Dolmetscher ist unterwegs', 'bitte Zeichen benutzen', 'ein Angehöriger übersetzt'])}.`,
+  ];
+}
+
 /** One sentence: capitalised, Latin-1, no digits or quotes, one terminal mark. */
 function check(s) {
   if (!/^[A-ZÄÖÜ]/.test(s)) throw new Error(`not capitalised: ${s}`);
@@ -336,20 +544,20 @@ function check(s) {
 }
 
 /**
- * The corpus, in passage order. Templates take turns adding a sentence they
- * have not produced yet, so no template dominates; then passages are dealt
- * so that no passage holds two sentences from the same template.
+ * Passages from one template bank, `count` sentences in all. Templates take
+ * turns adding a sentence they have not produced yet, so no template dominates;
+ * then passages are dealt so that no passage holds two sentences from the same
+ * template. `seen` is shared between banks, so no sentence appears twice.
  */
-export function buildCorpus() {
-  const rand = mulberry32(SEED);
-  const makers = templates(rand);
-  const seen = new Set();
+function dealPassages(makersOf, seed, count, seen) {
+  const rand = mulberry32(seed);
+  const makers = makersOf(rand);
   const buckets = makers.map(() => []);
   let active = makers.map((_, i) => i), total = 0;
-  while (total < COUNT) {
+  while (total < count) {
     if (!active.length) throw new Error(`templates ran out at ${total} sentences`);
     active = active.filter((i) => {
-      if (total >= COUNT) return true;
+      if (total >= count) return true;
       for (let attempt = 0; attempt < 40; attempt++) {
         const s = check(cap(makers[i]()));
         if (seen.has(s)) continue;
@@ -361,7 +569,7 @@ export function buildCorpus() {
   }
 
   const passages = [];
-  while (passages.length < COUNT / PER_PASSAGE) {
+  while (passages.length < count / PER_PASSAGE) {
     const keys = buckets.map((b) => [b.length, rand()]);
     const order = buckets.map((_, i) => i).filter((i) => buckets[i].length)
       .sort((a, b) => keys[b][0] - keys[a][0] || keys[b][1] - keys[a][1]);
@@ -371,7 +579,15 @@ export function buildCorpus() {
     passages.push(passage);
   }
   shuffle(passages, rand);
-  return passages.flat();
+  return passages;
+}
+
+/** The whole corpus in passage order: the original 800, then the extension. */
+export function buildCorpus() {
+  const seen = new Set();
+  const original = dealPassages(templates, SEED, BASE_COUNT, seen);
+  const extension = dealPassages(extensionTemplates, EXTENSION_SEED, COUNT - BASE_COUNT, seen);
+  return [...original.flat(), ...extension.flat()];
 }
 
 function shuffle(list, rand) {

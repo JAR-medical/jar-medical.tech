@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import { readText } from './lib/repo.mjs';
 import { buildCorpus, corpusSource, COUNT, PER_PASSAGE } from '../tools/record-sentences.mjs';
 
@@ -143,11 +143,11 @@ const PASSAGES = COUNT / PER_PASSAGE;
 const shownText = (h) => h.el('text').textContent.slice(1, -1);
 const passageOf = (h) => +h.storage.get('jar.rec.passage');
 
-test('the page ships the generated corpus of 800 sentences, unedited', () => {
+test('the page ships the generated corpus of 4,000 sentences, unedited', () => {
   const corpus = buildCorpus();
   const shipped = source.match(/\/\* sentences:begin \*\/\n([\s\S]*?)  \/\* sentences:end \*\//)[1];
   assert.equal(shipped, corpusSource(corpus), 'run `node tools/record-sentences.mjs` and bump CORPUS');
-  assert.equal(corpus.length, 800);
+  assert.equal(corpus.length, 4000);
   assert.equal(new Set(corpus).size, corpus.length, 'a sentence appears twice');
   for (const s of corpus) {
     assert.doesNotMatch(s, /\d/, `digits would not match what is said: ${s}`);
@@ -177,7 +177,7 @@ test('no "Text N von 100" label is shown; the text just changes after each saved
   assert.doesNotMatch(source.replace(/<script>[\s\S]*?<\/script>/g, ''), /von 100/);
 });
 
-test('"another text" rotates through all 800 sentences before repeating one', () => {
+test('"another text" rotates through all 500 passages before repeating one', () => {
   const h = harness();
   const start = passageOf(h), said = [];
   for (let i = 0; i < PASSAGES; i++) {
@@ -218,7 +218,7 @@ test('a take is uploaded as 16 kHz mono PCM16 with the read text in its metadata
   assert.equal(clip.headers['X-Medicraft-Session-Id'], 'ses_test');
   assert.equal(clip.headers['X-Medicraft-Task-Type'], 'read_aloud');
   assert.equal(decodeURIComponent(clip.headers['X-Medicraft-Expected-Text']), shown);
-  assert.equal(clip.headers['X-Medicraft-Prompt-Id'], `web-mstart-800-v1-p${String(at + 1).padStart(3, '0')}`);
+  assert.equal(clip.headers['X-Medicraft-Prompt-Id'], `web-mstart-4000-v1-p${String(at + 1).padStart(3, '0')}`);
   assert.ok(clip.headers['Idempotency-Key']);
 
   const wav = await parseWav(clip.body);
@@ -235,7 +235,7 @@ test('a take is uploaded as 16 kHz mono PCM16 with the read text in its metadata
   assert.equal(meta.sample_rate, 16000);
   assert.ok(meta.recorded_at && meta.consent);
   // Every sentence read, with its corpus id, in the order it was shown.
-  assert.equal(meta.corpus, 'mstart-800-v1');
+  assert.equal(meta.corpus, 'mstart-4000-v1');
   assert.equal(meta.passage, at + 1);
   assert.deepEqual(meta.sentences.map((x) => x.id),
     Array.from({ length: 8 }, (_, i) => 's' + String(at * 8 + i + 1).padStart(3, '0')));
@@ -381,6 +381,26 @@ test('an upload that hangs ends in the retry state instead of freezing the butto
   assert.ok(uploads(h)[0].signal, 'the upload carries an abort signal');
   assert.equal(h.root.getAttribute('data-state'), 'failed');
   assert.equal(h.el('fail').hidden, false, 'retry and download are offered');
+});
+
+test('the original 800 sentences keep their order, so s001 to s800 still name the same words', () => {
+  const digest = createHash('sha256').update(buildCorpus().slice(0, 800).join('\n')).digest('hex');
+  assert.equal(digest, '0c9d696fa42729b11fc2ed514f4ff2ef6a96a41a3f6af8abad08554fb772cecc', 'the first 800 sentences changed: takes made with them would no longer match their ids');
+});
+
+test('sentence ids stay three digits up to s999 and are unpadded above, with no repeats', async () => {
+  for (const [passage, ids] of [
+    [124, ['s993', 's994', 's995', 's996', 's997', 's998', 's999', 's1000']],
+    [PASSAGES - 1, ['s3993', 's3994', 's3995', 's3996', 's3997', 's3998', 's3999', 's4000']],
+  ]) {
+    const h = harness({ consented: true, storage: new Map([['jar.rec.passage', String(passage)]]) });
+    h.click(); await settle(); h.speak(5.5); h.click(); await settle();
+    const [clip] = uploads(h);
+    assert.equal(clip.headers['X-Medicraft-Prompt-Id'], `web-mstart-4000-v1-p${String(passage + 1).padStart(3, '0')}`);
+    assert.deepEqual((await icmt(clip)).sentences.map((x) => x.id), ids);
+  }
+  const all = buildCorpus();
+  assert.equal(new Set(all).size, all.length);
 });
 
 test('the privacy page describes the recorder actually used', () => {
