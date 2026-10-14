@@ -109,7 +109,28 @@ function render(values) {
     }
   });
 
-  replace(dialog, card(form));
+  const delStatus = el("div", { class: "form-status", "aria-live": "polite" });
+  const delBtn = el("button", { class: "btn btn-danger btn-small", type: "button" }, t("account_delete_btn"));
+  delBtn.addEventListener("click", async () => {
+    if (!window.confirm(t("account_delete_confirm", { email: profile.email || "" }))) return;
+    replace(delStatus);
+    setBusy(delBtn, true, t("busy"));
+    try {
+      await backend.deleteMyAccount();
+      dialog.close();
+      location.href = "index.html";
+    } catch (err) {
+      setBusy(delBtn, false);
+      replace(delStatus, notice("error", el("p", {}, errorText(err))));
+    }
+  });
+  const dangerZone = el("div", { class: "dialog-danger" },
+    el("h3", { class: "dialog-danger-title" }, t("account_delete_h")),
+    el("p", { class: "muted" }, t("account_delete_p")),
+    delStatus,
+    delBtn);
+
+  replace(dialog, card(form, dangerZone));
   // Start where the work is: the first empty field, else the name.
   (!name.value.trim() ? name : !org.value.trim() ? org : name).focus();
 }

@@ -211,6 +211,28 @@ strong { font-weight: 600; color: var(--ink); }
 }
 .dialog-close:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-mint); }
 .profile-dialog .profile-form { max-width: none; }
+.dialog-danger {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.dialog-danger-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sig-red);
+  margin-bottom: var(--sp-2);
+}
+.dialog-danger p { margin-bottom: var(--sp-3); }
+.btn-danger {
+  --btn-bg: transparent;
+  --btn-fg: var(--sig-red);
+  --btn-line: var(--sig-red);
+}
+.btn-danger:hover {
+  --btn-bg: var(--sig-red);
+  --btn-fg: var(--brand-navy);
+  --btn-line: var(--sig-red);
+}
 
 .langswitch { position: relative; }
 .langswitch__btn {

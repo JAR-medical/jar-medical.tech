@@ -306,6 +306,18 @@ export function createBackend(CONFIG, PortalError) {
       return clone(p);
     },
 
+    async deleteMyAccount() {
+      const s = load();
+      const p = me(s);
+      s.profiles = s.profiles.filter((x) => x.id !== p.id);
+      s.enrollments = s.enrollments.filter((x) => x.user_id !== p.id);
+      s.requests = s.requests.filter((x) => x.user_id !== p.id);
+      s.progress = s.progress.filter((x) => x.user_id !== p.id);
+      s.session = null;
+      save(s);
+      emit(s);
+    },
+
     async listMyEnrollments() {
       const s = load();
       const p = me(s);

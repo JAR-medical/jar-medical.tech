@@ -139,6 +139,17 @@ export function createBackend(CONFIG, PortalError) {
       return run(sb.from("profiles").update(fields).eq("id", id).select("*").single());
     },
 
+    async deleteMyAccount() {
+      const id = await uid();
+      try {
+        globalThis.localStorage?.removeItem(`jarLocalGrants:${id}`);
+      } catch { /* ignore */ }
+      await run(sb.rpc("delete_my_account"));
+      try {
+        await sb.auth.signOut();
+      } catch { /* session already gone */ }
+    },
+
     async listMyEnrollments() {
       const id = await uid();
       const rows = await run(sb.from("enrollments").select("course_id, granted_at").eq("user_id", id));

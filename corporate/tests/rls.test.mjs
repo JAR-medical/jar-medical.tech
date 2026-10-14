@@ -191,4 +191,12 @@ await test("anon can read nothing", async () => {
   }
 });
 
+await test("delete_my_account removes only the caller's user, profile and cascading records", async () => {
+  await rejects(as("anon", "select public.delete_my_account()"), /permission denied|not-signed-in/, "anon delete");
+  await as("alice", "select public.delete_my_account()");
+  assert.equal((await as("admin", "select id from public.profiles where id = $1", [ids.alice])).length, 0);
+  assert.equal((await as("admin", "select * from public.lesson_progress where user_id = $1", [ids.alice])).length, 0);
+  assert.equal((await as("admin", "select id from public.profiles where id = $1", [ids.bob])).length, 1);
+});
+
 console.log(`\n${passed} passed`);
