@@ -1,0 +1,585 @@
+// UI strings (German + English) and the language switch. The chosen language
+// is shared with the main site (js/site.js there) via localStorage "jar.lang",
+// so the choice carries over in both directions.
+const STORAGE_KEY = "jar.lang";
+
+const STRINGS = {
+  de: {
+    // Page titles
+    title_landing: "Schulungs- und Demoportal – J.A.R. Corporate",
+    title_dashboard: "Meine Kurse – J.A.R. Corporate",
+    title_course: "Kurs – J.A.R. Corporate",
+    title_course_named: "{title} – J.A.R. Corporate",
+    title_admin: "Verwaltung – J.A.R. Corporate",
+    title_reset: "Passwort zurücksetzen – J.A.R. Corporate",
+
+    // Header / layout
+    skip_link: "Zum Inhalt springen",
+    nav_label: "Hauptnavigation",
+    nav_home: "Website",
+    nav_disaster: "Katastrophenschutz",
+    brand_aria: "J.A.R. Medical: Startseite",
+    lang_label: "Sprache wählen",
+    menu_label: "Menü",
+    foot_blurb: "J.A.R. Corporate ist das Schulungs- und Demoportal von J.A.R. Medical. Hier bereiten sich unsere Partnerorganisationen auf den Einsatz mit J.A.R. vor.",
+    foot_h_portal: "Portal",
+    foot_h_site: "Website",
+    foot_h_contact: "Kontakt",
+    foot_arclient: "AR-Client",
+    nav_courses: "Kurse",
+    nav_admin: "Verwaltung",
+    nav_signin: "Anmelden",
+    nav_signout: "Abmelden",
+    account_menu_label: "Konto: {email}",
+    account_profile: "Profileinstellungen",
+    demo_banner: "Demo-Modus: keine echte Anmeldung — Daten bleiben nur in diesem Browser.",
+    demo_reset: "Demo zurücksetzen",
+    demo_reset_confirm: "Alle Demo-Daten in diesem Browser löschen und die Beispieldaten neu laden?",
+
+    // Footer
+    fw2_overview: "Übersicht & Anmeldung",
+    fw2_dashboard: "Meine Kurse",
+    fw2_register: "Konto erstellen",
+    fw2_home: "J.A.R. Startseite",
+    fw2_demo: "Live-Demo",
+    foot_copy: "© 2026 J.A.R. Medical",
+    foot_imprint: "Impressum",
+    foot_privacy: "Datenschutz",
+    foot_terms: "Nutzungsbedingungen",
+
+    // Generic
+    loading: "Wird geladen …",
+    busy: "Bitte warten …",
+    retry: "Erneut versuchen",
+    btn_cancel: "Abbrechen",
+    btn_close: "Schließen",
+    btn_save: "Speichern",
+    btn_to_dashboard: "Zum Dashboard",
+    back_to_dashboard: "← Zurück zum Dashboard",
+    progress_label: "Fortschritt",
+    progress_of: "Fortschritt im Kurs {title}",
+    lessons_progress: "{done}/{total} Lektionen",
+    minutes: "ca. {minutes} Min.",
+    callout_info: "Hinweis",
+    callout_warn: "Achtung",
+
+    // Landing
+    hero_h1: "Schulungs- und Demoportal für unsere Partner",
+    hero_p: "Bereiten Sie Ihre Einsatzkräfte auf J.A.R. vor: kompakte Online-Kurse zur digitalen Sichtung mit Augmented Reality – im eigenen Tempo, mit Wissensabfragen und Teilnahmebestätigung.",
+    hero_btn_signin: "Anmelden",
+    hero_btn_register: "Konto erstellen",
+    hero_index: "Inhalt",
+    access_h2: "Anmelden oder Konto erstellen",
+    access_p: "Nach der Registrierung prüft ein Administrator Ihr Konto und schaltet die Kurse und Demos für Ihre Organisation frei. Erst nach der Freigabe erscheinen sie in Ihrem Dashboard.",
+    how_eyebrow: "So funktioniert es",
+    how_h2: "In drei Schritten zum Kurs",
+    how_intro: "Der Zugang zu den Kursen wird für jede Partnerorganisation einzeln durch einen Administrator freigeschaltet. So behalten wir den Überblick, wer mit J.A.R. arbeitet.",
+    how1_h3: "Konto erstellen",
+    how1_p: "Registrieren Sie sich mit Ihrem Namen, Ihrer Organisation und Ihrer E-Mail-Adresse.",
+    how2_h3: "Freigabe durch Admin",
+    how2_p: "Unser Team prüft Ihre Registrierung und schaltet die passenden Kurse und Demos für Ihr Konto frei.",
+    how3_h3: "Nach Freischaltung starten",
+    how3_p: "Sobald ein Administrator Ihre Kurse freigeschaltet hat, erscheinen sie im Dashboard und Ihr Fortschritt wird gespeichert.",
+    course_meta: "ca. {minutes} Min. · {lessons} Lektionen",
+
+    // Auth
+    auth_eyebrow: "Ihr Zugang",
+    auth_tabs_label: "Anmeldung",
+    tab_signin: "Anmelden",
+    tab_register: "Registrieren",
+    tab_forgot: "Passwort vergessen",
+    auth_or: "oder",
+    oauth_consent_pre: "Mit der Anmeldung über einen dieser Anbieter bestätigen Sie, die ",
+    oauth_consent_post: " gelesen zu haben. Ein Konto wird beim ersten Mal automatisch angelegt.",
+    profile_incomplete_title: "Profil vervollständigen:",
+    profile_incomplete_text: "Bitte ergänzen Sie Ihren Namen und Ihre Organisation, damit wir Ihre Kursanfragen zuordnen können.",
+    profile_incomplete_btn: "Profil ergänzen",
+    request_needs_profile: "Bitte vervollständigen Sie zuerst Ihr Profil (Name und Organisation), dann können Sie den Kurs anfragen.",
+    "err_profile-incomplete": "Bitte ergänzen Sie zuerst Name und Organisation in Ihrem Profil.",
+    oauth_continue: "Weiter mit {provider}",
+    signin_h2: "Anmelden",
+    signin_submit: "Anmelden",
+    signin_forgot_link: "Passwort vergessen?",
+    signin_register_link: "Noch kein Konto? Jetzt registrieren",
+    register_h2: "Konto erstellen",
+    register_submit: "Konto erstellen",
+    register_confirm: "Bitte bestätigen Sie Ihre E-Mail-Adresse — wir haben Ihnen einen Link geschickt.",
+    reg_privacy_pre: "Ich habe die ",
+    reg_privacy_link: "Datenschutzerklärung",
+    reg_privacy_post: " gelesen.",
+    forgot_h2: "Passwort vergessen",
+    forgot_p: "Geben Sie Ihre E-Mail-Adresse ein. Wir schicken Ihnen einen Link, mit dem Sie ein neues Passwort setzen können.",
+    forgot_submit: "Link senden",
+    forgot_sent: "Falls ein Konto mit dieser Adresse existiert, haben wir Ihnen einen Link geschickt.",
+    signed_in_as: "Angemeldet als {email}",
+    auth_to_dashboard: "Zum Dashboard",
+    f_email: "E-Mail-Adresse",
+    f_password: "Passwort",
+    f_password_new: "Passwort (mindestens 8 Zeichen)",
+    f_password_repeat: "Passwort wiederholen",
+    f_fullname: "Vor- und Nachname",
+    f_org: "Organisation",
+    v_required: "Bitte füllen Sie dieses Feld aus.",
+    v_email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    v_max: "Höchstens {max} Zeichen.",
+    v_password_min: "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    v_password_match: "Die Passwörter stimmen nicht überein.",
+    v_privacy: "Bitte bestätigen Sie, dass Sie die Datenschutzerklärung gelesen haben.",
+
+    // Reset
+    reset_h1: "Neues Passwort setzen",
+    reset_p: "Wählen Sie ein neues Passwort mit mindestens 8 Zeichen.",
+    reset_submit: "Passwort speichern",
+    reset_done_h1: "Passwort geändert",
+    reset_done_p: "Ihr neues Passwort ist gespeichert.",
+    reset_link_hint: "Ist der Link abgelaufen oder bereits benutzt?",
+    reset_link_cta: "Neuen Link anfordern",
+
+    // Dashboard
+    dash_eyebrow: "Ihr Dashboard",
+    dash_welcome: "Willkommen, {name}",
+    dash_admin_title: "Verwaltung:",
+    dash_admin_text: "Sie sind als Administrator angemeldet und können Anfragen bearbeiten und Kurse freischalten.",
+    dash_admin_btn: "Zur Verwaltung",
+    dash_my_courses: "Meine Kurse",
+    dash_no_courses: "Für Ihr Konto ist noch kein Kurs sichtbar. Ein Administrator muss Ihr Konto erst prüfen und Kurse für Sie freischalten.",
+    dash_more_courses: "Weitere Kurse",
+    dash_requests: "Meine Anfragen",
+    dash_contact: "Fragen zum Zugang? Schreiben Sie uns:",
+    btn_start: "Starten",
+    btn_continue: "Fortsetzen",
+    btn_repeat: "Wiederholen",
+    btn_request: "Kurs anfragen",
+    btn_send_request: "Anfrage senden",
+    btn_cancel_request: "Anfrage zurückziehen",
+    request_message_label: "Nachricht an unser Team (optional)",
+    char_count: "{n}/{max} Zeichen",
+    request_sent: "Ihre Anfrage wurde gesendet. Wir melden uns, sobald der Kurs freigeschaltet ist.",
+    request_cancelled: "Ihre Anfrage wurde zurückgezogen.",
+    request_declined_note: "Ihre letzte Anfrage wurde abgelehnt. Sie können den Kurs erneut anfragen.",
+    requested_on: "Angefragt am {date}",
+    profile_email_hint: "Die E-Mail-Adresse kann nicht geändert werden.",
+    profile_saved: "Ihr Profil wurde gespeichert.",
+    col_course: "Kurs",
+    col_date: "Datum",
+    col_status: "Status",
+    status_pending: "Offen",
+    status_approved: "Freigeschaltet",
+    status_declined: "Abgelehnt",
+    chip_pending: "Angefragt",
+    chip_granted: "Freigeschaltet",
+    chip_completed: "Abgeschlossen",
+    chip_none: "Kein Zugang",
+
+    // Course
+    course_eyebrow: "Kurs",
+    course_not_found_h1: "Kurs nicht gefunden",
+    course_not_found_p: "Diesen Kurs gibt es nicht (mehr). Ihre Kurse finden Sie im Dashboard.",
+    course_locked_h1: "Noch nicht freigeschaltet",
+    course_locked_p: "Dieser Kurs ist für Ihr Konto noch nicht durch einen Administrator freigeschaltet.",
+    course_locked_btn: "Zurück zum Dashboard",
+    lesson_nav_label: "Lektionen",
+    lesson_nav_toggle: "Alle Lektionen",
+    lesson_done_sr: "abgeschlossen",
+    lesson_n_of: "Lektion {n} von {total}",
+    completed_on: "Abgeschlossen am {date}",
+    pager_label: "Lektionen blättern",
+    btn_prev: "← Vorherige Lektion",
+    btn_next: "Nächste Lektion →",
+    btn_to_cert: "Zur Teilnahmebestätigung →",
+    btn_mark_read: "Als gelesen markieren",
+    lesson_read_done: "Diese Lektion haben Sie bereits abgeschlossen.",
+    lesson_completed: "Lektion abgeschlossen – weiter mit der nächsten Lektion.",
+    course_completed: "Glückwunsch – Sie haben alle Lektionen abgeschlossen! Ihre Teilnahmebestätigung steht bereit.",
+    quiz_title: "Wissensabfrage",
+    quiz_intro: "Beantworten Sie alle Fragen richtig, um die Lektion abzuschließen. Gespeichert wird das Ergebnis Ihres ersten Versuchs.",
+    quiz_retake_note: "Sie haben diese Lektion bereits abgeschlossen. Sie können die Fragen wiederholen – das Ergebnis wird nicht erneut gespeichert.",
+    btn_check: "Antworten prüfen",
+    quiz_answer_all: "Bitte beantworten Sie alle Fragen.",
+    quiz_correct: "Richtig.",
+    quiz_incorrect: "Leider falsch.",
+    quiz_some_wrong: "{correct} von {total} Antworten richtig. Korrigieren Sie die markierten Fragen und prüfen Sie erneut.",
+    quiz_passed: "Alle Antworten richtig! Gespeichertes Ergebnis (erster Versuch): {score} %.",
+    quiz_retake_passed: "Alle Antworten richtig. (Wiederholung – nicht gespeichert.)",
+    cert_title: "Teilnahmebestätigung",
+    cert_done_h1: "Kurs abgeschlossen",
+    cert_done_p: "Sie haben alle Lektionen dieses Kurses abgeschlossen. Hier ist Ihre Teilnahmebestätigung.",
+    cert_confirms: "Hiermit wird bestätigt, dass",
+    cert_course_intro: "den Online-Kurs",
+    cert_completed_on: "am {date} erfolgreich abgeschlossen hat.",
+    cert_issuer_sub: "Schulungs- und Demoportal J.A.R. Corporate",
+    btn_print: "Drucken / als PDF speichern",
+
+    // Admin
+    admin_eyebrow: "J.A.R. Corporate",
+    admin_h1: "Verwaltung",
+    btn_refresh: "Aktualisieren",
+    stat_clients: "Kunden",
+    stat_open_requests: "Offene Anfragen",
+    stat_active_grants: "Aktive Freischaltungen",
+    stat_completed: "Abgeschlossene Kurse",
+    admin_open_requests: "Offene Anfragen",
+    admin_no_requests: "Keine offenen Anfragen.",
+    admin_all_clients: "Alle Kunden",
+    admin_search: "Suchen (Name, Organisation, E-Mail)",
+    admin_no_match: "Keine Kunden gefunden.",
+    col_name: "Name",
+    col_org: "Organisation",
+    col_email: "E-Mail",
+    col_message: "Nachricht",
+    col_actions: "Aktionen",
+    col_registered: "Registriert",
+    col_role: "Rolle",
+    role_admin: "Admin",
+    role_client: "Kunde",
+    btn_grant: "Freischalten",
+    btn_decline: "Ablehnen",
+    btn_revoke: "Entziehen",
+    last_activity: "zuletzt {date}",
+    confirm_revoke: "Zugang von {name} zum Kurs „{course}“ wirklich entziehen? Der Lernfortschritt bleibt erhalten.",
+    admin_approved: "Anfrage von {name} für „{course}“ freigeschaltet.",
+    admin_declined: "Anfrage von {name} für „{course}“ abgelehnt.",
+    admin_granted: "{name} hat jetzt Zugang zu „{course}“.",
+    admin_revoked: "Zugang von {name} zu „{course}“ entzogen.",
+
+    // PortalError codes
+    "err_invalid-credentials": "E-Mail-Adresse oder Passwort ist falsch.",
+    "err_email-not-confirmed": "Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link in unserer E-Mail.",
+    "err_weak-password": "Das Passwort ist zu schwach. Bitte verwenden Sie mindestens 8 Zeichen.",
+    "err_user-exists": "Für diese E-Mail-Adresse gibt es bereits ein Konto. Bitte melden Sie sich an.",
+    "err_not-signed-in": "Sie sind nicht (mehr) angemeldet. Bitte melden Sie sich erneut an.",
+    err_forbidden: "Dafür fehlt Ihrem Konto die Berechtigung.",
+    err_duplicate: "Das ist bereits erledigt: Es gibt schon eine offene Anfrage oder eine Freischaltung.",
+    "err_invalid-input": "Die Eingabe ist ungültig. Bitte prüfen Sie Ihre Angaben.",
+    "err_rate-limited": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+    err_network: "Keine Verbindung zum Server. Bitte prüfen Sie Ihre Internetverbindung.",
+    err_unsupported: "Diese Funktion ist im Demo-Modus nicht verfügbar.",
+    err_unknown: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+  },
+
+  en: {
+    title_landing: "Training and demo portal – J.A.R. Corporate",
+    title_dashboard: "My courses – J.A.R. Corporate",
+    title_course: "Course – J.A.R. Corporate",
+    title_course_named: "{title} – J.A.R. Corporate",
+    title_admin: "Administration – J.A.R. Corporate",
+    title_reset: "Reset password – J.A.R. Corporate",
+
+    skip_link: "Skip to content",
+    nav_label: "Main navigation",
+    nav_home: "Website",
+    nav_disaster: "Disaster response",
+    brand_aria: "J.A.R. Medical: home",
+    lang_label: "Choose language",
+    menu_label: "Menu",
+    foot_blurb: "J.A.R. Corporate is the training and demo portal of J.A.R. Medical, where our partner organisations prepare to work with J.A.R.",
+    foot_h_portal: "Portal",
+    foot_h_site: "Website",
+    foot_h_contact: "Contact",
+    foot_arclient: "AR client",
+    nav_courses: "Courses",
+    nav_admin: "Administration",
+    nav_signin: "Sign in",
+    nav_signout: "Sign out",
+    account_menu_label: "Account: {email}",
+    account_profile: "Profile settings",
+    demo_banner: "Demo mode: no real sign-in — data stays in this browser only.",
+    demo_reset: "Reset demo",
+    demo_reset_confirm: "Delete all demo data in this browser and reload the sample data?",
+
+    fw2_overview: "Overview & sign-in",
+    fw2_dashboard: "My courses",
+    fw2_register: "Create account",
+    fw2_home: "J.A.R. home page",
+    fw2_demo: "Live demo",
+    foot_copy: "© 2026 J.A.R. Medical",
+    foot_imprint: "Imprint",
+    foot_privacy: "Privacy",
+    foot_terms: "Terms of use",
+
+    loading: "Loading …",
+    busy: "Please wait …",
+    retry: "Try again",
+    btn_cancel: "Cancel",
+    btn_close: "Close",
+    btn_save: "Save",
+    btn_to_dashboard: "Go to dashboard",
+    back_to_dashboard: "← Back to dashboard",
+    progress_label: "Progress",
+    progress_of: "Progress in the course {title}",
+    lessons_progress: "{done}/{total} lessons",
+    minutes: "approx. {minutes} min",
+    callout_info: "Note",
+    callout_warn: "Caution",
+
+    hero_h1: "Training and demo portal for our partners",
+    hero_p: "Prepare your responders for J.A.R.: compact online courses on digital triage with augmented reality – at your own pace, with knowledge checks and a certificate of attendance.",
+    hero_btn_signin: "Sign in",
+    hero_btn_register: "Create account",
+    hero_index: "Contents",
+    access_h2: "Sign in or create an account",
+    access_p: "After registration, an administrator reviews your account and unlocks the courses and demos for your organisation. They remain hidden until approved by an admin.",
+    how_eyebrow: "How it works",
+    how_h2: "Three steps to your course",
+    how_intro: "Access to the courses is granted to each partner organisation individually by an administrator. That way we keep track of who works with J.A.R.",
+    how1_h3: "Create an account",
+    how1_p: "Register with your name, your organisation and your e-mail address.",
+    how2_h3: "Admin approval",
+    how2_p: "Our team reviews your registration and unlocks the appropriate courses and demos for your account.",
+    how3_h3: "Start once approved",
+    how3_p: "As soon as an administrator has unlocked your courses, they become visible in your dashboard and your progress is saved.",
+    course_meta: "approx. {minutes} min · {lessons} lessons",
+
+    auth_eyebrow: "Your access",
+    auth_tabs_label: "Sign-in",
+    tab_signin: "Sign in",
+    tab_register: "Register",
+    tab_forgot: "Forgot password",
+    auth_or: "or",
+    oauth_consent_pre: "By signing in with one of these providers you confirm that you have read the ",
+    oauth_consent_post: ". An account is created automatically the first time.",
+    profile_incomplete_title: "Complete your profile:",
+    profile_incomplete_text: "Please add your name and organisation so we can match your course requests.",
+    profile_incomplete_btn: "Complete profile",
+    request_needs_profile: "Please complete your profile (name and organisation) first, then you can request this course.",
+    "err_profile-incomplete": "Please add your name and organisation to your profile first.",
+    oauth_continue: "Continue with {provider}",
+    signin_h2: "Sign in",
+    signin_submit: "Sign in",
+    signin_forgot_link: "Forgot your password?",
+    signin_register_link: "No account yet? Register now",
+    register_h2: "Create an account",
+    register_submit: "Create account",
+    register_confirm: "Please confirm your e-mail address — we have sent you a link.",
+    reg_privacy_pre: "I have read the ",
+    reg_privacy_link: "privacy policy",
+    reg_privacy_post: ".",
+    forgot_h2: "Forgot password",
+    forgot_p: "Enter your e-mail address. We will send you a link to set a new password.",
+    forgot_submit: "Send link",
+    forgot_sent: "If an account with this address exists, we have sent you a link.",
+    signed_in_as: "Signed in as {email}",
+    auth_to_dashboard: "Go to dashboard",
+    f_email: "E-mail address",
+    f_password: "Password",
+    f_password_new: "Password (at least 8 characters)",
+    f_password_repeat: "Repeat password",
+    f_fullname: "Full name",
+    f_org: "Organisation",
+    v_required: "Please fill in this field.",
+    v_email: "Please enter a valid e-mail address.",
+    v_max: "At most {max} characters.",
+    v_password_min: "The password must be at least 8 characters long.",
+    v_password_match: "The passwords do not match.",
+    v_privacy: "Please confirm that you have read the privacy policy.",
+
+    reset_h1: "Set a new password",
+    reset_p: "Choose a new password with at least 8 characters.",
+    reset_submit: "Save password",
+    reset_done_h1: "Password changed",
+    reset_done_p: "Your new password has been saved.",
+    reset_link_hint: "Has the link expired or been used already?",
+    reset_link_cta: "Request a new link",
+
+    dash_eyebrow: "Your dashboard",
+    dash_welcome: "Welcome, {name}",
+    dash_admin_title: "Administration:",
+    dash_admin_text: "You are signed in as an administrator and can handle requests and grant courses.",
+    dash_admin_btn: "Go to administration",
+    dash_my_courses: "My courses",
+    dash_no_courses: "No courses are visible for your account yet. An administrator must approve your account and unlock courses for you first.",
+    dash_more_courses: "More courses",
+    dash_requests: "My requests",
+    dash_contact: "Questions about access? Write to us:",
+    btn_start: "Start",
+    btn_continue: "Continue",
+    btn_repeat: "Review",
+    btn_request: "Request course",
+    btn_send_request: "Send request",
+    btn_cancel_request: "Withdraw request",
+    request_message_label: "Message to our team (optional)",
+    char_count: "{n}/{max} characters",
+    request_sent: "Your request has been sent. We will get back to you once the course is unlocked.",
+    request_cancelled: "Your request has been withdrawn.",
+    request_declined_note: "Your last request was declined. You can request the course again.",
+    requested_on: "Requested on {date}",
+    profile_email_hint: "The e-mail address cannot be changed.",
+    profile_saved: "Your profile has been saved.",
+    col_course: "Course",
+    col_date: "Date",
+    col_status: "Status",
+    status_pending: "Open",
+    status_approved: "Granted",
+    status_declined: "Declined",
+    chip_pending: "Requested",
+    chip_granted: "Granted",
+    chip_completed: "Completed",
+    chip_none: "No access",
+
+    course_eyebrow: "Course",
+    course_not_found_h1: "Course not found",
+    course_not_found_p: "This course does not exist (any more). You will find your courses in the dashboard.",
+    course_locked_h1: "Not unlocked yet",
+    course_locked_p: "This course has not been unlocked for your account by an administrator yet.",
+    course_locked_btn: "Back to dashboard",
+    lesson_nav_label: "Lessons",
+    lesson_nav_toggle: "All lessons",
+    lesson_done_sr: "completed",
+    lesson_n_of: "Lesson {n} of {total}",
+    completed_on: "Completed on {date}",
+    pager_label: "Lesson navigation",
+    btn_prev: "← Previous lesson",
+    btn_next: "Next lesson →",
+    btn_to_cert: "Go to certificate →",
+    btn_mark_read: "Mark as read",
+    lesson_read_done: "You have already completed this lesson.",
+    lesson_completed: "Lesson completed – continue with the next lesson.",
+    course_completed: "Congratulations – you have completed all lessons! Your certificate of attendance is ready.",
+    quiz_title: "Knowledge check",
+    quiz_intro: "Answer all questions correctly to complete the lesson. The result of your first attempt is saved.",
+    quiz_retake_note: "You have already completed this lesson. You can retake the questions – the result is not saved again.",
+    btn_check: "Check answers",
+    quiz_answer_all: "Please answer all questions.",
+    quiz_correct: "Correct.",
+    quiz_incorrect: "Not quite.",
+    quiz_some_wrong: "{correct} of {total} answers correct. Fix the marked questions and check again.",
+    quiz_passed: "All answers correct! Saved result (first attempt): {score} %.",
+    quiz_retake_passed: "All answers correct. (Retake – not saved.)",
+    cert_title: "Certificate of attendance",
+    cert_done_h1: "Course completed",
+    cert_done_p: "You have completed every lesson of this course. Here is your certificate of attendance.",
+    cert_confirms: "This is to confirm that",
+    cert_course_intro: "has successfully completed the online course",
+    cert_completed_on: "on {date}.",
+    cert_issuer_sub: "J.A.R. Corporate training and demo portal",
+    btn_print: "Print / save as PDF",
+
+    admin_eyebrow: "J.A.R. Corporate",
+    admin_h1: "Administration",
+    btn_refresh: "Refresh",
+    stat_clients: "Clients",
+    stat_open_requests: "Open requests",
+    stat_active_grants: "Active grants",
+    stat_completed: "Completed courses",
+    admin_open_requests: "Open requests",
+    admin_no_requests: "No open requests.",
+    admin_all_clients: "All clients",
+    admin_search: "Search (name, organisation, e-mail)",
+    admin_no_match: "No clients found.",
+    col_name: "Name",
+    col_org: "Organisation",
+    col_email: "E-mail",
+    col_message: "Message",
+    col_actions: "Actions",
+    col_registered: "Registered",
+    col_role: "Role",
+    role_admin: "Admin",
+    role_client: "Client",
+    btn_grant: "Grant",
+    btn_decline: "Decline",
+    btn_revoke: "Revoke",
+    last_activity: "last {date}",
+    confirm_revoke: "Really revoke {name}'s access to “{course}”? Their progress is kept.",
+    admin_approved: "Request from {name} for “{course}” approved.",
+    admin_declined: "Request from {name} for “{course}” declined.",
+    admin_granted: "{name} now has access to “{course}”.",
+    admin_revoked: "{name}'s access to “{course}” revoked.",
+
+    "err_invalid-credentials": "The e-mail address or password is incorrect.",
+    "err_email-not-confirmed": "Please confirm your e-mail address first, using the link in our e-mail.",
+    "err_weak-password": "The password is too weak. Please use at least 8 characters.",
+    "err_user-exists": "An account with this e-mail address already exists. Please sign in.",
+    "err_not-signed-in": "You are not signed in (any more). Please sign in again.",
+    err_forbidden: "Your account is not allowed to do this.",
+    err_duplicate: "Already done: there is an open request or the course is already granted.",
+    "err_invalid-input": "The input is invalid. Please check your details.",
+    "err_rate-limited": "Too many attempts. Please wait a moment and try again.",
+    err_network: "Cannot reach the server. Please check your internet connection.",
+    err_unsupported: "This feature is not available in demo mode.",
+    err_unknown: "An unexpected error occurred. Please try again.",
+  },
+};
+
+// Exposed for the key-parity check; do not mutate.
+export const LANGS = Object.keys(STRINGS);
+export const _strings = STRINGS;
+
+const listeners = new Set();
+
+function normalize(value) {
+  if (value == null || value === "") return "de";
+  return value === "de" ? "de" : "en";
+}
+
+// Like the main site: a stored choice wins, otherwise a non-German browser gets English.
+function initialLang() {
+  const stored = readStored();
+  if (stored) return normalize(stored);
+  const nav = String(globalThis.navigator?.language || "de").toLowerCase();
+  return nav.startsWith("de") ? "de" : "en";
+}
+
+function readStored() {
+  try { return globalThis.localStorage?.getItem(STORAGE_KEY) ?? null; } catch { return null; }
+}
+
+let current = initialLang();
+if (typeof document !== "undefined") document.documentElement.lang = current;
+
+export function getLang() {
+  return current;
+}
+
+export function setLang(lang) {
+  const next = normalize(lang);
+  try { globalThis.localStorage?.setItem(STORAGE_KEY, next); } catch { /* not persisted */ }
+  if (next === current) return;
+  current = next;
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = current;
+    applyI18n();
+  }
+  for (const cb of [...listeners]) {
+    try { cb(current); } catch (e) { console.error("onLangChange listener failed", e); }
+  }
+}
+
+export function onLangChange(cb) {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+export function has(key) {
+  return Object.prototype.hasOwnProperty.call(STRINGS[current], key) ||
+    Object.prototype.hasOwnProperty.call(STRINGS.de, key);
+}
+
+// t("dash_welcome", {name: "Anna"}) → "Willkommen, Anna". Unknown keys return the key.
+export function t(key, vars) {
+  const template = STRINGS[current][key] ?? STRINGS.de[key] ?? key;
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+}
+
+// {de, en} content object → string in the current language (German fallback).
+export function pick(obj) {
+  if (obj == null) return "";
+  if (typeof obj !== "object") return String(obj);
+  return obj[current] ?? obj.de ?? "";
+}
+
+const ATTRS = [
+  ["data-i18n-placeholder", "placeholder"],
+  ["data-i18n-aria-label", "aria-label"],
+  ["data-i18n-title", "title"],
+];
+
+export function applyI18n(root = document) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.getAttribute("data-i18n"));
+  });
+  for (const [data, attr] of ATTRS) {
+    root.querySelectorAll(`[${data}]`).forEach((node) => node.setAttribute(attr, t(node.getAttribute(data))));
+  }
+}

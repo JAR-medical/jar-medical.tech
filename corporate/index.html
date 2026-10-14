@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="title_landing">Schulungs- und Demoportal – J.A.R. Corporate</title>
+<meta name="description" content="J.A.R. Corporate – das Schulungs- und Demoportal von J.A.R. Medical für Partnerorganisationen im Katastrophenschutz.">
+<meta name="theme-color" content="#0c0b1f">
+<link rel="icon" href="../assets/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/portal.css">
+<script>
+// Fallback if the page modules cannot load at all (offline, blocked CDN, syntax
+// error): replace the loading line with an error and a reload button.
+window.addEventListener("error", function () { if (!window.__portalReady) portalFail(); });
+function portalFail() {
+  if (window.__portalFailed) return;
+  window.__portalFailed = true;
+  function show() {
+    var main = document.getElementById("main"), box = document.createElement("div"), p = document.createElement("p"), b = document.createElement("button");
+    box.className = "wrap notice notice-error"; box.setAttribute("role", "alert");
+    p.textContent = "Das Portal konnte nicht geladen werden. / The portal could not be loaded.";
+    b.className = "btn btn-outline btn-small"; b.type = "button"; b.textContent = "Neu laden / Reload";
+    b.onclick = function () { location.reload(); };
+    box.appendChild(p); box.appendChild(b);
+    var app = document.getElementById("app");
+    if (app) app.replaceChildren(box); else if (main) main.insertBefore(box, main.firstChild);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show); else show();
+}
+</script>
+<script type="module" src="js/pages/landing.js" onerror="portalFail()"></script>
+</head>
+<body class="theme-dark page--dark">
+<div class="grain" aria-hidden="true"></div>
+<a class="skip-link" href="#main" data-i18n="skip_link">Zum Inhalt springen</a>
+
+<!-- ============================== HEADER ============================== -->
+<header class="nav" id="nav">
+  <div class="nav__inner wrap wrap--wide">
+    <a class="nav__brand" href="../index.html" aria-label="J.A.R. Medical: Startseite" data-i18n-aria-label="brand_aria">
+      <img src="../assets/logo/jar-icon.svg" alt="" width="36" height="36" class="nav__mark">
+      <span class="nav__wordmark">
+        <span class="nav__name">J.A.R.</span>
+        <span class="nav__tag">Corporate</span>
+      </span>
+    </a>
+
+    <nav class="nav__links" id="navLinks" aria-label="Hauptnavigation" data-i18n-aria-label="nav_label">
+      <a href="../index.html" data-i18n="nav_home">Website</a>
+      <a href="../katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a>
+      <a href="dashboard.html" data-nav="dashboard" id="navCourses" hidden data-i18n="nav_courses">Meine Kurse</a>
+      <a href="admin.html" data-nav="admin" id="navAdmin" hidden data-i18n="nav_admin">Verwaltung</a>
+    </nav>
+
+    <div class="nav__actions">
+      <div class="langswitch" data-langswitch>
+        <button class="langswitch__btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Sprache wählen" data-i18n-aria-label="lang_label">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"></path>
+          </svg>
+          <span data-langlabel>DE</span>
+        </button>
+        <ul class="langswitch__menu" role="menu" hidden>
+          <li><button role="menuitem" type="button" data-lang="de" aria-current="true">Deutsch</button></li>
+          <li><button role="menuitem" type="button" data-lang="en" aria-current="false">English</button></li>
+        </ul>
+      </div>
+
+      <div class="account-area" id="accountArea">
+        <a class="btn btn-primary nav__cta" href="index.html#signin" data-i18n="nav_signin">Anmelden</a>
+      </div>
+
+      <button class="nav__burger" type="button" aria-expanded="false" aria-controls="navLinks" aria-label="Menü" data-i18n-aria-label="menu_label">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+<div class="demo-banner" id="demoBanner" role="note" hidden></div>
+
+<main id="main" tabindex="-1">
+<!-- ================= HERO ================= -->
+<!-- The hero sits in a two-screen scroll track like the main site's
+     (js/hero-scroll.js): it pins for one screen while the left column folds
+     away and the side cell grows to fill the view. Below 1024px and under
+     reduced motion it is the plain four-cell grid. -->
+<div class="hero-track" data-hero-scroll>
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero__title">
+    <div>
+      <span class="eyebrow">J.A.R. Corporate</span>
+      <h1 id="heroTitle" data-i18n="hero_h1">Schulungs- und Demoportal für unsere Partner</h1>
+    </div>
+  </div>
+  <div class="hero__side">
+    <p data-i18n="hero_p">Bereiten Sie Ihre Einsatzkräfte auf J.A.R. vor: kompakte Online-Kurse zur digitalen Sichtung mit Augmented Reality – im eigenen Tempo, mit Wissensabfragen und Teilnahmebestätigung.</p>
+    <div class="hero__actions">
+      <a class="btn btn-primary" href="#signin"><span data-i18n="hero_btn_signin">Anmelden</span> <span class="btn__arrow" aria-hidden="true">→</span></a>
+      <a class="btn btn-outline" href="#register" data-i18n="hero_btn_register">Konto erstellen</a>
+    </div>
+  </div>
+  <div class="hero__art">
+    <canvas class="fx-wave hero__wave" aria-hidden="true"></canvas>
+  </div>
+  <div class="hero__aside">
+    <p class="hero__kicker" data-i18n="hero_index">Inhalt</p>
+    <nav class="hero-index" aria-label="Inhalt" data-i18n-aria-label="hero_index">
+      <a href="#ablauf"><span data-i18n="how_eyebrow">So funktioniert es</span><span>01</span></a>
+      <a href="#signin"><span data-i18n="tab_signin">Anmelden</span><span>02</span></a>
+      <a href="#register"><span data-i18n="tab_register">Registrieren</span><span>03</span></a>
+    </nav>
+  </div>
+</section>
+</div>
+
+<!-- ================= SO FUNKTIONIERT ES ================= -->
+<section class="section section--panel" id="ablauf">
+  <div class="wrap wrap--wide panel-wrap">
+    <div class="panel-head">
+      <span class="eyebrow" data-i18n="how_eyebrow">So funktioniert es</span>
+      <h2 data-i18n="how_h2">In drei Schritten zum Kurs</h2>
+      <p class="intro" data-i18n="how_intro">Der Zugang zu den Kursen wird für jede Partnerorganisation einzeln durch einen Administrator freigeschaltet. So behalten wir den Überblick, wer mit J.A.R. arbeitet.</p>
+    </div>
+    <ol class="how-steps">
+      <li>
+        <span class="how-num" aria-hidden="true">1</span>
+        <h3 data-i18n="how1_h3">Konto erstellen</h3>
+        <p data-i18n="how1_p">Registrieren Sie sich mit Ihrem Namen, Ihrer Organisation und Ihrer E-Mail-Adresse.</p>
+      </li>
+      <li>
+        <span class="how-num" aria-hidden="true">2</span>
+        <h3 data-i18n="how2_h3">Freigabe durch Admin</h3>
+        <p data-i18n="how2_p">Unser Team prüft Ihre Registrierung und schaltet die passenden Kurse und Demos für Ihr Konto frei.</p>
+      </li>
+      <li>
+        <span class="how-num" aria-hidden="true">3</span>
+        <h3 data-i18n="how3_h3">Nach Freischaltung starten</h3>
+        <p data-i18n="how3_p">Sobald ein Administrator Ihre Kurse freigeschaltet hat, erscheinen sie im Dashboard und Ihr Fortschritt wird gespeichert.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+
+<!-- ================= ANMELDUNG ================= -->
+<section class="section section--panel" id="signin">
+  <!-- Scroll targets for the #register / #forgot tab routes (landing.js switches the tab). -->
+  <span class="anchor" id="register"></span><span class="anchor" id="forgot"></span>
+  <div class="wrap wrap--wide panel-wrap access">
+    <div class="panel-head access__head">
+      <span class="eyebrow" data-i18n="auth_eyebrow">Ihr Zugang</span>
+      <h2 data-i18n="access_h2">Anmelden oder Konto erstellen</h2>
+      <p class="intro" data-i18n="access_p">Nach der Registrierung prüft ein Administrator Ihr Konto und schaltet die Kurse und Demos für Ihre Organisation frei. Erst nach der Freigabe erscheinen sie in Ihrem Dashboard.</p>
+    </div>
+    <div class="auth-card" id="authCard">
+      <div id="signedInPanel" hidden>
+        <p class="signed-in-as" id="signedInText"></p>
+        <a class="btn btn-primary" id="toDashboard" href="dashboard.html" data-i18n="auth_to_dashboard">Zum Dashboard</a>
+      </div>
+
+      <div id="authForms">
+        <div class="auth-tabs" role="tablist" aria-label="Anmeldung" data-i18n-aria-label="auth_tabs_label">
+          <a class="auth-tab" href="#signin" role="tab" id="tab-signin" aria-controls="panel-signin" data-i18n="tab_signin">Anmelden</a>
+          <a class="auth-tab" href="#register" role="tab" id="tab-register" aria-controls="panel-register" data-i18n="tab_register">Registrieren</a>
+          <a class="auth-tab" href="#forgot" role="tab" id="tab-forgot" aria-controls="panel-forgot" data-i18n="tab_forgot">Passwort vergessen</a>
+        </div>
+
+        <div class="oauth-box" id="oauthBox" hidden>
+          <div class="oauth-buttons" id="oauthButtons"></div>
+          <p class="oauth-consent"><span data-i18n="oauth_consent_pre">Mit der Anmeldung über einen dieser Anbieter bestätigen Sie, die </span><a href="../datenschutz.html#ds-portal" target="_blank" rel="noopener" data-i18n="reg_privacy_link">Datenschutzerklärung</a><span data-i18n="oauth_consent_post"> gelesen zu haben. Ein Konto wird beim ersten Mal automatisch angelegt.</span></p>
+          <p class="divider"><span data-i18n="auth_or">oder</span></p>
+        </div>
+
+        <!-- Sign in -->
+        <form class="auth-panel" id="panel-signin" role="tabpanel" aria-labelledby="tab-signin" novalidate>
+          <h2 data-i18n="signin_h2">Anmelden</h2>
+          <div class="field">
+            <label for="si-email" data-i18n="f_email">E-Mail-Adresse</label>
+            <input id="si-email" name="email" type="email" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label for="si-password" data-i18n="f_password">Passwort</label>
+            <input id="si-password" name="password" type="password" autocomplete="current-password" required>
+          </div>
+          <p class="form-msg" id="si-msg" aria-live="polite"></p>
+          <button class="btn btn-primary btn-block" type="submit" disabled data-i18n="signin_submit">Anmelden</button>
+          <p class="form-links"><a href="#forgot" data-i18n="signin_forgot_link">Passwort vergessen?</a> · <a href="#register" data-i18n="signin_register_link">Noch kein Konto? Jetzt registrieren</a></p>
+        </form>
+
+        <!-- Register -->
+        <form class="auth-panel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
+          <h2 data-i18n="register_h2">Konto erstellen</h2>
+          <div class="field">
+            <label for="rg-name" data-i18n="f_fullname">Vor- und Nachname</label>
+            <input id="rg-name" name="fullName" type="text" autocomplete="name" maxlength="120" required>
+          </div>
+          <div class="field">
+            <label for="rg-org" data-i18n="f_org">Organisation</label>
+            <input id="rg-org" name="organization" type="text" autocomplete="organization" maxlength="120" required>
+          </div>
+          <div class="field">
+            <label for="rg-email" data-i18n="f_email">E-Mail-Adresse</label>
+            <input id="rg-email" name="email" type="email" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label for="rg-password" data-i18n="f_password_new">Passwort (mindestens 8 Zeichen)</label>
+            <input id="rg-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" passwordrules="minlength: 8; maxlength: 72;" required>
+          </div>
+          <div class="field">
+            <label for="rg-password2" data-i18n="f_password_repeat">Passwort wiederholen</label>
+            <input id="rg-password2" name="password2" type="password" autocomplete="new-password" minlength="8" maxlength="72" passwordrules="minlength: 8; maxlength: 72;" required>
+          </div>
+          <div class="field field-check">
+            <input id="rg-privacy" name="privacy" type="checkbox" required>
+            <label for="rg-privacy"><span data-i18n="reg_privacy_pre">Ich habe die </span><a href="../datenschutz.html#ds-portal" target="_blank" rel="noopener" data-i18n="reg_privacy_link">Datenschutzerklärung</a><span data-i18n="reg_privacy_post"> gelesen.</span></label>
+          </div>
+          <p class="form-msg" id="rg-msg" aria-live="polite"></p>
+          <button class="btn btn-primary btn-block" type="submit" disabled data-i18n="register_submit">Konto erstellen</button>
+        </form>
+
+        <!-- Forgot password -->
+        <form class="auth-panel" id="panel-forgot" role="tabpanel" aria-labelledby="tab-forgot" novalidate hidden>
+          <h2 data-i18n="forgot_h2">Passwort vergessen</h2>
+          <p data-i18n="forgot_p">Geben Sie Ihre E-Mail-Adresse ein. Wir schicken Ihnen einen Link, mit dem Sie ein neues Passwort setzen können.</p>
+          <div class="field">
+            <label for="fg-email" data-i18n="f_email">E-Mail-Adresse</label>
+            <input id="fg-email" name="email" type="email" autocomplete="username" required>
+          </div>
+          <p class="form-msg" id="fg-msg" aria-live="polite"></p>
+          <button class="btn btn-primary btn-block" type="submit" disabled data-i18n="forgot_submit">Link senden</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============================== FOOTER ============================== -->
+<footer class="foot" id="kontakt">
+  <div class="wrap wrap--wide">
+    <div class="foot__top">
+      <div class="foot__brand">
+        <img src="../assets/logo/jar-logo-dark.svg" alt="J.A.R. Medical" width="196" height="72">
+        <p data-i18n="foot_blurb">J.A.R. Corporate ist das Schulungs- und Demoportal von J.A.R. Medical. Hier bereiten sich unsere Partnerorganisationen auf den Einsatz mit J.A.R. vor.</p>
+      </div>
+
+      <nav class="foot__col" aria-labelledby="footNav1">
+        <h4 id="footNav1" data-i18n="foot_h_portal">Portal</h4>
+        <ul>
+          <li><a href="index.html" data-i18n="fw2_overview">Übersicht &amp; Anmeldung</a></li>
+          <li><a href="dashboard.html" data-i18n="fw2_dashboard">Meine Kurse</a></li>
+          <li><a href="index.html#register" data-i18n="fw2_register">Konto erstellen</a></li>
+        </ul>
+      </nav>
+
+      <nav class="foot__col" aria-labelledby="footNav2">
+        <h4 id="footNav2" data-i18n="foot_h_site">Website</h4>
+        <ul>
+          <li><a href="../index.html" data-i18n="fw2_home">J.A.R. Startseite</a></li>
+          <li><a href="../katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a></li>
+        </ul>
+      </nav>
+
+      <div class="foot__col" aria-labelledby="footNav3">
+        <h4 id="footNav3" data-i18n="foot_h_contact">Kontakt</h4>
+        <ul>
+          <li>Johannes&nbsp;Nirschl · Alexander&nbsp;Kluge · Jonas&nbsp;Kaindl</li>
+          <li>Cramer-Klett-Straße 10<br>85579 Neubiberg</li>
+          <li><a href="mailto:kontakt@jar-medical.tech">kontakt@jar-medical.tech</a></li>
+          <li><a href="tel:+4917634305672">+49 176 34305672</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot__bottom">
+      <p data-i18n="foot_copy">© 2026 J.A.R. Medical</p>
+      <ul class="foot__legal">
+        <li><a href="../impressum.html" data-i18n="foot_imprint">Impressum</a></li>
+        <li><a href="../datenschutz.html" data-i18n="foot_privacy">Datenschutz</a></li>
+        <li><a href="../nutzungsbedingungen.html" data-i18n="foot_terms">Nutzungsbedingungen</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

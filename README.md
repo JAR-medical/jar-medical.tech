@@ -7,6 +7,12 @@ and JavaScript; `assets/` contains their images, the app screen recording and th
 read-aloud corpus (`assets/corpus/`).
 There is no build step or preview password.
 
+`/corporate/` is the client training portal (J.A.R. Corporate): sign-up,
+course requests, an admin overview and the course "J.A.R. im
+Katastrophenschutz". It runs in a clearly labelled demo mode until a Supabase
+project is configured; setup, security model and tests are in
+`corporate/README.md`.
+
 The previous homepage, legal pages and their images are preserved at
 `/website_old/`. Existing demo and game routes remain in place. The old
 `/website-preview/*.html` URLs redirect to their public equivalents and retain

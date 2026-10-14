@@ -1,0 +1,521 @@
+/* Copied verbatim from the css/tokens.css block that every page of the main
+   site inlines (see ../index.html). Keep in sync when the site's tokens change.
+   Portal styles live in portal.css and consume only these variables. */
+/* css/tokens.css */
+/* ==========================================================================
+   J.A.R. Medical — Design tokens
+   The single source of truth for colour, type, spacing, motion and elevation.
+   Every other stylesheet consumes these variables and defines no raw hex.
+   ========================================================================== */
+
+:root {
+  /* ---- Brand ---------------------------------------------------------- */
+  /* Sampled from the pitch deck: a deep indigo-navy ink on paper, with soft
+     sage-slate washes. --brand-mint is the logo's own mint and stays a
+     decorative fill; on paper it is far too pale for text, so anything that
+     has to be *read* uses --accent instead. */
+  --brand-navy: #19183b;        /* deck ink — headings, inverted surfaces    */
+  --brand-mint: #8ec7b8;        /* logo mint — decorative fills only         */
+  --brand-teal: #317f71;        /* logo teal                                 */
+  --accent: #2c7a6b;            /* accent text/rules, readable on paper      */
+  --accent-quiet: #6f9a92;      /* de-emphasised accent                      */
+
+  /* ---- Canvas & surfaces ---------------------------------------------- */
+  --bg-abyss: #fafbfb;          /* page ground                               */
+  --bg-deep: #eef2f2;           /* hero stage ground                         */
+  --bg-base: #f1f4f4;           /* tinted section band                       */
+  --bg-raise: #ffffff;          /* cards, panels                             */
+  --bg-raise-2: #f7f9f9;        /* hovered / stacked cards                   */
+  --bg-light: #ffffff;          /* surface for light-background imagery      */
+  --bg-light-2: #e7edef;
+  --bg-invert: #19183b;         /* the deck's navy card                      */
+
+  /* wash colours behind the soft background blooms */
+  --wash-mint: #e2edeb;
+  --wash-slate: #d9dfe2;
+  --wash-sage: #9cb5b6;
+
+  --surface-glass: rgba(255, 255, 255, 0.62);
+  --surface-glass-strong: rgba(250, 251, 251, 0.85);
+  --surface-tint: rgba(142, 199, 184, 0.16);
+
+  /* ---- Lines ----------------------------------------------------------- */
+  --line: rgba(25, 24, 59, 0.10);
+  --line-strong: rgba(25, 24, 59, 0.20);
+  --line-mint: rgba(49, 127, 113, 0.28);
+  --line-dark: rgba(25, 24, 59, 0.12);
+
+  /* ---- Ink ------------------------------------------------------------- */
+  --ink: #19183b;               /* primary text                              */
+  --ink-soft: #4a5169;          /* secondary text                            */
+  --ink-faint: #7c8598;         /* meta, captions, credits                   */
+  --ink-invert: #ffffff;        /* text on the navy card                     */
+  --ink-invert-soft: #b9c0d4;
+  --ink-dark: #19183b;          /* kept: "text on a light surface"           */
+  --ink-dark-soft: #4a5169;
+
+  /* ---- Signal (triage colours — darkened for contrast on paper) -------- */
+  --sig-red: #c8382f;
+  --sig-amber: #a86c10;
+  --sig-green: #1f7a55;
+
+  /* ---- Gradients ------------------------------------------------------- */
+  --grad-accent: linear-gradient(135deg, var(--brand-teal) 0%, #3f8f80 55%, var(--accent) 100%);
+  --grad-text: linear-gradient(100deg, var(--ink) 0%, #2f4a5c 46%, var(--brand-teal) 100%);
+  --grad-stage: radial-gradient(120% 92% at 76% 18%, var(--wash-mint) 0%, #f3f6f6 44%, var(--bg-abyss) 100%);
+  --grad-veil: linear-gradient(180deg, rgba(250, 251, 251, 0) 0%, rgba(250, 251, 251, 0.86) 68%, var(--bg-abyss) 100%);
+  /* Legibility scrims for copy set over the full-bleed stage render. The
+     render is a dark object, so on paper these lighten rather than darken. */
+  --grad-scrim-x: linear-gradient(90deg, rgba(250, 251, 251, 0.97) 0%, rgba(250, 251, 251, 0.95) 30%, rgba(250, 251, 251, 0.66) 44%, rgba(250, 251, 251, 0) 62%);
+  --grad-scrim-y: linear-gradient(180deg, rgba(250, 251, 251, 0) 20%, rgba(250, 251, 251, 0.66) 42%, rgba(250, 251, 251, 0.95) 62%);
+
+  /* ---- The halo ---------------------------------------------------------
+     The product is called Heiligenschein — German for halo — and it is a ring
+     worn on the head. A thin ring is therefore the one recurring graphic mark
+     on this site. These tokens keep every instance of it identical. */
+  --ring-line: rgba(49, 127, 113, 0.30);
+  --ring-line-quiet: rgba(25, 24, 59, 0.12);
+  --ring-line-invert: rgba(142, 199, 184, 0.42);
+  --ring-w: 1px;
+
+  /* ---- Elevation ------------------------------------------------------- */
+  --glow-mint: 0 0 0 1px rgba(49, 127, 113, 0.22), 0 16px 40px -14px rgba(49, 127, 113, 0.35);
+  --shadow-card: 0 1px 2px rgba(25, 24, 59, 0.05), 0 12px 32px -18px rgba(25, 24, 59, 0.22);
+  --shadow-lift: 0 2px 4px rgba(25, 24, 59, 0.06), 0 26px 56px -24px rgba(25, 24, 59, 0.3);
+
+  /* ---- Type ------------------------------------------------------------ */
+  /* Platform UI faces only — nothing is fetched from a third party, which is
+     what css/legal.css's privacy page asserts. "Inter Tight"/"Inter" lead the
+     stack so a self-hosted or locally installed copy is picked up if present;
+     to adopt them properly, drop woff2 files in assets/font/ and @font-face
+     them here. Same idea for the mono stack. */
+  --font-sans: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI Variable Display", "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+               Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Fluid scale — clamp(min, preferred, max) */
+  --t-display: clamp(2.75rem, 1.2rem + 6.6vw, 7rem);
+  --t-h1: clamp(2.25rem, 1.2rem + 4.4vw, 4.5rem);
+  --t-h2: clamp(1.85rem, 1.2rem + 2.6vw, 3.25rem);
+  --t-h3: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
+  --t-lead: clamp(1.05rem, 0.98rem + 0.5vw, 1.375rem);
+  --t-body: clamp(1rem, 0.97rem + 0.16vw, 1.0625rem);
+  --t-small: 0.9375rem;
+  --t-micro: 0.75rem;
+
+  --lh-tight: 1.02;
+  --lh-head: 1.1;
+  --lh-body: 1.62;
+
+  --track-display: -0.035em;
+  --track-head: -0.022em;
+  --track-eyebrow: 0.16em;
+
+  /* ---- Space ----------------------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+  --sp-10: 8rem;
+  --section-y: clamp(4.5rem, 2rem + 8vw, 9rem);
+
+  /* ---- Measure --------------------------------------------------------- */
+  --wrap: 1180px;
+  --wrap-wide: 1400px;
+  --wrap-text: 68ch;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+  --dur-slow: 720ms;
+
+  /* ---- Chrome ---------------------------------------------------------- */
+  --nav-h: 68px;
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   The dark ground
+   --------------------------------------------------------------------------
+   From the turn to the footer the page is navy. Rather than restyle every
+   component for that stretch, this re-points the surface, ink and line tokens
+   inside it: the rest of the CSS consumes tokens and declares no raw colour,
+   so a card, a hairline or a caption reads correctly on either ground with no
+   per-component override. Only things that carry a colour of their own need
+   explicit handling — the demo panel (a navy block that would vanish into a
+   navy page) and the partner logos (third-party marks in their own brand
+   colours, which must not be recoloured) — and those sit with their
+   components in site.css.
+
+   The scale inverts rather than mirrors: on paper the raised surfaces are
+   lighter than the ground and the tint band is darker, so here the raised
+   surfaces lift out of the navy and the tint band sinks below it. That keeps
+   the Heiligenschein teaser — the one section that is meant to be barely
+   visible — in the deepest part of the page.
+   -------------------------------------------------------------------------- */
+.theme-dark {
+  --bg-abyss: #19183b;          /* page ground — the deck's navy              */
+  --bg-deep: #14132f;
+  --bg-base: #121130;           /* tint band: sunk, not raised                */
+  --bg-raise: #23224f;          /* cards, panels                              */
+  --bg-raise-2: #2b2a5c;        /* hovered / stacked cards                    */
+
+  --ink: #ffffff;
+  --ink-soft: #b9c0d4;
+  --ink-faint: #8b93ac;
+
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.26);
+  --line-mint: rgba(142, 199, 184, 0.34);
+
+  /* On paper --accent is a darkened teal because the logo's mint is far too
+     pale to read; on navy that reverses exactly, and mint is the one thing
+     that carries small text well. */
+  --accent: var(--brand-mint);
+  --accent-quiet: #7fa79c;
+
+  --surface-tint: rgba(142, 199, 184, 0.12);
+  --ring-line: var(--ring-line-invert);
+  --ring-line-quiet: rgba(255, 255, 255, 0.14);
+
+  /* The triage colours above were darkened to carry on paper, which makes them
+     nearly unreadable on navy — --sig-green (#1f7a55) on the raised surface is
+     close to invisible. These are the same three hues opened back up. Amber and
+     green are lifted straight from what the page already draws on dark: the HUD
+     mock's own amber, and the green of the pulse behind its log dot.
+
+     Red is one step lighter than the HUD's #ef6a60. It has to be: the triage
+     discs set it on their own red-tinted wash rather than on the HUD's near
+     black, and there #ef6a60 measures 4.22:1 — just under AA. #f0776e is the
+     same hue at +0.03 lightness and measures 4.63:1. */
+  --sig-red: #f0776e;
+  --sig-amber: #f0b45c;
+  --sig-green: #5cc08f;
+
+  /* Both shadows are tinted with the navy itself, which makes them invisible
+     on a navy ground. Depth here has to come from black. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 32px -18px rgba(0, 0, 0, 0.75);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.34), 0 26px 56px -24px rgba(0, 0, 0, 0.8);
+
+  /* The wrapper paints the ground itself so the run is continuous even where
+     a child does not paint its own background. */
+  background: var(--bg-abyss);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Reset / base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-h) + var(--sp-5));
+}
+
+body {
+  background: var(--bg-abyss);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  /* The deck sets its headings in a heavy grotesk; 700 matches it far better
+     than the 600 the dark theme used. */
+  font-weight: 700;
+  line-height: var(--lh-head);
+  letter-spacing: var(--track-head);
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+img, video { height: auto; }
+
+/* Must outrank the rule above, which would otherwise un-hide [hidden] media. */
+[hidden] { display: none !important; }
+
+a { color: inherit; text-decoration: none; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button { background: none; border: 0; cursor: pointer; }
+
+ul, ol { list-style: none; padding: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--brand-mint);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Shared primitives — available to every page
+   -------------------------------------------------------------------------- */
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+}
+.wrap--wide { max-width: var(--wrap-wide); }
+.wrap--text { max-width: 780px; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.eyebrow::before {
+  content: "";
+  width: 26px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* The product name, set as a name rather than as a word: uppercase, widely
+   tracked, never italic, never abbreviated. Used in the stage reveal, the
+   product section and the footer lockup, so it lives here rather than in one
+   page's stylesheet. */
+.pname {
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  /* The tracking is applied to the right of every glyph including the last,
+     which visually shifts a centred or right-aligned name off its box. */
+  margin-right: -0.22em;
+}
+
+/* Figures line up in columns — the site sets a lot of 01/02/03 indices and
+   they look mechanical and wrong when the digits are proportional. */
+.tnum,
+.fails__num,
+.flow__idx,
+.stage__num,
+.pillar__n,
+.sysdiag__idx { font-variant-numeric: tabular-nums; }
+
+.gradient-text {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Buttons ---------------------------------------------------------------- */
+.btn {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-line: var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--r-pill);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: inset 0 0 0 1px var(--btn-line);
+  font-size: var(--t-small);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur) var(--ease-out),
+              background-color var(--dur) var(--ease-out),
+              color var(--dur) var(--ease-out);
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+
+/* The deck's primary action is a solid navy block, not a mint one — mint is
+   a decorative fill here and cannot carry white or navy label text at size. */
+.btn--primary {
+  --btn-bg: var(--brand-navy);
+  --btn-fg: var(--ink-invert);
+  --btn-line: transparent;
+}
+.btn--primary:hover {
+  --btn-bg: #23224f;
+  box-shadow: 0 10px 28px -12px rgba(25, 24, 59, 0.5);
+}
+
+.btn--ghost {
+  --btn-fg: var(--ink);
+  --btn-line: var(--line-strong);
+  background: var(--bg-raise);
+}
+.btn--ghost:hover {
+  --btn-line: var(--line-mint);
+  background: var(--surface-tint);
+}
+
+/* On the navy card, the roles invert. */
+.btn--onDark {
+  --btn-bg: var(--brand-mint);
+  --btn-fg: var(--brand-navy);
+  --btn-line: transparent;
+}
+.btn--onDark:hover { box-shadow: var(--glow-mint); }
+
+.btn--dark {
+  --btn-bg: var(--brand-navy);
+  --btn-fg: var(--ink-invert);
+  --btn-line: transparent;
+}
+
+/* Any surface that flips to the navy ground marks itself .is-invert. Without
+   this a navy .btn--primary sits invisibly on navy while the white ghost button
+   shouts louder than it — the roles have to swap with the ground. */
+.is-invert .btn--primary,
+.theme-dark .btn--primary {
+  --btn-bg: var(--brand-mint);
+  --btn-fg: var(--brand-navy);
+  --btn-line: transparent;
+}
+.is-invert .btn--primary:hover,
+.theme-dark .btn--primary:hover { --btn-bg: #a3d5c8; box-shadow: var(--glow-mint); }
+
+/* .btn--ghost sets `background` directly, which no amount of re-pointing
+   --btn-bg can undo — on the navy ground that painted a white pill with white
+   text in it, i.e. an invisible button. The ground has to be reset here too. */
+.is-invert .btn--ghost,
+.theme-dark .btn--ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink-invert);
+  --btn-line: rgba(255, 255, 255, 0.34);
+  background: transparent;
+}
+.is-invert .btn--ghost:hover,
+.theme-dark .btn--ghost:hover {
+  --btn-line: var(--brand-mint);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn__arrow { transition: transform var(--dur) var(--ease-out); }
+.btn:hover .btn__arrow { transform: translateX(3px); }
+
+/* Cards ------------------------------------------------------------------ */
+.card {
+  position: relative;
+  background: var(--bg-raise);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none;
+}
+
+/* Scroll reveal ---------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Utility ---------------------------------------------------------------- */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--sp-4);
+  z-index: 999;
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--brand-navy);
+  color: var(--ink-invert);
+  border-radius: var(--r-pill);
+  font-weight: 600;
+}
+.skip-link:focus { top: var(--sp-4); }
+
+/* Grain overlay ---------------------------------------------------------- */
+/* A fixed, full-viewport layer. mix-blend-mode here would force the compositor
+   to re-blend the entire screen on every repaint of the stage canvas, which is
+   the one thing on the page that repaints continuously — so this composites
+   with plain alpha instead. On a dark ground the difference is invisible. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: var(--grain-url);
+  background-size: 180px 180px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}

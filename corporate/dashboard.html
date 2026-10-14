@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title data-i18n="title_dashboard">Meine Kurse – J.A.R. Corporate</title>
+<meta name="description" content="J.A.R. Corporate – das Schulungs- und Demoportal von J.A.R. Medical für Partnerorganisationen im Katastrophenschutz.">
+<meta name="theme-color" content="#0c0b1f">
+<link rel="icon" href="../assets/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/portal.css">
+<script>
+// Fallback if the page modules cannot load at all (offline, blocked CDN, syntax
+// error): replace the loading line with an error and a reload button.
+window.addEventListener("error", function () { if (!window.__portalReady) portalFail(); });
+function portalFail() {
+  if (window.__portalFailed) return;
+  window.__portalFailed = true;
+  function show() {
+    var main = document.getElementById("main"), box = document.createElement("div"), p = document.createElement("p"), b = document.createElement("button");
+    box.className = "wrap notice notice-error"; box.setAttribute("role", "alert");
+    p.textContent = "Das Portal konnte nicht geladen werden. / The portal could not be loaded.";
+    b.className = "btn btn-outline btn-small"; b.type = "button"; b.textContent = "Neu laden / Reload";
+    b.onclick = function () { location.reload(); };
+    box.appendChild(p); box.appendChild(b);
+    var app = document.getElementById("app");
+    if (app) app.replaceChildren(box); else if (main) main.insertBefore(box, main.firstChild);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show); else show();
+}
+</script>
+<script type="module" src="js/pages/dashboard.js" onerror="portalFail()"></script>
+</head>
+<body class="theme-dark page--dark" data-page="dashboard">
+<div class="grain" aria-hidden="true"></div>
+<a class="skip-link" href="#main" data-i18n="skip_link">Zum Inhalt springen</a>
+
+<!-- ============================== HEADER ============================== -->
+<header class="nav" id="nav">
+  <div class="nav__inner wrap wrap--wide">
+    <a class="nav__brand" href="../index.html" aria-label="J.A.R. Medical: Startseite" data-i18n-aria-label="brand_aria">
+      <img src="../assets/logo/jar-icon.svg" alt="" width="36" height="36" class="nav__mark">
+      <span class="nav__wordmark">
+        <span class="nav__name">J.A.R.</span>
+        <span class="nav__tag">Corporate</span>
+      </span>
+    </a>
+
+    <nav class="nav__links" id="navLinks" aria-label="Hauptnavigation" data-i18n-aria-label="nav_label">
+      <a href="../index.html" data-i18n="nav_home">Website</a>
+      <a href="../katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a>
+      <a href="dashboard.html" data-nav="dashboard" id="navCourses" hidden data-i18n="nav_courses">Meine Kurse</a>
+      <a href="admin.html" data-nav="admin" id="navAdmin" hidden data-i18n="nav_admin">Verwaltung</a>
+    </nav>
+
+    <div class="nav__actions">
+      <div class="langswitch" data-langswitch>
+        <button class="langswitch__btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Sprache wählen" data-i18n-aria-label="lang_label">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"></path>
+          </svg>
+          <span data-langlabel>DE</span>
+        </button>
+        <ul class="langswitch__menu" role="menu" hidden>
+          <li><button role="menuitem" type="button" data-lang="de" aria-current="true">Deutsch</button></li>
+          <li><button role="menuitem" type="button" data-lang="en" aria-current="false">English</button></li>
+        </ul>
+      </div>
+
+      <div class="account-area" id="accountArea">
+        <a class="btn btn-primary nav__cta" href="index.html#signin" data-i18n="nav_signin">Anmelden</a>
+      </div>
+
+      <button class="nav__burger" type="button" aria-expanded="false" aria-controls="navLinks" aria-label="Menü" data-i18n-aria-label="menu_label">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+<div class="demo-banner" id="demoBanner" role="note" hidden></div>
+
+<main id="main" tabindex="-1">
+<section class="section">
+  <div class="wrap" id="app" aria-live="polite">
+    <p class="loading-line" role="status" data-i18n="loading">Wird geladen …</p>
+  </div>
+</section>
+</main>
+
+<!-- ============================== FOOTER ============================== -->
+<footer class="foot" id="kontakt">
+  <div class="wrap wrap--wide">
+    <div class="foot__top">
+      <div class="foot__brand">
+        <img src="../assets/logo/jar-logo-dark.svg" alt="J.A.R. Medical" width="196" height="72">
+        <p data-i18n="foot_blurb">J.A.R. Corporate ist das Schulungs- und Demoportal von J.A.R. Medical. Hier bereiten sich unsere Partnerorganisationen auf den Einsatz mit J.A.R. vor.</p>
+      </div>
+
+      <nav class="foot__col" aria-labelledby="footNav1">
+        <h4 id="footNav1" data-i18n="foot_h_portal">Portal</h4>
+        <ul>
+          <li><a href="index.html" data-i18n="fw2_overview">Übersicht &amp; Anmeldung</a></li>
+          <li><a href="dashboard.html" data-i18n="fw2_dashboard">Meine Kurse</a></li>
+          <li><a href="index.html#register" data-i18n="fw2_register">Konto erstellen</a></li>
+        </ul>
+      </nav>
+
+      <nav class="foot__col" aria-labelledby="footNav2">
+        <h4 id="footNav2" data-i18n="foot_h_site">Website</h4>
+        <ul>
+          <li><a href="../index.html" data-i18n="fw2_home">J.A.R. Startseite</a></li>
+          <li><a href="../katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a></li>
+        </ul>
+      </nav>
+
+      <div class="foot__col" aria-labelledby="footNav3">
+        <h4 id="footNav3" data-i18n="foot_h_contact">Kontakt</h4>
+        <ul>
+          <li>Johannes&nbsp;Nirschl · Alexander&nbsp;Kluge · Jonas&nbsp;Kaindl</li>
+          <li>Cramer-Klett-Straße 10<br>85579 Neubiberg</li>
+          <li><a href="mailto:kontakt@jar-medical.tech">kontakt@jar-medical.tech</a></li>
+          <li><a href="tel:+4917634305672">+49 176 34305672</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot__bottom">
+      <p data-i18n="foot_copy">© 2026 J.A.R. Medical</p>
+      <ul class="foot__legal">
+        <li><a href="../impressum.html" data-i18n="foot_imprint">Impressum</a></li>
+        <li><a href="../datenschutz.html" data-i18n="foot_privacy">Datenschutz</a></li>
+        <li><a href="../nutzungsbedingungen.html" data-i18n="foot_terms">Nutzungsbedingungen</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

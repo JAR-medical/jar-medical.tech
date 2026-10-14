@@ -1,0 +1,12 @@
+{
+  "name": "jar-corporate-portal",
+  "private": true,
+  "type": "module",
+  "description": "J.A.R. Corporate — Schulungsportal. Statische Seite ohne Build-Schritt; package.json existiert nur für die Tests (PGlite prüft schema.sql, node prüft Kursinhalt und Demo-Backend).",
+  "scripts": {
+    "test": "node tests/content.test.mjs && node tests/demo-backend.test.mjs && node tests/rls.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.2.17"
+  }
+}
