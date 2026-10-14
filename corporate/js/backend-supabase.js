@@ -33,6 +33,8 @@ export function createBackend(CONFIG, PortalError) {
     else if (code === "23503" || code === "23514" || code === "22P02" || code === "validation_failed") mapped = "invalid-input";
     else if (code === "PGRST301" || code === "session_not_found" || /jwt expired|auth session missing/i.test(msg)) mapped = "not-signed-in";
     else if (error?.name === "AuthRetryableFetchError" || error instanceof TypeError || /failed to fetch|network/i.test(msg)) mapped = "network";
+    // The user only sees "unexpected error"; keep the real cause for debugging.
+    if (mapped === "unknown") console.error("portal: unexpected backend error", error);
     throw new PortalError(mapped, msg);
   }
 
@@ -295,6 +297,16 @@ export function createBackend(CONFIG, PortalError) {
         globalThis.localStorage?.setItem(key, JSON.stringify(list));
       } catch { /* ignore */ }
       await run(sb.from("enrollments").delete().eq("user_id", userId).eq("course_id", courseId));
+    },
+
+    async adminDeleteClient(userId) {
+      await assertAdmin();
+      const myId = await uid();
+      if (!userId || userId === myId) throw new PortalError("invalid-input");
+      try {
+        globalThis.localStorage?.removeItem(`jarLocalGrants:${userId}`);
+      } catch { /* ignore */ }
+      await run(sb.rpc("admin_delete_user", { p_user_id: userId }));
     },
   };
 }

@@ -439,5 +439,18 @@ export function createBackend(CONFIG, PortalError) {
       s.enrollments = s.enrollments.filter((e) => !(e.user_id === userId && e.course_id === courseId));
       save(s);
     },
+
+    async adminDeleteClient(userId) {
+      const s = load();
+      const meAdmin = admin(s);
+      if (!userId || userId === meAdmin.id) throw new PortalError("invalid-input");
+      const idx = s.profiles.findIndex((p) => p.id === userId);
+      if (idx < 0) throw new PortalError("invalid-input");
+      s.profiles.splice(idx, 1);
+      s.enrollments = s.enrollments.filter((e) => e.user_id !== userId);
+      s.requests = s.requests.filter((r) => r.user_id !== userId);
+      s.progress = s.progress.filter((p) => p.user_id !== userId);
+      save(s);
+    },
   };
 }

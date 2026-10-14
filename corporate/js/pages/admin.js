@@ -8,14 +8,14 @@ import { COURSES, lessonCount } from "../catalog.js";
 import { el, replace, byId, errorBox, errorText, loadingLine, notice, formatDate, chip } from "../ui.js";
 
 const app = byId("app");
-const state = { ready: false, clients: [], requests: [], query: "", flash: null };
+const state = { ready: false, me: null, clients: [], requests: [], query: "", flash: null };
 
 mountLayout({ active: "admin" });
 
 async function load(showLoading = true) {
   if (showLoading) replace(app, loadingLine());
   try {
-    await requireUser({ role: "admin" });
+    state.me = await requireUser({ role: "admin" });
     const [clients, requests] = await Promise.all([backend.adminListClients(), backend.adminListRequests()]);
     state.clients = clients;
     state.requests = requests;
@@ -129,18 +129,30 @@ function bulkActionCell(client) {
     class: "btn " + (allGranted ? "btn-outline" : "btn-primary") + " btn-small",
     type: "button",
   }, allGranted ? t("btn_revoke_all") : t("btn_grant_all"));
+  const delBtn = client.id !== state.me?.id
+    ? el("button", { class: "btn btn-danger btn-small", type: "button" }, t("btn_delete_user"))
+    : null;
+  const buttons = [btn, delBtn].filter(Boolean);
   btn.addEventListener("click", () => {
     if (allGranted) {
-      act([btn],
+      act(buttons,
         () => Promise.all(COURSES.map((c) => backend.adminRevoke(client.id, c.id))),
         t("admin_revoked_all", { name: who }));
     } else {
-      act([btn],
+      act(buttons,
         () => Promise.all(COURSES.map((c) => backend.adminGrant(client.id, c.id))),
         t("admin_granted_all", { name: who }));
     }
   });
-  return el("td", { class: "nowrap" }, btn);
+  if (delBtn) {
+    delBtn.addEventListener("click", () => {
+      if (!window.confirm(t("confirm_delete_user", { name: who, email: client.email }))) return;
+      act(buttons,
+        () => backend.adminDeleteClient(client.id),
+        t("admin_deleted_user", { name: who }));
+    });
+  }
+  return el("td", { class: "nowrap" }, el("div", { class: "button-row" }, btn, delBtn));
 }
 
 function clientRows() {

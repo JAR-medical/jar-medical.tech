@@ -199,4 +199,11 @@ await test("delete_my_account removes only the caller's user, profile and cascad
   assert.equal((await as("admin", "select id from public.profiles where id = $1", [ids.bob])).length, 1);
 });
 
+await test("admin_delete_user lets only admins delete other accounts", async () => {
+  await rejects(as("bob", "select public.admin_delete_user($1)", [ids.oauth]), /forbidden/, "client cannot delete user");
+  await rejects(as("admin", "select public.admin_delete_user($1)", [ids.admin]), /invalid-input/, "admin cannot delete self");
+  await as("admin", "select public.admin_delete_user($1)", [ids.bob]);
+  assert.equal((await as("admin", "select id from public.profiles where id = $1", [ids.bob])).length, 0);
+});
+
 console.log(`\n${passed} passed`);

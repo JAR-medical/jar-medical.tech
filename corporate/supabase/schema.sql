@@ -202,6 +202,23 @@ begin
 end;
 $$;
 
+create or replace function public.admin_delete_user(p_user_id uuid)
+returns void language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'forbidden';
+  end if;
+  if p_user_id is null or p_user_id = auth.uid() then
+    raise exception 'invalid-input';
+  end if;
+  delete from auth.users where id = p_user_id;
+  if not found then
+    raise exception 'invalid-input';
+  end if;
+end;
+$$;
+
 -- ─── Privileges ─────────────────────────────────────────────────────────────
 -- Supabase grants everything to anon/authenticated by default; RLS then
 -- filters rows. Column grants below additionally limit WHICH columns a
@@ -218,9 +235,11 @@ grant delete on public.course_requests to authenticated;
 grant insert (course_id, lesson_id, quiz_score) on public.lesson_progress to authenticated;
 
 revoke execute on function public.is_admin(), public.request_course(text, text),
-                           public.decide_request(uuid, text), public.delete_my_account() from public, anon;
+                           public.decide_request(uuid, text), public.delete_my_account(),
+                           public.admin_delete_user(uuid) from public, anon;
 grant execute on function public.is_admin(), public.request_course(text, text),
-                          public.decide_request(uuid, text), public.delete_my_account() to authenticated;
+                          public.decide_request(uuid, text), public.delete_my_account(),
+                          public.admin_delete_user(uuid) to authenticated;
 revoke execute on function public.handle_new_user(), public.handle_user_email_change(),
                            public.close_request_on_grant() from public, anon, authenticated;
 
