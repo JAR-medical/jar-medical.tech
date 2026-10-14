@@ -2,6 +2,7 @@
 export default {
   id: "jar-transcription-demo",
   version: 1,
+  section: "test",
   icon: "voice",
   title: {
     de: "JAR Transcription Demo",

@@ -1,27 +1,27 @@
-// Client dashboard: granted courses with progress, requesting further
-// courses and the request history. Profile settings live in the account
-// menu (profile-dialog.js); a section without cards is left out entirely.
+// Client dashboard: once approved by an administrator, displays the unlocked
+// courses and demos organized into three sections: Understand, Test and Train.
+// Profile settings live in the account menu (profile-dialog.js).
 import { backend, requireUser } from "../backend.js";
 import { CONFIG } from "../config.js";
 import { t, pick, onLangChange } from "../i18n.js";
 import { mountLayout } from "../layout.js";
-import { COURSES, lessonCount } from "../catalog.js";
+import { COURSES, SECTIONS, lessonCount } from "../catalog.js";
 import { courseIcon } from "../icons.js";
 import { openProfileDialog, PROFILE_EVENT } from "../profile-dialog.js";
 import {
-  el, replace, byId, errorText, errorBox, loadingLine, notice, formatDate,
-  setBusy, progressBar, chip, fieldError,
+  el, replace, byId, errorBox, loadingLine, notice, formatDate,
+  progressBar, chip,
 } from "../ui.js";
 
-const MAX_MESSAGE = 500;
 const app = byId("app");
-const state = { profile: null, enrollments: [], requests: [], progress: {}, flash: {} };
+const state = { profile: null, enrollments: [], requests: [], progress: {} };
 
 mountLayout({ active: "dashboard" });
 
 async function fetchData() {
   const [enrollments, requests] = await Promise.all([backend.listMyEnrollments(), backend.listMyRequests()]);
-  const granted = COURSES.filter((c) => enrollments.some((e) => e.course_id === c.id));
+  const isAdmin = state.profile?.role === "admin";
+  const granted = COURSES.filter((c) => isAdmin || enrollments.some((e) => e.course_id === c.id));
   const progressLists = await Promise.all(granted.map((c) => backend.listMyProgress(c.id)));
   state.enrollments = enrollments;
   state.requests = requests;
@@ -43,8 +43,8 @@ async function load() {
   }
 }
 
-const isGranted = (courseId) => state.enrollments.some((e) => e.course_id === courseId);
-// Sign-ups via Google/Apple/… bring a name at best, never an organization.
+const isGranted = (courseId) =>
+  state.profile?.role === "admin" || state.enrollments.some((e) => e.course_id === courseId);
 const profileIncomplete = () => !state.profile.full_name?.trim() || !state.profile.organization?.trim();
 
 function render() {
@@ -65,11 +65,11 @@ function render() {
         el("p", {}, el("strong", {}, t("dash_admin_title")), " ", t("dash_admin_text")),
         el("a", { class: "btn btn-primary btn-small", href: "admin.html" }, t("dash_admin_btn")))
       : null,
-    el("section", { class: "dash-section", "aria-labelledby": "h-my" },
-      el("h2", { id: "h-my" }, t("dash_my_courses")),
-      granted.length
-        ? el("div", { class: "course-grid" }, granted.map(myCourseCard))
-        : el("p", { class: "muted" }, t("dash_no_courses"))),
+    granted.length
+      ? SECTIONS.map((sec) => sectionBlock(sec, granted.filter((c) => c.section === sec)))
+      : el("section", { class: "dash-section", "aria-labelledby": "h-my" },
+        el("h2", { id: "h-my" }, t("dash_my_courses")),
+        el("p", { class: "muted" }, t("dash_no_courses"))),
     state.requests.length
       ? el("section", { class: "dash-section", "aria-labelledby": "h-req" },
         el("h2", { id: "h-req" }, t("dash_requests")),
@@ -78,7 +78,17 @@ function render() {
     el("p", { class: "contact-line" }, t("dash_contact"), " ",
       el("a", { href: "mailto:" + CONFIG.CONTACT_EMAIL }, CONFIG.CONTACT_EMAIL)),
   );
-  state.flash = {};
+}
+
+function sectionBlock(sec, courses) {
+  if (!courses.length) return null;
+  const id = "h-sec-" + sec;
+  return el("section", { class: "dash-section", "aria-labelledby": id },
+    el("div", { class: "dash-section-head" },
+      el("span", { class: "eyebrow" }, t(`sec_${sec}_kicker`)),
+      el("h2", { id }, t(`sec_${sec}_title`)),
+      el("p", { class: "muted dash-section-sub" }, t(`sec_${sec}_sub`))),
+    el("div", { class: "course-grid" }, courses.map(myCourseCard)));
 }
 
 function courseMeta(course) {
@@ -97,95 +107,12 @@ function myCourseCard(course) {
     el("a", { class: "btn btn-primary btn-small", href: "course.html?c=" + encodeURIComponent(course.id) }, label));
 }
 
-// Icon, title and one short line — the details live inside the course.
 function cardHead(course) {
   return el("div", { class: "course-card-head" },
     courseIcon(course.icon),
     el("div", {},
       el("h3", {}, pick(course.title)),
       course.subtitle ? el("p", { class: "course-subtitle" }, pick(course.subtitle)) : null));
-}
-
-// Card for a course the user has no access to yet: request / pending / declined.
-function requestCard(course) {
-  const mine = state.requests.filter((r) => r.course_id === course.id);
-  const pending = mine.find((r) => r.status === "pending");
-  const last = mine[0]; // newest first
-  const status = el("div", { class: "card-status", "aria-live": "polite" });
-  const flash = state.flash[course.id];
-  if (flash) status.append(notice(flash.kind, el("p", {}, flash.text)));
-
-  const card = el("article", { class: "course-card" },
-    cardHead(course),
-    courseMeta(course));
-
-  if (pending) {
-    const cancel = el("button", { class: "btn btn-outline btn-small", type: "button" }, t("btn_cancel_request"));
-    cancel.addEventListener("click", async () => {
-      setBusy(cancel, true, t("busy"));
-      try {
-        await backend.cancelRequest(pending.id);
-        state.flash[course.id] = { kind: "success", text: t("request_cancelled") };
-        await refresh();
-      } catch (e) {
-        setBusy(cancel, false);
-        replace(status, notice("error", el("p", {}, errorText(e))));
-      }
-    });
-    card.append(el("p", {}, chip("pending", t("requested_on", { date: formatDate(pending.created_at) }))), cancel);
-  } else {
-    if (last && last.status === "declined") card.append(el("p", { class: "note" }, t("request_declined_note")));
-    card.append(profileIncomplete()
-      ? el("p", { class: "note" }, t("request_needs_profile"))
-      : requestForm(course, status));
-  }
-  card.append(status);
-  return card;
-}
-
-function requestForm(course, status) {
-  const id = "msg-" + course.id;
-  const open = el("button", { class: "btn btn-primary btn-small", type: "button", "aria-expanded": "false", "aria-controls": "form-" + course.id }, t("btn_request"));
-  const textarea = el("textarea", { id, rows: 3, maxlength: MAX_MESSAGE, "aria-describedby": id + "-count" });
-  const counter = el("p", { class: "char-count", id: id + "-count", "aria-live": "polite" }, t("char_count", { n: 0, max: MAX_MESSAGE }));
-  const submit = el("button", { class: "btn btn-primary btn-small", type: "submit" }, t("btn_send_request"));
-  const cancel = el("button", { class: "btn btn-outline btn-small", type: "button" }, t("btn_cancel"));
-  const form = el("form", { class: "request-form", id: "form-" + course.id, hidden: true, novalidate: true },
-    el("div", { class: "field" }, el("label", { for: id }, t("request_message_label")), textarea, counter),
-    el("div", { class: "button-row" }, submit, cancel));
-
-  const toggle = (show) => {
-    form.hidden = !show;
-    open.hidden = show;
-    open.setAttribute("aria-expanded", show ? "true" : "false");
-    if (show) textarea.focus();
-    else open.focus();
-  };
-  open.addEventListener("click", () => toggle(true));
-  cancel.addEventListener("click", () => toggle(false));
-  textarea.addEventListener("input", () => {
-    counter.textContent = t("char_count", { n: textarea.value.length, max: MAX_MESSAGE });
-  });
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (textarea.value.trim().length > MAX_MESSAGE) {
-      fieldError(textarea, t("v_max", { max: MAX_MESSAGE }));
-      return;
-    }
-    fieldError(textarea, "");
-    setBusy(submit, true, t("busy"));
-    cancel.disabled = true;
-    try {
-      await backend.requestCourse(course.id, textarea.value.trim());
-      state.flash[course.id] = { kind: "success", text: t("request_sent") };
-      await refresh();
-    } catch (err) {
-      setBusy(submit, false);
-      cancel.disabled = false;
-      replace(status, notice("error", el("p", {}, errorText(err))));
-    }
-  });
-  return el("div", {}, open, form);
 }
 
 function statusChip(status) {
@@ -211,19 +138,7 @@ function requestsTable() {
         el("td", {}, statusChip(r.status)))))));
 }
 
-// Reload data after a change; pending flash messages show in the next render.
-async function refresh() {
-  try {
-    await fetchData();
-    render();
-  } catch (e) {
-    state.flash = {};
-    replace(app, errorBox(e, load));
-  }
-}
-
 onLangChange(() => { if (state.profile) render(); });
-// Saved in the profile dialog: new greeting, and requests may now be allowed.
 window.addEventListener(PROFILE_EVENT, (e) => {
   if (!state.profile) return;
   state.profile = { ...state.profile, ...e.detail };

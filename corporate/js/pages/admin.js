@@ -122,12 +122,33 @@ function courseCell(client, course) {
   return el("td", {}, status, button);
 }
 
+function bulkActionCell(client) {
+  const who = client.full_name || client.email;
+  const allGranted = COURSES.every((c) => client.enrollments.some((e) => e.course_id === c.id));
+  const btn = el("button", {
+    class: "btn " + (allGranted ? "btn-outline" : "btn-primary") + " btn-small",
+    type: "button",
+  }, allGranted ? t("btn_revoke_all") : t("btn_grant_all"));
+  btn.addEventListener("click", () => {
+    if (allGranted) {
+      act([btn],
+        () => Promise.all(COURSES.map((c) => backend.adminRevoke(client.id, c.id))),
+        t("admin_revoked_all", { name: who }));
+    } else {
+      act([btn],
+        () => Promise.all(COURSES.map((c) => backend.adminGrant(client.id, c.id))),
+        t("admin_granted_all", { name: who }));
+    }
+  });
+  return el("td", { class: "nowrap" }, btn);
+}
+
 function clientRows() {
   const q = state.query.trim().toLowerCase();
   const rows = state.clients.filter((c) => !q ||
     [c.full_name, c.organization, c.email].some((v) => String(v || "").toLowerCase().includes(q)));
   if (!rows.length) {
-    return [el("tr", {}, el("td", { colspan: 5 + COURSES.length, class: "muted" }, t("admin_no_match")))];
+    return [el("tr", {}, el("td", { colspan: 6 + COURSES.length, class: "muted" }, t("admin_no_match")))];
   }
   return rows.map((c) => el("tr", {},
     el("td", {}, c.full_name || "—"),
@@ -135,6 +156,7 @@ function clientRows() {
     el("td", { class: "break" }, c.email),
     el("td", { class: "nowrap" }, formatDate(c.created_at)),
     el("td", {}, c.role === "admin" ? chip("admin", t("role_admin")) : t("role_client")),
+    bulkActionCell(c),
     COURSES.map((course) => courseCell(c, course))));
 }
 
@@ -150,7 +172,7 @@ function clientsSection() {
     el("div", { class: "field field-search" }, el("label", { for: "clientSearch" }, t("admin_search")), search),
     el("div", { class: "table-wrap" }, el("table", { class: "data-table" },
       el("thead", {}, el("tr", {},
-        [t("col_name"), t("col_org"), t("col_email"), t("col_registered"), t("col_role")].map((h) => el("th", { scope: "col" }, h)),
+        [t("col_name"), t("col_org"), t("col_email"), t("col_registered"), t("col_role"), t("col_actions")].map((h) => el("th", { scope: "col" }, h)),
         COURSES.map((c) => el("th", { scope: "col" }, pick(c.title))))),
       tbody)));
 }

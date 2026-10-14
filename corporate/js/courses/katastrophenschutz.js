@@ -3,6 +3,7 @@
 export default {
   id: "katastrophenschutz",
   version: 1,
+  section: "train",
   icon: "triage", // see js/icons.js
   title: {
     de: "J.A.R. im Katastrophenschutz",

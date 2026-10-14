@@ -1,10 +1,33 @@
-// Course catalog: the single list of courses the portal knows about. Course
-// content is public data shipped with the site; access to it is gated by the
-// enrollment check in the backend (and RLS in the Supabase setup).
-import course from "./courses/katastrophenschutz.js";
+// Course catalog: grouped into three sections on the client dashboard:
+//   - "understand": architecture, speech model, sectors, privacy & limits
+//   - "test":       interactive demos (voice capture & diarization, ASR pipeline, live operating picture & AR client)
+//   - "train":      role-based operational training with knowledge checks & certificates
+import jarUeberblick from "./courses/jar-ueberblick.js";
+import edgeKiSprache from "./courses/edge-ki-sprache.js";
+import datenschutzSicherheit from "./courses/datenschutz-sicherheit.js";
 import transcriptionDemo from "./courses/jar-transcription-demo.js";
+import asrSichtungsDemo from "./courses/asr-sichtungs-demo.js";
+import lagebildArDemo from "./courses/lagebild-ar-demo.js";
+import katastrophenschutz from "./courses/katastrophenschutz.js";
+import trainingArTrupp from "./courses/training-ar-trupp.js";
+import trainingKlinikPflege from "./courses/training-klinik-pflege.js";
 
-export const COURSES = [course, transcriptionDemo];
+export const SECTIONS = ["understand", "test", "train"];
+
+export const COURSES = [
+  // 1. Understand
+  jarUeberblick,
+  edgeKiSprache,
+  datenschutzSicherheit,
+  // 2. Test
+  transcriptionDemo,
+  asrSichtungsDemo,
+  lagebildArDemo,
+  // 3. Train
+  katastrophenschutz,
+  trainingArTrupp,
+  trainingKlinikPflege,
+];
 
 export function getCourse(id) {
   if (typeof id !== "string") return null;

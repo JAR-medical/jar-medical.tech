@@ -266,11 +266,31 @@ create policy progress_insert_enrolled on public.lesson_progress for insert to a
 -- Keep in sync with corporate/js/courses/*.js (README.md → "Adding a course").
 
 insert into public.courses (id, title) values
+  ('jar-ueberblick', 'Was ist J.A.R.? System & Einsatzbereiche'),
+  ('edge-ki-sprache', 'Edge-KI, Zero-Shot & Sprachpipeline'),
+  ('datenschutz-sicherheit', 'Datenschutz, Offline-Betrieb & Grenzen'),
+  ('jar-transcription-demo', 'JAR Transcription Demo'),
+  ('asr-sichtungs-demo', 'ASR-Pipeline & Protokoll-Extraktion'),
+  ('lagebild-ar-demo', 'Live-Lagebild & AR-Client Simulation'),
   ('katastrophenschutz', 'J.A.R. im Katastrophenschutz'),
-  ('jar-transcription-demo', 'JAR Transcription Demo')
+  ('training-ar-trupp', 'Praxistraining: Sichtungstrupp am Patienten'),
+  ('training-klinik-pflege', 'Praxistraining: JAR Scribe in Klinik & Pflege')
 on conflict (id) do update set title = excluded.title;
 
 insert into public.course_lessons (course_id, lesson_id, position) values
+  ('jar-ueberblick', 'idee-und-problem', 1),
+  ('jar-ueberblick', 'vier-einsatzbereiche', 2),
+  ('jar-ueberblick', 'architektur-komponenten', 3),
+  ('edge-ki-sprache', 'zero-shot-medizin', 1),
+  ('edge-ki-sprache', 'alignment-und-diarisierung', 2),
+  ('edge-ki-sprache', 'gbnf-extraktion', 3),
+  ('datenschutz-sicherheit', 'lokale-verarbeitung-und-fallbacks', 1),
+  ('datenschutz-sicherheit', 'rechtliche-einordnung', 2),
+  ('jar-transcription-demo', 'live-transkription-diarisierung', 1),
+  ('asr-sichtungs-demo', 'asr-workflow-testen', 1),
+  ('asr-sichtungs-demo', 'schema-felder-pruefen', 2),
+  ('lagebild-ar-demo', 'lagebild-demo-testen', 1),
+  ('lagebild-ar-demo', 'ar-client-testen', 2),
   ('katastrophenschutz', 'warum-jar', 1),
   ('katastrophenschutz', 'system-ueberblick', 2),
   ('katastrophenschutz', 'ar-client-im-einsatz', 3),
@@ -278,7 +298,12 @@ insert into public.course_lessons (course_id, lesson_id, position) values
   ('katastrophenschutz', 'lagebild-einsatzleitung', 5),
   ('katastrophenschutz', 'datenschutz-offline-grenzen', 6),
   ('katastrophenschutz', 'einfuehrung-organisation', 7),
-  ('jar-transcription-demo', 'live-transkription-diarisierung', 1)
+  ('training-ar-trupp', 'freihaendige-vorsichtung', 1),
+  ('training-ar-trupp', 'koerpermodell-und-karte', 2),
+  ('training-ar-trupp', 'checkliste-uebung', 3),
+  ('training-klinik-pflege', 'dokumentation-am-bett', 1),
+  ('training-klinik-pflege', 'vitalwerte-und-news2', 2),
+  ('training-klinik-pflege', 'uebergabe-pruefen-freigeben', 3)
 on conflict (course_id, lesson_id) do update set position = excluded.position;
 
 -- Accounts that existed before this schema was installed get a profile too.

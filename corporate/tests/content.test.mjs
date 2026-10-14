@@ -27,6 +27,7 @@ for (const course of COURSES) {
   const c = course.id;
   assert.match(c, ID, "course id");
   for (const k of ["title", "subtitle", "summary", "audience"]) text(course[k], `${c}.${k}`);
+  assert.ok(["understand", "test", "train"].includes(course.section), `${c}: invalid section "${course.section}"`);
   assert.ok(ICONS[course.icon], `${c}: icon "${course.icon}" is not in js/icons.js`);
   assert.ok(course.subtitle.de.length <= 60 && course.subtitle.en.length <= 60, `${c}: subtitle is one short line on the card`);
   assert.ok(course.lessons.length > 0, `${c}: no lessons`);

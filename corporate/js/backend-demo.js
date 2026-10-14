@@ -50,7 +50,7 @@ export function createBackend(CONFIG, PortalError) {
   }
 
   function seed() {
-    const course = COURSES[0];
+    const course = getCourse("katastrophenschutz") || COURSES[0];
     const lessons = course ? course.lessons : [];
     const admin = profile(adminEmail, "J.A.R. Administration", "J.A.R. Medical", "admin", daysAgo(40));
     const brk = profile("k.huber@example.org", "Katrin Huber", "BRK Kreisverband München", "client", daysAgo(28));
@@ -68,9 +68,17 @@ export function createBackend(CONFIG, PortalError) {
     approved(brk, daysAgo(21), daysAgo(20), "Für unsere Schnelleinsatzgruppe.");
     approved(ffw, daysAgo(23), daysAgo(22), "");
 
-    state.enrollments.push({ user_id: admin.id, course_id: "jar-transcription-demo", granted_at: daysAgo(30) });
-    state.enrollments.push({ user_id: brk.id, course_id: "jar-transcription-demo", granted_at: daysAgo(20) });
-    state.enrollments.push({ user_id: ffw.id, course_id: "jar-transcription-demo", granted_at: daysAgo(22) });
+    for (const c of COURSES) {
+      if (!state.enrollments.some((e) => e.user_id === admin.id && e.course_id === c.id)) {
+        state.enrollments.push({ user_id: admin.id, course_id: c.id, granted_at: daysAgo(30) });
+      }
+      if (!state.enrollments.some((e) => e.user_id === brk.id && e.course_id === c.id)) {
+        state.enrollments.push({ user_id: brk.id, course_id: c.id, granted_at: daysAgo(20) });
+      }
+      if (!state.enrollments.some((e) => e.user_id === ffw.id && e.course_id === c.id)) {
+        state.enrollments.push({ user_id: ffw.id, course_id: c.id, granted_at: daysAgo(22) });
+      }
+    }
 
     const scored = (lesson, score) => (Array.isArray(lesson.quiz) && lesson.quiz.length ? score : null);
     if (lessons[0]) {

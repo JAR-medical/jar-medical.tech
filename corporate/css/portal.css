@@ -805,6 +805,20 @@ main > .section:first-child::before, .hero-track + .section::before { display: n
    Dashboard
    ========================================================================== */
 .dash-section { margin-bottom: var(--sp-8); }
+.dash-section-head {
+  position: relative;
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.dash-section-head .eyebrow { margin-bottom: var(--sp-2); }
+.dash-section-head h2 {
+  font-size: clamp(1.55rem, 1.1rem + 1.3vw, 2.2rem);
+  font-weight: 450;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--sp-2);
+}
+.dash-section-sub { max-width: 48rem; }
 .dash-section > h2 {
   position: relative;
   margin-bottom: var(--sp-5);
