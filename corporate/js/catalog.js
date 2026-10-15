@@ -5,6 +5,9 @@
 import jarUeberblick from "./courses/jar-ueberblick.js";
 import edgeKiSprache from "./courses/edge-ki-sprache.js";
 import datenschutzSicherheit from "./courses/datenschutz-sicherheit.js";
+import asrModell from "./courses/asr-modell.js";
+import arRfidSystem from "./courses/ar-rfid-system.js";
+import mapping3dLagebild from "./courses/3d-mapping-lagebild.js";
 import transcriptionDemo from "./courses/jar-transcription-demo.js";
 import asrSichtungsDemo from "./courses/asr-sichtungs-demo.js";
 import lagebildArDemo from "./courses/lagebild-ar-demo.js";
@@ -19,6 +22,9 @@ export const COURSES = [
   jarUeberblick,
   edgeKiSprache,
   datenschutzSicherheit,
+  asrModell,
+  arRfidSystem,
+  mapping3dLagebild,
   // 2. Test
   transcriptionDemo,
   asrSichtungsDemo,
