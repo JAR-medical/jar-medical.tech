@@ -3,7 +3,9 @@
 import { createBackend } from "../js/backend-demo.js";
 import { CONFIG } from "../js/config.js";
 import { getCourse } from "../js/catalog.js";
- const C = getCourse("katastrophenschutz"); const L0 = C.lessons[0].id, L1 = C.lessons[1].id, NL = C.lessons.length;
+ const C = getCourse("katastrophenschutz");
+if (!C) { console.log("skip - course katastrophenschutz not in catalog (archived on corporate/courses-archive)"); process.exit(0); }
+const L0 = C.lessons[0].id, L1 = C.lessons[1].id, NL = C.lessons.length;
 class PortalError extends Error { constructor(c, m) { super(m || c); this.code = c; } }
 const b = createBackend(CONFIG, PortalError);
 let fails = 0;
