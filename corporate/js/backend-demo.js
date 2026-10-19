@@ -5,6 +5,7 @@
 // same in both modes.
 
 import { COURSES, getCourse } from "./catalog.js";
+import { IS_PREVIEW } from "./config.js";
 
 const STORAGE_KEY = "jarCorporateDemo.v1";
 const MAX_NAME = 120;
@@ -115,6 +116,9 @@ export function createBackend(CONFIG, PortalError) {
       if (!s.enrollments.some((e) => e.user_id === admin.id && e.course_id === c.id)) {
         s.enrollments.push({ user_id: admin.id, course_id: c.id, granted_at: nowIso() });
       }
+    }
+    if (IS_PREVIEW && !s.session) {
+      s.session = { userId: admin.id };
     }
     return s;
   }

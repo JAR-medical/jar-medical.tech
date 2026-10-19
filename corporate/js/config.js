@@ -17,8 +17,34 @@ export const CONFIG = {
   // Where clients send questions about access; shown in the dashboard.
   CONTACT_EMAIL: "kontakt@jar-medical.tech",
 
+  // Cloudflare Tunnel URL pointing to the J.A.R. model computer running the
+  // transcription + speaker diarization server (e.g. "https://jar-stt.trycloudflare.com"
+  // or "https://stt.jar-medical.tech"). While empty, the transcription course
+  // lets users paste a tunnel URL in the UI, tries 127.0.0.1:8765 locally, and
+  // provides an interactive diarized preview fallback after recording voice.
+  TRANSCRIPTION_TUNNEL_URL: "",
+
   // Demo mode only: signing in with this address gives the admin role.
   DEMO_ADMIN_EMAIL: "admin@jar-medical.tech",
 };
 
-export const IS_DEMO = !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY;
+function detectLocalPreview() {
+  try {
+    if (typeof location === "undefined") return false;
+    const q = new URLSearchParams(location.search).get("demo");
+    if (q === "1") {
+      globalThis.sessionStorage?.setItem("jarCorporatePreview", "1");
+      return true;
+    }
+    if (q === "0") {
+      globalThis.sessionStorage?.removeItem("jarCorporatePreview");
+      return false;
+    }
+    return globalThis.sessionStorage?.getItem("jarCorporatePreview") === "1";
+  } catch {
+    return false;
+  }
+}
+
+export const IS_PREVIEW = detectLocalPreview();
+export const IS_DEMO = IS_PREVIEW || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY;

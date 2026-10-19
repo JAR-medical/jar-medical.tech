@@ -46,6 +46,18 @@ export const ICONS = {
     ["path", { d: "M4.5 13a7.5 7.5 0 0 1 15 0v2.5H4.5V13Z" }],
     ["path", { d: "M6.5 15.5l1.5 4h8l1.5-4M8 12h8" }],
   ],
+  // AR system: glasses visor + RFID/NFC waves + network node
+  arSystem: [
+    ["rect", { x: "3.5", y: "6.5", width: "17", height: "7", rx: "2.5" }],
+    ["path", { d: "M10.5 13.5l1.5-2 1.5 2M7.5 10h2M14.5 10h2" }],
+    ["path", { d: "M8.5 17.5a5 5 0 0 1 7 0M10.2 19.8a2.5 2.5 0 0 1 3.6 0" }],
+  ],
+  // 3D terrain layers, satellite/drone fusion & flood level
+  layers3d: [
+    ["path", { d: "M12 3.5l8.5 4.5-8.5 4.5L3.5 8 12 3.5Z" }],
+    ["path", { d: "M3.5 12.5l8.5 4.5 8.5-4.5" }],
+    ["path", { d: "M3.5 16.8c2.2-1.2 4.5 1.2 6.8 0s4.5-1.2 6.8 0 2.2 0.8 3.4 0" }],
+  ],
   // Clinical documentation / JAR Scribe
   scribe: [
     ["rect", { x: "6", y: "3.5", width: "12", height: "17", rx: "2" }],

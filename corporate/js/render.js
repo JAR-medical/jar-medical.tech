@@ -2,7 +2,9 @@
 // nodes. Course text supports a single inline markup: **bold**.
 import { t } from "./i18n.js";
 import { el } from "./ui.js";
-import { renderTranscriptionDemo } from "./transcription-widget.js";
+import { renderTranscriptionDemo, renderTranscriptionPipelineVisual } from "./transcription-widget.js";
+import { renderArSystemVisual } from "./ar-system-visual.js";
+import { renderMapping3dVisual } from "./mapping-3d-visual.js";
 
 const LINK_PREFIXES = ["../demo/"];
 
@@ -13,14 +15,20 @@ function tx(value, lang) {
   return value;
 }
 
-// Escapes by construction (text nodes) and turns **bold** into <strong>.
+// Escapes by construction (text nodes) and turns **bold** into <strong> and `code` into <code>.
 export function inline(text) {
   const frag = document.createDocumentFragment();
-  const parts = String(text ?? "").split(/\*\*(.+?)\*\*/g);
-  parts.forEach((part, i) => {
-    if (!part) return;
-    frag.append(i % 2 ? el("strong", {}, part) : document.createTextNode(part));
-  });
+  const tokenRe = /\*\*(.+?)\*\*|`([^`]+?)`/g;
+  const src = String(text ?? "");
+  let last = 0;
+  let m;
+  while ((m = tokenRe.exec(src)) !== null) {
+    if (m.index > last) frag.append(document.createTextNode(src.slice(last, m.index)));
+    if (m[1] != null) frag.append(el("strong", {}, m[1]));
+    else if (m[2] != null) frag.append(el("code", { class: "inline-code" }, m[2]));
+    last = tokenRe.lastIndex;
+  }
+  if (last < src.length) frag.append(document.createTextNode(src.slice(last)));
   return frag;
 }
 
@@ -73,6 +81,9 @@ const RENDERERS = {
   },
 
   "transcription-demo": (b, lang) => renderTranscriptionDemo(b, lang),
+  "transcription-pipeline-visual": (b, lang) => renderTranscriptionPipelineVisual(b, lang),
+  "ar-system-visual": (b, lang) => renderArSystemVisual(b, lang),
+  "mapping-3d-visual": (b, lang) => renderMapping3dVisual(b, lang),
 };
 
 export function renderBlocks(blocks, lang) {

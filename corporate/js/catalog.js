@@ -1,7 +1,9 @@
 // Course catalog: grouped into three sections on the client dashboard:
-//   - "understand": architecture, speech model, sectors, privacy & limits
-//   - "test":       interactive demos (voice capture & diarization, ASR pipeline, live operating picture & AR client)
+//   - "understand": AR system architecture, 3D mapping & flood simulation, speech model, sectors, privacy & limits
+//   - "test":       interactive demos (voice capture & diarization via Cloudflare Tunnel, ASR pipeline, live operating picture & AR client)
 //   - "train":      role-based operational training with knowledge checks & certificates
+import arGesamtsystem from "./courses/ar-gesamtsystem.js";
+import kartierung3dFlut from "./courses/kartierung-3d-flut.js";
 import jarUeberblick from "./courses/jar-ueberblick.js";
 import edgeKiSprache from "./courses/edge-ki-sprache.js";
 import datenschutzSicherheit from "./courses/datenschutz-sicherheit.js";
@@ -16,6 +18,8 @@ export const SECTIONS = ["understand", "test", "train"];
 
 export const COURSES = [
   // 1. Understand
+  arGesamtsystem,
+  kartierung3dFlut,
   jarUeberblick,
   edgeKiSprache,
   datenschutzSicherheit,

@@ -52,7 +52,7 @@
 //           }
 // All timestamps are ISO 8601 strings.
 
-import { CONFIG, IS_DEMO } from "./config.js";
+import { CONFIG, IS_DEMO, IS_PREVIEW } from "./config.js";
 
 export class PortalError extends Error {
   // code: "invalid-credentials" | "email-not-confirmed" | "weak-password" |
@@ -75,7 +75,10 @@ export const backend = impl.createBackend(CONFIG, PortalError);
 // Shared guard for pages: resolves with the profile or redirects to sign-in.
 // `role: "admin"` additionally sends non-admins to the dashboard.
 export async function requireUser({ role } = {}) {
-  const user = await backend.getUser();
+  let user = await backend.getUser();
+  if (!user && IS_PREVIEW && backend.mode === "demo") {
+    user = await backend.signIn({ email: CONFIG.DEMO_ADMIN_EMAIL, password: "preview" });
+  }
   if (!user) {
     const back = encodeURIComponent(location.pathname.split("/").pop() + location.search + location.hash);
     location.replace("index.html?next=" + back + "#signin");

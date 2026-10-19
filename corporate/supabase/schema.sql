@@ -296,10 +296,12 @@ create policy progress_insert_enrolled on public.lesson_progress for insert to a
 -- Keep in sync with corporate/js/courses/*.js (README.md → "Adding a course").
 
 insert into public.courses (id, title) values
+  ('ar-gesamtsystem', 'AR-Gesamtsystem: Brille, RFID & Edge-Hub'),
+  ('kartierung-3d-flut', '3D-Kartierung: Drohne, Satellit, AR & Flutmodell'),
   ('jar-ueberblick', 'Was ist J.A.R.? System & Einsatzbereiche'),
   ('edge-ki-sprache', 'Edge-KI, Zero-Shot & Sprachpipeline'),
   ('datenschutz-sicherheit', 'Datenschutz, Offline-Betrieb & Grenzen'),
-  ('jar-transcription-demo', 'JAR Transcription Demo'),
+  ('jar-transcription-demo', 'KI-Transkription & Sprecher-Diarisierung'),
   ('asr-sichtungs-demo', 'ASR-Pipeline & Protokoll-Extraktion'),
   ('lagebild-ar-demo', 'Live-Lagebild & AR-Client Simulation'),
   ('katastrophenschutz', 'J.A.R. im Katastrophenschutz'),
@@ -308,6 +310,12 @@ insert into public.courses (id, title) values
 on conflict (id) do update set title = excluded.title;
 
 insert into public.course_lessons (course_id, lesson_id, position) values
+  ('ar-gesamtsystem', 'ar-architektur-datenfluss', 1),
+  ('ar-gesamtsystem', 'brillen-optik-rfid-armband', 2),
+  ('ar-gesamtsystem', 'compute-unit-spool-hub', 3),
+  ('kartierung-3d-flut', 'sensorfusion-satellit-drohne-ar', 1),
+  ('kartierung-3d-flut', 'stitching-4dof-pipeline', 2),
+  ('kartierung-3d-flut', 'flutberechnung-gefahrenanalyse', 3),
   ('jar-ueberblick', 'idee-und-problem', 1),
   ('jar-ueberblick', 'vier-einsatzbereiche', 2),
   ('jar-ueberblick', 'architektur-komponenten', 3),
@@ -317,6 +325,7 @@ insert into public.course_lessons (course_id, lesson_id, position) values
   ('datenschutz-sicherheit', 'lokale-verarbeitung-und-fallbacks', 1),
   ('datenschutz-sicherheit', 'rechtliche-einordnung', 2),
   ('jar-transcription-demo', 'live-transkription-diarisierung', 1),
+  ('jar-transcription-demo', 'cloudflare-tunnel-und-modelle', 2),
   ('asr-sichtungs-demo', 'asr-workflow-testen', 1),
   ('asr-sichtungs-demo', 'schema-felder-pruefen', 2),
   ('lagebild-ar-demo', 'lagebild-demo-testen', 1),

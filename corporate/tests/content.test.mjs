@@ -8,7 +8,10 @@ import { COURSES } from "../js/catalog.js";
 import { ICONS } from "../js/icons.js";
 
 const schema = readFileSync(new URL("../supabase/schema.sql", import.meta.url), "utf8");
-const BLOCK_TYPES = new Set(["p", "h", "list", "steps", "callout", "table", "figure", "link", "transcription-demo"]);
+const BLOCK_TYPES = new Set([
+  "p", "h", "list", "steps", "callout", "table", "figure", "link",
+  "transcription-demo", "transcription-pipeline-visual", "ar-system-visual", "mapping-3d-visual",
+]);
 const ID = /^[a-z0-9-]{1,64}$/;
 
 function text(v, where) {

@@ -70,6 +70,9 @@ export default {
           },
         },
         {
+          type: "transcription-pipeline-visual",
+        },
+        {
           type: "table",
           head: {
             de: ["Stufe", "Modell / Technik", "Aufgabe"],
