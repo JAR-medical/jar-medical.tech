@@ -1345,3 +1345,14 @@ main > .section:first-child::before, .hero-track + .section::before { display: n
   }
   @page { margin: 15mm; }
 }
+
+/* Inline `code` in course text (render.js inline()). */
+.inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 0.08em 0.38em;
+  border-radius: var(--r-sm);
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}

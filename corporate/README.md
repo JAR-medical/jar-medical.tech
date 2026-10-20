@@ -155,3 +155,31 @@ npm test
 Lokal ansehen: im Repository-Wurzelverzeichnis `python3 -m http.server 8765`,
 dann `http://localhost:8765/corporate/`. (Über `file://` laden Browser keine
 ES-Module.)
+
+## Transkriptions-Server / Transcription Server
+
+Der Transkriptions-Server (WhisperX mit pyannote-Diarisierung) wird über die Option `TRANSCRIPTION_ENDPOINT` in `js/config.js` angebunden (z. B. `https://stt.jar-medical.tech`). Der Server läuft hinter einem Cloudflare Tunnel; CORS muss `https://jar-medical.tech` erlauben.
+
+The transcription server (WhisperX with pyannote diarization) is connected via `TRANSCRIPTION_ENDPOINT` in `js/config.js` (e.g. `https://stt.jar-medical.tech`). The server runs behind a Cloudflare Tunnel; CORS must allow `https://jar-medical.tech`.
+
+### Schnittstellen-Vertrag / Request-Response Contract
+
+- **Endpoint**: `POST ${CONFIG.TRANSCRIPTION_ENDPOINT}/transcribe`
+- **Timeout**: 60 Sekunden (Client-seitig via AbortController)
+- **Request**: `multipart/form-data`
+  - `audio`: Audio-Datei / Blob (`audio/webm`, `audio/wav` etc.)
+  - `language`: Sprachkennung (`"de"` oder `"en"`)
+- **Response**: `application/json` (WhisperX-Format)
+  ```json
+  {
+    "language": "de",
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 2.4,
+        "speaker": "SPEAKER_00",
+        "text": "Sichtungstrupp 1 an Einsatzleitung, Patient 04 erreicht."
+      }
+    ]
+  }
+  ```

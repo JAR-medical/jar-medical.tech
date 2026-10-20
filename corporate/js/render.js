@@ -1,8 +1,9 @@
 // Renders course content blocks (see the format in courses/*.js) into DOM
-// nodes. Course text supports a single inline markup: **bold**.
+// nodes. Course text supports two inline markups: **bold** and `code`.
 import { t } from "./i18n.js";
 import { el } from "./ui.js";
 import { renderTranscriptionDemo } from "./transcription-widget.js";
+import { VISUALS } from "./visuals/index.js";
 
 const LINK_PREFIXES = ["../demo/"];
 
@@ -13,14 +14,21 @@ function tx(value, lang) {
   return value;
 }
 
-// Escapes by construction (text nodes) and turns **bold** into <strong>.
+// Escapes by construction (text nodes) and turns **bold** into <strong> and
+// `code` into <code>.
 export function inline(text) {
   const frag = document.createDocumentFragment();
-  const parts = String(text ?? "").split(/\*\*(.+?)\*\*/g);
-  parts.forEach((part, i) => {
-    if (!part) return;
-    frag.append(i % 2 ? el("strong", {}, part) : document.createTextNode(part));
-  });
+  const src = String(text ?? "");
+  const tokenRe = /\*\*(.+?)\*\*|`([^`]+?)`/g;
+  let last = 0;
+  let m;
+  while ((m = tokenRe.exec(src)) !== null) {
+    if (m.index > last) frag.append(document.createTextNode(src.slice(last, m.index)));
+    if (m[1] != null) frag.append(el("strong", {}, m[1]));
+    else frag.append(el("code", { class: "inline-code" }, m[2]));
+    last = tokenRe.lastIndex;
+  }
+  if (last < src.length) frag.append(document.createTextNode(src.slice(last)));
   return frag;
 }
 
@@ -73,6 +81,8 @@ const RENDERERS = {
   },
 
   "transcription-demo": (b, lang) => renderTranscriptionDemo(b, lang),
+
+  ...VISUALS,
 };
 
 export function renderBlocks(blocks, lang) {

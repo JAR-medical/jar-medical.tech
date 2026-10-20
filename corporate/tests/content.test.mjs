@@ -6,9 +6,10 @@ import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { COURSES } from "../js/catalog.js";
 import { ICONS } from "../js/icons.js";
+import { VISUAL_TYPES } from "../js/visuals/index.js";
 
 const schema = readFileSync(new URL("../supabase/schema.sql", import.meta.url), "utf8");
-const BLOCK_TYPES = new Set(["p", "h", "list", "steps", "callout", "table", "figure", "link", "transcription-demo"]);
+const BLOCK_TYPES = new Set(["p", "h", "list", "steps", "callout", "table", "figure", "link", "transcription-demo", ...VISUAL_TYPES]);
 const ID = /^[a-z0-9-]{1,64}$/;
 
 function text(v, where) {

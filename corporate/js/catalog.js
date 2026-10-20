@@ -1,13 +1,25 @@
 // Course catalog: grouped into three sections on the client dashboard:
-//   - "understand": architecture, speech model, sectors, privacy & limits
-//   - "test":       interactive demos (voice capture & diarization, ASR pipeline, live operating picture & AR client)
-//   - "train":      role-based operational training with knowledge checks & certificates
+//   - "understand": animated explainer courses (speech model, AR mesh, 3D mapping)
+//   - "test":       hands-on demos (voice recording & diarization, drone footage to 3D mesh)
+//   - "train":      role-based operational training (none offered at the moment)
+import transkriptionModell from "./courses/transkription-modell.js";
+import arMeshSichtung from "./courses/ar-mesh-sichtung.js";
+import kartierung3dQuellen from "./courses/kartierung-3d-quellen.js";
+import demoTranskription from "./courses/demo-transkription.js";
+import demo3dKartierung from "./courses/demo-3d-kartierung.js";
 
 export const SECTIONS = ["understand", "test", "train"];
 
-// No courses are currently offered. The previous catalog is archived on the
-// corporate/courses-archive branch.
-export const COURSES = [];
+// The previous catalog is archived on the corporate/courses-archive branch.
+export const COURSES = [
+  // 1. Understand
+  transkriptionModell,
+  arMeshSichtung,
+  kartierung3dQuellen,
+  // 2. Test
+  demoTranskription,
+  demo3dKartierung,
+];
 
 export function getCourse(id) {
   if (typeof id !== "string") return null;

@@ -296,6 +296,11 @@ create policy progress_insert_enrolled on public.lesson_progress for insert to a
 -- Keep in sync with corporate/js/courses/*.js (README.md → "Adding a course").
 
 insert into public.courses (id, title) values
+  ('transkription-modell', 'Transkription: So ist unser Sprachmodell aufgebaut'),
+  ('ar-mesh-sichtung', 'Katastrophenschutz (AR): Mesh-Netz der AR-Brillen'),
+  ('kartierung-3d-quellen', 'Katastrophenschutz (3D-Mapping): Drohne, Satellit & AR-Brille'),
+  ('demo-transkription', 'Demo: Transkription mit Sprecher-Diarisierung'),
+  ('demo-3d-kartierung', 'Demo: Vom Drohnenflug zum 3D-Mesh'),
   ('jar-ueberblick', 'Was ist J.A.R.? System & Einsatzbereiche'),
   ('edge-ki-sprache', 'Edge-KI, Zero-Shot & Sprachpipeline'),
   ('datenschutz-sicherheit', 'Datenschutz, Offline-Betrieb & Grenzen'),
@@ -308,6 +313,18 @@ insert into public.courses (id, title) values
 on conflict (id) do update set title = excluded.title;
 
 insert into public.course_lessons (course_id, lesson_id, position) values
+  ('transkription-modell', 'aufbau-pipeline', 1),
+  ('transkription-modell', 'silben-zero-shot', 2),
+  ('transkription-modell', 'groesse-und-diarisierung', 3),
+  ('ar-mesh-sichtung', 'scanner-patienten-id', 1),
+  ('ar-mesh-sichtung', 'sprechen-speichern-hud', 2),
+  ('ar-mesh-sichtung', 'mesh-netz-live', 3),
+  ('kartierung-3d-quellen', 'drei-quellen', 1),
+  ('kartierung-3d-quellen', 'stitching-3d', 2),
+  ('kartierung-3d-quellen', 'lagebild-vorhersage', 3),
+  ('demo-transkription', 'aufnahme-diarisierung', 1),
+  ('demo-3d-kartierung', 'drohnenflug-zu-mesh', 1),
+  ('demo-3d-kartierung', 'software-pipeline', 2),
   ('jar-ueberblick', 'idee-und-problem', 1),
   ('jar-ueberblick', 'vier-einsatzbereiche', 2),
   ('jar-ueberblick', 'architektur-komponenten', 3),

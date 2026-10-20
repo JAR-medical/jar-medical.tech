@@ -17,8 +17,33 @@ export const CONFIG = {
   // Where clients send questions about access; shown in the dashboard.
   CONTACT_EMAIL: "kontakt@jar-medical.tech",
 
+  // Base URL of the J.A.R. transcription server (WhisperX with speaker
+  // diarization, reached through a Cloudflare Tunnel), e.g.
+  // "https://stt.jar-medical.tech". The "Transkription" demo course POSTs the
+  // recording to `${TRANSCRIPTION_ENDPOINT}/transcribe` (contract in README.md
+  // → "Transkriptions-Server"). While empty, the demo records and plays back
+  // locally and says that no server is connected yet.
+  TRANSCRIPTION_ENDPOINT: "",
+
   // Demo mode only: signing in with this address gives the admin role.
   DEMO_ADMIN_EMAIL: "admin@jar-medical.tech",
 };
 
-export const IS_DEMO = !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY;
+// Local preview: on a local dev host only, `?demo=1` switches this browser tab
+// to demo mode (fake accounts in localStorage) so courses can be tested without
+// touching the real Supabase project; `?demo=0` switches back. Never active on
+// jar-medical.tech.
+function localPreview() {
+  try {
+    if (typeof location === "undefined") return false;
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return false;
+    const q = new URLSearchParams(location.search).get("demo");
+    if (q === "1") sessionStorage.setItem("jarCorporatePreview", "1");
+    if (q === "0") sessionStorage.removeItem("jarCorporatePreview");
+    return sessionStorage.getItem("jarCorporatePreview") === "1";
+  } catch {
+    return false;
+  }
+}
+
+export const IS_DEMO = localPreview() || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY;

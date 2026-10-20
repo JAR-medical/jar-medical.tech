@@ -185,6 +185,21 @@ function readView(lesson) {
   return el("div", { class: "quiz-box" }, button, status);
 }
 
+// Stable shuffled order of a question's options, seeded by its name, so the
+// correct answer is not always in the same place yet stays put on reload.
+// Inputs keep the original option index as their value, so scoring is unchanged.
+function displayOrder(seedText, n) {
+  let h = 2166136261;
+  for (const ch of seedText) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const order = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) {
+    h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+    const j = h % (i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
 function quizView(lesson) {
   const done = state.progress.has(lesson.id); // completed before this view opened
   const result = el("div", { class: "quiz-result", "aria-live": "polite" });
@@ -194,8 +209,8 @@ function quizView(lesson) {
     const feedback = el("div", { class: "quiz-feedback", "aria-live": "polite" });
     const fieldset = el("fieldset", { class: "quiz-question" },
       el("legend", {}, `${qi + 1}. `, pick(q.q)),
-      q.options.map((opt, oi) => el("label", { class: "quiz-option" },
-        el("input", { type: "radio", name, value: String(oi) }), " ", pick(opt))),
+      displayOrder(name, q.options.length).map((oi) => el("label", { class: "quiz-option" },
+        el("input", { type: "radio", name, value: String(oi) }), " ", pick(q.options[oi]))),
       feedback);
     return { q, name, fieldset, feedback };
   });

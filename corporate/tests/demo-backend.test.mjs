@@ -2,9 +2,12 @@
 // checks it enforces the same rules as supabase/schema.sql.
 import { createBackend } from "../js/backend-demo.js";
 import { CONFIG } from "../js/config.js";
-import { getCourse } from "../js/catalog.js";
- const C = getCourse("katastrophenschutz");
-if (!C) { console.log("skip - course katastrophenschutz not in catalog (archived on corporate/courses-archive)"); process.exit(0); }
+import { COURSES, getCourse } from "../js/catalog.js";
+// Same course the demo backend seeds (js/backend-demo.js): the archived
+// "katastrophenschutz" course if present, else the first catalog course.
+const C = getCourse("katastrophenschutz") || COURSES[0];
+if (!C || C.lessons.length < 2) { console.log("skip - no catalog course with two lessons"); process.exit(0); }
+const CID = C.id;
 const L0 = C.lessons[0].id, L1 = C.lessons[1].id, NL = C.lessons.length;
 class PortalError extends Error { constructor(c, m) { super(m || c); this.code = c; } }
 const b = createBackend(CONFIG, PortalError);
@@ -23,13 +26,13 @@ const p = await b.getMyProfile();
 ok(p.email === "new@client.de" && p.full_name === "Erika" && p.organization === "Org" && p.role === "client", "profile trimmed");
 await rejects(b.signUp({ email: "new@client.de", password: "longenough", fullName: "A", organization: "B" }), "user-exists", "dup user");
 await rejects(b.adminListClients(), "forbidden", "client admin forbidden");
-await rejects(b.adminGrant(p.id, "katastrophenschutz"), "forbidden", "client grant forbidden");
+await rejects(b.adminGrant(p.id, CID), "forbidden", "client grant forbidden");
 await rejects(b.requestCourse("nope", ""), "invalid-input", "unknown course");
-await rejects(b.requestCourse("katastrophenschutz", "x".repeat(501)), "invalid-input", "long message");
-await rejects(b.saveProgress("katastrophenschutz", L0, 50), "forbidden", "save without enrollment");
-const req = await b.requestCourse("katastrophenschutz", " hi ");
+await rejects(b.requestCourse(CID, "x".repeat(501)), "invalid-input", "long message");
+await rejects(b.saveProgress(CID, L0, 50), "forbidden", "save without enrollment");
+const req = await b.requestCourse(CID, " hi ");
 ok(req.status === "pending" && req.message === "hi", "request created");
-await rejects(b.requestCourse("katastrophenschutz", ""), "duplicate", "dup request");
+await rejects(b.requestCourse(CID, ""), "duplicate", "dup request");
 await rejects(b.signIn({ email: "ghost@x.de", password: "whatever1" }), "invalid-credentials", "unknown signin");
 await rejects(b.signInWithOAuth("google"), "unsupported", "oauth");
 await b.signIn({ email: "ADMIN@jar-medical.tech", password: "x" });
@@ -43,31 +46,31 @@ ok(clients[0].id === p.id, "clients newest first");
 ok(me.enrollments.length === 1 && me.pending.length === 0, "approve -> enrollment");
 ok(clients.filter((c) => c.role === "client").length === 5, "5 clients");
 const ffw = clients.find((c) => c.organization.includes("Neubiberg"));
-ok(ffw.progress.katastrophenschutz.done === NL, "seed ffw finished");
+ok(ffw.progress[CID].done === NL, "seed ffw finished");
 // Granting directly closes an open request, like the on_enrollment_created trigger.
 {
-  const sabine = clients.find((c) => c.pending.includes("katastrophenschutz"));
+  const sabine = clients.find((c) => c.pending.includes(CID));
   ok(!!sabine, "seed has a client with a pending request");
-  await b.adminGrant(sabine.id, "katastrophenschutz");
+  await b.adminGrant(sabine.id, CID);
   const after = (await b.adminListClients()).find((c) => c.id === sabine.id);
   ok(after.pending.length === 0 && after.enrollments.length === 1, "direct grant closes the pending request");
   ok((await b.adminListRequests()).filter((r) => r.user_id === sabine.id).every((r) => r.status === "approved"), "request marked approved");
 }
-await b.adminGrant(p.id, "katastrophenschutz"); await b.adminGrant(p.id, "katastrophenschutz");
+await b.adminGrant(p.id, CID); await b.adminGrant(p.id, CID);
 ok((await b.adminListClients()).find((c) => c.id === p.id).enrollments.length === 1, "grant idempotent");
 await b.signIn({ email: "new@client.de", password: "x" });
-await b.saveProgress("katastrophenschutz", L0, 40);
-await b.saveProgress("katastrophenschutz", L0, 100);
-await rejects(b.saveProgress("katastrophenschutz", "zzz", 1), "invalid-input", "bad lesson");
-await rejects(b.saveProgress("katastrophenschutz", L1, 101), "invalid-input", "bad score");
-let prog = await b.listMyProgress("katastrophenschutz");
+await b.saveProgress(CID, L0, 40);
+await b.saveProgress(CID, L0, 100);
+await rejects(b.saveProgress(CID, "zzz", 1), "invalid-input", "bad lesson");
+await rejects(b.saveProgress(CID, L1, 101), "invalid-input", "bad score");
+let prog = await b.listMyProgress(CID);
 ok(prog.length === 1 && prog[0].quiz_score === 40, "first score wins");
-prog[0].quiz_score = 0; ok((await b.listMyProgress("katastrophenschutz"))[0].quiz_score === 40, "copies returned");
+prog[0].quiz_score = 0; ok((await b.listMyProgress(CID))[0].quiz_score === 40, "copies returned");
 await b.signIn({ email: "admin@jar-medical.tech", password: "x" });
-await b.adminRevoke(p.id, "katastrophenschutz"); await b.adminRevoke(p.id, "katastrophenschutz");
+await b.adminRevoke(p.id, CID); await b.adminRevoke(p.id, CID);
 await b.signIn({ email: "new@client.de", password: "x" });
-ok((await b.listMyEnrollments()).length === 0 && (await b.listMyProgress("katastrophenschutz")).length === 1, "revoke keeps progress");
-const r2 = await b.requestCourse("katastrophenschutz", null);
+ok((await b.listMyEnrollments()).length === 0 && (await b.listMyProgress(CID)).length === 1, "revoke keeps progress");
+const r2 = await b.requestCourse(CID, null);
 await rejects(b.cancelRequest("nope"), "invalid-input", "cancel unknown");
 await b.cancelRequest(r2.id);
 ok((await b.listMyRequests()).every((x) => x.id !== r2.id), "cancel removes");
