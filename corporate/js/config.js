@@ -30,7 +30,7 @@ export const CONFIG = {
   // setup in the private repo JAR-medical/website_setup). While empty, the
   // demo records and plays back locally and says that no server is connected
   // yet.
-  TRANSCRIPTION_ENDPOINT: "",
+  TRANSCRIPTION_ENDPOINT: "https://stt.jar-medical.tech",
 
   // Demo mode only: signing in with this address gives the admin role.
   DEMO_ADMIN_EMAIL: "admin@jar-medical.tech",
