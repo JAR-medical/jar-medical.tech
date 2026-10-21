@@ -1,7 +1,6 @@
 // Course player: lesson list + lesson view with quiz, progress saving and a
 // printable completion certificate.
 import { backend, requireUser } from "../backend.js";
-import { CONFIG } from "../config.js";
 import { PROFILE_EVENT } from "../profile-dialog.js";
 import { t, pick, getLang, onLangChange } from "../i18n.js";
 import { mountLayout } from "../layout.js";
@@ -41,8 +40,6 @@ async function load() {
   try {
     state.profile = await requireUser();
     if (!course) return renderNotFound();
-    // Courses not yet released to clients do not exist for them.
-    if (state.profile.role !== "admin" && !CONFIG.COURSES_FOR_CLIENTS) return renderNotFound();
     document.title = t("title_course_named", { title: pick(course.title) });
     const enrollments = await backend.listMyEnrollments();
     if (state.profile.role !== "admin" && !enrollments.some((e) => e.course_id === course.id)) return renderLocked();
