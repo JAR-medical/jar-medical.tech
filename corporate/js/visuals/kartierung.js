@@ -177,6 +177,34 @@ function placeCaption(stage, cap) {
   narrow?.addEventListener?.("change", place);
 }
 
+// Labels are drawn after all geometry so no house, mesh line or ray paints over
+// them. A label that would overlap an earlier one moves up or down; when it
+// sits away from its anchor, a leader line connects the two.
+// label: { x, y, text, color?, textColor?, align?: "center", dy?, leader? }
+function drawLabels(ctx, view, k, labels) {
+  ctx.font = "600 12px system-ui, sans-serif";
+  const placed = [];
+  const hits = (r) => placed.some((q) => r.x < q.x + q.w && q.x < r.x + r.w && r.y < q.y + q.h && q.y < r.y + r.h);
+  for (const lb of labels) {
+    const w = ctx.measureText(lb.text).width + 10, h = 18;
+    let x = lb.align === "center" ? lb.x - w / 2 : lb.x + 10;
+    if (lb.align !== "center" && x + w > view.W - 4) x = lb.x - w - 10;
+    x = clamp(x, 4, Math.max(4, view.W - w - 4));
+    const y0 = clamp(lb.y - h / 2 + (lb.dy || 0), 4, Math.max(4, view.H - h - 4));
+    let y = y0;
+    for (let i = 1; i <= 12 && hits({ x, y, w, h }); i++) {
+      y = clamp(y0 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (h + 4), 4, Math.max(4, view.H - h - 4));
+    }
+    placed.push({ x, y, w, h });
+    if (lb.leader || Math.abs(y - y0) > 1) {
+      ctx.strokeStyle = lb.color || k.ink; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lb.x, lb.y); ctx.lineTo(clamp(lb.x, x, x + w), clamp(lb.y, y, y + h)); ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(12,11,31,0.82)"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = lb.textColor || k.ink; ctx.fillText(lb.text, x + 5, y + 13);
+  }
+}
+
 function houseColors(k, highlight) {
   return highlight
     ? { left: rgba(k.mint, 0.55), right: rgba(k.mint, 0.75), top: rgba(k.mint, 0.95), edge: rgba(k.bg, 0.8) }
@@ -230,7 +258,6 @@ const T_SRC = {
     { de: "Optisch", en: "Optical" }, { de: "Thermal", en: "Thermal" }, { de: "Gelände", en: "Terrain" }, { de: "3D", en: "3D" },
   ],
   layerLabel: { de: "Drohnen-Ebene:", en: "Drone layer:" },
-  note: { de: "Schematische Darstellung nach dem DLR-Beispiel „Drohnenkartierung“ (Optisch, Thermal, Gelände, 3D).", en: "Schematic illustration following the DLR “drone mapping” example (optical, thermal, terrain, 3D)." },
   aria: {
     de: "Animiertes 3D-Gelände mit Fluss und Häusern, nacheinander erfasst von Satellit, Drohne und AR-Brille, am Ende als gemeinsame Karte.",
     en: "Animated 3D terrain with river and houses, captured in turn by satellite, drone and AR glasses, finally shown as one shared map.",
@@ -256,8 +283,7 @@ function renderMapThreeSources(block, lang) {
     if (Math.floor(state.time / SRC_PHASE) % 4 !== 1) state.time = SRC_PHASE + 0.01;
   }, { "aria-pressed": String(i === 0) }));
   root.append(stage, el("div", { class: "vk-tabs" }, tabs), info,
-    el("div", { class: "vk-bar" }, playToggle(lang, state), el("span", { class: "vk-layers" }, el("span", { class: "vk-note", style: "margin:0;align-self:center" }, L(lang, T_SRC.layerLabel)), layerBtns)),
-    el("p", { class: "vk-note" }, L(lang, T_SRC.note)));
+    el("div", { class: "vk-bar" }, playToggle(lang, state), el("span", { class: "vk-layers" }, el("span", { class: "vk-note", style: "margin:0;align-self:center" }, L(lang, T_SRC.layerLabel)), layerBtns)));
   placeCaption(stage, cap);
 
   const { ctx, view, fit, P } = isoCanvas(canvas, { top: 46 });
@@ -322,6 +348,8 @@ function renderMapThreeSources(block, lang) {
     }, drone && layer === 3 ? rgba(k.mint, 0.7) : rgba(k.bg, 0.6));
 
     // Houses; thermal layer adds heat spots, AR view cuts the scanned house open.
+    const labels = [];
+    let patient = null;
     HOUSE_ORDER.forEach((i) => {
       const hs = HOUSES[i];
       const base = houseBase(hs);
@@ -340,24 +368,22 @@ function renderMapThreeSources(block, lang) {
         box(base - 0.9, base, true); // basement
         if (reveal > 0) box(base, base + hgt * reveal, false);
         ctx.setLineDash([]);
-        // Patient in the basement corner.
-        const [px, py] = P(x + w * 0.35, base - 0.75, z + d * 0.6);
-        const pulse = 1 + 0.25 * Math.sin(t * 5);
-        ctx.fillStyle = k.red; ctx.beginPath(); ctx.arc(px, py, 5 * pulse, 0, Math.PI * 2); ctx.fill();
-        // Callout: the AR anchor carries the floor level.
-        const text = L(lang, { de: "JAR-P01 · Keller (UG 1)", en: "JAR-P01 · basement (level −1)" });
-        ctx.font = "600 12px system-ui, sans-serif";
-        const tw = ctx.measureText(text).width;
-        const lx = px + 16, ly = py + 26;
-        ctx.strokeStyle = k.red; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(lx, ly - 5); ctx.stroke();
-        ctx.fillStyle = "rgba(12,11,31,0.82)"; ctx.fillRect(lx, ly - 13, tw + 10, 18);
-        ctx.fillStyle = k.ink; ctx.fillText(text, lx + 5, ly);
-        // Paramedic walking in with a small scan cone.
-        const walk = phase === 2 ? clamp(u * 1.3, 0, 1) : 1;
-        const [mx, my] = P(lerp(x - 2.2, x + w * 0.5, walk), base + 0.1, z + d + 0.4);
+        // Patient in the back basement corner; drawn last, the AR scan sees through walls.
+        patient = P(x + w * 0.8, base - 0.75, z + d * 0.25);
+        // Paramedic walks across the street, through the front wall and into
+        // the room, feet on the terrain outside and on the floor inside.
+        const walk = phase === 2 ? ease(clamp(u * 1.3, 0, 1)) : 1;
+        const mx = x + w * 0.5, mz = lerp(z + d + 2.6, z + d * 0.45, walk);
+        const ground = mz < z + d ? base : height(mx, mz);
+        const [fx, fy] = P(mx, ground, mz);
+        const [hx, hy] = P(mx, ground + 0.55, mz);
+        const [ax, ay] = P(mx, ground + 0.3, mz - 1);
+        const dir = Math.atan2(ay - (fy + hy) / 2, ax - (fx + hx) / 2);
         ctx.fillStyle = rgba(k.mint, 0.18);
-        ctx.beginPath(); ctx.moveTo(mx, my); ctx.arc(mx, my, view.s * 2.2, -Math.PI * 0.95, -Math.PI * 0.35); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = k.accent; ctx.beginPath(); ctx.arc(mx, my - 4, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx, hy); ctx.arc(hx, hy, view.s * 2.2, dir - 0.55, dir + 0.55); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = k.accent; ctx.lineWidth = 3; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(hx, hy + 4); ctx.stroke(); ctx.lineCap = "butt";
+        ctx.fillStyle = k.accent; ctx.beginPath(); ctx.arc(hx, hy, 4.5, 0, Math.PI * 2); ctx.fill();
       } else {
         drawBox(ctx, P, hs, base, houseColors(k, false));
         if (drone && layer === 1 && covered(hs[0], hs[1])) {
@@ -372,7 +398,7 @@ function renderMapThreeSources(block, lang) {
     // Satellite: orbit track and footprint over the whole valley.
     if (sat) {
       const sx = lerp(W * 0.6, W * 0.95, phase === 0 ? u : 0.5), sy = 26;
-      const corners = [P(0, 0, 0), P(NX, 0, 0), P(NX, 0, NZ), P(0, 0, NZ)];
+      const corners = [[0, 0], [NX, 0], [NX, NZ], [0, NZ]].map(([x, z]) => P(x, height(x, z), z));
       ctx.strokeStyle = rgba(k.mint, phase === 0 ? 0.55 : 0.25); ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
       corners.forEach(([cx, cy]) => { ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(cx, cy); ctx.stroke(); });
       ctx.setLineDash([]);
@@ -395,6 +421,14 @@ function renderMapThreeSources(block, lang) {
       ctx.strokeStyle = k.ink; ctx.lineWidth = 2;
       [[-9, -5], [9, -5], [-9, 5], [9, 5]].forEach(([ox, oy]) => { ctx.beginPath(); ctx.arc(dx + ox, dy + oy, 3.5, 0, Math.PI * 2); ctx.stroke(); });
     }
+    // On top of everything: the patient the AR anchor found, with its floor level.
+    if (patient) {
+      const [px, py] = patient;
+      const pulse = 1 + 0.25 * Math.sin(t * 5);
+      ctx.fillStyle = k.red; ctx.beginPath(); ctx.arc(px, py, 5 * pulse, 0, Math.PI * 2); ctx.fill();
+      labels.push({ x: px, y: py, dy: 30, leader: true, color: k.red, text: L(lang, { de: "JAR-P01 · Keller (UG 1)", en: "JAR-P01 · basement (level −1)" }) });
+    }
+    drawLabels(ctx, view, k, labels);
   }
 
   animate(stage, (elapsed, dt, still) => {
@@ -503,6 +537,7 @@ function renderMapStitching(block, lang) {
     const merged = k01(t, ST_T[4], ST_T[4] + 1.2);
     const floorFade = 1 - k01(t, ST_T[2], ST_T[2] + 1.5);
     const colors = [rgba(k.soft, 0.7), k.mint, k.amber, k.red, rgba(k.ink, 0.85)];
+    const labels = [];
 
     ST_PARTS.forEach((part, pi) => {
       const p = pose(part, t);
@@ -554,13 +589,10 @@ function renderMapStitching(block, lang) {
         const base = part.kind === "room" ? houseBase(HOUSES[part.house]) + HOUSES[part.house][4] * 1.8 + 0.5 : height(cx, cz) + 0.6;
         const [lx, ly] = tf(part, p, cx, base, cz);
         const text = part.unaligned && phase === 4 ? `${L(lang, T_ST.names[pi])} · ${L(lang, T_ST.unaligned)}` : L(lang, T_ST.names[pi]);
-        ctx.font = "600 12px system-ui, sans-serif";
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = "rgba(12,11,31,0.75)"; ctx.fillRect(lx - tw / 2 - 5, ly - 13, tw + 10, 18);
-        ctx.fillStyle = part.unaligned && phase === 4 ? k.amber : color;
-        ctx.fillText(text, lx - tw / 2, ly);
+        labels.push({ x: lx, y: ly - 4, align: "center", color, text, textColor: part.unaligned && phase === 4 ? k.amber : color });
       }
     });
+    drawLabels(ctx, view, k, labels);
   }
 
   animate(stage, (elapsed, dt, still) => {
@@ -712,7 +744,7 @@ function renderMapPrediction(block, lang) {
 
     // Houses: basements flood before the street, burning houses glow.
     let housesOnFire = 0;
-    HOUSE_ORDER.forEach((i) => {
+    const drawHouse = (i) => {
       const hs = HOUSES[i];
       const base = houseBase(hs);
       const onFire = !flood && fireCell(Math.floor(hs[0] + hs[2] / 2), Math.floor(hs[1] + hs[3] / 2), minutes);
@@ -727,7 +759,50 @@ function renderMapPrediction(block, lang) {
       drawBox(ctx, P, hs, base, onFire
         ? { left: rgba(k.red, 0.6), right: rgba(k.red, 0.75), top: rgba(k.amber, 0.9), edge: rgba(k.bg, 0.8) }
         : houseColors(k, false));
+    };
+
+    // Team route to JAR-P02, on the ground: houses in front hide it.
+    const blocked = (x, z) => wet(x, z) || burning(x, z);
+    const path = route(blocked, TEAM, [PR_PATIENTS[1].x, PR_PATIENTS[1].z]);
+    if (path) {
+      ctx.strokeStyle = k.ink; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); ctx.lineDashOffset = -t * 20;
+      ctx.beginPath();
+      path.forEach(([x, z], i) => { const q = P(x + 0.5, cellH(x, z) + 0.15, z + 0.5); i ? ctx.lineTo(...q) : ctx.moveTo(...q); });
+      ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    }
+
+    // Pins: treatment area, collection point, team, patients. Each pin stands
+    // in the scene in depth order with the houses (a house in front hides the
+    // stick behind it); all labels are drawn last, on top.
+    const labels = [];
+    const pinAt = (x, z, color, text, y0, y1) => ({
+      depth: x + z + 0.01,
+      draw: () => {
+        const [bx, by] = P(x, y0, z), [tx, ty] = P(x, y1, z);
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI * 2); ctx.fill();
+        if (text) labels.push({ x: tx, y: ty, text });
+      },
     });
+    const paWet = flood && height(...PA) < water;
+    const bhpWet = flood && height(...BHP) < water;
+    const pins = [
+      pinAt(BHP[0], BHP[1], bhpWet ? k.red : k.green, L(lang, T_PR.labels.bhp), height(...BHP), height(...BHP) + 1.2),
+      pinAt(PA[0], PA[1], paWet ? k.red : k.amber, L(lang, T_PR.labels.pa), height(...PA), height(...PA) + 0.9),
+      pinAt(TEAM[0], TEAM[1], k.accent, L(lang, T_PR.labels.team), height(...TEAM), height(...TEAM) + 0.9),
+      ...PR_PATIENTS.map((pt) => {
+        const color = [null, k.red, k.amber, k.green][pt.cat];
+        if (pt.basement == null) return pinAt(pt.x, pt.z, color, pt.id, height(pt.x, pt.z), height(pt.x, pt.z) + 0.9);
+        // Basement patient: the stick rises from the basement through the roof.
+        const hs = HOUSES[pt.basement], base = houseBase(hs);
+        return pinAt(pt.x, pt.z, color, pt.id, base - 0.6, base + hs[4] + 0.7);
+      }),
+    ];
+    const scene = [
+      ...HOUSE_ORDER.map((i) => ({ depth: HOUSES[i][0] + HOUSES[i][2] / 2 + HOUSES[i][1] + HOUSES[i][3] / 2, draw: () => drawHouse(i) })),
+      ...pins,
+    ].sort((m, n) => m.depth - n.depth);
+    scene.forEach((item) => item.draw());
 
     // Smoke plume drifting east.
     if (!flood && minutes > 1) {
@@ -740,41 +815,7 @@ function renderMapPrediction(block, lang) {
       }
     }
 
-    // Team route to JAR-P02.
-    const blocked = (x, z) => wet(x, z) || burning(x, z);
-    const path = route(blocked, TEAM, [PR_PATIENTS[1].x, PR_PATIENTS[1].z]);
-    if (path) {
-      ctx.strokeStyle = k.ink; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); ctx.lineDashOffset = -t * 20;
-      ctx.beginPath();
-      path.forEach(([x, z], i) => { const q = P(x + 0.5, cellH(x, z) + 0.15, z + 0.5); i ? ctx.lineTo(...q) : ctx.moveTo(...q); });
-      ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    }
-
-    // Pins: treatment area, collection point, team, patients.
-    const pin = (x, z, color, text, lift = 0.9) => {
-      const h = height(x, z);
-      const [bx, by] = P(x, h, z), [tx, ty] = P(x, h + lift, z);
-      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
-      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI * 2); ctx.fill();
-      if (text) {
-        ctx.font = "600 12px system-ui, sans-serif";
-        const tw = ctx.measureText(text).width;
-        // Flip the label to the left near the right edge so it is never clipped.
-        const lx = tx + tw + 24 > view.W ? tx - tw - 16 : tx + 8;
-        ctx.fillStyle = "rgba(12,11,31,0.78)"; ctx.fillRect(lx, ty - 9, tw + 8, 17);
-        ctx.fillStyle = k.ink; ctx.fillText(text, lx + 4, ty + 4);
-      }
-    };
-    const paWet = flood && height(...PA) < water;
-    const bhpWet = flood && height(...BHP) < water;
-    pin(BHP[0], BHP[1], bhpWet ? k.red : k.green, L(lang, T_PR.labels.bhp), 1.2);
-    pin(PA[0], PA[1], paWet ? k.red : k.amber, L(lang, T_PR.labels.pa));
-    pin(TEAM[0], TEAM[1], k.accent, L(lang, T_PR.labels.team));
-    PR_PATIENTS.forEach((p) => {
-      const color = [null, k.red, k.amber, k.green][p.cat];
-      const lift = p.basement != null ? -0.4 : 0.6;
-      pin(p.x, p.z, color, p.id, lift);
-    });
+    drawLabels(ctx, view, k, labels);
 
     // Warnings, computed from the same model.
     const items = [];

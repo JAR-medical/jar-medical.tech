@@ -1,0 +1,22 @@
+[Unit]
+Description=J.A.R. transcription server (WhisperX + pyannote)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=jarstt
+Group=jarstt
+WorkingDirectory=/opt/jar-stt
+EnvironmentFile=/etc/jar-stt.env
+Environment=HOME=/opt/jar-stt
+ExecStart=/opt/jar-stt/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jar-stt
+
+[Install]
+WantedBy=multi-user.target

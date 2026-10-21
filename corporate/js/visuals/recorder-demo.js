@@ -1,5 +1,6 @@
 // Course B1 visuals: the in-browser recorder demo ("recorder-demo") and the
-// animated diagram of where a recording goes ("recorder-architecture").
+// animated diagram of where a recording goes ("recorder-architecture", not
+// used by a lesson at the moment).
 //
 // The recorder follows the main site's recording page
 // (Website/mitmachen-aufnahme.html, js/record.js): secure-context check,
@@ -8,7 +9,7 @@
 // J.A.R. transcription server only when the user presses "Transcribe" AND
 // CONFIG.TRANSCRIPTION_ENDPOINT is set (contract: README.md →
 // "Transkriptions-Server"). No transcript is ever invented: without a server
-// the output field says so, and the example output is labelled as an example.
+// the output field says so.
 import { el } from "../ui.js";
 import { CONFIG } from "../config.js";
 import { L, injectStyle, animate, hiDpiCanvas, clamp, ease } from "./kit.js";
@@ -23,7 +24,6 @@ const PEAK_EVERY_MS = 50;
 // ---------------------------------------------------------------------------
 const S = {
   recAria: { de: "Sprachaufnahme mit Transkription und Sprechertrennung", en: "Voice recording with transcription and speaker diarization" },
-  eyebrow: { de: "Live-Demo", en: "Live demo" },
   title: { de: "Sprechen Sie eine Sichtung ein", en: "Record a triage assessment" },
   serverOff: { de: "Transkriptions-Server: noch nicht verbunden", en: "Transcription server: not connected yet" },
   serverOn: { de: "Transkriptions-Server: eingerichtet", en: "Transcription server: configured" },
@@ -42,32 +42,16 @@ const S = {
   transcribing: { de: "Wird transkribiert …", en: "Transcribing …" },
   langNote: { de: "Sprache: Deutsch", en: "Language: English" },
   outTitle: { de: "Transkript", en: "Transcript" },
-  exampleShow: { de: "Beispielausgabe anzeigen", en: "Show example output" },
-  exampleHide: { de: "Beispielausgabe ausblenden", en: "Hide example output" },
   copy: { de: "Als Text kopieren", en: "Copy as text" },
   copied: { de: "Transkript in die Zwischenablage kopiert.", en: "Transcript copied to the clipboard." },
   copyFail: { de: "Kopieren war nicht möglich. Bitte markieren Sie den Text und kopieren Sie ihn selbst.", en: "Copying did not work. Please select the text and copy it yourself." },
-  exampleBanner: {
-    de: "Beispielausgabe – nicht Ihre Aufnahme. So sieht das Ergebnis aus, sobald ein Server verbunden ist.",
-    en: "Example output – not your recording. This is what the result looks like once a server is connected.",
-  },
-  exampleCopyHead: { de: "Beispielausgabe (nicht Ihre Aufnahme)", en: "Example output (not your recording)" },
   noServerHead: { de: "Noch kein Transkriptions-Server verbunden.", en: "No transcription server connected yet." },
-  noServerBody: {
-    de: "Sie können trotzdem aufnehmen und Ihre Aufnahme anhören. Sie bleibt in diesem Browser.",
-    en: "You can still record and listen to your take. It stays in this browser.",
-  },
   readyHead: { de: "Noch kein Transkript.", en: "No transcript yet." },
-  readyBody: { de: "Nehmen Sie etwas auf und tippen Sie dann auf „Transkribieren“.", en: "Record something, then tap “Transcribe”." },
   busyHead: { de: "Ihre Aufnahme wird transkribiert …", en: "Your recording is being transcribed …" },
   busyBody: { de: "Das kann bis zu einer Minute dauern.", en: "This can take up to a minute." },
   errorHead: { de: "Kein Transkript erhalten.", en: "No transcript received." },
   laneAria: { de: "Zeitachse: wer wann spricht", en: "Timeline: who speaks when" },
   speaker: { de: "Sprecher", en: "Speaker" },
-  privacy: {
-    de: "Datenschutz: Ihre Aufnahme bleibt in diesem Browser. Gesendet wird sie nur, wenn Sie auf „Transkribieren“ tippen und ein Server verbunden ist.",
-    en: "Privacy: your recording stays in this browser. It is only sent when you tap “Transcribe” and a server is connected.",
-  },
   // Status messages, written for the person in front of the screen.
   insecure: {
     de: "Das Mikrofon funktioniert nur, wenn diese Seite über eine sichere Verbindung (https://) geöffnet ist.",
@@ -138,15 +122,6 @@ const SCRIPTS = [
     { role: { de: "Teamleitung", en: "Team lead" }, text: { de: "Verstanden. Braucht er sofort Transport?", en: "Copy. Does he need transport right away?" } },
     { role: { de: "Einsatzkraft", en: "Responder" }, text: { de: "Ja. Atemfrequenz zweiunddreißig, Rekapillarisierung über zwei Sekunden. Sichtungskategorie eins, rot.", en: "Yes. Respiratory rate thirty-two, capillary refill over two seconds. Triage category one, red." } },
   ],
-];
-
-// The static example output, in the server's own (WhisperX) shape.
-const EXAMPLE = [
-  { start: 0.0, end: 2.6, speaker: "SPEAKER_00", text: { de: "Hallo, Rettungsdienst. Können Sie mich hören? Bleiben Sie bitte liegen.", en: "Hello, ambulance service. Can you hear me? Please stay lying down." } },
-  { start: 2.9, end: 4.8, speaker: "SPEAKER_01", text: { de: "Ja. Mein linkes Bein tut weh, ich kann nicht aufstehen.", en: "Yes. My left leg hurts, I can't get up." } },
-  { start: 5.2, end: 9.6, speaker: "SPEAKER_00", text: { de: "Nicht gehfähig. Atemfrequenz 22, Radialispuls tastbar, befolgt Aufforderungen.", en: "Not walking. Respiratory rate 22, radial pulse present, follows commands." } },
-  { start: 9.9, end: 11.4, speaker: "SPEAKER_02", text: { de: "Trupp zwei, welche Kategorie?", en: "Team two, which category?" } },
-  { start: 11.7, end: 13.9, speaker: "SPEAKER_00", text: { de: "Sichtungskategorie zwei, gelb. Keine Atemnot.", en: "Triage category two, yellow. No shortness of breath." } },
 ];
 
 // Speaker colours, assigned in order of first appearance.
@@ -237,7 +212,8 @@ const CSS = `
 .vr-card { margin-block: var(--sp-5); padding: var(--sp-5); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-raise); box-shadow: var(--shadow-card); color: var(--ink); }
 .vr-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-4); }
 .vr-eyebrow { display: block; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
-.vr-title { margin: 0.2rem 0 0; font-size: 1.15rem; line-height: 1.25; font-weight: 600; color: var(--ink); }
+.vr-eyebrow + .vr-title { margin-top: 0.2rem; }
+.vr-title { margin: 0; font-size: 1.15rem; line-height: 1.25; font-weight: 600; color: var(--ink); }
 .vr-chip { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.7rem; border: 1px solid var(--line-strong); border-radius: var(--r-pill); font-size: 0.75rem; line-height: 1.3; color: var(--ink-soft); }
 .vr-chip::before { content: ""; flex: none; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--sig-amber); }
 .vr-chip[data-on="true"]::before { background: var(--sig-green); }
@@ -295,7 +271,6 @@ const CSS = `
 @keyframes vr-flash { 0% { background: var(--surface-tint); } 100% { background: transparent; } }
 .vr-busybar { height: 3px; margin-top: var(--sp-2); border-radius: var(--r-pill); background: linear-gradient(90deg, transparent, var(--accent), transparent) 0 0 / 40% 100% no-repeat, var(--line); animation: vr-busy 1.2s linear infinite; }
 @keyframes vr-busy { from { background-position: -40% 0, 0 0; } to { background-position: 140% 0, 0 0; } }
-.vr-banner { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: color-mix(in srgb, var(--sig-amber) 14%, transparent); box-shadow: inset 2px 0 0 var(--sig-amber); font-size: 0.8rem; line-height: 1.45; color: var(--ink); }
 
 .vr-lanes { display: grid; gap: 6px; margin-bottom: var(--sp-4); }
 .vr-lane { display: grid; grid-template-columns: 6.2rem 1fr; align-items: center; gap: var(--sp-2); }
@@ -313,7 +288,6 @@ const CSS = `
 .vr-row-time { font-family: var(--font-mono); font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
 .vr-spk { justify-self: start; padding: 0.1rem 0.55rem; border-radius: var(--r-pill); border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
 .vr-row-text { font-size: 0.9rem; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
-.vr-privacy { margin: var(--sp-3) 0 0; font-size: 0.75rem; line-height: 1.45; color: var(--ink-faint); }
 
 @media (max-width: 560px) {
   .vr-card { padding: var(--sp-4); }
@@ -635,11 +609,9 @@ function renderRecorder(block, lang) {
     out: configured ? "ready" : "noserver",   // noserver | ready | busy | error | result
     outError: null,
     result: null,
-    example: false,
     busy: false,
     abort: null,
     scriptIndex: 0,
-    exampleT: 0,
   };
 
   // --- Script card
@@ -683,25 +655,22 @@ function renderRecorder(block, lang) {
     playBtn, takeTime, discardBtn, el("span", { class: "vr-take-gap" }), el("span", { class: "vr-lang" }, L(lang, S.langNote)), transcribeBtn);
 
   // --- Output field
-  const exampleBtn = el("button", { class: "btn btn-outline btn-small", type: "button", "aria-pressed": "false" }, L(lang, S.exampleShow));
   const copyBtn = el("button", { class: "btn btn-outline btn-small", type: "button", hidden: true }, L(lang, S.copy));
   const outBody = el("div", { class: "vr-out-body", "aria-live": "polite" });
   const out = el("section", { class: "vr-out", "aria-label": L(lang, S.outTitle) },
-    el("div", { class: "vr-out-head" }, el("span", { class: "vr-out-title" }, L(lang, S.outTitle)), el("div", { class: "vr-out-tools" }, exampleBtn, copyBtn)),
+    el("div", { class: "vr-out-head" }, el("span", { class: "vr-out-title" }, L(lang, S.outTitle)), el("div", { class: "vr-out-tools" }, copyBtn)),
     outBody);
 
   const root = el("div", { class: "vr-card", role: "region", "aria-label": L(lang, S.recAria), "data-phase": "idle" },
     el("div", { class: "vr-head" },
-      el("div", {}, el("span", { class: "vr-eyebrow" }, L(lang, S.eyebrow)), el("p", { class: "vr-title" }, L(lang, S.title))),
+      el("p", { class: "vr-title" }, L(lang, S.title)),
       el("span", { class: "vr-chip", "data-on": String(configured) }, L(lang, configured ? S.serverOn : S.serverOff))),
-    script, recBtn, wave, status, take, out,
-    el("p", { class: "vr-privacy" }, L(lang, S.privacy)));
+    script, recBtn, wave, status, take, out);
 
   // ---------------------------------------------------------------- output
   let view = null; // { segments, map, rows: [], segs: [], head, total }
 
   function shownSegments() {
-    if (st.example) return EXAMPLE.map((s) => ({ ...s, text: L(lang, s.text) }));
     if (st.out === "result" && st.result) return st.result;
     return null;
   }
@@ -711,25 +680,23 @@ function renderRecorder(block, lang) {
     activeRow = -2;
     const segments = shownSegments();
     copyBtn.hidden = !segments;
-    exampleBtn.textContent = L(lang, st.example ? S.exampleHide : S.exampleShow);
-    exampleBtn.setAttribute("aria-pressed", String(st.example));
     if (!segments) {
       let headText;
       let bodyText;
       const kind = st.out;
-      if (kind === "noserver") { headText = S.noServerHead; bodyText = S.noServerBody; }
+      if (kind === "noserver") headText = S.noServerHead;
       else if (kind === "busy") { headText = S.busyHead; bodyText = S.busyBody; }
       else if (kind === "error") { headText = S.errorHead; bodyText = st.outError; }
-      else { headText = S.readyHead; bodyText = S.readyBody; }
+      else headText = S.readyHead;
       const box = el("div", { class: "vr-empty" + (flash ? " vr-flash" : ""), "data-kind": kind },
         el("strong", {}, L(lang, headText)),
-        el("span", {}, typeof bodyText === "string" ? bodyText : L(lang, bodyText)),
+        bodyText ? el("span", {}, typeof bodyText === "string" ? bodyText : L(lang, bodyText)) : null,
         kind === "busy" ? el("div", { class: "vr-busybar", "aria-hidden": "true" }) : null);
       outBody.replaceChildren(box);
       return;
     }
     const map = speakerMap(segments);
-    const total = Math.max(1, ...segments.map((s) => s.end)) + (st.example ? 1.6 : 0.2);
+    const total = Math.max(1, ...segments.map((s) => s.end)) + 0.2;
     const segNodes = [];
     const lanes = [...map.entries()].map(([id, info]) => {
       const track = el("div", { class: "vr-lane-track" });
@@ -751,22 +718,17 @@ function renderRecorder(block, lang) {
         el("span", { class: "vr-row-text" }, s.text));
     });
     outBody.replaceChildren(
-      st.example ? el("p", { class: "vr-banner" }, L(lang, S.exampleBanner)) : null,
       lanesBox,
       el("ol", { class: "vr-rows" }, rowNodes));
     view = { segments, rows: rowNodes, segs: segNodes, head, total, lanesBox };
-    st.exampleT = 0;
   }
 
-  // Playhead: loops over the example, follows the audio for a real transcript.
+  // Playhead: follows the audio while the take plays.
   let activeRow = -2;
-  function paintPlayhead(dt, still) {
+  function paintPlayhead() {
     if (!view) return;
     let time = null;
-    if (st.example && !still) {
-      st.exampleT = (st.exampleT + dt) % view.total;
-      time = st.exampleT;
-    } else if (!st.example && st.audio && !st.audio.paused) time = st.audio.currentTime;
+    if (st.audio && !st.audio.paused) time = st.audio.currentTime;
     view.head.hidden = time == null;
     let on = -1;
     if (time != null) {
@@ -788,9 +750,7 @@ function renderRecorder(block, lang) {
     const segments = shownSegments();
     if (!segments) return "";
     const map = speakerMap(segments);
-    const lines = segments.map((s) => `[${stamp(s.start)}–${stamp(s.end)}] ${L(lang, S.speaker)} ${map.get(s.speaker).n}: ${s.text}`);
-    if (st.example) lines.unshift(L(lang, S.exampleCopyHead));
-    return lines.join("\n");
+    return segments.map((s) => `[${stamp(s.start)}–${stamp(s.end)}] ${L(lang, S.speaker)} ${map.get(s.speaker).n}: ${s.text}`).join("\n");
   }
 
   copyBtn.addEventListener("click", async () => {
@@ -804,12 +764,6 @@ function renderRecorder(block, lang) {
       console.warn("recorder-demo: copy failed", e);
       say(S.copyFail, "warn");
     }
-  });
-
-  exampleBtn.addEventListener("click", () => {
-    st.example = !st.example;
-    activeRow = -2;
-    renderOut();
   });
 
   // ------------------------------------------------------------ UI state
@@ -1046,7 +1000,6 @@ function renderRecorder(block, lang) {
     const endpoint = transcriptionEndpoint();
     if (endpoint === "") {
       st.out = "noserver";
-      st.example = false;
       renderOut(true);
       say(S.notSent, "warn");
       return;
@@ -1054,7 +1007,6 @@ function renderRecorder(block, lang) {
     if (endpoint === null) {
       st.out = "error";
       st.outError = fill(L(lang, S.misconfigured), { mail: CONFIG.CONTACT_EMAIL || "kontakt@jar-medical.tech" });
-      st.example = false;
       renderOut();
       return;
     }
@@ -1065,7 +1017,6 @@ function renderRecorder(block, lang) {
     st.busy = true;
     st.abort = ctrl;
     st.out = "busy";
-    st.example = false;
     renderOut();
     sync();
     say(S.sending);
@@ -1170,7 +1121,7 @@ function renderRecorder(block, lang) {
   animate(root, (time, dt, still) => {
     if (!root.isConnected) return;
     drawWave(still ? 0 : time);
-    paintPlayhead(dt, still);
+    paintPlayhead();
   });
 
   renderOut();

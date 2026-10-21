@@ -48,66 +48,6 @@ export default {
           },
         },
       ],
-      quiz: [
-        {
-          q: {
-            de: "Warum filtert das Audio-Frontend Frequenzen unter 250 Hz per Nahfeld-Gate?",
-            en: "Why does the audio frontend filter frequencies below 250 Hz via near-field gate?",
-          },
-          options: [
-            {
-              de: "Um tieffrequente Störgeräusche wie Martinshorn, Motoren und Wind direkt am Mikrofon zu eliminieren.",
-              en: "To eliminate low-frequency interference such as sirens, engines and wind right at the microphone.",
-            },
-            {
-              de: "Um die Audio-Abtastrate für das Mobilfunknetz auf 8 kHz zu drosseln.",
-              en: "To throttle the audio sampling rate for cellular networks to 8 kHz.",
-            },
-            {
-              de: "Um Stimmen von weiblichen Einsatzkräften aus der Transkription auszuschließen.",
-              en: "To exclude female responder voices from transcription.",
-            },
-            {
-              de: "Weil wav2vec2 grundsätzlich keine Frequenzen unter 250 Hz verarbeiten kann.",
-              en: "Because wav2vec2 fundamentally cannot process frequencies below 250 Hz.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Das Nahfeld-Gate unter 250 Hz entfernt laute Umgebungsgeräusche wie Sirenen und Motoren in unter 3 ms, sodass nur die Stimme des Trägers direkt am Mikrofon erfasst wird.",
-            en: "The near-field gate below 250 Hz eliminates loud ambient noise such as sirens and engines in under 3 ms, capturing only the wearer's voice right at the microphone.",
-          },
-        },
-        {
-          q: {
-            de: "Welche Bedingung stellt Modul 5 (Klinischer Extraktor) an jeden extrahierten Befund?",
-            en: "What requirement does Module 5 (Clinical Extractor) enforce for every extracted finding?",
-          },
-          options: [
-            {
-              de: "Es muss eine bestätigte Online-Verbindung zur Klinik-Leitstelle vorliegen.",
-              en: "There must be a confirmed online connection to the hospital dispatch centre.",
-            },
-            {
-              de: "Jeder Befund benötigt einen wörtlichen source_quote-Beleg aus dem geprüften Transkript.",
-              en: "Every finding requires a verbatim source_quote substring from the verified transcript.",
-            },
-            {
-              de: "Der Befund muss mindestens drei Symptome gleichzeitig beschreiben.",
-              en: "The finding must describe at least three symptoms simultaneously.",
-            },
-            {
-              de: "Das Modell muss die Wahrscheinlichkeit auf über 99 Prozent schätzen.",
-              en: "The model must estimate the probability at over 99 percent.",
-            },
-          ],
-          answer: 1,
-          explain: {
-            de: "Der Ambient Clinical Extractor verlangt für jeden Vitalwert und cABCDE-Befund ein exaktes source_quote aus dem Audio-Transkript, um freie Halluzinationen auszuschließen.",
-            en: "The Ambient Clinical Extractor requires an exact source_quote from the audio transcript for every vital sign and cABCDE finding to eliminate hallucinations.",
-          },
-        },
-      ],
     },
     {
       id: "silben-zero-shot",
@@ -145,66 +85,6 @@ export default {
           },
         },
       ],
-      quiz: [
-        {
-          q: {
-            de: "Warum verhindert das lokale 3-Silben-Fenster Halluzinationen wie 'Pazifischer Ozean' statt 'Patient'?",
-            en: "Why does the local 3-syllable window prevent hallucinations like 'Pacific Ocean' instead of 'patient'?",
-          },
-          options: [
-            {
-              de: "Weil der Transducer nie mehr als 15 bis 20 Phoneme auf einmal sieht und keine Wortassoziationen bilden kann.",
-              en: "Because the transducer never sees more than 15 to 20 phonemes at once and cannot form word associations.",
-            },
-            {
-              de: "Weil medizinische Wörterbücher alle geographischen Begriffe herausfiltern.",
-              en: "Because medical dictionaries filter out all geographic terms.",
-            },
-            {
-              de: "Weil ein Decoder-LLM jeden fertigen Satz auf Plausibilität prüft.",
-              en: "Because a decoder LLM checks every finished sentence for plausibility.",
-            },
-            {
-              de: "Weil nur bei absoluter Stille im Behandlungszelt transkribiert wird.",
-              en: "Because transcription only occurs during absolute silence in the treatment tent.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Durch die Beschränkung auf ein Fenster von drei Silben (15–20 Phoneme) übersetzt das Modell rein lokale Rechtschreibung in 5–8 ms und hat keinen Raum für semantische Satz-Halluzinationen.",
-            en: "By restricting attention to a window of three syllables (15–20 phonemes), the model resolves local spelling in 5–8 ms with zero capacity for sentence-level semantic hallucinations.",
-          },
-        },
-        {
-          q: {
-            de: "Ab welcher IPA-Ähnlichkeit greift das phonetische Anker-Lexikon bei Fachbegriffen?",
-            en: "At what IPA similarity threshold does the phonetic anchor lexicon correct clinical terms?",
-          },
-          options: [
-            {
-              de: "Ab 50 Prozent Übereinstimmung mit dem Wörterbuch.",
-              en: "At 50 percent match with the dictionary.",
-            },
-            {
-              de: "Ab 82 Prozent artikulatorischer IPA-Ähnlichkeit bei maximal 20 Prozent Levenshtein-Abweichung.",
-              en: "At 82 percent articulatory IPA similarity with at most 20 percent Levenshtein deviation.",
-            },
-            {
-              de: "Nur bei 100 Prozent exakter Buchstabengleichheit.",
-              en: "Only on 100 percent exact letter match.",
-            },
-            {
-              de: "Sobald ein Notarzt die Korrektur manuell auf der Tastatur freigibt.",
-              en: "As soon as an emergency physician manually approves the edit on a keyboard.",
-            },
-          ],
-          answer: 1,
-          explain: {
-            de: "Das Anker-Lexikon korrigiert lautnahe Schreibungen ab 82 Prozent IPA-Ähnlichkeit, sofern das Levenshtein-Gate bestätigt, dass die Abweichung vom Audio 20 Prozent nicht übersteigt.",
-            en: "The anchor lexicon corrects phonetic spellings at 82 percent or higher IPA similarity, provided the Levenshtein gate confirms that deviation from audio does not exceed 20 percent.",
-          },
-        },
-      ],
     },
     {
       id: "groesse-und-diarisierung",
@@ -238,66 +118,6 @@ export default {
               "**Role filtering:** Only findings from the responder lane enter the clinical patient record.",
               "**Explicit negation:** Statements like no allergies are captured with structured negated status.",
             ],
-          },
-        },
-      ],
-      quiz: [
-        {
-          q: {
-            de: "Warum fließen Äußerungen des Patienten nicht direkt in die cABCDE-Befunde ein?",
-            en: "Why do patient utterances not flow directly into the cABCDE findings?",
-          },
-          options: [
-            {
-              de: "Weil Patienten im Schockzustand keine rechtsgültigen Aussagen treffen dürfen.",
-              en: "Because patients in shock cannot make legally binding statements.",
-            },
-            {
-              de: "Weil die Diarisierung Sprecherspuren trennt und der Extraktor nur bestätigte Befunde der Einsatzkraft übernimmt.",
-              en: "Because diarization separates speaker lanes and the extractor only ingests verified responder findings.",
-            },
-            {
-              de: "Weil Patientenstimmen durch den 250-Hz-Filter komplett gelöscht werden.",
-              en: "Because patient voices are completely deleted by the 250 Hz filter.",
-            },
-            {
-              de: "Weil der Extraktor nur englische Sätze analysieren kann.",
-              en: "Because the extractor can only analyse English sentences.",
-            },
-          ],
-          answer: 1,
-          explain: {
-            de: "Die Sprecher-Diarisierung weist jedem Segment einen Sprecher zu. Der klinische Extraktor filtert Schmerzäußerungen und übernimmt nur medizinische Feststellungen der Einsatzkraft.",
-            en: "Speaker diarization tags each segment with a speaker label. The clinical extractor filters out pain cries and only accepts clinical findings dictated by the responder.",
-          },
-        },
-        {
-          q: {
-            de: "Wie steuert der Einsatzleitwagen (Hub) die Sprachmodelle der vernetzten AR-Brillen?",
-            en: "How does the command vehicle (Hub) control the speech models on connected AR headsets?",
-          },
-          options: [
-            {
-              de: "Über das Steuerkommando set_asr_model, das modulare Modellgrößen je nach Rechenlast umschaltet.",
-              en: "Via the set_asr_model command, switching modular model sizes based on compute load.",
-            },
-            {
-              de: "Durch manuelles Einstecken eines USB-Sticks an jedem Helm.",
-              en: "By manually plugging a USB stick into each helmet.",
-            },
-            {
-              de: "Indem alle Headsets permanent auf Cloud-Server im Internet zugreifen.",
-              en: "By having all headsets permanently connect to internet cloud servers.",
-            },
-            {
-              de: "Das Modell ist fest verdrahtet und kann nach dem Start nicht verändert werden.",
-              en: "The model is hardwired and cannot be altered after launch.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Der Hub im Einsatzleitfahrzeug kann über set_asr_model das aktive ASR-Modell pro Headset bedarfsgerecht zwischen Edge- und Server-Profil umschalten.",
-            en: "The command vehicle hub can switch the active ASR model per headset dynamically between edge and server profiles via set_asr_model.",
           },
         },
       ],

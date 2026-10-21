@@ -48,66 +48,6 @@ export default {
           },
         },
       ],
-      quiz: [
-        {
-          q: {
-            de: "Was geschieht nach dem Fail-Closed-Prinzip, wenn die Einsatzkraft spricht, ohne dass zuvor ein Tag gescannt wurde?",
-            en: "According to the fail-closed principle, what happens if a responder speaks before scanning a patient tag?",
-          },
-          options: [
-            {
-              de: "Es wird keine Patientenakte geöffnet oder verändert; das Audio verbleibt im lokalen Puffer.",
-              en: "No patient record is opened or modified; audio remains safely in the local buffer.",
-            },
-            {
-              de: "Das System ordnet die Daten automatisch dem geografisch nächsten Patienten zu.",
-              en: "The system automatically assigns data to the geographically nearest patient.",
-            },
-            {
-              de: "Die AR-Brille bricht die Spracherkennung mit einem lauten Alarmton ab.",
-              en: "The AR headset aborts speech recognition with a loud alarm tone.",
-            },
-            {
-              de: "Die Daten werden sofort an die Cloud gesendet, damit ein Leitstellen-Disponent entscheidet.",
-              en: "The data is immediately sent to the cloud for a dispatch operator to decide.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Fail-closed bedeutet: J.A.R. rät niemals. Ohne verifizierten Tag-Scan wird keine Akte angelegt oder überschrieben.",
-            en: "Fail-closed means J.A.R. never guesses. Without a verified tag scan, no patient file is created or altered.",
-          },
-        },
-        {
-          q: {
-            de: "Welche technischen Eigenschaften machen den passiven RFID/NFC-Tag ideal für den Katastropheneinsatz?",
-            en: "Which technical properties make the passive RFID/NFC tag ideal for mass-casualty triage?",
-          },
-          options: [
-            {
-              de: "Er benötigt keine Batterie, fasst rund 180 Byte und funktioniert bei Nässe, Blut, Schmutz und Dunkelheit.",
-              en: "It requires no battery, holds roughly 180 bytes, and works in wet conditions, blood, dirt and darkness.",
-            },
-            {
-              de: "Er sendet per GPS kontinuierlich Live-Koordinaten über 10 Kilometer.",
-              en: "It continuously broadcasts live GPS coordinates over 10 kilometres.",
-            },
-            {
-              de: "Er speichert hochauflösende Röntgenbilder direkt auf dem Chip.",
-              en: "It stores high-resolution X-ray scans directly on the chip.",
-            },
-            {
-              de: "Er ersetzt die AR-Brille vollständig durch ein integriertes Display.",
-              en: "It completely replaces the AR headset with an integrated display.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Der passive 180-Byte-Tag benötigt keine eigene Stromversorgung und lässt sich selbst durch dicke Einsatzkleidung, Schmutz oder bei Dunkelheit kontaktlos auslesen.",
-            en: "The passive 180-byte tag requires no power source and reads contactlessly through heavy clothing, dirt, fluids or complete darkness.",
-          },
-        },
-      ],
     },
     {
       id: "sprechen-speichern-hud",
@@ -134,66 +74,6 @@ export default {
           },
         },
       ],
-      quiz: [
-        {
-          q: {
-            de: "Welchen Hauptvorteil bietet das AR-Visier Heiligenschein während der Patientenversorgung?",
-            en: "What is the primary benefit of the Heiligenschein AR visor during casualty care?",
-          },
-          options: [
-            {
-              de: "Beide Hände bleiben frei für lebensrettende Maßnahmen, während Vitalwerte und Triage im Sichtfeld stehen.",
-              en: "Both hands remain completely free for life-saving care while vitals and triage stay in view.",
-            },
-            {
-              de: "Es blockiert das Sichtfeld vollständig, um Ablenkungen am Unfallort auszublenden.",
-              en: "It completely blocks the field of view to eliminate distractions at the scene.",
-            },
-            {
-              de: "Es ersetzt die Notwendigkeit von Verbandmaterial und Tourniquets durch Laserimpulse.",
-              en: "It replaces bandages and tourniquets with therapeutic laser pulses.",
-            },
-            {
-              de: "Es dient ausschließlich als Sonnenblende bei Einsätzen am Tag.",
-              en: "It serves purely as a sun visor during daytime operations.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Das AR-Visier ermöglicht freihändiges Arbeiten: Triage-Kategorie, Vitalwerte und Körpermodell werden blickfeldfest eingeblendet, ohne dass ein Tablet gehalten werden muss.",
-            en: "The AR visor enables hands-free operation: triage category, vitals and the body model are displayed in the field of view without needing to hold a tablet.",
-          },
-        },
-        {
-          q: {
-            de: "Wie werden Verletzungen auf dem virtuellen 13-Regionen-Körpermodell dokumentiert?",
-            en: "How are injuries documented on the virtual 13-region body model?",
-          },
-          options: [
-            {
-              de: "Über Sprachbefehle wie 'Starke Blutung rechter Oberschenkel' oder Gestensteuerung, direkt den 13 Regionen zugeordnet.",
-              en: "Via voice commands like 'Heavy bleeding right thigh' or gestures, directly bound to the 13 anatomical regions.",
-            },
-            {
-              de: "Ausschließlich durch handschriftliche Notizen auf der Papier-Sichtungskarte.",
-              en: "Exclusively via handwritten notes on the paper triage card.",
-            },
-            {
-              de: "Durch automatische Röntgenstrahlung aus der AR-Kamera.",
-              en: "Through automated X-ray radiation from the AR camera.",
-            },
-            {
-              de: "Verletzungen können im System nicht anatomisch zugeordnet werden.",
-              en: "Injuries cannot be anatomically localized in the system.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Das 13-Regionen-Modell ordnet Befunde (Blutung, Fraktur, Wunde) per Sprache oder Gaze-Auswahl präzise Körperregionen zu und verankert sie am Patientenmarker.",
-            en: "The 13-region model maps findings (bleeding, fracture, wound) precisely to body regions via voice or gaze selection, anchoring them to the patient marker.",
-          },
-        },
-      ],
     },
     {
       id: "mesh-netz-live",
@@ -217,66 +97,6 @@ export default {
           text: {
             de: "Ausfallsicherer Puffer: Reißt die Funkverbindung ab, speichert der Offline-Spool bis zu 2 GiB Daten und 100.000 Segmente. Läuft der Puffer voll, werden nur alte Raumgeometrien verworfen – Transkripte gehen niemals verloren.",
             en: "Fail-safe spool: if radio links drop, the offline spool stores up to 2 GiB and 100,000 segments. When full, only oldest room meshes are dropped – clinical transcripts are never lost.",
-          },
-        },
-      ],
-      quiz: [
-        {
-          q: {
-            de: "Was passiert mit aufgezeichneten Transkripten, wenn der Offline-Spool (2 GiB) bei Verbindungsabbruch vollzulaufen droht?",
-            en: "What happens to recorded transcripts if the offline spool (2 GiB) threatens to fill up during link loss?",
-          },
-          options: [
-            {
-              de: "Es werden ausschließlich ältere Raumgeometrie-Meshes verworfen; Transkript-Segmente werden niemals gelöscht.",
-              en: "Only older room-geometry meshes are discarded; transcript segments are never dropped.",
-            },
-            {
-              de: "Das Headset löscht zuerst die ältesten Patientenbefunde, um Platz für Audio zu schaffen.",
-              en: "The headset deletes the oldest patient findings first to create room for audio.",
-            },
-            {
-              de: "Das gesamte Dateisystem wird formatiert und neu initialisiert.",
-              en: "The entire file system is formatted and re-initialised.",
-            },
-            {
-              de: "Die Brille schaltet sich sofort ab, um Datenverlust zu verhindern.",
-              en: "The headset immediately shuts down to prevent data corruption.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Die Priorisierungslogik garantiert: Klinische Befunde und Transkript-Segmente besitzen höchste Priorität und werden niemals verworfen. Nur 3D-Karten-Revisionen werden freigegeben.",
-            en: "The prioritization logic guarantees: clinical findings and transcripts have highest priority and are never dropped. Only 3D spatial mesh revisions are discarded.",
-          },
-        },
-        {
-          q: {
-            de: "Über welchen Mechanismus finden AR-Brillen den Hub im Einsatzleitfahrzeug im lokalen Netz?",
-            en: "By what mechanism do AR headsets discover the command vehicle hub on the local network?",
-          },
-          options: [
-            {
-              de: "Über einen UDP-Discovery-Beacon auf Port 45454, der alle 2 Sekunden ausgesendet wird.",
-              en: "Via a UDP discovery beacon on port 45454 broadcast every 2 seconds.",
-            },
-            {
-              de: "Über eine weltweite DNS-Abfrage an öffentliche Google-Server.",
-              en: "Via a global DNS lookup to public Google servers.",
-            },
-            {
-              de: "Durch manuelles Scannen eines Papier-QR-Codes auf dem Wagendach.",
-              en: "By manually scanning a paper QR code on the vehicle roof.",
-            },
-            {
-              de: "Ausschließlich über Bluetooth Low Energy mit maximal 1 Meter Reichweite.",
-              en: "Exclusively via Bluetooth Low Energy with a maximum 1-metre range.",
-            },
-          ],
-          answer: 0,
-          explain: {
-            de: "Der Hub sendet alle 2 Sekunden ein UDP-Beacon auf Port 45454. Die Brillen klinken sich automatisch ein und senden alle 5 Sekunden ihren Heartbeat.",
-            en: "The hub broadcasts a UDP beacon on port 45454 every 2 seconds. Headsets join automatically and report telemetry heartbeats every 5 seconds.",
           },
         },
       ],
