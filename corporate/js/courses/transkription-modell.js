@@ -43,8 +43,8 @@ export default {
           type: "callout",
           tone: "info",
           text: {
-            de: "Jede Stufe ist deterministisch oder lokal begrenzt: Das Audio-Frontend entfernt Sirene, Motor und Wind in unter 3 ms pro Frame und lässt per Nahfeld-Schwelle nur die Stimme direkt am Mikrofon durch, während der klinische Extraktor Befunde nur mit wörtlichem Zitatbeleg akzeptiert.",
-            en: "Every stage is deterministic or locally bounded: the audio frontend removes siren, engine and wind in under 3 ms per frame and its near-field gate passes only the voice right at the microphone, while the clinical extractor accepts findings only with a verbatim quote.",
+            de: "Jede Stufe ist deterministisch oder lokal begrenzt: Das Audio-Frontend entfernt Sirene, Motor und Wind in unter 3 ms pro Frame und lässt per Nahfeld-Schwelle nur die Stimme direkt am Mikrofon durch, während der klinische Extraktor Befunde nur mit wörtlichem Zitatbeleg akzeptiert. Das Modell ist zudem auf das Mikrofon-Array unserer Brille feinabgestimmt: Abstand und Richtwirkung der Mikrofone und die Akustik am Helm sind Teil des Trainings.",
+            en: "Every stage is deterministic or locally bounded: the audio frontend removes siren, engine and wind in under 3 ms per frame and its near-field gate passes only the voice right at the microphone, while the clinical extractor accepts findings only with a verbatim quote. The model is also fine-tuned to the microphone array in our headset: the spacing and directivity of the microphones and the acoustics at the helmet are part of its training.",
           },
         },
       ],
@@ -121,8 +121,19 @@ export default {
         {
           type: "p",
           text: {
-            de: "Rund 4.000 bis 5.000 gesprochene Silben decken den gesamten medizinischen Wortschatz ab. Unser 3-Silben-Transducer übersetzt nur die mittlere Silbe im lokalen Kontext. Dadurch kann das Modell unbekannte Fachbegriffe fehlerfrei zusammensetzen, ohne jemals ganze Wörter zu erraten.",
-            en: "Around 4,000 to 5,000 spoken syllables cover the entire clinical vocabulary. Our 3-syllable transducer translates only the middle syllable in local context. This allows the model to reconstruct unfamiliar terms without ever guessing whole words.",
+            de: "Wenige Tausend gesprochene Silben genügen, um medizinische Fachbegriffe zusammenzusetzen. Unser 3-Silben-Transducer übersetzt nur die mittlere Silbe im lokalen Kontext. Dadurch kann das Modell unbekannte Fachbegriffe fehlerfrei zusammensetzen, ohne jemals ganze Wörter zu erraten.",
+            en: "A few thousand spoken syllables are enough to build clinical terms. Our 3-syllable transducer translates only the middle syllable in local context. This allows the model to reconstruct unfamiliar terms without ever guessing whole words.",
+          },
+        },
+        {
+          type: "list",
+          items: {
+            de: [
+              "**Neue Wörter per Text-zu-Latent-Modell:** Ein Text-zu-Latent-Modell überträgt geschriebene Begriffe, etwa neue Medikamente oder Ortsnamen, direkt in die interne Darstellung des Sprachmodells. So wächst der Wortschatz ohne neue Sprachaufnahmen.",
+            ],
+            en: [
+              "**New words via a text-to-latent model:** A text-to-latent model carries written terms, such as new drugs or place names, straight into the speech model's internal representation. The vocabulary grows without new voice recordings.",
+            ],
           },
         },
         {

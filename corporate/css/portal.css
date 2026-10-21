@@ -918,10 +918,11 @@ main > .section:first-child::before, .hero-track + .section::before { display: n
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: var(--t-small);
 }
-.lesson-nav-title { margin-bottom: var(--sp-3); font-size: 1.25rem; font-weight: 500; line-height: 1.18; letter-spacing: -0.02em; overflow-wrap: normal; word-break: normal; hyphens: manual; -webkit-hyphens: manual; }
+/* Scoped under .lesson-nav so the generic .section h2 size cannot win. */
+.lesson-nav .lesson-nav-title { margin-bottom: var(--sp-3); font-size: 1.15rem; font-weight: 500; line-height: 1.18; letter-spacing: -0.02em; overflow-wrap: normal; word-break: normal; hyphens: manual; -webkit-hyphens: manual; }
 .lesson-nav-list { margin: var(--sp-3) 0 var(--sp-5); border-top: 1px solid var(--line); }
 .lesson-nav-list li { border-bottom: 1px solid var(--line); }
-.lesson-nav-list a { display: flex; gap: var(--sp-3); align-items: baseline; padding: var(--sp-3) var(--sp-1); color: var(--ink-soft); line-height: 1.35; transition: color var(--dur-fast) var(--ease-out); }
+.lesson-nav-list a { display: flex; gap: var(--sp-3); align-items: baseline; padding: var(--sp-3) var(--sp-1); color: var(--ink-soft); font-size: 0.875rem; line-height: 1.35; transition: color var(--dur-fast) var(--ease-out); }
 .lesson-nav-list a:hover { color: var(--ink); }
 .lesson-nav-list li.current a { color: var(--ink); box-shadow: inset 2px 0 0 var(--brand-mint); padding-left: var(--sp-3); }
 .lesson-mark {

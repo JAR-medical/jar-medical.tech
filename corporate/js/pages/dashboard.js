@@ -21,7 +21,7 @@ mountLayout({ active: "dashboard" });
 async function fetchData() {
   const [enrollments, requests] = await Promise.all([backend.listMyEnrollments(), backend.listMyRequests()]);
   const isAdmin = state.profile?.role === "admin";
-  const granted = COURSES.filter((c) => isAdmin || enrollments.some((e) => e.course_id === c.id));
+  const granted = COURSES.filter((c) => isAdmin || (CONFIG.COURSES_FOR_CLIENTS && enrollments.some((e) => e.course_id === c.id)));
   const progressLists = await Promise.all(granted.map((c) => backend.listMyProgress(c.id)));
   state.enrollments = enrollments;
   state.requests = requests;
@@ -44,7 +44,7 @@ async function load() {
 }
 
 const isGranted = (courseId) =>
-  state.profile?.role === "admin" || state.enrollments.some((e) => e.course_id === courseId);
+  state.profile?.role === "admin" || (CONFIG.COURSES_FOR_CLIENTS && state.enrollments.some((e) => e.course_id === courseId));
 const profileIncomplete = () => !state.profile.full_name?.trim() || !state.profile.organization?.trim();
 
 function render() {

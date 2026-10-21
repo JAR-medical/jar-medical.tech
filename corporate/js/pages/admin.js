@@ -1,6 +1,7 @@
 // Admin console: stats, open course requests, and every client with per-course
 // grant / revoke controls.
 import { backend, requireUser } from "../backend.js";
+import { CONFIG } from "../config.js";
 import { PROFILE_EVENT } from "../profile-dialog.js";
 import { t, pick, onLangChange } from "../i18n.js";
 import { mountLayout } from "../layout.js";
@@ -199,6 +200,7 @@ function render() {
     el("div", { class: "page-head page-head-row" },
       el("div", {}, el("span", { class: "eyebrow" }, t("admin_eyebrow")), el("h1", { class: "page-title" }, t("admin_h1"))),
       refresh),
+    CONFIG.COURSES_FOR_CLIENTS ? null : notice("warn", el("p", {}, el("strong", {}, t("admin_hidden_title")), " ", t("admin_hidden_text"))),
     stats(),
     status,
     requestsSection(),

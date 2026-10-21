@@ -316,8 +316,8 @@ const MODULES = [
     tech: "DeepFilterNet3 / GTCRN · Silero-VAD",
     short: "DeepFilterNet3 · VAD",
     facts: {
-      de: ["Entrauscht jeden 20-ms-Frame in unter 3 ms.", "Nahfeld-Gate unter 250 Hz: Martinshorn, Motor und Wind fallen weg.", "Silero-VAD lässt nur Sprachabschnitte weiter."],
-      en: ["Denoises every 20 ms frame in under 3 ms.", "Near-field gate below 250 Hz: siren, engine and wind are removed.", "Silero-VAD passes on speech segments only."],
+      de: ["Feinabgestimmt auf das Mikrofon-Array unserer Brille.", "Entrauscht jeden 20-ms-Frame in unter 3 ms.", "Nahfeld-Gate unter 250 Hz: Martinshorn, Motor und Wind fallen weg.", "Silero-VAD lässt nur Sprachabschnitte weiter."],
+      en: ["Fine-tuned to the microphone array in our headset.", "Denoises every 20 ms frame in under 3 ms.", "Near-field gate below 250 Hz: siren, engine and wind are removed.", "Silero-VAD passes on speech segments only."],
     },
   },
   {
@@ -343,8 +343,8 @@ const MODULES = [
     tech: "medical_lexicon.txt · Levenshtein gate",
     short: { de: "Lexikon · Gate", en: "lexicon · gate" },
     facts: {
-      de: ["Fügt Komposita an Fugen (-s-, -ungs-, -ions-) zusammen.", "Anker-Lexikon korrigiert ab 82 % IPA-Ähnlichkeit.", "Jede Änderung zurück in IPA: über 20 % Abweichung wird blockiert; Konfidenz unter 0,45 → [UNSICHER: …]."],
-      en: ["Joins German compounds at linking morphemes (-s-, -ungs-, -ions-).", "Anchor lexicon corrects at 82 % IPA similarity or more.", "Every edit back to IPA: more than 20 % deviation is blocked; confidence below 0.45 → [UNCERTAIN: …]."],
+      de: ["Fügt getrennt erkannte Wortteile zu zusammengesetzten Fachbegriffen zusammen.", "Anker-Lexikon korrigiert ab 82 % IPA-Ähnlichkeit.", "Jede Änderung zurück in IPA: über 20 % Abweichung wird blockiert; Konfidenz unter 0,45 → [UNSICHER: …]."],
+      en: ["Joins word parts recognised separately into compound clinical terms.", "Anchor lexicon corrects at 82 % IPA similarity or more.", "Every edit back to IPA: more than 20 % deviation is blocked; confidence below 0.45 → [UNCERTAIN: …]."],
     },
   },
   {
@@ -735,7 +735,7 @@ function renderAsrPipelineCards(block, lang) {
       offset += pw;
       charIdx += piece.length;
     });
-    // linking morpheme highlight (German)
+    // linking highlight where word parts join
     if (term.link && p > 0.6) {
       const [s, e] = term.link;
       const x0 = startX + ctx.measureText(full.slice(0, s)).width;
@@ -879,10 +879,6 @@ const SYL = {
     ],
   },
   dec: { de: "0,45", en: "0.45" },
-  note: {
-    de: "Schematische Darstellung: Balkenlängen illustrativ; die Schwellen 82 %, 20 % und 0,45 sind die des Systems.",
-    en: "Schematic illustration: bar lengths are illustrative; the thresholds 82 %, 20 % and 0.45 are the system's.",
-  },
 };
 
 const ACT = [10, 10.5, 0]; // act 3 length depends on the number of cases
@@ -1147,7 +1143,7 @@ function renderSyllableWindow(block, lang) {
     title: L(lang, SYL.title),
     label: L(lang, SYL.label),
     controls: [playButton(player, lang)],
-  }, seg.node, cv.canvas, el("p", { class: "vt-note" }, L(lang, SYL.note)));
+  }, seg.node, cv.canvas);
 }
 
 // ---------------------------------------------------------------------------
@@ -1180,10 +1176,6 @@ const SIZE = {
   profilesLabel: { de: "Profil wählen", en: "Choose profile" },
   cmd: { de: "Hub → Headset 07", en: "hub → headset 07" },
   legend: { de: "S · M · L = relative Modellgröße", en: "S · M · L = relative model size" },
-  note: {
-    de: "Schematische Darstellung: Profile und Größen illustrativ, keine Messwerte. Die Module sind austauschbar; set_asr_model wählt das aktive ASR-Modell je Headset.",
-    en: "Schematic illustration: profiles and sizes are illustrative, not measurements. The modules are swappable; set_asr_model picks the active ASR model per headset.",
-  },
 };
 
 // For each profile: [lane (0 edge, 1 hub), size (1 S, 2 M, 3 L)] per module.
@@ -1298,7 +1290,7 @@ function renderModelSizeChart(block, lang) {
     title: L(lang, SIZE.title),
     label: L(lang, SIZE.label),
     controls: [playButton(player, lang)],
-  }, seg.node, cv.canvas, el("p", { class: "vt-note" }, L(lang, SIZE.legend), " · ", L(lang, SIZE.note)));
+  }, seg.node, cv.canvas, el("p", { class: "vt-note" }, L(lang, SIZE.legend)));
 }
 
 // ---------------------------------------------------------------------------

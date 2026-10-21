@@ -51,6 +51,7 @@ const CSS = `
 .va-sk1 { color: var(--sig-red); }
 .va-sk2 { color: var(--sig-amber); }
 .va-sk3 { color: var(--sig-green); }
+.va-data { color: var(--brand-mint); }
 .va-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin-top: var(--sp-3); }
 .va-stat { border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; background: var(--bg-deep); min-width: 0; }
 .va-stat b { display: block; font-family: var(--font-mono); font-size: 1.05rem; color: var(--ink); }
@@ -298,8 +299,8 @@ const T_HUD = {
   kicker: { de: "AR-Ansicht · Illustration", en: "AR view · illustration" },
   title: { de: "Sprechen statt schreiben", en: "Speak instead of write" },
   sub: {
-    de: "So sieht die Einsatzkraft den Patienten durch die Brille: Jeder Satz wird transkribiert, als Befund mit Zitatbeleg erkannt und sofort eingeblendet. Beide Hände bleiben am Patienten.",
-    en: "This is what the paramedic sees through the glasses: every sentence is transcribed, recognised as a finding backed by a quote and shown at once. Both hands stay on the patient.",
+    de: "So sieht die Einsatzkraft den Patienten durch die Brille: Jeder Satz wird transkribiert, als Befund mit Zitatbeleg erkannt und sofort eingeblendet. Beide Hände bleiben am Patienten. In der echten AR-Brille wirkt das HUD noch deutlich nahtloser: Die Einblendungen schweben räumlich im Blickfeld und bleiben am Patienten verankert, statt flach auf einem Bild zu liegen.",
+    en: "This is what the paramedic sees through the glasses: every sentence is transcribed, recognised as a finding backed by a quote and shown at once. Both hands stay on the patient. In the real AR glasses the HUD is far more seamless: the overlays float in the field of view and stay anchored to the patient instead of sitting flat on an image.",
   },
   mesh: { de: "Mesh · synchron", en: "Mesh · synced" },
   rec: { de: "Spracheingabe", en: "Voice input" },
@@ -320,10 +321,6 @@ const T_HUD = {
     { say: { de: "Keine Allergien bekannt.", en: "No known allergies." }, field: "a", value: { de: "keine · verneint", en: "none · negated" } },
     { say: { de: "Sichtung rot.", en: "Triage red." }, triage: 1 },
   ],
-  note: {
-    de: "Illustration der Brillenansicht. Werte ohne wörtliches Zitat im Transkript setzt der Hub auf null und listet sie zur ärztlichen Prüfung.",
-    en: "Illustration of the glasses view. Values without a verbatim quote in the transcript are set to null by the hub and listed for physician review.",
-  },
   aria: {
     de: "Illustration der AR-Ansicht: Während die Einsatzkraft spricht, füllen sich Patienten-ID, Atmung, Kreislauf, Maßnahmen, Allergien, Körpermodell und Sichtungskategorie.",
     en: "Illustration of the AR view: as the paramedic speaks, patient ID, breathing, circulation, measures, allergies, body model and triage category fill in.",
@@ -419,7 +416,7 @@ function renderArHudMock(block, lang) {
       el("div", { class: "va-hud-box va-hud-say" }, el("span", { class: "va-hud-mic" }),
         el("div", {}, el("small", {}, L(lang, T_HUD.rec)), sayText))));
 
-  root.append(hud, el("div", { class: "va-bar" }, playToggle(lang, state)), el("p", { class: "va-note" }, L(lang, T_HUD.note)));
+  root.append(hud, el("div", { class: "va-bar" }, playToggle(lang, state)));
 
   function frame(t) {
     const idx = Math.min(T_HUD.script.length - 1, Math.floor(t / STEP));
@@ -460,8 +457,8 @@ const T_MESH = {
   kicker: { de: "Lokales Mesh · ohne Mobilfunk", en: "Local mesh · no mobile network" },
   title: { de: "Eine Änderung, sofort auf allen Brillen", en: "One change, instantly on every headset" },
   sub: {
-    de: "Brillen und tragbare Recheneinheiten verbinden sich untereinander und mit dem Hub im Einsatzleitfahrzeug. Ändert ein Trupp eine Sichtung, sehen es alle anderen Trupps und die Einsatzleitung live.",
-    en: "Headsets and wearable compute units link to each other and to the hub in the command vehicle. When one team changes a triage category, every other team and incident command see it live.",
+    de: "Brillen und tragbare Recheneinheiten verbinden sich untereinander und mit dem Hub im Einsatzleitfahrzeug. Über dieses Mesh laufen auch alle erfassten Daten: Transkripte, Befunde und Vitalwerte wandern von Brille zu Brille bis zum Hub. Ändert ein Trupp eine Sichtung, sehen es alle anderen Trupps und die Einsatzleitung live.",
+    en: "Headsets and wearable compute units link to each other and to the hub in the command vehicle. All collected data travels over this mesh too: transcripts, findings and vitals hop from headset to headset to the hub. When one team changes a triage category, every other team and incident command see it live.",
   },
   hub: { de: "Hub · Einsatzleitfahrzeug", en: "Hub · command vehicle" },
   cut: { de: "Funkverbindung trennen", en: "Cut radio link" },
@@ -472,6 +469,13 @@ const T_MESH = {
   spoolFill: { de: "{n} Transkript-Segmente gepuffert · 0 verworfen", en: "{n} transcript segments buffered · 0 dropped" },
   spoolDrain: { de: "Verbindung zurück: {n} Segmente werden nachgesendet", en: "Link restored: sending {n} buffered segments" },
   updateRow: { de: "{id} · von Brille {h}", en: "{id} · from headset {h}" },
+  dataRow: { de: "{id} · {what} · von Brille {h}", en: "{id} · {what} · from headset {h}" },
+  dataChip: { de: "Daten", en: "Data" },
+  legend: [
+    { de: "Heartbeat", en: "Heartbeat", kind: "beat" },
+    { de: "Daten: Transkript, Befund, Vitalwerte", en: "Data: transcript, finding, vitals", kind: "data" },
+    { de: "Sichtungs-Update an alle", en: "Triage update to all", kind: "triage" },
+  ],
   stats: [
     { v: "UDP 45454", de: "Hub-Beacon alle 2 s, Brillen finden den Hub selbst", en: "hub beacon every 2 s, headsets find the hub themselves" },
     { v: "5 s", de: "Heartbeat: Akku, CPU, Temperatur, Tracking, ASR-Modell, Spool", en: "heartbeat: battery, CPU, temperature, tracking, ASR model, spool" },
@@ -479,8 +483,8 @@ const T_MESH = {
     { v: "100.000", vEn: "100,000", de: "Transkript-Segmente Spool (+ 2 GiB Raumgeometrie); Transkripte werden nie verworfen", en: "transcript segments in the spool (+ 2 GiB room geometry); transcripts are never dropped" },
   ],
   aria: {
-    de: "Animation eines Mesh-Netzes aus AR-Brillen und Hub: Heartbeats laufen zum Hub, ein Sichtungs-Update verbreitet sich an alle Brillen; bei getrennter Verbindung füllt sich der Offline-Spool.",
-    en: "Animation of a mesh of AR headsets and a hub: heartbeats travel to the hub, a triage update spreads to every headset; when the link is cut, the offline spool fills.",
+    de: "Animation eines Mesh-Netzes aus AR-Brillen und Hub: Heartbeats und erfasste Daten laufen über die Brillen zum Hub, ein Sichtungs-Update verbreitet sich an alle Brillen; bei getrennter Verbindung bleiben die Daten im Offline-Spool.",
+    en: "Animation of a mesh of AR headsets and a hub: heartbeats and collected data hop via the headsets to the hub, a triage update spreads to every headset; when the link is cut, the data waits in the offline spool.",
   },
 };
 
@@ -491,6 +495,17 @@ const MESH_NODES = [
 ];
 const HUB = [560, 440];
 const CUT_X = 680; // headsets right of this line lose their link while "cut"
+// Data records sent to the hub in turn: [headset index, patient, what].
+const DATA = [
+  [3, "JAR-P07", { de: "AF 32/min", en: "RR 32/min" }],
+  [1, "JAR-P11", { de: "Tourniquet li. Oberschenkel", en: "Tourniquet left thigh" }],
+  [8, "JAR-P03", { de: "Radialispuls 124", en: "Radial pulse 124" }],
+  [5, "JAR-P05", { de: "Allergien: keine (verneint)", en: "Allergies: none (negated)" }],
+  [10, "JAR-P08", { de: "gehfähig", en: "walking" }],
+  [9, "JAR-P02", { de: "SpO₂ 89 %", en: "SpO₂ 89 %" }],
+];
+const DATA_EVERY = 2.3; // s between records
+const DATA_TRAVEL = 1.6; // s from headset to hub
 const UPDATES = [
   { id: "JAR-P03", cat: 1, from: 6 },
   { id: "JAR-P11", cat: 2, from: 1 },
@@ -547,15 +562,29 @@ function renderArMeshNetwork(block, lang) {
   });
   const stats = el("div", { class: "va-stats" }, T_MESH.stats.map((s) =>
     el("div", { class: "va-stat" }, el("b", {}, lang === "en" && s.vEn ? s.vEn : s.v), el("span", {}, L(lang, s)))));
-  root.append(el("div", { class: "va-split" }, stage, panel), el("div", { class: "va-bar" }, playToggle(lang, state), cutBtn), stats);
+  const legendMark = (kind) => kind === "data"
+    ? el("span", { "aria-hidden": "true", style: "display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brand-mint);margin-right:6px" })
+    : el("span", { "aria-hidden": "true", style: `display:inline-block;width:10px;height:10px;border-radius:50%;background:${kind === "beat" ? "var(--ink-soft)" : "var(--sig-red)"};margin-right:6px` });
+  const legend = el("p", { class: "va-note", style: "margin-top:var(--sp-2);display:flex;flex-wrap:wrap;gap:6px 18px" },
+    T_MESH.legend.map((l) => el("span", {}, legendMark(l.kind), L(lang, l))));
+  root.append(el("div", { class: "va-split" }, el("div", {}, stage, legend), panel), el("div", { class: "va-bar" }, playToggle(lang, state), cutBtn), stats);
 
   const fill = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
   let drainStart = 0;
   let lastUpdate = -1;
+  let lastData = -1;
   let lastSpoolTick = 0;
 
   function dot(x, y, color, r = 7) {
     packetLayer.append(svg("circle", { cx: x, cy: y, r, fill: color }));
+  }
+  function square(x, y, opacity = 1) {
+    packetLayer.append(svg("rect", { x: x - 7, y: y - 7, width: 14, height: 14, rx: 2, fill: "var(--brand-mint)", stroke: "var(--bg-deep)", "stroke-width": 2, opacity }));
+  }
+  function logRow(chipClass, chipText, text) {
+    dashList.querySelectorAll("li").forEach((li) => li.classList.remove("is-new"));
+    dashList.prepend(el("li", { class: "is-new" }, el("span", { class: "va-chip " + chipClass }, chipText), " ", text));
+    while (dashList.children.length > 4) dashList.lastChild.remove();
   }
   // Point at fraction u along a hop path (array of node indices).
   function along(path, u) {
@@ -585,6 +614,25 @@ function renderArMeshNetwork(block, lang) {
       dot(x, y, "var(--ink-soft)", 5);
     });
 
+    // Data records: hop along the mesh to the hub; cut-off headsets keep them.
+    const dcycle = Math.floor(t / DATA_EVERY);
+    const [src, pid, what] = DATA[dcycle % DATA.length];
+    const du = (t - dcycle * DATA_EVERY) / DATA_TRAVEL;
+    if (toHub.dist[src] !== Infinity) {
+      if (du <= 1) {
+        const path = [src];
+        while (path[path.length - 1] !== H && toHub.parent[path[path.length - 1]] >= 0) path.push(toHub.parent[path[path.length - 1]]);
+        const [x, y] = along(path, du);
+        square(x, y);
+      } else if (lastData !== dcycle) {
+        lastData = dcycle;
+        logRow("va-data", L(lang, T_MESH.dataChip), fill(L(lang, T_MESH.dataRow), { id: pid, what: L(lang, what), h: String(src + 1).padStart(2, "0") }));
+      }
+    } else {
+      const [x, y] = MESH_NODES[src];
+      square(x + 18, y - 18, 0.6 + 0.4 * Math.sin(t * 6) ** 2);
+    }
+
     // Triage update flooding the mesh every 7 s.
     const cycle = Math.floor(t / 7), u = t % 7;
     const upd = UPDATES[cycle % UPDATES.length];
@@ -609,11 +657,7 @@ function renderArMeshNetwork(block, lang) {
     // Dashboard row once the update reached the hub.
     if (flood.dist[H] <= spread && lastUpdate !== cycle) {
       lastUpdate = cycle;
-      dashList.querySelectorAll("li").forEach((li) => li.classList.remove("is-new"));
-      dashList.prepend(el("li", { class: "is-new" },
-        el("span", { class: "va-chip " + TRIAGE[upd.cat].cls }, L(lang, TRIAGE[upd.cat])), " ",
-        fill(L(lang, T_MESH.updateRow), { id: upd.id, h: String(upd.from + 1).padStart(2, "0") })));
-      while (dashList.children.length > 3) dashList.lastChild.remove();
+      logRow(TRIAGE[upd.cat].cls, L(lang, TRIAGE[upd.cat]), fill(L(lang, T_MESH.updateRow), { id: upd.id, h: String(upd.from + 1).padStart(2, "0") }));
     }
 
     // Spool: cut-off headsets buffer one segment per 1.2 s each; drain on restore.
@@ -623,7 +667,7 @@ function renderArMeshNetwork(block, lang) {
     else if (state.draining > 0) {
       const left = Math.max(0, Math.round(state.draining * (1 - (t - drainStart) / 3)));
       spoolEl.textContent = left > 0 ? fill(L(lang, T_MESH.spoolDrain), { n: left }) : L(lang, T_MESH.spoolIdle);
-      MESH_NODES.forEach(([x, y], i) => { if (isCut(i) && left > 0) { const k = ((t * 1.5 + i * 0.3) % 1); dot(lerp(x, HUB[0], k), lerp(y, HUB[1], k), "var(--brand-mint)", 5); } });
+      MESH_NODES.forEach(([x, y], i) => { if (isCut(i) && left > 0) { const k = ((t * 1.5 + i * 0.3) % 1); square(lerp(x, HUB[0], k), lerp(y, HUB[1], k)); } });
       if (left === 0) { state.draining = 0; state.spool = 0; }
     } else spoolEl.textContent = L(lang, T_MESH.spoolIdle);
   }

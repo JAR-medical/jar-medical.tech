@@ -13,7 +13,6 @@ import {
 
 const VIDEO_SRC = "assets/drone/drone-flight.mp4";
 const POSTER_SRC = "assets/drone/drone-flight.jpg";
-const CREDITS_SRC = "assets/drone/CREDITS.json";
 
 // Portal tokens for canvas drawing, read from the visual's own element: the
 // dark palette is scoped to .theme-dark, not set on :root.
@@ -74,10 +73,9 @@ const CSS = `
 .vd-step.is-on { color: var(--ink); border-color: var(--accent); background: var(--surface-tint); }
 .vd-step b { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
 .vd-pipe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
-.vd-node { position: relative; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-deep); padding: 10px 12px; text-align: left; color: var(--ink-soft); cursor: pointer; font-family: inherit; min-width: 0; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
-.vd-node svg { display: block; width: 100%; height: 54px; margin-bottom: 6px; }
-.vd-node b { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
-.vd-node strong { display: block; font-size: 13px; color: var(--ink); line-height: 1.3; font-weight: 600; }
+.vd-node { position: relative; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-deep); padding: 14px 16px; min-height: 92px; text-align: left; color: var(--ink-soft); cursor: pointer; font-family: inherit; min-width: 0; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.vd-node b { display: block; font-family: var(--font-mono); font-size: 13px; color: var(--ink-faint); margin-bottom: 6px; }
+.vd-node strong { display: block; font-size: 17px; color: var(--ink); line-height: 1.3; font-weight: 600; }
 .vd-node.is-on { border-color: var(--accent); background: var(--surface-tint); }
 .vd-node.is-on b { color: var(--accent); }
 .vd-node.is-jar { border-style: dashed; }
@@ -93,6 +91,8 @@ const CSS = `
   .vd-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vd-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vd-pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vd-node { min-height: 0; padding: 12px; }
+  .vd-node strong { font-size: 15px; }
   .vd-inspect dl { grid-template-columns: 1fr; }
 }
 `;
@@ -165,10 +165,6 @@ const T_PLAYER = {
   hint: {
     de: "Ziehen zum Drehen · Mausrad oder zwei Finger zum Zoomen · Pfeiltasten · Doppelklick setzt die Ansicht zurück",
     en: "Drag to rotate · mouse wheel or two fingers to zoom · arrow keys · double-click resets the view",
-  },
-  note: {
-    de: "Offline berechnet mit Apple RealityKit Object Capture (Structure from Motion und Multi-View-Stereo) aus Einzelbildern dieses Flugs. Ihr Browser zeigt das fertige Modell und projiziert es mit der berechneten Kamera jedes Bildes. Der Maßstab des Modells ist relativ, da das Video keine Positionsdaten enthält.",
-    en: "Computed offline with Apple RealityKit Object Capture (structure from motion and multi-view stereo) from frames of this flight. Your browser shows the finished model and projects it with each frame's computed camera. The model's scale is relative because the video carries no position data.",
   },
   missing: {
     de: "Das Drohnenvideo konnte nicht geladen werden. Bitte laden Sie die Seite neu.",
@@ -343,18 +339,12 @@ function renderDroneMeshPlayer(block, lang) {
     hint.hidden = phase !== "model";
   }
 
-  const credits = el("p", { class: "vd-note" });
-  fetch(CREDITS_SRC)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((data) => { if (data && typeof data[lang] === "string") credits.textContent = data[lang]; })
-    .catch(() => { /* credits are optional at runtime; the file ships with the video */ });
 
   root.append(stage,
     el("div", { class: "vd-bar" }, playBtn, modeBtn, modelBtn, restartBtn),
     hint,
     el("div", { class: "vd-stats" }, sFrames.node, sReg.node, sPts.node, sTris.node),
-    el("p", { class: "vd-note" }, L(lang, T_PLAYER.note)),
-    credits);
+  );
   placePhase();
   narrow?.addEventListener?.("change", placePhase);
   video.addEventListener("error", () => stage.append(el("div", { class: "vd-missing" }, L(lang, T_PLAYER.missing))));
@@ -870,29 +860,7 @@ const T_PIPE = {
   },
 };
 
-// Small line glyph per stage (viewBox 0 0 100 54); pathLength=1 for draw-in.
-function glyph(i) {
-  const s = { fill: "none", stroke: "currentColor", "stroke-width": 1.6, "stroke-linecap": "round", "stroke-linejoin": "round", pathLength: 1 };
-  const d = [
-    ["M30 20h40l-6 6H36z", "M50 26v6", "M20 40h60", "M28 40l6-8M72 40l-6-8"],
-    ["M14 14h22v26H14z", "M39 14h22v26H39z", "M64 14h22v26H64z", "M42 20l16 14"],
-    ["M18 16l8 6-6 8z", "M70 14l10 4-4 10z", "M30 38l6 2", "M24 22C40 10 60 10 76 20"],
-    ["M20 40l10-12 10 12z", "M60 40l10-12 10 12z", "M30 28L50 12l20 16", "M48 12h4"],
-    ["M20 30h2M30 22h2M40 34h2M48 18h2M58 30h2M66 22h2M76 34h2M36 42h2M56 42h2M70 14h2"],
-    ["M16 40L34 18 52 36 70 14 86 40z", "M34 18L34 40M52 36L70 40M52 36L16 40"],
-    ["M18 12h64v32H18z", "M18 28h64M50 12v32", "M60 20l6 4-6 4"],
-    ["M14 34l18-14 18 10", "M50 30l18-12 18 14", "M44 30h12", "M50 8v8"],
-    ["M14 12h44v30H14z", "M64 18c8 0 16 6 22 12-6 6-14 12-22 12s-10-6-10-12 2-12 10-12z", "M30 30l6-8 6 8"],
-  ][i];
-  return svg("svg", { viewBox: "0 0 100 54", "aria-hidden": "true" }, d.map((p) => svg("path", { ...s, d: p })));
-}
-
 function renderMappingSoftwarePipeline(block, lang) {
-  injectStyle("vd-pipe-anim", `
-.vd-node.is-on path { stroke-dasharray: 1; animation: vd-draw 1.4s var(--ease-out) both; }
-@keyframes vd-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { .vd-node.is-on path { animation: none; } }
-`);
   const root = card(lang, T_PIPE.kicker, T_PIPE.title, T_PIPE.sub);
   let active = 0;
   let playing = !prefersReducedMotion();
@@ -901,7 +869,7 @@ function renderMappingSoftwarePipeline(block, lang) {
   const nodes = T_PIPE.stages.map((st, i) => el("button", {
     class: "vd-node" + (st.jar ? " is-jar" : ""), type: "button",
     onclick: () => { select(i); clock = 0; },
-  }, glyph(i), el("b", {}, String(i + 1).padStart(2, "0")), el("strong", {}, L(lang, st.title))));
+  }, el("b", {}, String(i + 1).padStart(2, "0")), el("strong", {}, L(lang, st.title))));
 
   function select(i) {
     active = i;

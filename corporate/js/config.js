@@ -17,6 +17,11 @@ export const CONFIG = {
   // Where clients send questions about access; shown in the dashboard.
   CONTACT_EMAIL: "kontakt@jar-medical.tech",
 
+  // Release switch for the courses. While false, only administrators see and
+  // open courses (preview); clients see none, even courses granted to them.
+  // Grants made meanwhile are kept and show up once this is set to true.
+  COURSES_FOR_CLIENTS: false,
+
   // Base URL of the J.A.R. transcription server (WhisperX with speaker
   // diarization, reached through a Cloudflare Tunnel), e.g.
   // "https://stt.jar-medical.tech". The "Transkription" demo course POSTs the
