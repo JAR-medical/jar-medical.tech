@@ -4,7 +4,8 @@
 // Never put the secret key (sb_secret_…) or the legacy service_role key here.
 //
 // Leave SUPABASE_URL empty to run the portal in demo mode (data stays in this
-// browser's localStorage, no real authentication). See README.md for setup.
+// browser's localStorage, no real authentication). Setup: private repo
+// JAR-medical/website_setup → corporate/README.md.
 export const CONFIG = {
   SUPABASE_URL: "https://kocfxyrqajrleihfbevq.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_cJxJTjEmeBrrjnh9lu7ABA_Ps0wzLYz",
@@ -25,9 +26,10 @@ export const CONFIG = {
   // Base URL of the J.A.R. transcription server (WhisperX with speaker
   // diarization, reached through a Cloudflare Tunnel), e.g.
   // "https://stt.jar-medical.tech". The "Transkription" demo course POSTs the
-  // recording to `${TRANSCRIPTION_ENDPOINT}/transcribe` (contract in README.md
-  // → "Transkriptions-Server"). While empty, the demo records and plays back
-  // locally and says that no server is connected yet.
+  // recording to `${TRANSCRIPTION_ENDPOINT}/transcribe` (contract and server
+  // setup in the private repo JAR-medical/website_setup). While empty, the
+  // demo records and plays back locally and says that no server is connected
+  // yet.
   TRANSCRIPTION_ENDPOINT: "",
 
   // Demo mode only: signing in with this address gives the admin role.

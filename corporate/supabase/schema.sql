@@ -293,7 +293,7 @@ create policy progress_insert_enrolled on public.lesson_progress for insert to a
   );
 
 -- ─── Seed: courses and their lessons ────────────────────────────────────────
--- Keep in sync with corporate/js/courses/*.js (README.md → "Adding a course").
+-- Keep in sync with corporate/js/courses/*.js (website_setup repo → corporate/README.md → "Adding a course").
 
 insert into public.courses (id, title) values
   ('transkription-modell', 'Transkription: So ist unser Sprachmodell aufgebaut'),

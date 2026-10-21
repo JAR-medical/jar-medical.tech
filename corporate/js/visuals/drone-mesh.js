@@ -111,7 +111,8 @@ function button(label, onclick) {
 
 // ---------------------------------------------------------------------------
 // Drone player: the photogrammetry model reconstructed offline from this very
-// flight (assets/drone/model/, see corporate/README.md → "Drohnen-Modell").
+// flight (assets/drone/model/, rebuild steps in the private repo
+// JAR-medical/website_setup → corporate/tools/drone-model).
 // While the video plays, the model's point cloud and a hidden-line wireframe
 // are projected with each frame's computed camera, so they sit exactly on the
 // buildings. Then the video fades and only the textured model remains, which

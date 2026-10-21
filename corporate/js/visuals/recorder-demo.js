@@ -7,9 +7,9 @@
 // getUserMedia, a live level display, the same big pill button. Here the take
 // is captured with MediaRecorder, can be played back, and is POSTed to the
 // J.A.R. transcription server only when the user presses "Transcribe" AND
-// CONFIG.TRANSCRIPTION_ENDPOINT is set (contract: README.md →
-// "Transkriptions-Server"). No transcript is ever invented: without a server
-// the output field says so.
+// CONFIG.TRANSCRIPTION_ENDPOINT is set (contract and server setup: private
+// repo JAR-medical/website_setup). No transcript is ever invented: without a
+// server the output field says so.
 import { el } from "../ui.js";
 import { CONFIG } from "../config.js";
 import { L, injectStyle, animate, hiDpiCanvas, clamp, ease } from "./kit.js";
