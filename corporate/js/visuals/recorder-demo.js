@@ -573,9 +573,16 @@ const MIC_SVG = () => {
   return s;
 };
 
+// WebKit (Safari, and every browser on iOS) records AAC in MP4 reliably and
+// plays it back; its WebM recording is newer and not always playable there.
+const WEBKIT = /Apple/.test(globalThis.navigator?.vendor || "");
+
 function pickMime() {
   if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") return "";
-  for (const type of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
+  const order = WEBKIT
+    ? ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]
+    : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  for (const type of order) {
     try { if (MediaRecorder.isTypeSupported(type)) return type; } catch { /* keep looking */ }
   }
   return "";
@@ -844,10 +851,13 @@ function renderRecorder(block, lang) {
       if (root.isConnected) say(micError(err), "error");
       return;
     }
-    const s = { stream, ctx, chunks: [], peaks: [], started: 0, timer: 0, elapsed: 0, ended: null };
+    const s = { stream, ctx, chunks: [], peaks: [], started: 0, timer: 0, stopTimer: 0, elapsed: 0, ended: null };
     if (!root.isConnected) { releaseSession(s); return; }
 
     if (ctx) {
+      // iOS suspends the context while the microphone opens; without this
+      // the level display stays flat.
+      if (ctx.state !== "running") ctx.resume?.().catch(() => {});
       try {
         s.source = ctx.createMediaStreamSource(stream);
         s.analyser = ctx.createAnalyser();
@@ -882,7 +892,8 @@ function renderRecorder(block, lang) {
     }));
 
     try {
-      s.rec.start(250);
+      // One piece at stop: Safari's MP4 fragments (timeslice) are often unplayable.
+      s.rec.start();
     } catch (e) {
       console.warn("recorder-demo: start failed", e);
       releaseSession(s);
@@ -921,17 +932,22 @@ function renderRecorder(block, lang) {
     sync();
     clearInterval(s.timer);
     s.elapsed = (performance.now() - s.started) / 1000;
+    // The microphone stays open until onstop: Safari drops the recording when
+    // the track stops before the recorder has handed over its data. finish()
+    // releases it; the timer covers a recorder that never fires onstop.
     try {
-      if (s.rec.state !== "inactive") s.rec.stop(); // final dataavailable, then onstop → finish
-      else finish(s);
+      if (s.rec.state !== "inactive") {
+        s.rec.stop(); // dataavailable, then onstop → finish
+        s.stopTimer = setTimeout(() => finish(s), 4000);
+      } else finish(s);
     } catch (e) {
       console.warn("recorder-demo: stop failed", e);
       finish(s);
     }
-    releaseSession(s);
   }
 
   function finish(s) {
+    clearTimeout(s.stopTimer);
     if (st.session !== s) return; // torn down meanwhile
     st.session = null;
     releaseSession(s);
