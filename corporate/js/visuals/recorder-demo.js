@@ -57,6 +57,14 @@ const S = {
   errorHead: { de: "Kein Transkript erhalten.", en: "No transcript received." },
   laneAria: { de: "Zeitachse: wer wann spricht", en: "Timeline: who speaks when" },
   speaker: { de: "Sprecher", en: "Speaker" },
+  confidence: { de: "Sicherheit", en: "confidence" },
+  confLegend: {
+    de: "Gepunktet unterstrichen: Zuordnung zum Sprecher unsicher (gelb: unter 60 %). Tippen Sie auf ein Wort, um die Sicherheit zu sehen.",
+    en: "Dotted underline: speaker assignment uncertain (amber: below 60 %). Tap a word to see the confidence.",
+  },
+  confNone: { de: "Die Sicherheit pro Wort gibt es derzeit nur für englische Aufnahmen.", en: "Per-word confidence is currently available for English recordings only." },
+  confWord: { de: "„{w}“ – {s}, Sicherheit {c} %", en: "“{w}” – {s}, confidence {c} %" },
+  confWordNone: { de: "„{w}“ – {s}, keine Sicherheit verfügbar", en: "“{w}” – {s}, no confidence available" },
   // Status messages, written for the person in front of the screen.
   insecure: {
     de: "Das Mikrofon funktioniert nur, wenn diese Seite über eine sichere Verbindung (https://) geöffnet ist.",
@@ -198,9 +206,22 @@ export function parseTranscript(data) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) fail(`segment ${i} has bad start/end`);
     if (typeof speaker !== "string" || !speaker.trim()) fail(`segment ${i} has no speaker`);
     if (typeof text !== "string") fail(`segment ${i} has no text`);
-    return { start, end, speaker: speaker.trim().slice(0, 64), text: text.trim().slice(0, 4000) };
+    return { start, end, speaker: speaker.trim().slice(0, 64), text: text.trim().slice(0, 4000), words: parseWords(s.words) };
   });
   return out.filter((s) => s.text).sort((a, b) => a.start - b.start);
+}
+
+// Optional per-word speaker confidence ({word, confidence 0–1 or null}). A
+// malformed list is dropped and the segment falls back to its plain text.
+function parseWords(words) {
+  if (!Array.isArray(words) || !words.length || words.length > 2000) return null;
+  const out = [];
+  for (const w of words) {
+    if (!w || typeof w.word !== "string" || !w.word.trim()) return null;
+    const c = w.confidence;
+    out.push({ word: w.word.trim().slice(0, 200), confidence: Number.isFinite(c) && c >= 0 && c <= 1 ? c : null });
+  }
+  return out;
 }
 
 // Speaker id → { n: 1-based number in order of appearance, tone }.
@@ -304,6 +325,12 @@ const CSS = `
 .vr-row-time { font-family: var(--font-mono); font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
 .vr-spk { justify-self: start; padding: 0.1rem 0.55rem; border-radius: var(--r-pill); border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
 .vr-row-text { font-size: 0.9rem; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.vr-w { cursor: help; border-radius: 2px; }
+.vr-w:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vr-w[data-c="mid"] { text-decoration: underline dotted var(--ink-faint); text-underline-offset: 3px; }
+.vr-w[data-c="low"] { color: var(--sig-amber); text-decoration: underline dotted var(--sig-amber); text-underline-offset: 3px; }
+.vr-conf { margin: var(--sp-3) 0 0; font-size: 0.75rem; line-height: 1.5; color: var(--ink-faint); }
+.vr-conf-word { margin: var(--sp-1) 0 0; min-height: 1.2em; font-size: 0.8rem; color: var(--ink-soft); }
 
 @media (max-width: 560px) {
   .vr-card { padding: var(--sp-4); }
@@ -751,16 +778,40 @@ function renderRecorder(block, lang) {
     });
     const head = el("span", { class: "vr-playhead", hidden: true });
     const lanesBox = el("div", { class: "vr-lanes-box" }, el("div", { class: "vr-lanes", role: "img", "aria-label": L(lang, S.laneAria) }, lanes), head);
+    // Per-word speaker confidence: high stays plain, below 85 % dotted, below 60 % amber.
+    const hasConf = segments.some((s) => s.words && s.words.some((w) => w.confidence !== null));
+    const wordInfo = el("p", { class: "vr-conf-word", "aria-live": "polite" });
+    const showWord = (node) => {
+      const c = node.dataset.conf;
+      wordInfo.textContent = fill(L(lang, c ? S.confWord : S.confWordNone), { w: node.textContent, s: node.dataset.spk, c });
+    };
     const rowNodes = segments.map((s) => {
       const info = map.get(s.speaker);
+      const who = `${L(lang, S.speaker)} ${info.n}`;
+      const text = el("span", { class: "vr-row-text" });
+      if (hasConf && s.words) {
+        s.words.forEach((w, i) => {
+          const pct = w.confidence === null ? "" : String(Math.round(w.confidence * 100));
+          const level = w.confidence === null ? "none" : w.confidence < 0.6 ? "low" : w.confidence < 0.85 ? "mid" : "high";
+          if (i) text.append(" ");
+          text.append(el("span", {
+            class: "vr-w", tabindex: "0", "data-c": level, "data-conf": pct, "data-spk": who,
+            title: pct ? `${who} · ${L(lang, S.confidence)} ${pct} %` : who,
+          }, w.word));
+        });
+      } else {
+        text.textContent = s.text;
+      }
       return el("li", { class: "vr-row" },
         el("span", { class: "vr-row-time" }, `${stamp(s.start)}–${stamp(s.end)}`),
-        el("span", { class: "vr-spk", style: `color:${info.tone}` }, `${L(lang, S.speaker)} ${info.n}`),
-        el("span", { class: "vr-row-text" }, s.text));
+        el("span", { class: "vr-spk", style: `color:${info.tone}` }, who),
+        text);
     });
-    outBody.replaceChildren(
-      lanesBox,
-      el("ol", { class: "vr-rows" }, rowNodes));
+    const rowsList = el("ol", { class: "vr-rows" }, rowNodes);
+    rowsList.addEventListener("click", (e) => { const w = e.target.closest(".vr-w"); if (w) showWord(w); });
+    rowsList.addEventListener("focusin", (e) => { if (e.target.classList.contains("vr-w")) showWord(e.target); });
+    outBody.replaceChildren(lanesBox, rowsList, el("p", { class: "vr-conf" }, L(lang, hasConf ? S.confLegend : S.confNone)));
+    if (hasConf) outBody.append(wordInfo);
     view = { segments, rows: rowNodes, segs: segNodes, head, total, lanesBox };
   }
 
