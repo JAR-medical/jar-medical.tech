@@ -313,17 +313,17 @@ function ensureStyles() {
 const MODULES = [
   {
     name: { de: "Audio-Frontend", en: "Audio frontend" },
-    tech: "DeepFilterNet3 / GTCRN · Silero-VAD",
-    short: "DeepFilterNet3 · VAD",
+    tech: "Neural denoiser · VAD",
+    short: "Denoiser · VAD",
     facts: {
-      de: ["Feinabgestimmt auf das Mikrofon-Array unserer Brille.", "Entrauscht jeden 20-ms-Frame in unter 3 ms.", "Nahfeld-Gate unter 250 Hz: Martinshorn, Motor und Wind fallen weg.", "Silero-VAD lässt nur Sprachabschnitte weiter."],
-      en: ["Fine-tuned to the microphone array in our headset.", "Denoises every 20 ms frame in under 3 ms.", "Near-field gate below 250 Hz: siren, engine and wind are removed.", "Silero-VAD passes on speech segments only."],
+      de: ["Feinabgestimmt auf das Mikrofon-Array unserer Brille.", "Entrauscht jeden 20-ms-Frame in unter 3 ms.", "Nahfeld-Gate unter 250 Hz: Martinshorn, Motor und Wind fallen weg.", "Eine Sprachaktivitätserkennung (VAD) lässt nur Sprachabschnitte weiter."],
+      en: ["Fine-tuned to the microphone array in our headset.", "Denoises every 20 ms frame in under 3 ms.", "Near-field gate below 250 Hz: siren, engine and wind are removed.", "Voice activity detection (VAD) passes on speech segments only."],
     },
   },
   {
     name: { de: "Phoneme & Silben", en: "Phonemes & syllables" },
-    tech: "wav2vec2 S2P · CTC",
-    short: "wav2vec2 · CTC",
+    tech: "Speech-to-phoneme · CTC",
+    short: "Phoneme · CTC",
     facts: {
       de: ["Sprache direkt zu IPA-Phonemen (CTC), ohne Wortlexikon.", "Blank-Frames ab 80 ms markieren Wortgrenzen.", "Deterministischer Silbentrenner (Sonorität + Maximal-Onset): genau ein Vokalkern pro Silbe."],
       en: ["Speech straight to IPA phonemes (CTC), no word lexicon.", "Blank frames of 80 ms or more mark word boundaries.", "Deterministic syllabifier (sonority + maximal onset): exactly one vowel nucleus per syllable."],
@@ -661,7 +661,7 @@ function renderAsrPipelineCards(block, lang) {
     const by = a.y + a.h - 4;
     if (group > 0.5) chip(ctx, P, L(lang, PIPE.nucleus), a.x, by, { color: P.amber, fill: rgba(P.amber, 0.14) });
     else if (term.boundaryAfter >= 0) chip(ctx, P, L(lang, PIPE.boundary), a.x, by, { color: P.amber, fill: rgba(P.amber, 0.14) });
-    else chip(ctx, P, "wav2vec2 · CTC", a.x, by, { color: P.soft, fill: rgba(P.ink, 0.06), mono: true });
+    else chip(ctx, P, "Phoneme · CTC", a.x, by, { color: P.soft, fill: rgba(P.ink, 0.06), mono: true });
   }
 
   // Syllable boxes (IPA) on top, written letters appear beneath — all at once.
