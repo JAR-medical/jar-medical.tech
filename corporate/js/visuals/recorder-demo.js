@@ -40,6 +40,10 @@ const S = {
   discard: { de: "Verwerfen", en: "Discard" },
   transcribe: { de: "Transkribieren", en: "Transcribe" },
   transcribing: { de: "Wird transkribiert …", en: "Transcribing …" },
+  llmNote: {
+    de: "Die Sprechertrennung läuft in dieser Demo noch ohne Kontrolle durch ein Sprachmodell (LLM). Sehr kurze Antworten wie „Ja.“ werden deshalb oft dem falschen Sprecher zugeordnet. Im Einsatzsystem korrigiert ein nachgeschaltetes LLM, das auf den Rettungsdienst-Kontext abgestimmt ist, diese Zuordnungen.",
+    en: "In this demo, speaker separation still runs without review by a language model (LLM). Very short answers such as “Yes.” are therefore often assigned to the wrong speaker. In the field system, a downstream LLM tuned to the paramedic context corrects these assignments.",
+  },
   speechLang: { de: "Sprache der Aufnahme", en: "Recording language" },
   noteLabel: { de: "Hinweis", en: "Note" },
   diarNote: {
@@ -668,6 +672,9 @@ function renderRecorder(block, lang) {
   // --- Disclaimer: diarization is tuned for the J.A.R. microphone array
   const note = el("div", { class: "callout callout-warn vr-note", role: "note" },
     el("span", { class: "callout-label" }, L(lang, S.noteLabel)), L(lang, S.diarNote));
+  // --- Disclaimer: no LLM review of the speaker assignment in the demo yet
+  const llmNote = el("div", { class: "callout callout-warn vr-note", role: "note" },
+    el("span", { class: "callout-label" }, L(lang, S.noteLabel)), L(lang, S.llmNote));
 
   // --- Script card, in the recording language
   const scriptBody = el("div", {});
@@ -733,7 +740,7 @@ function renderRecorder(block, lang) {
     el("div", { class: "vr-head" },
       el("p", { class: "vr-title" }, L(lang, S.title)),
       el("span", { class: "vr-chip", "data-on": String(configured) }, L(lang, configured ? S.serverOn : S.serverOff))),
-    note, langPick, script, recBtn, wave, status, take, out);
+    note, llmNote, langPick, script, recBtn, wave, status, take, out);
 
   // ---------------------------------------------------------------- output
   let view = null; // { segments, map, rows: [], segs: [], head, total }
