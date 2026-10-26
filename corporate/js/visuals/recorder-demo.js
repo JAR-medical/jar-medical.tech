@@ -359,7 +359,7 @@ const CSS = `
 const ARCH_NODES = [
   { name: { de: "Browser", en: "Browser" }, sub: { de: "jar-medical.tech · Aufnahme mit MediaRecorder", en: "jar-medical.tech · recording with MediaRecorder" } },
   { name: { de: "Cloudflare Tunnel", en: "Cloudflare Tunnel" }, sub: { de: "HTTPS · CORS nur für jar-medical.tech", en: "HTTPS · CORS only for jar-medical.tech" } },
-  { name: { de: "J.A.R.-Modellrechner", en: "J.A.R. model computer" }, sub: { de: "WhisperX + pyannote", en: "WhisperX + pyannote" } },
+  { name: { de: "J.A.R.-Modellrechner", en: "J.A.R. model computer" }, sub: { de: "Spracherkennung + Sprechertrennung", en: "speech recognition + speaker separation" } },
 ];
 
 // Timeline of one loop. at: node index or [from, to] for a transit leg.
@@ -388,13 +388,13 @@ const ARCH_STEPS = [
     code: "POST /transcribe · multipart/form-data · audio, language=de|en",
   },
   {
-    title: { de: "3 · Transkription (WhisperX)", en: "3 · Transcription (WhisperX)" },
-    text: { de: "WhisperX schreibt den Text und richtet jedes Wort zeitlich aus.", en: "WhisperX writes the text and time-aligns every word." },
+    title: { de: "3 · Transkription", en: "3 · Transcription" },
+    text: { de: "Die Spracherkennung schreibt den Text und richtet jedes Wort zeitlich aus.", en: "Speech recognition writes the text and time-aligns every word." },
     code: "text + word timestamps",
   },
   {
-    title: { de: "4 · Diarisierung (pyannote)", en: "4 · Diarization (pyannote)" },
-    text: { de: "pyannote erkennt, wer wann spricht – Einsatzkraft, Patient, Teamleitung – und vergibt Sprecher-IDs.", en: "pyannote detects who speaks when – responder, patient, team lead – and assigns speaker ids." },
+    title: { de: "4 · Diarisierung", en: "4 · Diarization" },
+    text: { de: "Die Sprechertrennung erkennt, wer wann spricht – Einsatzkraft, Patient, Teamleitung – und vergibt Sprecher-IDs.", en: "Speaker separation detects who speaks when – responder, patient, team lead – and assigns speaker ids." },
     code: "SPEAKER_00 · SPEAKER_01 · SPEAKER_02",
   },
   {
@@ -423,8 +423,8 @@ function renderArchitecture(block, lang) {
   nodes[0].append(browserViz, browserRows);
   const tunnelTag = el("span", { class: "vr-tag" }, "HTTPS");
   nodes[1].append(el("div", { class: "vr-tags" }, tunnelTag, el("span", { class: "vr-tag" }, "CORS")));
-  const asrTag = el("span", { class: "vr-tag" }, "WhisperX");
-  const diaTag = el("span", { class: "vr-tag" }, "pyannote");
+  const asrTag = el("span", { class: "vr-tag" }, L(lang, { de: "Text", en: "text" }));
+  const diaTag = el("span", { class: "vr-tag" }, L(lang, { de: "Sprecher", en: "speakers" }));
   nodes[2].append(el("div", { class: "vr-tags" }, asrTag, diaTag));
 
   const packetLabel = el("span", { class: "vr-packet-label" });
@@ -470,8 +470,8 @@ function renderArchitecture(block, lang) {
   const root = el("figure", {
     class: "vr-arch", role: "group",
     "aria-label": L(lang, {
-      de: "Animiertes Diagramm: Die Aufnahme geht vom Browser über einen Cloudflare Tunnel zum J.A.R.-Modellrechner; WhisperX transkribiert, pyannote trennt die Sprecher, diarisiertes JSON kommt zurück.",
-      en: "Animated diagram: the recording goes from the browser through a Cloudflare Tunnel to the J.A.R. model computer; WhisperX transcribes, pyannote separates the speakers, diarized JSON comes back.",
+      de: "Animiertes Diagramm: Die Aufnahme geht vom Browser über einen Cloudflare Tunnel zum J.A.R.-Modellrechner; er transkribiert und trennt die Sprecher, diarisiertes JSON kommt zurück.",
+      en: "Animated diagram: the recording goes from the browser through a Cloudflare Tunnel to the J.A.R. model computer; it transcribes and separates the speakers, diarized JSON comes back.",
     }),
   },
   head, flow, payload,

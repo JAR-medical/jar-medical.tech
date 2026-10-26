@@ -16,8 +16,8 @@ export default {
     en: "Record a triage dialogue, see speakers separated",
   },
   summary: {
-    de: "Nehmen Sie im Browser einen kurzen mSTART-Sichtungsdialog auf. Die Demo zeigt, wie WhisperX und pyannote daraus ein Transkript mit Zeitstempeln und Sprecherspuren machen – damit nur Befunde der Einsatzkraft in die Patientenakte gelangen.",
-    en: "Record a short mSTART triage dialogue in your browser. The demo shows how WhisperX and pyannote turn it into a transcript with timestamps and speaker tracks – so that only the responder's findings reach the patient record.",
+    de: "Nehmen Sie im Browser einen kurzen mSTART-Sichtungsdialog auf. Die Demo zeigt, wie daraus ein Transkript mit Zeitstempeln und Sprecherspuren wird – damit nur Befunde der Einsatzkraft in die Patientenakte gelangen.",
+    en: "Record a short mSTART triage dialogue in your browser. The demo shows how it becomes a transcript with timestamps and speaker tracks – so that only the responder's findings reach the patient record.",
   },
   audience: {
     de: "Ärztliche Leitungen Rettungsdienst, Einsatzleitungen, Forschungspartner",
