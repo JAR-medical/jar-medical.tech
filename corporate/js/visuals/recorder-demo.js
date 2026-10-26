@@ -40,7 +40,12 @@ const S = {
   discard: { de: "Verwerfen", en: "Discard" },
   transcribe: { de: "Transkribieren", en: "Transcribe" },
   transcribing: { de: "Wird transkribiert …", en: "Transcribing …" },
-  langNote: { de: "Sprache: Deutsch", en: "Language: English" },
+  speechLang: { de: "Sprache der Aufnahme", en: "Recording language" },
+  noteLabel: { de: "Hinweis", en: "Note" },
+  diarNote: {
+    de: "Die Sprechertrennung ist auf das Mikrofon-Array von J.A.R. abgestimmt. Mit anderen Geräten, etwa dem Mikrofon eines Laptops oder Smartphones, ordnet sie Stimmen weniger zuverlässig den richtigen Sprechern zu.",
+    en: "Speaker separation is optimized for the J.A.R. microphone array. On other devices, such as a laptop or phone microphone, it assigns voices to the right speakers less reliably.",
+  },
   outTitle: { de: "Transkript", en: "Transcript" },
   copy: { de: "Als Text kopieren", en: "Copy as text" },
   copied: { de: "Transkript in die Zwischenablage kopiert.", en: "Transcript copied to the clipboard." },
@@ -123,6 +128,9 @@ const SCRIPTS = [
     { role: { de: "Einsatzkraft", en: "Responder" }, text: { de: "Ja. Atemfrequenz zweiunddreißig, Rekapillarisierung über zwei Sekunden. Sichtungskategorie eins, rot.", en: "Yes. Respiratory rate thirty-two, capillary refill over two seconds. Triage category one, red." } },
   ],
 ];
+
+// Languages the transcription server accepts, each named in its own language.
+const SPEECH_LANGS = { de: "Deutsch", en: "English" };
 
 // Speaker colours, assigned in order of first appearance.
 const SPEAKER_TONES = ["var(--accent)", "var(--sig-amber)", "var(--sig-green)", "var(--sig-red)", "var(--ink-soft)"];
@@ -255,7 +263,15 @@ const CSS = `
 .vr-take[hidden] { display: none; }
 .vr-take-time { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .vr-take-gap { flex: 1; }
-.vr-lang { font-size: 0.75rem; color: var(--ink-faint); }
+.vr-note { margin: 0 0 var(--sp-4); font-size: 0.8rem; line-height: 1.5; }
+.vr-note .callout-label { margin-bottom: var(--sp-1); }
+.vr-langpick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); font-size: 0.75rem; color: var(--ink-faint); }
+.vr-langpick-opts { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-pill); overflow: hidden; }
+.vr-lang-btn { padding: 0.3rem 0.8rem; border: 0; background: transparent; color: var(--ink-soft); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.vr-lang-btn + .vr-lang-btn { border-left: 1px solid var(--line-strong); }
+.vr-lang-btn[aria-pressed="true"] { background: var(--brand-mint); color: var(--brand-navy); }
+.vr-lang-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+.vr-lang-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* Output field */
 .vr-out { margin-top: var(--sp-5); border: 1px solid var(--line-strong); border-radius: var(--r-md); overflow: hidden; }
@@ -619,19 +635,37 @@ function renderRecorder(block, lang) {
     busy: false,
     abort: null,
     scriptIndex: 0,
+    speechLang: lang === "en" ? "en" : "de",  // what is spoken; starts with the page language
   };
 
-  // --- Script card
+  // --- Disclaimer: diarization is tuned for the J.A.R. microphone array
+  const note = el("div", { class: "callout callout-warn vr-note", role: "note" },
+    el("span", { class: "callout-label" }, L(lang, S.noteLabel)), L(lang, S.diarNote));
+
+  // --- Script card, in the recording language
   const scriptBody = el("div", {});
   const showScript = () => {
     scriptBody.replaceChildren(...SCRIPTS[st.scriptIndex].map((line) => el("p", { class: "vr-script-line" },
-      el("span", { class: "vr-script-role" }, L(lang, line.role)),
-      el("span", {}, L(lang, line.text)))));
+      el("span", { class: "vr-script-role" }, L(st.speechLang, line.role)),
+      el("span", {}, L(st.speechLang, line.text)))));
   };
   showScript();
   const scriptBtn = el("button", { class: "btn btn-outline btn-small", type: "button", onclick: () => { st.scriptIndex = (st.scriptIndex + 1) % SCRIPTS.length; showScript(); } }, L(lang, S.scriptNext));
-  const script = el("figure", { class: "vr-script", lang },
+  const script = el("figure", { class: "vr-script", lang: st.speechLang },
     el("div", { class: "vr-script-top" }, el("span", {}, L(lang, S.scriptLabel)), scriptBtn), scriptBody);
+
+  // --- Recording language: sent with the take, also switches the script
+  const langBtns = Object.entries(SPEECH_LANGS).map(([code, name]) => el("button", {
+    class: "vr-lang-btn", type: "button", lang: code, "data-lang": code, "aria-pressed": String(code === st.speechLang),
+    onclick: () => {
+      st.speechLang = code;
+      for (const b of langBtns) b.setAttribute("aria-pressed", String(b.dataset.lang === code));
+      script.setAttribute("lang", code);
+      showScript();
+    },
+  }, name));
+  const langPick = el("div", { class: "vr-langpick", role: "group", "aria-label": L(lang, S.speechLang) },
+    el("span", {}, L(lang, S.speechLang)), el("div", { class: "vr-langpick-opts" }, ...langBtns));
 
   // --- Record button
   const btnLabel = el("span", { class: "vr-btn-label" }, L(lang, S.start));
@@ -659,7 +693,7 @@ function renderRecorder(block, lang) {
   const discardBtn = el("button", { class: "btn btn-outline btn-small", type: "button" }, L(lang, S.discard));
   const transcribeBtn = el("button", { class: "btn btn-primary btn-small", type: "button" }, L(lang, S.transcribe));
   const take = el("div", { class: "vr-take", hidden: true },
-    playBtn, takeTime, discardBtn, el("span", { class: "vr-take-gap" }), el("span", { class: "vr-lang" }, L(lang, S.langNote)), transcribeBtn);
+    playBtn, takeTime, discardBtn, el("span", { class: "vr-take-gap" }), transcribeBtn);
 
   // --- Output field
   const copyBtn = el("button", { class: "btn btn-outline btn-small", type: "button", hidden: true }, L(lang, S.copy));
@@ -672,7 +706,7 @@ function renderRecorder(block, lang) {
     el("div", { class: "vr-head" },
       el("p", { class: "vr-title" }, L(lang, S.title)),
       el("span", { class: "vr-chip", "data-on": String(configured) }, L(lang, configured ? S.serverOn : S.serverOff))),
-    script, recBtn, wave, status, take, out);
+    note, langPick, script, recBtn, wave, status, take, out);
 
   // ---------------------------------------------------------------- output
   let view = null; // { segments, map, rows: [], segs: [], head, total }
@@ -781,6 +815,7 @@ function renderRecorder(block, lang) {
     recBtn.disabled = p === "starting" || p === "stopping" || st.busy;
     recBtn.setAttribute("aria-pressed", String(p === "recording"));
     scriptBtn.disabled = p !== "idle";
+    for (const b of langBtns) b.disabled = p !== "idle" || st.busy;
     take.hidden = !st.take || p !== "idle";
     transcribeBtn.disabled = !st.take || st.busy;
     transcribeBtn.textContent = L(lang, st.busy ? S.transcribing : S.transcribe);
@@ -1039,7 +1074,7 @@ function renderRecorder(block, lang) {
     try {
       const form = new FormData();
       form.append("audio", blob, `aufnahme.${extFor(blob.type)}`);
-      form.append("language", lang === "en" ? "en" : "de");
+      form.append("language", st.speechLang);
       let res;
       try {
         res = await fetch(`${endpoint}/transcribe`, { method: "POST", body: form, signal: ctrl.signal, credentials: "omit", mode: "cors" });
