@@ -12,6 +12,10 @@ The info page uses the same-origin Cloudflare country response to default
 German visitors to German, with browser language as the offline fallback.
 An explicit language selection is remembered and takes precedence.
 
+The demo retries each failed or stalled map tile once. If the map remains
+incomplete, it switches to the included local road network and reports the
+change in the event log. Select an OpenStreetMap base layer to reconnect.
+
 All information on setup, the backend and operations lives in the private
 repository **`JAR-medical/website_setup`**. That covers the site overview, the
 J.A.R. Corporate portal with Supabase and its security model, the transcription

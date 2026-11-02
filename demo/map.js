@@ -29,13 +29,61 @@ const KARTE = (function () {
   const KACHELN = {
     hell: {
       url: OSM_URL,
-      opt: { maxZoom: 19, className: "kachel-hell", attribution: OSM_ATTR },
+      opt: { maxZoom: 19, className: "kachel-hell", attribution: OSM_ATTR,
+        updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 1,
+        referrerPolicy: "strict-origin-when-cross-origin" },
     },
     osm: {
       url: OSM_URL,
-      opt: { maxZoom: 19, attribution: OSM_ATTR },
+      opt: { maxZoom: 19, attribution: OSM_ATTR,
+        updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 1,
+        referrerPolicy: "strict-origin-when-cross-origin" },
     },
   };
+
+  /* Auch eine teilweise geladene Karte kann Luecken behalten: ein globaler
+   * Erfolgszaehler erkennt das nicht. Jede noch benoetigte Kachel bekommt
+   * deshalb einen begrenzten Neuversuch mit derselben, normal gecachten URL.
+   * Nach einem weiteren Fehler/Timeout greift das lokale Wegenetz. */
+  function kachelnUeberwachen(ebene, beiAusfall) {
+    const offen = new Map();
+    let gemeldet = false;
+    function loeschen(tile) {
+      const zustand = offen.get(tile);
+      if (zustand) clearTimeout(zustand.timer);
+      offen.delete(tile);
+    }
+    function alleLoeschen() {
+      for (const tile of offen.keys()) loeschen(tile);
+    }
+    function erneut(tile) {
+      const zustand = offen.get(tile);
+      if (!zustand || gemeldet) return;
+      clearTimeout(zustand.timer);
+      if (tile.complete && tile.naturalWidth > 0) { loeschen(tile); return; }
+      if (zustand.versucht) {
+        gemeldet = true;
+        alleLoeschen();
+        beiAusfall();
+        return;
+      }
+      zustand.versucht = true;
+      zustand.timer = setTimeout(() => erneut(tile), 8000);
+      tile.removeAttribute("src");
+      tile.src = zustand.url;
+    }
+    ebene.on("add", () => { gemeldet = false; });
+    ebene.on("tileloadstart", (e) => {
+      loeschen(e.tile);
+      offen.set(e.tile, {
+        url: e.tile.src, versucht: false,
+        timer: setTimeout(() => erneut(e.tile), 8000),
+      });
+    });
+    ebene.on("tileload tileunload", (e) => loeschen(e.tile));
+    ebene.on("tileerror", (e) => erneut(e.tile));
+    ebene.on("remove", alleLoeschen);
+  }
 
   /* ------------------------------------------------------------------ Aufbau */
 
@@ -132,21 +180,16 @@ const KARTE = (function () {
 
     basis.hell = L.tileLayer(KACHELN.hell.url, KACHELN.hell.opt);
     basis.osm = L.tileLayer(KACHELN.osm.url, KACHELN.osm.opt);
-    basis.hell.addTo(map);
-
-    // Ohne Netz kommen keine Kacheln an. Dann wird auf das mitgelieferte
-    // OSM-Wegenetz umgeschaltet, damit das Lagebild trotzdem lesbar bleibt.
-    let kachelnDa = 0;
-    basis.hell.on("tileload", () => { kachelnDa++; });
-    basis.osm.on("tileload", () => { kachelnDa++; });
-    setTimeout(() => {
-      if (kachelnDa === 0 && aktiveBasis !== "leer") {
+    for (const ebene of Object.values(basis)) {
+      kachelnUeberwachen(ebene, () => {
+        if (!map.hasLayer(ebene)) return;
         basisSetzen("leer");
         const sel = document.getElementById("basiskarte");
         if (sel) sel.value = "leer";
-        TR.ereignis("system", "Keine Kartenkacheln erreichbar - Anzeige auf mitgeliefertes Wegenetz umgestellt");
-      }
-    }, 7000);
+        TR.ereignis("system", "Kartenkacheln auch nach erneutem Laden unvollständig - Anzeige auf mitgeliefertes Wegenetz umgestellt. Kartengrundlage zum erneuten Verbinden auswählen.");
+      });
+    }
+    basis.hell.addTo(map);
 
     for (const k of ["netz", "raster", "abschnitte", "gefahren", "sperren", "poi",
       "spuren", "patienten", "mittel", "label"]) {

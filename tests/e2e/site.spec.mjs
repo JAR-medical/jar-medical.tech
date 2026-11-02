@@ -261,6 +261,28 @@ test.describe('the call to action', () => {
 });
 
 test.describe('the TriARge demo map', () => {
+  test('a failed tile retries the same URL and fills the missing part of the map', async ({ page, baseURL }) => {
+    let failedUrl;
+    let attempts = 0;
+    await page.route('https://tile.openstreetmap.org/**', async route => {
+      const url = route.request().url();
+      if (!failedUrl) failedUrl = url;
+      if (url === failedUrl && ++attempts === 1) {
+        await route.abort('failed');
+      } else {
+        // The hermetic tile fixture supplies the successful retry. No public
+        // tile server is contacted by this test.
+        await route.fallback();
+      }
+    });
+    await page.goto(`${baseURL}/demo/neubiberg/`);
+    await expect.poll(() => attempts).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => page.locator('#map img.leaflet-tile').evaluateAll(
+      (tiles, url) => tiles.some(tile => tile.src === url && tile.complete && tile.naturalWidth > 0), failedUrl,
+    )).toBe(true);
+    await expect(page.locator('#basiskarte')).toHaveValue('hell');
+  });
+
   test(
     'loads the Neubiberg map from OpenStreetMap without a CARTO key',
     async ({ page, baseURL, tileStub, pageProblems }) => {
