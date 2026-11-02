@@ -1,0 +1,166 @@
+/* The German HTML is complete without JavaScript. Enhancements only switch
+   language, open the compact menu, and select explicitly illustrative examples. */
+(function () {
+  'use strict';
+
+  const english = {
+    skip: 'Skip to content',
+    nav_idea: 'The idea', nav_tech: 'Transcription', nav_team: 'About us', nav_sectors: 'Applications',
+    nav_demo: 'Live demo <span aria-hidden="true">↗</span>',
+    hero_eyebrow: 'J.A.R. Medical · Medical speech recognition',
+    hero_title: 'More time<br>with people.<br><span>Every word counts.</span>',
+    hero_lead: 'Caring for people is demanding enough.<br> We are developing speech recognition that lets medical documentation begin where it happens: with the patient.',
+    hero_demo: 'Experience the app live <span aria-hidden="true">↗</span>',
+    hero_more: 'Our story <span aria-hidden="true">↓</span>',
+    hero_note: 'Interactive simulation · Right in your browser',
+    hero_bottom: 'Speak. Record. Keep caring.',
+    hero_credit: 'Berlin, April 2020 · Koffeeinist / CC BY-SA 4.0',
+    partner_eyebrow: 'Moving forward together',
+    partner_intro: 'Support from<br>practice and research.',
+    partner_drk: 'Pilot projects & practical expertise',
+    partner_tum: 'Technology, equipment & research',
+    partner_dlr: 'Imaging, data & integration',
+    idea_eyebrow: '01 / Making the idea tangible',
+    idea_title: 'You speak.<br><span>J.A.R. takes notes.</span>',
+    idea_lead: 'An observation, a procedure, a handover. So much is said during care. And then written down all over again.',
+    idea_body: 'This is where we begin: medical transcription is our focus. Spoken information should become useful documentation directly. Our AR prototype explores how to keep that information in view.',
+    principle_voice: 'Speech as input', principle_edge: 'Local processing', principle_ar: 'Information in view',
+    idea_more: 'From words to a record <span aria-hidden="true">↓</span>',
+    product_tag: 'Our prototype being tested',
+    product_caption: 'Real development, a real prototype. Our goal: less attention on forms, more attention on the person.',
+    tech_eyebrow: '02 / At the heart: transcription',
+    tech_title: 'Spoken words.<br><span>Lasting information.</span>',
+    tech_intro: 'We are working on speech recognition for medical language: in real time, locally, and without an internet connection. Transcripts can then become structured records.',
+    example_label: 'How a record could take shape', example_badge: 'Example',
+    example_rescue: 'Emergency care', example_care: 'Nursing', field_id: 'Patient ID',
+    example_note: 'Illustrative example. No live recording, no patient data.',
+    tech_one_title: 'Medicine has its own language.',
+    tech_one_body: 'Specialist terms, abbreviations, new words: we are developing the model with the goal of high zero-shot accuracy, without training on site.',
+    tech_two_title: 'Designed around the point of care.',
+    tech_two_body: 'Local processing is part of our approach. Care also happens in places where the network cannot keep up.',
+    tech_three_title: 'More than a long piece of text.',
+    tech_three_body: 'Patient ID, observation and time become useful fields. Clinical review remains with the person providing care.',
+    tech_demo: 'Talk to us about a demo <span aria-hidden="true">↗</span>',
+    system_eyebrow: '03 / From individual words to the bigger picture',
+    system_title: 'One piece of information.<br><span>Many helping hands.</span>',
+    system_lead: 'Our story begins in disaster response. It makes the consequences of information staying on paper, or being relayed repeatedly, particularly clear.',
+    system_body: 'TriARge connects voice documentation with patient identification, an AR view and a shared incident-command dashboard. Its local architecture keeps the simulation running without the cloud.',
+    flow_one_title: 'Speak', flow_one_body: 'Record observations and procedures.',
+    flow_two_title: 'Connect', flow_two_body: 'Link a record to a verified patient identifier.',
+    flow_three_title: 'Keep it in view', flow_three_body: 'Access information through the AR view.',
+    flow_four_title: 'Share the overview', flow_four_body: 'See updates on the incident-command dashboard.',
+    prototype_note: 'Development prototype for exercises and simulations. Not a certified medical device.',
+    system_demo: 'Experience the workflow <span aria-hidden="true">↗</span>',
+    team_eyebrow: '04 / The people behind it',
+    team_title: 'From an idea<br><span>to a shared project.</span>',
+    team_body: 'Johannes Nirschl, Alexander Kluge and Jonas Kaindl started J.A.R. at Gymnasium Neubiberg. We develop the model, hardware and software ourselves, learning through exchange with practitioners and researchers.',
+    team_contact: 'Start a conversation <span aria-hidden="true">↗</span>',
+    team_caption: 'Development thrives on exchange. A glimpse of the TUM XR Group.',
+    sectors_eyebrow: 'Your next step',
+    sectors_title: 'One idea.<br><span>Many places to make a difference.</span>',
+    sectors_intro: 'From care at home to a major incident: discover what we are developing for your field.',
+    sector_care_label: 'Nursing', sector_care_title: 'Time for people.',
+    sector_care_body: 'Our approach to nursing and everyday documentation.',
+    sector_hospital_label: 'Hospital', sector_hospital_title: 'At the bedside.',
+    sector_hospital_body: 'Capture spoken information where care takes place.',
+    sector_rescue_label: 'Emergency services', sector_rescue_title: 'Through to handover.',
+    sector_rescue_body: 'Documentation from first contact to arrival at the hospital.',
+    sector_disaster_label: 'Disaster response', sector_disaster_title: 'The bigger picture.',
+    sector_disaster_body: 'Explore voice records, AR and a shared incident overview together.',
+    closing: 'The next good idea starts with a conversation.',
+    closing_cta: 'Contribute to the project <span aria-hidden="true">↗</span>',
+    footer_care: 'Home-care services <span aria-hidden="true">↗</span>',
+    legal_imprint: 'Legal notice', legal_privacy: 'Privacy', legal_terms: 'Terms of use',
+    credits_title: 'Photo credits',
+    credits_note: 'Original files unchanged; cropped and darkened through the page layout. Other photographs supplied by the project. Emergency-response photographs illustrate the context and do not show J.A.R. in use.'
+  };
+  const englishAlt = {
+    product_alt: 'Our prototype being tested: a person wearing AR glasses and medical gloves holds a triage card.',
+    exercise_alt: 'A German Red Cross mass-casualty exercise with response vehicles and treatment equipment.',
+    team_alt: 'Group photograph of the TUM XR Group.'
+  };
+  const examples = {
+    de: {
+      rescue: ['„Patient A7 ist ansprechbar. Übergabe um vierzehn Uhr sieben.“', 'A7', 'Beobachtung', 'Ansprechbar', 'Übergabe', '14:07'],
+      care: ['„Bewohnerin P3, Mobilisation begleitet, um acht Uhr dreißig.“', 'P3', 'Maßnahme', 'Mobilisation begleitet', 'Uhrzeit', '08:30']
+    },
+    en: {
+      rescue: ['“Patient A7 is responsive. Handover at fourteen oh seven.”', 'A7', 'Observation', 'Responsive', 'Handover', '14:07'],
+      care: ['“Resident P3, assisted mobilisation, at eight thirty.”', 'P3', 'Procedure', 'Assisted mobilisation', 'Time', '08:30']
+    }
+  };
+  const copyNodes = Array.from(document.querySelectorAll('[data-copy]'));
+  const altNodes = Array.from(document.querySelectorAll('[data-alt]'));
+  const german = new Map(copyNodes.map(node => [node, node.innerHTML]));
+  const germanAlt = new Map(altNodes.map(node => [node, node.alt]));
+  const originalTitle = document.title;
+  const description = document.querySelector('meta[name="description"]');
+  const originalDescription = description.content;
+  let language = 'de';
+  let selectedExample = 'rescue';
+
+  function renderExample() {
+    const ids = ['example-sentence', 'example-id', 'example-detail-label', 'example-detail', 'example-time-label', 'example-time'];
+    examples[language][selectedExample].forEach((text, index) => {
+      document.getElementById(ids[index]).textContent = text;
+    });
+    document.querySelectorAll('[data-example]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.example === selectedExample));
+    });
+  }
+
+  function applyLanguage(nextLanguage) {
+    language = nextLanguage === 'en' ? 'en' : 'de';
+    document.documentElement.lang = language;
+    copyNodes.forEach(node => {
+      node.innerHTML = language === 'en' ? english[node.dataset.copy] || german.get(node) : german.get(node);
+    });
+    altNodes.forEach(node => {
+      node.alt = language === 'en' ? englishAlt[node.dataset.alt] : germanAlt.get(node);
+    });
+    document.querySelectorAll('[data-language]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.language === language));
+    });
+    document.title = language === 'en' ? 'J.A.R. Medical — More time with people. Every word recorded.' : originalTitle;
+    description.content = language === 'en' ? 'From spoken words to medical documentation: meet J.A.R. Medical, our AR prototype and the people behind the project. Explore the interactive live demo.' : originalDescription;
+    renderExample();
+    try { localStorage.setItem('jarLang', language); } catch (_) { /* Storage is optional. */ }
+  }
+
+  document.querySelectorAll('[data-language]').forEach(button => {
+    button.addEventListener('click', () => applyLanguage(button.dataset.language));
+  });
+  document.querySelectorAll('[data-example]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedExample = button.dataset.example;
+      renderExample();
+    });
+  });
+  document.querySelector('.languages').hidden = false;
+  document.querySelector('.example-tabs').hidden = false;
+  let savedLanguage;
+  try { savedLanguage = localStorage.getItem('jarLang'); } catch (_) { /* Use the German document. */ }
+  applyLanguage(savedLanguage);
+
+  const nav = document.querySelector('.nav');
+  const toggle = document.querySelector('.menu-toggle');
+  toggle.hidden = false;
+  function closeMenu() {
+    nav.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+  document.querySelector('.nav-links').addEventListener('click', event => {
+    if (event.target.closest('a')) closeMenu();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && nav.classList.contains('is-open')) {
+      closeMenu();
+      toggle.focus();
+    }
+  });
+  window.matchMedia('(min-width: 801px)').addEventListener('change', closeMenu);
+})();
