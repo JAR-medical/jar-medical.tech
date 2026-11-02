@@ -69,7 +69,10 @@
     sector_disaster_body: 'Explore voice records, AR and a shared incident overview together.',
     closing: 'The next good idea starts with a conversation.',
     closing_cta: 'Contribute to the project <span aria-hidden="true">↗</span>',
-    footer_care: 'Home-care services <span aria-hidden="true">↗</span>',
+    footer_blurb: 'J.A.R. Medical develops speech recognition for people who care for people: in nursing, disaster response and emergency services. On the device, in real time, even offline.',
+    footer_website: 'Website', footer_homecare: 'Home-care services',
+    footer_project: 'Project', footer_join: 'Contribute', footer_request: 'Request a demo',
+    footer_live: 'Experience the app live', footer_contact: 'Contact',
     legal_imprint: 'Legal notice', legal_privacy: 'Privacy', legal_terms: 'Terms of use',
     credits_title: 'Photo credits',
     credits_note: 'Original files unchanged; cropped and darkened through the page layout. Other photographs supplied by the project. Emergency-response photographs illustrate the context and do not show J.A.R. in use.'
@@ -98,6 +101,8 @@
   const originalDescription = description.content;
   let language = 'de';
   let selectedExample = 'rescue';
+  const languageStore = 'jar.info.language';
+  let languageChosen = false;
 
   function renderExample() {
     const ids = ['example-sentence', 'example-id', 'example-detail-label', 'example-detail', 'example-time-label', 'example-time'];
@@ -124,11 +129,19 @@
     document.title = language === 'en' ? 'J.A.R. Medical — More time with people. Every word recorded.' : originalTitle;
     description.content = language === 'en' ? 'From spoken words to medical documentation: meet J.A.R. Medical, our AR prototype and the people behind the project. Explore the interactive live demo.' : originalDescription;
     renderExample();
-    try { localStorage.setItem('jarLang', language); } catch (_) { /* Storage is optional. */ }
   }
 
   document.querySelectorAll('[data-language]').forEach(button => {
-    button.addEventListener('click', () => applyLanguage(button.dataset.language));
+    button.addEventListener('click', () => {
+      languageChosen = true;
+      applyLanguage(button.dataset.language);
+      try {
+        // Only an explicit choice persists; old automatic defaults must not
+        // override the country on a later visit. Share it with the main site.
+        localStorage.setItem(languageStore, language);
+        localStorage.setItem('jar.lang', language);
+      } catch (_) { /* Storage is optional. */ }
+    });
   });
   document.querySelectorAll('[data-example]').forEach(button => {
     button.addEventListener('click', () => {
@@ -139,8 +152,25 @@
   document.querySelector('.languages').hidden = false;
   document.querySelector('.example-tabs').hidden = false;
   let savedLanguage;
-  try { savedLanguage = localStorage.getItem('jarLang'); } catch (_) { /* Use the German document. */ }
-  applyLanguage(savedLanguage);
+  try { savedLanguage = localStorage.getItem(languageStore); } catch (_) { /* Storage is optional. */ }
+  const browserLanguage = (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en';
+  if (savedLanguage === 'de' || savedLanguage === 'en') {
+    applyLanguage(savedLanguage);
+  } else {
+    applyLanguage(browserLanguage);
+    // Cloudflare supplies the country on this same-origin endpoint. No GPS,
+    // external geolocation service or location data is stored. If unavailable
+    // (including a local preview), the browser-language fallback stays in place.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    fetch('/cdn-cgi/trace', { signal: controller.signal, credentials: 'omit', cache: 'no-store' })
+      .then(response => response.ok ? response.text() : '')
+      .then(trace => {
+        if (!languageChosen && /^loc=DE\s*$/m.test(trace)) applyLanguage('de');
+      })
+      .catch(() => { /* Country lookup is optional. */ })
+      .finally(() => clearTimeout(timeout));
+  }
 
   const nav = document.querySelector('.nav');
   const toggle = document.querySelector('.menu-toggle');

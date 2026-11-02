@@ -8,6 +8,9 @@ focus, early partner logos and live-demo links, and links to the sector pages.
 German content works without JavaScript; English, mobile navigation and the
 illustrative transcription examples are added by `info/info.js`. Photo sources
 and licenses are retained in the page footer.
+The info page uses the same-origin Cloudflare country response to default
+German visitors to German, with browser language as the offline fallback.
+An explicit language selection is remembered and takes precedence.
 
 All information on setup, the backend and operations lives in the private
 repository **`JAR-medical/website_setup`**. That covers the site overview, the
