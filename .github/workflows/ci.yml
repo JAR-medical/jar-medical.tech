@@ -28,7 +28,8 @@ jobs:
   e2e:
     name: End-to-end
     needs: unit
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 supports Ubuntu 24.04, not the newer ubuntu-latest image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
