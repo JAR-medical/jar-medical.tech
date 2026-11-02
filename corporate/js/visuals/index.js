@@ -6,7 +6,8 @@ import { VISUALS as arMesh } from "./ar-mesh.js";
 import { VISUALS as kartierung } from "./kartierung.js";
 import { VISUALS as recorder } from "./recorder-demo.js";
 import { VISUALS as droneMesh } from "./drone-mesh.js";
+import { VISUALS as lagekarte } from "./lagekarte.js";
 
-export const VISUALS = { ...transkription, ...arMesh, ...kartierung, ...recorder, ...droneMesh };
+export const VISUALS = { ...transkription, ...arMesh, ...kartierung, ...recorder, ...droneMesh, ...lagekarte };
 
 export const VISUAL_TYPES = Object.freeze(Object.keys(VISUALS));
