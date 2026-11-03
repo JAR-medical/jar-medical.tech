@@ -17,7 +17,10 @@
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <link rel="preload" as="image" href="assets/ambulance-berlin.jpg" fetchpriority="high">
   <link rel="stylesheet" href="style.css?v=2">
-  <script src="info.js?v=2" defer></script>
+  <script src="info.js?v=3" defer></script>
+
+<link rel="stylesheet" href="../assets/vote-banner.css?v=1">
+<script src="../assets/vote-banner.js?v=1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main" data-copy="skip">Zum Inhalt springen</a>
@@ -52,7 +55,7 @@
       <div class="hero-content wrap">
         <p class="eyebrow" data-copy="hero_eyebrow">J.A.R. Medical · Medizinische Spracherkennung</p>
         <h1 id="hero-title" data-copy="hero_title">Mehr Zeit<br>am Menschen.<br><span>Jedes Wort zählt.</span></h1>
-        <p class="hero-lead" data-copy="hero_lead">Wer Menschen versorgt, hat schon genug zu tun.<br> Wir entwickeln Spracherkennung, die medizinische Dokumentation dort beginnen lässt, wo sie entsteht: am Patienten.</p>
+        <p class="hero-lead" data-copy="hero_lead">Wir entwickeln medizinische Spracherkennung, die Gesprochenes direkt am Patienten in Dokumentation verwandelt.</p>
         <div class="actions">
           <a class="button" href="../demo/" data-copy="hero_demo">App live erleben <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="#idee" data-copy="hero_more">Unsere Geschichte <span aria-hidden="true">↓</span></a>
@@ -78,14 +81,14 @@
       <div class="product-copy">
         <p class="eyebrow" data-copy="idea_eyebrow">01 / Die Idee wird greifbar</p>
         <h2 id="idea-title" data-copy="idea_title">Sie sprechen.<br><span>J.A.R. schreibt mit.</span></h2>
-        <p class="lead" data-copy="idea_lead">Eine Beobachtung, eine Maßnahme, eine Übergabe. Im Einsatz wird vieles ausgesprochen. Und später noch einmal aufgeschrieben.</p>
-        <p data-copy="idea_body">Genau hier setzen wir an: Unser Schwerpunkt ist die medizinische Transkription. Gesprochene Informationen sollen direkt zu nutzbarer Dokumentation werden. Unser AR-Prototyp zeigt, wie sie dabei im Blickfeld bleiben können.</p>
+        <p class="lead" data-copy="idea_lead">Beobachtungen und Maßnahmen werden im Einsatz ausgesprochen – und später noch einmal aufgeschrieben.</p>
+        <p data-copy="idea_body">J.A.R. soll daraus nutzbare Dokumentation machen. Unser AR-Prototyp hält die Informationen im Blickfeld.</p>
         <div class="product-principles"><span data-copy="principle_voice">Sprache als Eingabe</span><span data-copy="principle_edge">Lokale Verarbeitung</span><span data-copy="principle_ar">Information im Blick</span></div>
         <a class="text-link" href="#transkription" data-copy="idea_more">Vom Wort zum Eintrag <span aria-hidden="true">↓</span></a>
       </div>
       <figure class="product-figure">
         <div class="photo-frame"><img src="assets/product-in-use.jpg" alt="Unser Prototyp im Test: Eine Person mit AR-Brille und medizinischen Handschuhen hält eine Sichtungskarte." width="1089" height="972" loading="lazy" decoding="async" data-alt="product_alt"><span class="photo-tag" data-copy="product_tag">Unser Prototyp im Test</span></div>
-        <figcaption data-copy="product_caption">Echte Entwicklung, echter Prototyp. Unser Ziel: weniger Blick aufs Formular, mehr Aufmerksamkeit für den Menschen.</figcaption>
+        <figcaption data-copy="product_caption">Weniger Formular, mehr Aufmerksamkeit für den Menschen.</figcaption>
       </figure>
     </section>
 
@@ -93,11 +96,11 @@
       <div class="wrap">
         <div class="section-heading">
           <div><p class="eyebrow" data-copy="tech_eyebrow">02 / Das Herzstück: Transkription</p><h2 id="transcription-title" data-copy="tech_title">Aus Gesagtem wird<br><span>etwas, das bleibt.</span></h2></div>
-          <p class="section-intro" data-copy="tech_intro">Wir arbeiten an Spracherkennung für medizinische Fachsprache: in Echtzeit, lokal und auch ohne Internet. Aus dem Transkript können strukturierte Einträge entstehen.</p>
+          <p class="section-intro" data-copy="tech_intro">Medizinische Fachsprache in Echtzeit transkribieren und strukturieren – lokal, auch ohne Internet. Daran arbeiten wir.</p>
         </div>
         <div class="transcription-grid">
           <div class="transcript-panel">
-            <div class="panel-top"><p class="eyebrow" data-copy="example_label">So könnte ein Eintrag entstehen</p><span class="example-badge" data-copy="example_badge">Beispiel</span></div>
+            <div class="panel-top"><p class="eyebrow" data-copy="example_label">Vom Satz zum Eintrag</p><span class="example-badge" data-copy="example_badge">Beispiel</span></div>
             <div class="example-tabs" role="group" aria-label="Beispiel / Example" hidden>
               <button type="button" data-example="rescue" aria-pressed="true" data-copy="example_rescue">Rettungsdienst</button>
               <button type="button" data-example="care" aria-pressed="false" data-copy="example_care">Pflege</button>
@@ -112,12 +115,12 @@
                 <div><dt id="example-time-label">Übergabe</dt><dd id="example-time">14:07</dd></div>
               </dl>
             </div>
-            <p class="example-disclaimer" data-copy="example_note">Illustratives Beispiel. Keine Live-Aufnahme, keine Patientendaten.</p>
+            <p class="example-disclaimer" data-copy="example_note">Fiktives Beispiel, keine Live-Aufnahme.</p>
           </div>
           <div class="tech-notes">
-            <article><span class="small-index">01</span><div><h3 data-copy="tech_one_title">Medizin hat ihre eigene Sprache.</h3><p data-copy="tech_one_body">Fachbegriffe, Abkürzungen, neue Wörter: Wir entwickeln das Modell mit dem Ziel hoher Zero-Shot-Genauigkeit, ohne Training vor Ort.</p></div></article>
-            <article><span class="small-index">02</span><div><h3 data-copy="tech_two_title">Am Einsatzort gedacht.</h3><p data-copy="tech_two_body">Lokale Verarbeitung ist Teil unseres Ansatzes. Die Versorgung findet schließlich auch dort statt, wo das Netz nicht mitkommt.</p></div></article>
-            <article><span class="small-index">03</span><div><h3 data-copy="tech_three_title">Mehr als ein langer Text.</h3><p data-copy="tech_three_body">Kennung, Beobachtung und Zeit werden als Felder nutzbar. Die fachliche Prüfung bleibt beim Menschen.</p></div></article>
+            <article><span class="small-index">01</span><div><h3 data-copy="tech_one_title">Medizin hat ihre eigene Sprache.</h3><p data-copy="tech_one_body">Unser Ziel: hohe Zero-Shot-Genauigkeit bei medizinischer Fachsprache, ohne Training vor Ort.</p></div></article>
+            <article><span class="small-index">02</span><div><h3 data-copy="tech_two_title">Am Einsatzort gedacht.</h3><p data-copy="tech_two_body">Die Verarbeitung soll am Einsatzort laufen, auch ohne stabile Verbindung.</p></div></article>
+            <article><span class="small-index">03</span><div><h3 data-copy="tech_three_title">Mehr als ein langer Text.</h3><p data-copy="tech_three_body">Kennung, Beobachtung und Zeit als Felder. Die fachliche Prüfung bleibt beim Menschen.</p></div></article>
             <a class="text-link" href="../corporate/" data-copy="tech_demo">Mit uns über eine Demo sprechen <span aria-hidden="true">↗</span></a>
           </div>
         </div>
@@ -127,7 +130,7 @@
     <section class="system section wrap" aria-labelledby="system-title">
       <div class="system-top">
         <div class="system-photo"><img src="assets/manv-exercise.jpg" alt="MANV-Übung des Deutschen Roten Kreuzes mit Einsatzfahrzeugen und Material zur Versorgung." width="1632" height="1224" loading="lazy" decoding="async" data-alt="exercise_alt"><a href="#bildnachweise" class="image-credit">Forestsettler / CC BY-SA 3.0</a></div>
-        <div><p class="eyebrow" data-copy="system_eyebrow">03 / Vom einzelnen Wort zum Überblick</p><h2 id="system-title" data-copy="system_title">Eine Information.<br><span>Mehrere helfende Hände.</span></h2><p class="lead" data-copy="system_lead">Unsere Geschichte beginnt im Katastrophenschutz. Dort wird besonders deutlich, was passiert, wenn Informationen auf Papier bleiben oder mehrfach weitergegeben werden müssen.</p><p data-copy="system_body">TriARge verbindet die Sprachdokumentation mit Patientenzuordnung, einer AR-Ansicht und dem gemeinsamen Lagebild der Einsatzleitung. Die lokale Architektur hält die Simulation auch ohne Cloud am Laufen.</p></div>
+        <div><p class="eyebrow" data-copy="system_eyebrow">03 / Vom einzelnen Wort zum Überblick</p><h2 id="system-title" data-copy="system_title">Eine Information.<br><span>Mehrere helfende Hände.</span></h2><p class="lead" data-copy="system_lead">J.A.R. entstand im Katastrophenschutz, wo Informationen schnell von der Sichtung zur Einsatzleitung gelangen müssen.</p><p data-copy="system_body">TriARge verbindet Sprachprotokoll, Patientenzuordnung, AR-Ansicht und Lagebild. Die Simulation läuft lokal, ohne Cloud.</p></div>
       </div>
       <ol class="system-flow">
         <li><span class="small-index">01</span><h3 data-copy="flow_one_title">Sprechen</h3><p data-copy="flow_one_body">Beobachtungen und Maßnahmen festhalten.</p></li>
@@ -140,20 +143,20 @@
 
     <section class="team section" id="team" aria-labelledby="team-title">
       <div class="wrap team-inner">
-        <div><p class="eyebrow" data-copy="team_eyebrow">04 / Die Menschen dahinter</p><h2 id="team-title" data-copy="team_title">Aus einer Idee<br><span>wird ein Projekt.</span></h2><p data-copy="team_body">Johannes Nirschl, Alexander Kluge und Jonas Kaindl haben J.A.R. am Gymnasium Neubiberg begonnen. Wir entwickeln Modell, Hardware und Software selbst und lernen im Austausch mit Praxis und Forschung dazu.</p><a class="text-link" href="mailto:kontakt@jar-medical.tech" data-copy="team_contact">Mit uns ins Gespräch kommen <span aria-hidden="true">↗</span></a></div>
-        <figure><img src="assets/tum-xr-group.jpg" alt="Gruppenfoto der TUM XR Group." width="800" height="602" loading="lazy" decoding="async" data-alt="team_alt"><figcaption data-copy="team_caption">Entwicklung lebt vom Austausch. Ein Einblick in die TUM XR Group.</figcaption></figure>
+        <div><p class="eyebrow" data-copy="team_eyebrow">04 / Die Menschen dahinter</p><h2 id="team-title" data-copy="team_title">Aus einer Idee<br><span>wird ein Projekt.</span></h2><p data-copy="team_body">Johannes Nirschl, Alexander Kluge und Jonas Kaindl starteten J.A.R. am Gymnasium Neubiberg. Wir entwickeln Modell, Hardware und Software im Austausch mit Praxis und Forschung.</p><a class="text-link" href="mailto:kontakt@jar-medical.tech" data-copy="team_contact">Mit uns ins Gespräch kommen <span aria-hidden="true">↗</span></a></div>
+        <figure><img src="assets/tum-xr-group.jpg" alt="Gruppenfoto der TUM XR Group." width="800" height="602" loading="lazy" decoding="async" data-alt="team_alt"><figcaption data-copy="team_caption">Austausch mit der TUM XR Group.</figcaption></figure>
       </div>
     </section>
 
     <section class="sectors section wrap" id="bereiche" aria-labelledby="sectors-title">
-      <div class="section-heading"><div><p class="eyebrow" data-copy="sectors_eyebrow">Ihr nächster Schritt</p><h2 id="sectors-title" data-copy="sectors_title">Eine Idee.<br><span>Viele Orte, an denen sie hilft.</span></h2></div><p class="section-intro" data-copy="sectors_intro">Von der Versorgung zuhause bis zum großen Einsatz: Entdecken Sie, was wir für Ihren Bereich entwickeln.</p></div>
+      <div class="section-heading"><div><p class="eyebrow" data-copy="sectors_eyebrow">Ihr nächster Schritt</p><h2 id="sectors-title" data-copy="sectors_title">Eine Idee.<br><span>Viele Orte, an denen sie hilft.</span></h2></div><p class="section-intro" data-copy="sectors_intro">Entdecken Sie unseren Ansatz für Ihren Bereich.</p></div>
       <div class="sector-links">
         <a href="../pflege/"><span class="small-index">01 / <span data-copy="sector_care_label">Pflege</span></span><h3 data-copy="sector_care_title">Zeit für Menschen.</h3><p data-copy="sector_care_body">Unser Ansatz für die Pflege und die Dokumentation im Alltag.</p><span class="sector-arrow" aria-hidden="true">↗</span></a>
         <a href="../krankenhaus.html"><span class="small-index">02 / <span data-copy="sector_hospital_label">Krankenhaus</span></span><h3 data-copy="sector_hospital_title">Direkt am Bett.</h3><p data-copy="sector_hospital_body">Gesprochene Informationen dort erfassen, wo Versorgung stattfindet.</p><span class="sector-arrow" aria-hidden="true">↗</span></a>
         <a href="../rettungsdienst.html"><span class="small-index">03 / <span data-copy="sector_rescue_label">Rettungsdienst</span></span><h3 data-copy="sector_rescue_title">Bis zur Übergabe.</h3><p data-copy="sector_rescue_body">Dokumentation vom ersten Kontakt bis zur Ankunft in der Klinik.</p><span class="sector-arrow" aria-hidden="true">↗</span></a>
         <a href="../katastrophenschutz.html"><span class="small-index">04 / <span data-copy="sector_disaster_label">Katastrophenschutz</span></span><h3 data-copy="sector_disaster_title">Das Ganze im Blick.</h3><p data-copy="sector_disaster_body">Sprachprotokoll, AR und Lagebild im Zusammenspiel kennenlernen.</p><span class="sector-arrow" aria-hidden="true">↗</span></a>
       </div>
-      <div class="closing"><p data-copy="closing">Die nächste gute Idee beginnt mit einem Gespräch.</p><a class="button button-outline" href="../mitmachen.html" data-copy="closing_cta">Zum Projekt beitragen <span aria-hidden="true">↗</span></a></div>
+      <div class="closing"><p data-copy="closing">Bringen Sie Ihre Perspektive ein.</p><a class="button button-outline" href="../mitmachen.html" data-copy="closing_cta">Zum Projekt beitragen <span aria-hidden="true">↗</span></a></div>
     </section>
   </main>
 

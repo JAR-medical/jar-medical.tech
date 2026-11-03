@@ -1,0 +1,46 @@
+/* Temporary BWKI audience-award notice, shared by the main public pages. */
+.jar-vote-banner {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1100;
+  height: 36px;
+  background: #8ec7b8;
+  color: #101c26;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.jar-vote-banner a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  padding: 0 16px;
+  color: inherit;
+  text-decoration: none;
+  line-height: 1.2;
+}
+.jar-vote-banner strong { color: inherit; font-size: 13px; font-weight: 700; }
+.jar-vote-banner .jar-vote-deadline { font-size: 11px; color: #254b44; }
+.jar-vote-banner a:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.jar-vote-banner a:focus-visible { outline: 2px solid #101c26; outline-offset: -4px; }
+.jar-vote-spacer { height: 36px; flex-shrink: 0; }
+html.jar-vote-active { scroll-padding-top: calc(var(--nav-h, 68px) + 60px); }
+html.jar-vote-active .nav,
+html.jar-vote-active .header { top: 36px; }
+html.jar-vote-active .scrollbar { top: 36px; }
+html.jar-vote-active .sc-subnav { top: calc(var(--nav-h, 68px) + 36px); }
+html.jar-vote-active .lesson-nav { top: calc(var(--nav-h, 68px) + var(--sp-5, 24px) + 36px); }
+html.jar-vote-active .sc-hero { min-height: calc(100dvh - 36px); }
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  html.jar-vote-active .sc-hero-track.is-live .sc-hero {
+    top: 36px;
+    height: calc(100svh - 36px);
+  }
+  html.jar-vote-active .hero-track.is-live .hero {
+    top: calc(var(--nav-h, 68px) + 36px);
+    height: calc(100svh - var(--nav-h, 68px) - 36px);
+  }
+}
+@media (max-width: 480px) {
+  .jar-vote-competition { display: none; }
+}

@@ -12,6 +12,11 @@ The info page uses the same-origin Cloudflare country response to default
 German visitors to German, with browser language as the offline fallback.
 An explicit language selection is remembered and takes precedence.
 
+A shared voting banner runs on the main public pages through 9 November 2026
+(Europe/Berlin), linking to the BWKI audience award. `assets/vote-banner.js`
+removes the notice and its layout space at midnight on 10 November, including
+in tabs left open. Archived pages and the fullscreen demo clients stay separate.
+
 The demo retries each failed or stalled map tile once. If the map remains
 incomplete, it switches to the included local road network and reports the
 change in the event log. Select an OpenStreetMap base layer to reconnect.
