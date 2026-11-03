@@ -2990,6 +2990,8 @@ html {
   border-color: color-mix(in srgb, var(--line-strong) calc(var(--fx-frame) * 100%), transparent);
 }
 </style>
+<link rel="stylesheet" href="assets/project-video.css?v=1">
+<script src="assets/project-video.js?v=1" defer></script>
 
 <link rel="stylesheet" href="assets/vote-banner.css?v=1">
 <script src="assets/vote-banner.js?v=1" defer></script>
@@ -3045,6 +3047,19 @@ html {
 </header>
 
 <main id="main" class="sc-frame">
+    <section class="project-video" aria-label="J.A.R. · BWKI Publikumspreis 2026">
+      <div class="project-video-player">
+        <a class="project-video-play" href="https://player.vimeo.com/video/1240976700?dnt=1&amp;title=0&amp;byline=0&amp;portrait=0" data-video-play>
+          <img src="info/assets/product-in-use.jpg" alt="" width="1089" height="972">
+          <span class="project-video-overlay">
+            <span class="project-video-icon" aria-hidden="true">▶</span>
+            <span data-video-copy="play">J.A.R. im Video kennenlernen</span>
+            <span class="project-video-notice" data-video-copy="notice">Beim Abspielen wird Vimeo geladen.</span>
+          </span>
+        </a>
+      </div>
+      <p class="project-video-caption"><span data-video-copy="caption">Unser Projektvideo zum BWKI Publikumspreis 2026</span><a class="project-video-link" href="https://www.bw-ki.de/publikumspreis" data-video-copy="competition">Zum Wettbewerb <span aria-hidden="true">↗</span></a></p>
+    </section>
 
 <!-- ============================== HERO ==============================
      Four cells: the headline, the side cell with the claim and the two ways
@@ -3406,6 +3421,15 @@ html {
 
 </main>
 
+  <dialog class="project-vote" id="project-vote" aria-labelledby="project-vote-title" aria-describedby="project-vote-description">
+    <h2 id="project-vote-title" data-video-copy="vote_title">Hat dich J.A.R. überzeugt?</h2>
+    <p id="project-vote-description" data-video-copy="vote_description">Dann unterstütze uns mit deiner Stimme beim BWKI Publikumspreis 2026. Wähle auf der Abstimmungsseite das Projekt J.A.R. aus.</p>
+    <div class="project-vote-actions">
+      <a class="project-vote-link" href="https://www.bw-ki.de/publikumspreis" data-video-copy="vote_action" autofocus>Jetzt für J.A.R. abstimmen ↗</a>
+      <button class="project-vote-close" type="button" data-video-close data-video-copy="vote_close">Vielleicht später</button>
+    </div>
+  </dialog>
+
 <!-- ============================== FOOTER ============================== -->
 <footer class="foot" id="kontakt">
   <div class="wrap wrap--wide">
@@ -3451,6 +3475,7 @@ html {
     <div class="foot__bottom">
       <p data-i18n="foot_copy">© 2026 J.A.R. Medical</p>
       <ul class="foot__legal">
+        <li><a href="info/" data-i18n="foot_info">Projektinfo</a></li>
         <li><a href="impressum.html" data-i18n="foot_imprint">Impressum</a></li>
         <li><a href="datenschutz.html" data-i18n="foot_privacy">Datenschutz</a></li>
         <li><a href="nutzungsbedingungen.html" data-i18n="foot_terms">Nutzungsbedingungen</a></li>
@@ -3815,6 +3840,7 @@ window.JAR_I18N = {
     foot_arclient: 'AR client',
     foot_h_contact: 'Contact',
     foot_copy: '© 2026 J.A.R. Medical',
+    foot_info: 'Project info',
     foot_imprint: 'Imprint',
     foot_privacy: 'Privacy',
     foot_terms: 'Terms of use',
