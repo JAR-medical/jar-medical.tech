@@ -3,6 +3,10 @@
 The static site served at https://jar-medical.tech/ by GitHub Pages from the
 `website` branch. It has no build step.
 
+`/sz` (also `/sz/`) redirects to the Süddeutsche Zeitung article about the
+project, preserving the article's `?reduced=true` parameter. A meta refresh
+and clickable article link provide fallbacks when JavaScript is disabled.
+
 `/info/` introduces the project through photographs, with transcription as the
 focus, early partner logos and live-demo links, and links to the sector pages.
 German content works without JavaScript; English, mobile navigation and the
