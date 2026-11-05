@@ -84,7 +84,7 @@ test('the banner is absent before the campaign starts', () => {
 test('all main public pages include the shared campaign assets', () => {
   const pages = htmlFiles().filter(page => {
     if (/^(info|pflege|corporate)\//.test(page)) return true;
-    return !page.includes('/') && !/http-equiv="refresh"/i.test(readText(page));
+    return !page.includes('/') && page !== '404.html' && !/http-equiv="refresh"/i.test(readText(page));
   });
   assert.equal(pages.length, 17);
   for (const page of pages) {

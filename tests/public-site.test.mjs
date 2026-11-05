@@ -9,7 +9,7 @@ export const PUBLIC_PAGES = ['index.html', 'krankenhaus.html', 'pflegedienst.htm
 test('every public page has parseable scripts and complete English translations', () => {
   for (const page of PUBLIC_PAGES) {
     const html = readText(page);
-    const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
+    const scripts = [...html.matchAll(/<script(?!\s+type="application\/ld\+json")(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
     for (const [, script] of scripts) new vm.Script(script, { filename: page });
     const dictionaryScript = scripts.find(([, s]) => s.startsWith('/* js/i18n.js */'))[1];
     const context = { window: {} };

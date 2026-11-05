@@ -67,6 +67,35 @@
     sector_rescue_body: 'Documentation from first contact to arrival at the hospital.',
     sector_disaster_label: 'Disaster response', sector_disaster_title: 'The bigger picture.',
     sector_disaster_body: 'Explore voice records, AR and a shared incident overview together.',
+    nav_faq: 'FAQ',
+    news_eyebrow: 'News',
+    news_title: 'BWKI finals, press<br><span>and our channels.</span>',
+    news_bwki_h: 'In the BWKI 2026 finals',
+    news_bwki_p: 'J.A.R. is one of the ten finalist teams of the German national AI competition (Bundeswettbewerb Künstliche Intelligenz) 2026 in Tübingen and up for the audience award.',
+    news_bwki_a: 'To the BWKI audience award <span aria-hidden="true">↗</span>',
+    news_sz_h: 'In the Süddeutsche Zeitung',
+    news_sz_p: 'The Süddeutsche Zeitung reports on J.A.R.: three students from Gymnasium Neubiberg reached the BWKI finals with their AI for large-scale emergencies.',
+    news_sz_a: 'Read the SZ article <span aria-hidden="true">↗</span>',
+    news_ig_p: 'News from the project at @jar_medical.',
+    news_ig_a: 'Go to Instagram <span aria-hidden="true">↗</span>',
+    news_li_p: 'Alexander Kluge from the team is on LinkedIn.',
+    news_li_a: 'View profile <span aria-hidden="true">↗</span>',
+    faq_eyebrow: 'Frequently asked questions',
+    faq_title: 'In short.',
+    faq_q1: 'What is J.A.R. Medical?',
+    faq_a1: 'J.A.R. Medical is a project from Neubiberg near Munich. We develop medical speech recognition for nursing, emergency services and disaster response.',
+    faq_q2: 'Who is behind J.A.R.?',
+    faq_a2: 'Johannes Nirschl, Alexander Kluge and Jonas Kaindl started J.A.R. at Gymnasium Neubiberg.',
+    faq_q3: 'What does zero-shot accuracy mean?',
+    faq_a3: 'The model should recognise medical terms correctly without being trained on site. That includes words it hears for the first time.',
+    faq_q4: 'Does the speech recognition work without internet?',
+    faq_a4: 'Yes, that is our goal. Processing is meant to run on the device, so it also works without a stable connection.',
+    faq_q5: 'What is TriARge?',
+    faq_a5: 'TriARge is our system for disaster response. It connects voice records, patient assignment, an AR view and an incident overview for the command staff.',
+    faq_q6: 'Is J.A.R. a certified medical device?',
+    faq_a6: 'No. J.A.R. is a development prototype for exercises and simulations and not a certified medical device.',
+    faq_q7: 'How can I try or support J.A.R.?',
+    faq_a7: 'The live demo runs directly in the browser. Under Contribute you can play MediCraft or record short radio calls for the speech recognition.',
     closing: 'Bring your perspective to the project.',
     closing_cta: 'Contribute to the project <span aria-hidden="true">↗</span>',
     footer_blurb: 'J.A.R. Medical develops speech recognition for people who care for people: in nursing, disaster response and emergency services. On the device, in real time, even offline.',
@@ -78,6 +107,7 @@
     credits_note: 'Original files unchanged; cropped and darkened through the page layout. Other photographs supplied by the project. Emergency-response photographs illustrate the context and do not show J.A.R. in use.'
   };
   const englishAlt = {
+    hero_alt: 'An ambulance on duty in Berlin.',
     product_alt: 'Our prototype being tested: a person wearing AR glasses and medical gloves holds a triage card.',
     exercise_alt: 'A German Red Cross mass-casualty exercise with response vehicles and treatment equipment.',
     team_alt: 'Group photograph of the TUM XR Group.'
@@ -126,7 +156,7 @@
     document.querySelectorAll('[data-language]').forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.language === language));
     });
-    document.title = language === 'en' ? 'J.A.R. Medical — More time with people. Every word recorded.' : originalTitle;
+    document.title = language === 'en' ? 'About J.A.R. Medical: team, prototype and technology' : originalTitle;
     description.content = language === 'en' ? 'From spoken words to medical documentation: meet J.A.R. Medical, our AR prototype and the people behind the project. Explore the interactive live demo.' : originalDescription;
     renderExample();
   }
