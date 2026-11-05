@@ -97,8 +97,14 @@ test('the home and info pages link the SZ report on J.A.R. itself', () => {
   }
 });
 
+test('the public pages link the J.A.R. LinkedIn company page', () => {
+  for (const page of ['index.html', 'info/index.html', 'pflege/index.html', 'krankenhaus.html']) {
+    assert.match(readText(page), /href="https:\/\/www\.linkedin\.com\/company\/jar-med\/"/, page);
+  }
+});
+
 test('no page links to the unrelated company with a similar name', () => {
   for (const page of htmlFiles()) {
-    assert.doesNotMatch(readText(page), /instagram\.com\/jarmedical|linkedin\.com\/company\/jar-?medical/, page);
+    assert.doesNotMatch(readText(page), /instagram\.com\/jarmedical|linkedin\.com\/company\/jar-?medical\b/, page);
   }
 });

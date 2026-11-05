@@ -27,7 +27,8 @@ change in the event log. Select an OpenStreetMap base layer to reconnect.
 
 Search setup: `sitemap.xml` lists every indexable page and `tests/seo.test.mjs`
 keeps it in step with the page heads. Add new public pages to both. The
-Instagram account is `@jar_medical`; `@jarmedical` and
+Instagram account is `@jar_medical` and the LinkedIn page is
+`linkedin.com/company/jar-med`; `@jarmedical` and
 `linkedin.com/company/jar-medical` belong to an unrelated company.
 
 All information on setup, the backend and operations lives in the private
