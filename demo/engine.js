@@ -201,6 +201,7 @@ const TR = (function () {
     sperren: [],
     kliniken: [],
     poi: [],
+    objekte: null,         // erkannte Objekte einer Auswertungslage
     funk: [],
     ereignisse: [],
     warnungen: [],
@@ -212,7 +213,7 @@ const TR = (function () {
     ebenen: {
       raster: true, abschnitte: true, gefahren: true, sperren: true,
       patienten: true, mittel: true, wege: false, poi: true,
-      spuren: true, belegung: false, beschriftung: true,
+      spuren: true, belegung: false, beschriftung: true, objekte: true,
     },
     sitzungen: [],
     funkAktiv: false,
@@ -336,6 +337,8 @@ const TR = (function () {
     S.epi = szenario.epi;
     S.sperren = szenario.sperren.slice();
     S.poi = szenario.poi.slice();
+    // Auswertungslagen bringen erkannte Objekte (Gebiet, Fahrzeuge) mit.
+    S.objekte = szenario.objekte || null;
     S.kliniken = szenario.kliniken.map((k) =>
       ({ ...k, frei: { ...k.frei }, startFrei: { ...k.frei }, belegt: 0 }));
     S.sitzungen = [{ name: (szenario.sitzung || S.einsatz.name) + " " + (S.einsatz.alarmiert || ""), aktiv: true }];
@@ -1096,7 +1099,7 @@ const TR = (function () {
 
   function klinikTakt(dt) {
     klinikAkku += dt;
-    if (klinikAkku < 240) return;
+    if (klinikAkku < 240 || !S.kliniken.length) return;
     klinikAkku = 0;
     const k = S.kliniken[Math.floor(Math.random() * S.kliniken.length)];
     const kats = Object.keys(k.frei).filter((c) => k.frei[c] < k.startFrei[c]);
@@ -1192,7 +1195,7 @@ const TR = (function () {
       } else warnungWeg("messwert-" + g.id);
     }
 
-    if (!S.kliniken.some((k) => k.frei.SK1 > 0)) {
+    if (S.kliniken.length && !S.kliniken.some((k) => k.frei.SK1 > 0)) {
       warnen("kap-sk1", 3, "Keine SK-I-Kapazität gemeldet",
         "Alle Zielkliniken melden ihre Schockraum-/Intensivplätze für SK I als belegt. Erweiterte Zielklinikabfrage über die ILS veranlassen.", null);
     } else warnungWeg("kap-sk1");
@@ -1233,7 +1236,8 @@ const TR = (function () {
       naechsteId = Math.max(naechsteId, v.id);
       patientAnlegen(v);
     }
-    if (naechsterPatient >= ROSTER.length) {
+    // Auswertungslagen zeigen nur Erkanntes - dort kommen keine Nachmeldungen dazu.
+    if (naechsterPatient >= ROSTER.length && !(AKTIV && AKTIV.auswertung)) {
       nachAkku += dt;
       if (nachAkku > nachIntervall) {
         nachAkku = 0;

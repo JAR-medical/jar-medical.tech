@@ -388,6 +388,10 @@ input[type="range"] { flex: 1; min-width: 90px; }
   white-space: nowrap; font-size: 9px; color: #5a6068;
   text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 2px #fff;
 }
+.gebiet-label {
+  white-space: nowrap; font-size: 9px; font-family: var(--mono); color: #30363d;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 2px #fff; letter-spacing: .04em;
+}
 .kreis-label {
   white-space: nowrap; font-size: 9px; font-family: var(--mono); color: var(--warn);
   text-shadow: 0 0 2px #fff, 0 0 2px #fff;

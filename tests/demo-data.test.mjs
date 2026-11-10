@@ -7,7 +7,7 @@
 // takt(), rollenZiel(), klinikWaehlen() and transportZiel() read.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadEngine, runSimulation, SCENARIO_IDS } from './lib/demo.mjs';
+import { loadEngine, runSimulation, SCENARIO_IDS, AUSWERTUNG_IDS } from './lib/demo.mjs';
 
 const { TR, window: W } = loadEngine();
 const SZENARIEN = W.SZENARIEN;
@@ -17,8 +17,9 @@ const inside = (bbox, ll) =>
   ll[0] >= bbox[0] && ll[0] <= bbox[2] && ll[1] >= bbox[1] && ll[1] <= bbox[3];
 
 describe('the scenario catalogue', () => {
-  test('exactly the three advertised scenarios are registered', () => {
-    assert.deepEqual([...SZENARIEN].map((s) => s.id), SCENARIO_IDS);
+  test('exactly the three advertised exercises plus the survey scenarios are registered', () => {
+    assert.deepEqual([...SZENARIEN].map((s) => s.id), [...SCENARIO_IDS, ...AUSWERTUNG_IDS]);
+    assert.deepEqual([...SZENARIEN].filter((s) => s.auswertung).map((s) => s.id), AUSWERTUNG_IDS);
   });
 
   test('scenario ids and aliases never collide', () => {
@@ -36,13 +37,13 @@ describe('the scenario catalogue', () => {
   test('the scenario ids match the deep-link pages under demo/', () => {
     // demo/<id>/index.html redirects to ../?lage=<id>; a renamed scenario would
     // leave those pages pointing at nothing.
-    for (const id of SCENARIO_IDS) {
+    for (const id of [...SCENARIO_IDS, ...AUSWERTUNG_IDS]) {
       assert.ok(SZENARIEN.some((s) => s.id === id), `no scenario answers to "${id}"`);
     }
   });
 });
 
-for (const s of SZENARIEN) {
+for (const s of SZENARIEN.filter((x) => !x.auswertung)) {
   describe(`scenario "${s.id}"`, () => {
     test('the bounding box is well formed and the epicentre sits inside it', () => {
       const b = s.geo.bbox;
@@ -362,3 +363,62 @@ describe('roster reveal timing', () => {
       'the muenchen roster is sorted now - keep the sort in init() anyway, but this note is stale');
   });
 });
+
+// A survey scenario shows what a drone actually detected and nothing else:
+// no casualties, units, sections, cordons, clinics or radio traffic.
+for (const id of AUSWERTUNG_IDS) {
+  const s = SZENARIEN.find((x) => x.id === id);
+  describe(`survey scenario "${id}"`, () => {
+    test('adds nothing beyond the analysed objects', () => {
+      for (const k of ['abschnitte', 'sperren', 'poi', 'kliniken', 'mittel', 'patienten', 'funk']) {
+        assert.equal(s[k].length, 0, `${id} carries invented ${k}`);
+      }
+      assert.equal(s.absperrung, 0, 'a cordon circle is not part of the survey');
+      assert.ok(s.gefahren.every((g) => g.flaechen && g.flaechen.type === 'MultiPolygon'),
+        'every hazard must be a detected area');
+    });
+
+    test('the grid and start view cover exactly the analysed area', () => {
+      const b = s.geo.bbox, g = s.objekte.gebiet;
+      assert.equal(g.length, 4, 'the analysed area is a four-cornered image footprint');
+      assert.deepEqual([...b], [Math.min(...g.map((p) => p[0])), Math.min(...g.map((p) => p[1])),
+        Math.max(...g.map((p) => p[0])), Math.max(...g.map((p) => p[1]))]);
+      assert.ok(inside(b, s.epi), 'centre outside the analysed area');
+      const width = TR.dist([b[0], b[1]], [b[0], b[3]]) / s.raster.spalten;
+      assert.ok(width > 40 && width < 400, `cell width ${Math.round(width)} m`);
+      assert.ok(Array.isArray(s.geo.ways) && s.geo.ways.length > 0, 'no OSM way network');
+    });
+
+    test('every detection lies inside the analysed area', () => {
+      const b = s.geo.bbox, eps = 1e-6;
+      const box = [b[0] - eps, b[1] - eps, b[2] + eps, b[3] + eps];
+      for (const g of s.gefahren) {
+        for (const poly of g.flaechen.coordinates) {
+          for (const ring of poly) {
+            assert.ok(ring.length >= 4, `${g.id} has a ring with ${ring.length} points`);
+            assert.deepEqual(ring[0], ring[ring.length - 1], `${g.id} has an open ring`);
+            for (const [lon, lat] of ring) assert.ok(inside(box, [lat, lon]), `${g.id} corner ${lat},${lon} outside`);
+          }
+        }
+        assert.ok(inside(b, g.ll), `${g.id} marker outside the analysed area`);
+      }
+      assert.ok(s.objekte.fahrzeuge.length > 0, 'no vehicles');
+      for (const [lat, lon, konf, klasse] of s.objekte.fahrzeuge) {
+        assert.ok(inside(b, [lat, lon]), `vehicle ${lat},${lon} outside`);
+        assert.ok(konf > 0 && konf <= 1, `vehicle confidence ${konf}`);
+        assert.ok(['car', 'van'].includes(klasse), `vehicle class ${klasse}`);
+      }
+    });
+
+    test('the engine runs the survey without inventing radio traffic or warnings', () => {
+      const T = loadEngine({ seed: 5 }).TR;
+      T.init(T.szenarien().find((x) => x.id === id));
+      runSimulation(T, 900);
+      assert.equal(T.S.patienten.size, 0);
+      assert.equal(T.S.mittel.size, 0);
+      assert.equal(T.S.funk.length, 0, `radio messages appeared: ${T.S.funk.map((f) => f.text).join(' | ')}`);
+      assert.equal(T.S.warnungen.length, 0, `warnings appeared: ${T.S.warnungen.map((w) => w.titel || w.id).join(' | ')}`);
+      assert.equal(T.S.objekte.fahrzeuge.length, s.objekte.fahrzeuge.length, 'detected vehicles not handed to the map');
+    });
+  });
+}

@@ -147,7 +147,7 @@ describe('references hidden inside JavaScript', () => {
   });
 
   test('the scenario redirect pages all point back at the demo', () => {
-    for (const lage of ['halle', 'muenchen', 'neubiberg']) {
+    for (const lage of ['halle', 'muenchen', 'neubiberg', 'neubiberg-hochwasser']) {
       const rel = `demo/${lage}/index.html`;
       assert.equal(exists(rel), true, `${rel} is missing`);
       const html = readText(rel);

@@ -191,7 +191,7 @@ const KARTE = (function () {
     }
     basis.hell.addTo(map);
 
-    for (const k of ["netz", "raster", "abschnitte", "gefahren", "sperren", "poi",
+    for (const k of ["netz", "raster", "abschnitte", "gefahren", "sperren", "poi", "objekte",
       "spuren", "patienten", "mittel", "label"]) {
       G[k] = L.layerGroup().addTo(map);
     }
@@ -202,6 +202,7 @@ const KARTE = (function () {
     gefahrenZeichnen();
     sperrenZeichnen();
     poiZeichnen();
+    objekteZeichnen();
     mittelZeichnen();
     patientenZeichnen();
     ebenenAnwenden();
@@ -253,6 +254,7 @@ const KARTE = (function () {
       rasterZeichnen();
       sperrenZeichnen();
       poiZeichnen();
+      objekteZeichnen();
       startAusschnitt(false);
     });
 
@@ -777,6 +779,36 @@ const KARTE = (function () {
     }
   }
 
+  /* ------------------------------------------------------ Drohnenerkennung
+   *
+   * Auswertungslagen zeigen, was eine Drohne tatsächlich erkannt hat: den
+   * Umriss des ausgewerteten Gebiets und die erkannten Fahrzeuge. Übungslagen
+   * haben keine Objekte; die Ebene bleibt dort leer. */
+
+  function objekteZeichnen() {
+    G.objekte.clearLayers();
+    const o = S.objekte;
+    if (!o) return;
+    if (o.gebiet && o.gebiet.length >= 3) {
+      L.polygon(o.gebiet, {
+        pane: "pFlaeche", color: "#30363d", weight: 1.6, dashArray: "6 4",
+        fill: false, interactive: false,
+      }).addTo(G.objekte);
+      L.marker(o.gebiet[0], {
+        pane: "pLabel", interactive: false,
+        icon: L.divIcon({ className: "gebiet-label beschriftung r3", html: TR.esc(o.gebietText || "Auswertungsgebiet"),
+          iconSize: [260, 12], iconAnchor: [-4, 16] }),
+      }).addTo(G.objekte);
+    }
+    for (const [lat, lon, konf, klasse] of o.fahrzeuge || []) {
+      L.circleMarker([lat, lon], {
+        pane: "pLinie", radius: 4, color: "#3a3000", weight: 1.2, fillColor: "#ffd60a", fillOpacity: 1,
+        className: "fz-punkt",
+      }).bindTooltip((klasse === "van" ? "Transporter" : "Pkw") + " · Konfidenz " +
+        Number(konf).toFixed(2) + " · Drohnenerkennung", { direction: "top" }).addTo(G.objekte);
+    }
+  }
+
   /* ------------------------------------------------------------- Patienten */
 
   /* Der sichtbare Körper steckt in einem eigenen Element im Symbolkasten.
@@ -968,6 +1000,7 @@ const KARTE = (function () {
     umschalten(G.gefahren, e.gefahren);
     umschalten(G.sperren, e.sperren);
     umschalten(G.poi, e.poi && e.beschriftung);
+    umschalten(G.objekte, e.objekte);
     umschalten(G.patienten, e.patienten);
     umschalten(G.mittel, e.mittel);
     umschalten(G.spuren, e.spuren);

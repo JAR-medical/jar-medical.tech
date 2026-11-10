@@ -29,9 +29,11 @@ const DEMO_SCRIPTS = [
   'demo/data/neubiberg.js',
   'demo/data/halle-kroellwitz.js',
   'demo/data/muenchen-mitte.js',
+  'demo/data/neubiberg-hochwasser.js',
   'demo/scenario.js',
   'demo/szenario-halle.js',
   'demo/szenario-muenchen.js',
+  'demo/szenario-neubiberg-hochwasser.js',
   'demo/engine.js',
 ];
 
@@ -170,3 +172,5 @@ export function plain(value) {
 
 /** The three scenarios the demo ships, by id. */
 export const SCENARIO_IDS = ['neubiberg', 'halle', 'muenchen'];
+// Lagen aus einer Drohnenauswertung: nur erkannte Objekte, kein Drehbuch.
+export const AUSWERTUNG_IDS = ['neubiberg-hochwasser'];

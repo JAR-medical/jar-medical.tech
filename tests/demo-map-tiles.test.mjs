@@ -35,7 +35,7 @@ function openMap() {
   const noop = () => {};
   const renderers = Object.fromEntries([
     'startAusschnitt', 'zoomEinrichten', 'wegenetzZeichnen', 'rasterZeichnen',
-    'abschnitteZeichnen', 'gefahrenZeichnen', 'sperrenZeichnen', 'poiZeichnen',
+    'abschnitteZeichnen', 'gefahrenZeichnen', 'sperrenZeichnen', 'poiZeichnen', 'objekteZeichnen',
     'mittelZeichnen', 'patientenZeichnen', 'ebenenAnwenden', 'darstellungAnpassen',
     'frameTakt', 'auswahlZeigen',
   ].map(name => [name, noop]));

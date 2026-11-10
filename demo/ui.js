@@ -407,6 +407,7 @@
     ["belegung", "Rasterauslastung (Patientendichte)"],
     ["abschnitte", "Einsatzabschnitte"],
     ["gefahren", "Gefahrenlage"],
+    ["objekte", "Drohnenerkennung"],
     ["sperren", "Sperrungen / Bahnstrecke"],
     ["patienten", "Patienten"],
     ["mittel", "Einsatzmittel"],
