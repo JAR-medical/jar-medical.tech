@@ -1,0 +1,67 @@
+/* Passcode screen of the deployed AR client (gate.js). Uses the palette variables of hud.css,
+ * which the page loads first. While the gate is up, everything else on the page is hidden. */
+
+html.gate-locked body > :not(#gate) { display: none !important; }
+
+#gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  background: radial-gradient(120% 120% at 50% 0%, #16202b 0%, #0c1014 60%, #080b0e 100%);
+  color: var(--text, #e8edf2);
+  font-family: var(--font, system-ui, sans-serif);
+}
+
+.gate-card {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--mat-strong, rgba(20, 26, 33, 0.78));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  box-shadow: var(--mat-shadow, 0 12px 40px rgba(0, 0, 0, 0.45));
+}
+
+.gate-card h1 { margin: 0; font-size: 28px; line-height: 1.15; }
+.gate-lead { margin: 0 0 8px; color: var(--muted, #93a1ad); font-size: 18px; }
+.gate-label { font-size: 16px; color: var(--muted, #93a1ad); }
+
+.gate-input {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+.gate-input:focus-visible,
+.gate-button:focus-visible,
+.gate-show input:focus-visible { outline: 3px solid var(--sk4, #3e7bfa); outline-offset: 2px; }
+
+.gate-show { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 17px; }
+.gate-show input { width: 22px; height: 22px; }
+
+.gate-button {
+  min-height: 60px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--sk4, #3e7bfa);
+  color: #fff;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gate-button:disabled { opacity: 0.55; cursor: default; }
+
+.gate-status { min-height: 1.4em; margin: 0; font-size: 17px; color: var(--sk2, #f5b301); }
