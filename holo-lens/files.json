@@ -1,5 +1,5 @@
 {
- "stamp": "13.11.2026 08:33 · 86e0613",
+ "stamp": "13.11.2026 08:39 · b5c898b",
  "files": [
   "./",
   "assets/body/HERKUNFT.md",
@@ -49,6 +49,7 @@
   "js/xr.js",
   "js/xrlog.js",
   "manifest.webmanifest",
+  "probe.html",
   "sw.js",
   "update.html",
   "update.js",

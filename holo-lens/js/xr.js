@@ -403,7 +403,8 @@ export class XRPassthrough {
     // Flugschreiber (js/xrlog.js): was der AR-Lauf wirklich getan hat, auch wenn man im Headset nichts sieht.
     this._log = new XrLog();
     this._ls = null;                       // die laufende Sekunde
-    this._probe = "";                      // ?probe=clear|quad — siehe start()
+    this._probe = "";                      // ?probe=clear|quad|raw — siehe start()
+    this._uploadMode = "";                 // ?upload=pixels — siehe _upload()
 
     // Das HUD zieht über zwei Federn um — eine für die Drehung um die
     // Hochachse, eine für die Neigung. Bewusst getrennt und nicht eine Feder
@@ -493,12 +494,16 @@ export class XRPassthrough {
     //   ?near=0.1   Nahebene (Meter); ?near=default lässt sie dem Browser
     //   ?ladder=plain   nur schlichte AR-Sitzungen, kein verbindliches hand-tracking, kein VR-Rückfall
     //   ?probe=clear   die ganze Ansicht magenta löschen (kein Shader)   ?probe=quad   ein Magenta-Rechteck (kein Texturzugriff)
+    //   ?probe=raw     ein 2×2-Farbfeld aus rohen Bytes (Textur, aber ohne Canvas dazwischen)
+    //   ?upload=pixels Canvas-Inhalte über getImageData + Bytes hochladen statt texImage2D(canvas)
     const q = new URLSearchParams(location.search);
     const legacy = q.get("legacy") === "1";
     const flags = [];
     this._probe = q.get("probe") || "";
     if (legacy) flags.push("legacy");
     if (this._probe) flags.push("probe=" + this._probe);
+    this._uploadMode = q.get("upload") || "";
+    if (this._uploadMode) flags.push("upload=" + this._uploadMode);
     if (typeof navigator === "undefined" || !navigator.xr)
       throw new Error("WebXR steht in diesem Browser nicht zur Verfügung.");
 
@@ -710,6 +715,21 @@ export class XRPassthrough {
     this.uMVP = gl.getUniformLocation(prog, "uMVP");
     this.uTex = gl.getUniformLocation(prog, "uTex");
 
+    if (this._probe === "raw") {
+      // Vier Farben als rohe Bytes: Textur und Shader, aber kein Canvas — trennt „Canvas → Textur" vom Rest.
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255]));
+      this.probeTex = t;
+    }
+
     if (this._probe === "quad") {
       const pp = gl.createProgram();
       gl.attachShader(pp, vs);
@@ -808,9 +828,38 @@ export class XRPassthrough {
     return s;
   }
 
+  /**
+   * Alternative zu texImage2D(canvas): die Pixel über getImageData holen, in JavaScript spiegeln und
+   * vormultiplizieren und als Bytes hochladen. Nur auf Wunsch (?upload=pixels) — langsamer, aber ohne
+   * dass ein 2D-Canvas direkt zur Textur wird, was auf manchen Grafiktreibern still ein leeres Bild liefert.
+   */
+  _uploadPixels(tex, canvas) {
+    const gl = this.gl, w = canvas.width, h = canvas.height;
+    const src = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+    if (!this._pxBuf || this._pxBuf.length !== src.length) this._pxBuf = new Uint8Array(src.length);
+    const dst = this._pxBuf, row = w * 4;
+    for (let y = 0; y < h; y++) {
+      const s = y * row, d = (h - 1 - y) * row;               // Zeilen spiegeln (UNPACK_FLIP_Y)
+      for (let x = 0; x < row; x += 4) {
+        const a = src[s + x + 3];
+        if (a === 255) { dst[d + x] = src[s + x]; dst[d + x + 1] = src[s + x + 1]; dst[d + x + 2] = src[s + x + 2]; dst[d + x + 3] = 255; }
+        else if (a === 0) { dst[d + x] = dst[d + x + 1] = dst[d + x + 2] = dst[d + x + 3] = 0; }
+        else {                                                // vormultiplizieren
+          dst[d + x] = (src[s + x] * a + 127) / 255; dst[d + x + 1] = (src[s + x + 1] * a + 127) / 255;
+          dst[d + x + 2] = (src[s + x + 2] * a + 127) / 255; dst[d + x + 3] = a;
+        }
+      }
+    }
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, dst);
+  }
+
   _upload(tex, canvas) {
     const gl = this.gl;
     if (this._ls) this._ls.uploads++;
+    if (this._uploadMode === "pixels") { this._uploadPixels(tex, canvas); return; }
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
@@ -2095,6 +2144,12 @@ export class XRPassthrough {
         gl.uniformMatrix4fv(this.probeMVP, false, mul(view.projectionMatrix, PROBE_MODEL));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         this._bindQuads();
+      }
+
+      if (this._probe === "raw" && this.probeTex) {      // ?probe=raw: Textur aus rohen Bytes, normaler Shader
+        gl.bindTexture(gl.TEXTURE_2D, this.probeTex);
+        gl.uniformMatrix4fv(this.uMVP, false, mul(view.projectionMatrix, PROBE_MODEL));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
     }
 

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>J.A.R. AR-Client — Diagnose-Tests</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #101418; color: #e8edf2;
+      font: 18px/1.5 "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    p, li { color: #93a1ad; }
+    ol { padding-left: 22px; }
+    a.t { display: block; margin: 14px 0 0; padding: 16px 18px; border-radius: 14px; text-decoration: none;
+      background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); color: #e8edf2; }
+    a.t b { display: block; font-size: 21px; }
+    a.t span { color: #93a1ad; font-size: 16px; }
+    a.t:focus-visible { outline: 3px solid #3e7bfa; outline-offset: 2px; }
+    a.back { display: inline-block; margin-top: 24px; color: #7cc0ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Diagnose-Tests</h1>
+    <p>Wenn im Headset nichts zu sehen ist, zeigt der Reihe nach, wo die Darstellung abbricht.</p>
+    <ol>
+      <li>Einen Test antippen — die App öffnet sich.</li>
+      <li><b>AR-Modus</b> starten und etwa 10 Sekunden im Headset bleiben.</li>
+      <li>AR beenden. Auf der Startseite unter „Gerät" steht <b>Letzter AR-Lauf (Diagnose)</b> — aufklappen.</li>
+      <li>Notieren, was im Headset zu sehen war, und den Bericht abfotografieren oder abtippen.</li>
+    </ol>
+
+    <a class="t" href="./?probe=clear&amp;noscan=1"><b>1 · Ganze Ansicht magenta</b>
+      <span>Kein Shader, keine Textur. Sichtbar = der Bildpuffer kommt an.</span></a>
+    <a class="t" href="./?probe=quad&amp;noscan=1"><b>2 · Magenta-Rechteck</b>
+      <span>Shader und Projektion, ohne Textur. Sichtbar = Geometrie stimmt.</span></a>
+    <a class="t" href="./?probe=raw&amp;noscan=1"><b>3 · Vier-Farben-Feld</b>
+      <span>Textur aus rohen Bytes, ohne Canvas. Sichtbar = Texturen funktionieren.</span></a>
+    <a class="t" href="./?beacon=1&amp;noscan=1"><b>4 · Prüfbild (weißer Rahmen)</b>
+      <span>Textur aus einem Canvas. Nicht sichtbar, aber 3 schon = Canvas → Textur geht nicht.</span></a>
+    <a class="t" href="./?upload=pixels&amp;noscan=1"><b>5 · Normal, Pixel-Upload</b>
+      <span>Die App wie sonst, Canvas-Inhalte aber über rohe Bytes. Sichtbar = das war der Fehler.</span></a>
+    <a class="t" href="./?legacy=1&amp;noscan=1"><b>6 · Normal, schlichte Sitzung</b>
+      <span>Der Stand vom 10.08.: volle Auflösung, Kantenglättung, Standard-Nahebene.</span></a>
+    <a class="t" href="./?noscan=1"><b>7 · Normal</b>
+      <span>Die App wie ausgeliefert, ohne Kamera-Scanner.</span></a>
+
+    <a class="back" href="./">Zur App</a>
+  </main>
+</body>
+</html>
