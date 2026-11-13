@@ -19,7 +19,7 @@
   const SALT_HEX = "8b7100b5da857f3e4d0652c626d5663e";
   const ITERATIONS = 200000;
   const HASH_HEX = "c45602a1f0eacc32fcb59674c72aab6f0285c8f0be84cb36a103b281df04f55d";
-  const BUILD = "13.11.2026 08:39 · b5c898b";
+  const BUILD = "13.11.2026 08:48 · b5c898b + 170e958";
   const STORE_KEY = "jar-holo-lens-unlock";
   const REMEMBER_DAYS = 30;
   const MAX_WAIT_MS = 8000;

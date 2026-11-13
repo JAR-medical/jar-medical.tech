@@ -358,6 +358,8 @@ body {
 .flow-btn:active { transform: scale(0.97); background: rgba(255,255,255,.24); border-color: #fff; }
 .flow-btn.primary { border-color: #7cc0ff; }
 .flow-btn.yes { border-color: #46a758; }
+.flow-btn.xr-enter { position: fixed; inset: 0; margin: auto; width: fit-content; height: fit-content;
+  z-index: 40; padding: 22px 40px; font-size: 26px; }
 .flow-btn.no { border-color: #e5484d; }
 .flow-btn.lna { border-color: #3e7bfa; }
 .flow-btn.ghost { flex: 0 1 auto; border-color: rgba(255,255,255,.32); }

@@ -128,7 +128,12 @@ export class WristbandScanner {
     if (!this.detector || !video) return () => {};
 
     const SCAN_W = 640;          // breiter bringt für 2-cm-Marker nichts
-    const RATE_MS = 80;          // ~12 Bilder je Sekunde
+    const RATE_MS = 80;          // höchstens ~12 Bilder je Sekunde
+    // Wie der QR-Scanner (qr.js, IDLE_FACTOR): nach jeder Erkennung das Vierfache ihrer Dauer pausieren.
+    // Die Erkennung läuft auf dem Hauptthread, auf dem auch die XR-Bilder ankommen; mit fester Pause
+    // nahm sie auf einem langsamen Gerät (HoloLens 2) den ganzen Thread ein. So höchstens ~20 %.
+    const IDLE_FACTOR = 4;
+    const MAX_WAIT_MS = 1000;
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -136,7 +141,9 @@ export class WristbandScanner {
 
     const step = () => {
       if (stopped) return;
+      let wait = RATE_MS;
       if (video.readyState >= 2 && video.videoWidth) {
+        const t0 = performance.now();
         const w = Math.min(SCAN_W, video.videoWidth);
         const h = Math.round((video.videoHeight / video.videoWidth) * w);
         if (canvas.width !== w || canvas.height !== h) {
@@ -144,8 +151,11 @@ export class WristbandScanner {
         }
         ctx.drawImage(video, 0, 0, w, h);
         this.scan(ctx.getImageData(0, 0, w, h), performance.now());
+        const took = performance.now() - t0;
+        this.lastScanMs = Math.round(took);
+        wait = Math.min(MAX_WAIT_MS, Math.max(RATE_MS, took * IDLE_FACTOR));
       }
-      timer = setTimeout(step, RATE_MS);
+      timer = setTimeout(step, wait);
     };
     step();
 

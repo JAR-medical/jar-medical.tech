@@ -368,6 +368,29 @@ function openLagebild() {
 
 /* ------------------------------------------------------- mode start/stop */
 
+/**
+ * Gilt die Aktivierung des letzten Tippens noch? Wenn nicht, einen Knopf zeigen und auf das nächste
+ * Tippen warten — das bringt eine frische Aktivierung für requestSession mit. false, wenn der AR-Modus
+ * inzwischen verlassen wurde. Browser ohne navigator.userActivation gehen den alten Weg.
+ */
+function stillActivated() {
+  const ua = navigator.userActivation;
+  if (!ua || ua.isActive) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "flow-btn primary xr-enter";
+    btn.textContent = "AR jetzt starten";
+    let watch = 0;
+    const done = (ok) => { clearInterval(watch); btn.remove(); resolve(ok); };
+    btn.onclick = () => done(app.mode === "ar");
+    watch = setInterval(() => { if (app.mode !== "ar") done(false); }, 250);
+    el.stage.appendChild(btn);
+    btn.focus();
+    toast("Kamera bereit — zum Starten noch einmal tippen", "ok");
+  });
+}
+
 async function startAR() {
   app.mode = "ar";
   showStage("AR-Modus — Passthrough");
@@ -386,6 +409,12 @@ async function startAR() {
   // als abgelehnt, und zwar bei jedem Start aufs Neue. Genau deshalb sah es so
   // aus, als gäbe die Brille grundsätzlich keine Kamera her.
   await tryCamera();
+
+  // Die Kamera darf bis zu 6 s brauchen (GUM_TIMEOUT_MS in qr.js), beim ersten Start kommt die
+  // Berechtigungsfrage dazu. Die Nutzeraktivierung des Tippens auf „AR-Modus“ gilt aber nur rund 5 s
+  // (Chromium), und ohne sie lehnt der Browser jede immersive Sitzung ab: die ganze Leiter in display.js
+  // scheiterte dann mit SecurityError. Ist sie verbraucht, wird ein zweites Tippen verlangt.
+  if (!(await stillActivated())) return;
 
   app.xr = new XRPassthrough({
     // ?augentest=1 zeichnet je Ansicht ein großes Wort — LINKS bzw. RECHTS.
