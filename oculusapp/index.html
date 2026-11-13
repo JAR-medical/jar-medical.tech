@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>J.A.R. AR-Client — umgezogen</title>
+  <!-- Der AR-Client lag bis zum 10.09.2026 unter /oculusapp/ und ließ sich von dort als App installieren
+       (Edge → Apps → „Diese Website als App installieren“, siehe holo-lens/sw.js). Seit dem Umzug nach
+       /holo-lens/ lieferte diese Adresse 404, und eine damals installierte App zeigte nur noch die Fehlerseite.
+       Diese Seite leitet weiter (Parameter wie ?beacon=1 bleiben erhalten), und sw.js daneben meldet den alten
+       Service Worker ab und räumt seinen Zwischenspeicher. -->
+  <meta http-equiv="refresh" content="0; url=/holo-lens/">
+  <script>
+    (function () {
+      var target = "/holo-lens/" + location.search + location.hash;
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.filter(function (r) { return /\/oculusapp\/$/.test(r.scope); })
+            .map(function (r) { return r.unregister(); }));
+        }).catch(function () {}).then(function () { location.replace(target); });
+      } else {
+        location.replace(target);
+      }
+    })();
+  </script>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #101418; color: #e8edf2;
+      font: 18px/1.5 "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
+    a { color: #7cc0ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Der AR-Client ist umgezogen</h1>
+    <p>Neue Adresse: <a href="/holo-lens/">jar-medical.tech/holo-lens/</a>. Wer die App früher installiert hat,
+      installiert sie von dort neu.</p>
+  </main>
+</body>
+</html>

@@ -8,7 +8,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { htmlFiles, readText, exists, isDirectory, TOP_LEVEL_PAGES, LANGUAGES } from './lib/repo.mjs';
+import { htmlFiles, readText, exists, isDirectory, walk, TOP_LEVEL_PAGES, LANGUAGES } from './lib/repo.mjs';
 import { references, isExternal, elementIds, objectFromHtml } from './lib/html.mjs';
 
 const PAGES = htmlFiles();
@@ -163,7 +163,8 @@ describe('removed features leave nothing behind', () => {
   // The Oculus app and its call-to-action were deliberately deleted from this
   // repo. A stale reference would render a button leading to a 404.
   test('no page references the removed oculusapp directory', () => {
-    const offenders = PAGES.filter((p) => /oculusapp/i.test(readText(p)));
+    // oculusapp/index.html is the forwarding stub for installs from back then (oculusapp-redirect.test.mjs).
+    const offenders = PAGES.filter((p) => p !== 'oculusapp/index.html' && /oculusapp/i.test(readText(p)));
     assert.deepEqual(offenders, [], `oculusapp references resurfaced in: ${offenders.join(', ')}`);
   });
 
@@ -175,7 +176,8 @@ describe('removed features leave nothing behind', () => {
     assert.deepEqual(offenders, [], `stale cta_btn_ar translations in: ${offenders.join(', ')}`);
   });
 
-  test('the oculusapp directory really is gone', () => {
-    assert.equal(exists('oculusapp'), false);
+  test('the oculusapp directory holds only the forwarding stub, not the app', () => {
+    const left = walk(() => true, 'oculusapp');
+    assert.deepEqual(left, ['oculusapp/index.html', 'oculusapp/sw.js']);
   });
 });
