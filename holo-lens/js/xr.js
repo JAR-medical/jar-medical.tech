@@ -41,6 +41,7 @@ import { BodyMesh, loadBodyMesh } from "./bodyview.js";
 import { pickRegion, rgbOf } from "./body.js";
 import { fovFromProjection, fitToFov, displayProfile, requestSession, xrSupport }
   from "./display.js";
+import { XrLog } from "./xrlog.js";
 import { Spring, AngleSpring, Decay, VelocityTracker, SPRINGS,
          project, clampRubber, reducedMotion, watchReducedMotion } from "./motion.js";
 
@@ -157,6 +158,14 @@ const EYE_MODEL = new Float32Array([
 // der Projektionsmatrix. Wer es sieht, weiß, dass Sitzung, Puffer, Mischung
 // und Textur stimmen und das Problem in der Anordnung liegt. Wer es nicht
 // sieht, hat ein Problem weiter unten.
+// ?probe=quad: ein einfarbiges Rechteck, rund 28° × 17°, 1,2 m geradeaus.
+const PROBE_MODEL = new Float32Array([
+  0.3, 0, 0, 0,
+  0, 0.18, 0, 0,
+  0, 0, 1, 0,
+  0, 0, -1.2, 1,
+]);
+
 const BEACON_MODEL = new Float32Array([
   0.15, 0, 0, 0,
   0, 0.09, 0, 0,
@@ -391,6 +400,10 @@ export class XRPassthrough {
     // messen, was eine HoloLens 2 wirklich schafft — also muss sie es selbst
     // sagen können (`?perf=1`).
     this._perf = { fps: 0, frames: 0, hudDraws: 0, cardDraws: 0, uploads: 0, since: 0 };
+    // Flugschreiber (js/xrlog.js): was der AR-Lauf wirklich getan hat, auch wenn man im Headset nichts sieht.
+    this._log = new XrLog();
+    this._ls = null;                       // die laufende Sekunde
+    this._probe = "";                      // ?probe=clear|quad — siehe start()
 
     // Das HUD zieht über zwei Federn um — eine für die Drehung um die
     // Hochachse, eine für die Neigung. Bewusst getrennt und nicht eine Feder
@@ -474,6 +487,18 @@ export class XRPassthrough {
 
   async start() {
     if (this.session) return;
+    // Schalter zum Eingrenzen auf dem Gerät. Ohne sie bleibt alles beim Alten.
+    //   ?legacy=1   Stand vom 10.08.: schlichte Sitzung, volle Auflösung, Kantenglättung, Standard-Nah/Fern
+    //   ?scale=1    Auflösungsfaktor der Ebene     ?aa=1|0   Kantenglättung     ?depth=0   ohne Tiefenpuffer
+    //   ?near=0.1   Nahebene (Meter); ?near=default lässt sie dem Browser
+    //   ?ladder=plain   nur schlichte AR-Sitzungen, kein verbindliches hand-tracking, kein VR-Rückfall
+    //   ?probe=clear   die ganze Ansicht magenta löschen (kein Shader)   ?probe=quad   ein Magenta-Rechteck (kein Texturzugriff)
+    const q = new URLSearchParams(location.search);
+    const legacy = q.get("legacy") === "1";
+    const flags = [];
+    this._probe = q.get("probe") || "";
+    if (legacy) flags.push("legacy");
+    if (this._probe) flags.push("probe=" + this._probe);
     if (typeof navigator === "undefined" || !navigator.xr)
       throw new Error("WebXR steht in diesem Browser nicht zur Verfügung.");
 
@@ -494,7 +519,12 @@ export class XRPassthrough {
     // Welche Stufen versucht werden und warum, steht in display.js — dort ist
     // auch begründet, warum eine `immersive-vr`-Sitzung auf einem additiven
     // Glas kein Notbehelf ist, sondern dasselbe Bild.
-    const { session, tag, mode } = await requestSession();
+    const plainLadder = legacy || q.get("ladder") === "plain";
+    if (q.get("ladder") === "plain") flags.push("ladder=plain");
+    const { session, tag, mode } = await requestSession(plainLadder ? [
+      { mode: "immersive-ar", init: { optionalFeatures: ["local-floor", "hand-tracking"] }, tag: "AR schlicht" },
+      { mode: "immersive-ar", init: {}, tag: "AR ohne Zusatzmerkmale" },
+    ] : undefined);
     this._diag.feature = tag;
     this._diag.mode = mode;
 
@@ -513,13 +543,20 @@ export class XRPassthrough {
     // fast nur aus Texturrechtecken, denen MSAA ohnehin wenig gibt.
     const layerOpts = { alpha: true, depth: true, antialias: !this.profile.additive };
     if (this.profile.additive) layerOpts.framebufferScaleFactor = 0.7;
-    session.updateRenderState({
-      baseLayer: new XRWebGLLayer(session, gl, layerOpts),
-      // Ein durchsichtiges Glas soll nichts zeichnen, was näher steht als
-      // bequem scharfzustellen ist.
-      depthNear: this.profile.comfortNear,
-      depthFar: 100,
-    });
+    if (legacy) { delete layerOpts.framebufferScaleFactor; layerOpts.antialias = true; }
+    if (q.has("scale")) { layerOpts.framebufferScaleFactor = Number(q.get("scale")) || 1; flags.push("scale=" + q.get("scale")); }
+    if (q.has("aa")) { layerOpts.antialias = q.get("aa") === "1"; flags.push("aa=" + q.get("aa")); }
+    if (q.get("depth") === "0") { layerOpts.depth = false; flags.push("depth=0"); }
+    const renderState = { baseLayer: new XRWebGLLayer(session, gl, layerOpts) };
+    // Ein durchsichtiges Glas soll nichts zeichnen, was näher steht als
+    // bequem scharfzustellen ist.
+    const nearArg = q.get("near");
+    if (!legacy && nearArg !== "default") {
+      renderState.depthNear = nearArg ? Number(nearArg) || this.profile.comfortNear : this.profile.comfortNear;
+      renderState.depthFar = 100;
+    }
+    if (nearArg) flags.push("near=" + nearArg);
+    session.updateRenderState(renderState);
 
     // Mit „local-floor" liegt der Boden bei y = 0 — dorthin gehören die Marker.
     // Gibt die Brille ihn nicht her (etwa im Sitz-/Stationärmodus ohne
@@ -544,6 +581,25 @@ export class XRPassthrough {
     this.gl = gl;
     this.session = session;
     this._initGL();
+
+    // Flugschreiber starten: Sitzung, Ebene, Grafikchip — das Einzige, was nach dem Lauf noch nachlesbar ist.
+    try {
+      const ext = gl.getExtension("WEBGL_debug_renderer_info");
+      const layer = renderState.baseLayer;   // session.renderState gilt erst ab dem nächsten Bild
+      this._log.begin({
+        ua: navigator.userAgent, tag, mode, blend: session.environmentBlendMode,
+        features: Array.isArray(session.enabledFeatures) ? session.enabledFeatures : undefined,
+        layer: { w: layer.framebufferWidth, h: layer.framebufferHeight, scale: layerOpts.framebufferScaleFactor || 1,
+                 aa: !!layer.antialias, depth: layerOpts.depth },
+        near: renderState.depthNear, far: renderState.depthFar,
+        gl: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+        maxTex: gl.getParameter(gl.MAX_TEXTURE_SIZE), flags: flags.join(" "),
+      });
+      this._log.event("Sichtbarkeit: " + session.visibilityState);
+      session.addEventListener("visibilitychange", () => this._log.event("Sichtbarkeit: " + session.visibilityState));
+    } catch (e) { console.warn("[JAR] Flugschreiber:", e); }
+    this._ls = { since: performance.now(), frames: 0, ms: 0, max: 0, poseNull: 0, vpMissing: 0, uploads: 0,
+                 ndc: null, views: 0, vp: "" };
 
     session.addEventListener("select", this._onSelectBound);
     session.addEventListener("selectstart", this._onSelectStart);
@@ -654,6 +710,19 @@ export class XRPassthrough {
     this.uMVP = gl.getUniformLocation(prog, "uMVP");
     this.uTex = gl.getUniformLocation(prog, "uTex");
 
+    if (this._probe === "quad") {
+      const pp = gl.createProgram();
+      gl.attachShader(pp, vs);
+      gl.attachShader(pp, this._shader(gl.FRAGMENT_SHADER,
+        "precision mediump float; void main() { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); }"));
+      gl.linkProgram(pp);
+      if (!gl.getProgramParameter(pp, gl.LINK_STATUS))
+        throw new Error("Probe-Shader fehlgeschlagen: " + gl.getProgramInfoLog(pp));
+      this.probeProg = pp;
+      this.probePos = gl.getAttribLocation(pp, "aPos");
+      this.probeMVP = gl.getUniformLocation(pp, "uMVP");
+    }
+
     const verts = new Float32Array([
       -1, -1, 0, 0,   1, -1, 1, 0,   1, 1, 1, 1,
       -1, -1, 0, 0,   1,  1, 1, 1,  -1, 1, 0, 1,
@@ -741,6 +810,7 @@ export class XRPassthrough {
 
   _upload(tex, canvas) {
     const gl = this.gl;
+    if (this._ls) this._ls.uploads++;
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
@@ -1655,6 +1725,7 @@ export class XRPassthrough {
     const session = this.session;
     if (!session) return;
     session.requestAnimationFrame(this._frameBound);
+    const f0 = performance.now();
     try {
       this._drawFrame(t, frame);
     } catch (err) {
@@ -1662,9 +1733,36 @@ export class XRPassthrough {
       if (msg !== this._frameError) {
         this._frameError = msg;
         console.error("[JAR] Bildfehler:", err);
+        this._log.event("Bildfehler: " + msg);
         this.onStereoIssue("Bildfehler: " + msg);
       }
     }
+    this._frameDone(performance.now() - f0);
+  }
+
+  /** Die laufende Sekunde fortschreiben; nach einer Sekunde geht sie in den Flugschreiber. */
+  _frameDone(ms) {
+    const s = this._ls;
+    if (!s) return;
+    s.frames++; s.ms += ms; s.max = Math.max(s.max, ms);
+    const now = performance.now();
+    if (now - s.since < 1000) return;
+    const glErr = [];
+    try {
+      const gl = this.gl;
+      for (let i = 0; gl && i < 4; i++) {
+        const e = gl.getError();
+        if (!e) break;
+        glErr.push({ 1280: "INVALID_ENUM", 1281: "INVALID_VALUE", 1282: "INVALID_OPERATION", 1285: "OUT_OF_MEMORY",
+                     1286: "INVALID_FRAMEBUFFER_OPERATION", 37442: "CONTEXT_LOST" }[e] || String(e));
+      }
+    } catch (_) {}
+    this._log.second({
+      fps: Math.round((s.frames * 1000) / (now - s.since)), avgMs: s.ms / s.frames, maxMs: s.max,
+      poseNull: s.poseNull, vpMissing: s.vpMissing, glErr, uploads: s.uploads, views: s.views, vp: s.vp, ndc: s.ndc,
+    });
+    this._ls = { since: now, frames: 0, ms: 0, max: 0, poseNull: 0, vpMissing: 0, uploads: 0,
+                 ndc: s.ndc, views: s.views, vp: s.vp };
   }
 
   _drawFrame(t, frame) {
@@ -1689,7 +1787,7 @@ export class XRPassthrough {
     const layer = session.renderState.baseLayer;
 
     const pose = frame.getViewerPose(this.refSpace);
-    if (!pose) return;
+    if (!pose) { if (this._ls) this._ls.poseNull++; return; }
 
     // Erst hier gibt es eine Projektionsmatrix — also erst hier ist bekannt,
     // wie groß das Blickfeld dieses Geräts wirklich ist.
@@ -1870,6 +1968,10 @@ export class XRPassthrough {
     gl.clearColor(0, 0, 0, 0);             // durchsichtig → Passthrough bleibt
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (this._probe === "clear") {         // ?probe=clear: ohne Shader, ohne Textur — kommt überhaupt etwas an?
+      gl.clearColor(1, 0, 1, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
 
     gl.useProgram(this.prog);
     gl.disable(gl.DEPTH_TEST);
@@ -1892,7 +1994,8 @@ export class XRPassthrough {
         vp = { x: vi * w, y: 0, width: w, height: layer.framebufferHeight };
         synthesised++;
       }
-      if (!vp) continue;
+      if (!vp) { if (this._ls) this._ls.vpMissing++; continue; }
+      if (this._ls && vi === 0) { this._ls.views = views.length; this._ls.vp = `${vp.width}x${vp.height}`; }
 
       // Für jedes Auge frisch binden: einzelne Umsetzungen hängen den
       // Augenpuffer je Ansicht um, und ein einmaliges Binden am Frame-Anfang
@@ -1901,6 +2004,11 @@ export class XRPassthrough {
       gl.viewport(vp.x, vp.y, vp.width, vp.height);
       drawn++;
       const viewProj = mul(view.projectionMatrix, view.transform.inverse.matrix);
+      if (this._ls && vi === 0) {
+        // Wo liegt der Mittelpunkt des HUD im Bild (NDC)? Außerhalb ±1 oder hinter dem Kopf heißt: nicht zu sehen.
+        const m = mul(viewProj, hudModel), w = m[15];
+        this._ls.ndc = { x: m[12] / w, y: m[13] / w, z: m[14] / w, w };
+      }
 
       gl.bindTexture(gl.TEXTURE_2D, this.hudTex);
       gl.uniformMatrix4fv(this.uMVP, false, mul(viewProj, hudModel));
@@ -1978,6 +2086,16 @@ export class XRPassthrough {
         gl.uniformMatrix4fv(this.uMVP, false, mul(view.projectionMatrix, EYE_MODEL));
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
+
+      if (this._probe === "quad" && this.probeProg) {   // ?probe=quad: Shader und Projektion, aber keine Textur
+        gl.useProgram(this.probeProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+        gl.enableVertexAttribArray(this.probePos);
+        gl.vertexAttribPointer(this.probePos, 2, gl.FLOAT, false, 16, 0);
+        gl.uniformMatrix4fv(this.probeMVP, false, mul(view.projectionMatrix, PROBE_MODEL));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        this._bindQuads();
+      }
     }
 
     // Wenn nicht für jede gemeldete Ansicht gezeichnet wurde, sieht man die
@@ -2012,6 +2130,8 @@ export class XRPassthrough {
 
   _cleanup() {
     if (!this.session) return;
+    this._log.end("Sitzung beendet");
+    this._ls = null;
     try {
       this.session.removeEventListener("select", this._onSelectBound);
       this.session.removeEventListener("selectstart", this._onSelectStart);

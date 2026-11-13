@@ -24,6 +24,7 @@
 "use strict";
 
 import { patientIds, resolvePatient } from "./data.js";
+import { XrLog, formatReport } from "./xrlog.js";
 import { QRScanner, decodeSupported, barcodeDetectorAvailable, jsQRAvailable } from "./qr.js";
 import { Voice, synthesisAvailable, recognitionAvailable, onDeviceStatus } from "./voice.js";
 import { XRPassthrough, xrSupport } from "./xr.js";
@@ -564,7 +565,17 @@ function exitStage() {
   backToStart();
 }
 
+/** Den Bericht des letzten AR-Laufs auf der Startseite zeigen (Flugschreiber, js/xrlog.js). */
+function showXrReport() {
+  const box = $("xr-report-box");
+  if (!box) return;
+  const report = XrLog.load();
+  box.hidden = !report;
+  if (report) $("xr-report").textContent = formatReport(report);
+}
+
 function backToStart() {
+  showXrReport();
   stopWristbandCamera();
   if (app.scanner) { app.scanner.stop(); app.scanner = null; }
   app.voice && app.voice.stopSpeaking();
@@ -628,6 +639,9 @@ function boot() {
   watchReducedMotion();
   registerWorker();
   detectCaps();
+  showXrReport();
+  const clearBtn = $("xr-report-clear");
+  if (clearBtn) clearBtn.onclick = () => { XrLog.clear(); showXrReport(); };
   wireControls();
 
   // Gesprochenes geht durch denselben Ablauf wie ein Knopfdruck — die

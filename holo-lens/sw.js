@@ -40,7 +40,7 @@ const PRECACHE = [
   "./js/data.js", "./js/display.js", "./js/hud.js", "./js/hudcanvas.js",
   "./js/hudscreen.js", "./js/layout.js", "./js/motion.js", "./js/mstart.js",
   "./js/qr.js", "./js/tasks.js", "./js/voice.js", "./js/workflow.js",
-  "./js/wristband.js", "./js/xr.js",
+  "./js/wristband.js", "./js/xr.js", "./js/xrlog.js",
   "./vendor/aruco.js", "./vendor/cv.js", "./vendor/jsQR.min.js",
   "./assets/body/body.json", "./assets/body/body.bin",
   "./assets/icon/icon-192.png", "./assets/icon/icon-512.png",

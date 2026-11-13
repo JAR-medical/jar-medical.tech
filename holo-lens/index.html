@@ -57,6 +57,13 @@
     <section class="caps-wrap">
       <h2>Gerät</h2>
       <ul id="caps" class="caps"></ul>
+      <!-- Der Flugschreiber des AR-Modus (js/xrlog.js): was der letzte Lauf im Headset wirklich getan hat.
+           Im Headset sieht man ihn nicht — danach hier lesen oder abfotografieren. -->
+      <details id="xr-report-box" class="xr-report-box" hidden>
+        <summary>Letzter AR-Lauf (Diagnose)</summary>
+        <pre id="xr-report" class="xr-report"></pre>
+        <button id="xr-report-clear" class="flow-btn ghost" type="button">Bericht löschen</button>
+      </details>
       <p class="hint">
         Im <strong>AR-Modus</strong> wird mit dem <strong>Blick</strong> gezielt und durch
         Verweilen ausgelöst; Controller und — wo es sie gibt — Hände gehen auch.

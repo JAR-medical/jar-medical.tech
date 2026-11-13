@@ -86,6 +86,10 @@ body {
 .caps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .caps li { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .caps li em { color: var(--muted); font-style: normal; margin-left: auto; font-size: 13px; }
+.xr-report-box { margin: 12px 0 0; }
+.xr-report-box summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.xr-report { margin: 8px 0; padding: 12px; overflow-x: auto; white-space: pre; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace;
+  color: var(--text); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 10px; }
 .cap-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--unsighted); flex: none; }
 .cap-dot.yes { background: var(--sk3); box-shadow: 0 0 8px #46a75899; }
 .cap-dot.no { background: var(--sk1); }
