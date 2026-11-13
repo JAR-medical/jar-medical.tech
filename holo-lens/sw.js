@@ -24,7 +24,7 @@
  * der alte Bestände wegräumt.
  */
 
-const VERSION = "jar-ar-v1";
+const VERSION = "jar-ar-v2";
 const SHELL = VERSION + "-shell";
 
 /* Was beim Installieren mitgenommen wird. Bewusst einzeln und fehlertolerant:
@@ -89,7 +89,9 @@ self.addEventListener("fetch", (e) => {
 async function networkFirst(req) {
   const cache = await caches.open(SHELL);
   try {
-    const res = await fetch(req);
+    // `no-cache`: beim Server nachfragen, statt aus dem HTTP-Cache des Browsers zu antworten. GitHub Pages
+    // schickt max-age=14400 — ohne das sähe man nach einem Update bis zu vier Stunden lang den alten Stand.
+    const res = await fetch(req, { cache: "no-cache" });
     if (res && res.ok) cache.put(req, res.clone());
     return res;
   } catch (_) {
