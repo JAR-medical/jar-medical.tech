@@ -64,4 +64,6 @@ html.gate-locked body > :not(#gate) { display: none !important; }
 }
 .gate-button:disabled { opacity: 0.55; cursor: default; }
 
+.gate-version { margin: -6px 0 6px; font-size: 14px; color: var(--muted, #93a1ad); }
+
 .gate-status { min-height: 1.4em; margin: 0; font-size: 17px; color: var(--sk2, #f5b301); }

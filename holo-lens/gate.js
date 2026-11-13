@@ -12,13 +12,14 @@
  *
  * ?lock in the URL forgets the remembered unlock on this device.
  *
- * __SALT_HEX__, __ITERATIONS__ and __HASH_HEX__ are filled in by deploy_website.py. */
+ * __SALT_HEX__, __ITERATIONS__, __HASH_HEX__ and __BUILD__ are filled in by deploy_website.py. */
 (() => {
   "use strict";
 
   const SALT_HEX = "8b7100b5da857f3e4d0652c626d5663e";
   const ITERATIONS = 200000;
   const HASH_HEX = "c45602a1f0eacc32fcb59674c72aab6f0285c8f0be84cb36a103b281df04f55d";
+  const BUILD = "13.11.2026 08:33 · 86e0613";
   const STORE_KEY = "jar-holo-lens-unlock";
   const REMEMBER_DAYS = 30;
   const MAX_WAIT_MS = 8000;
@@ -94,6 +95,7 @@
       '<form class="gate-card" autocomplete="off" novalidate>' +
         '<h1 id="gate-title">J.A.R. AR-Client</h1>' +
         '<p class="gate-lead">Zugang nur mit Code.</p>' +
+        '<p class="gate-version">Fassung ' + BUILD + '</p>' +
         '<label class="gate-label" for="gate-code">Zugangscode</label>' +
         '<input id="gate-code" class="gate-input" type="password" autocomplete="off" autocapitalize="off" ' +
           'autocorrect="off" spellcheck="false" enterkeyhint="go">' +
