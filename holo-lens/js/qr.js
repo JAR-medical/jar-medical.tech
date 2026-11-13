@@ -50,6 +50,17 @@ export function decodeSupported() {
  * Rechenzeit mit der Darstellung. */
 const SCAN_INTERVAL_MS = 66;
 
+/* Der JS-Rückfall (jsQR) läuft im Hauptfaden — in dem, der im Headset auch die XR-Bilder
+ * liefert. Auf der HoloLens 2 dauert eine Auswertung des vollen 1280×720-Bildes mit
+ * `attemptBoth` viele Frames lang; die Darstellung bekam dann kaum noch Rechenzeit.
+ * Deshalb: erst auf höchstens MAX_DECODE_W Pixel Breite herunterrechnen (ein QR-Code in
+ * Armlänge ist dann immer noch groß genug), und nach jeder Auswertung mindestens
+ * IDLE_FACTOR × ihre Dauer pausieren — der Scanner belegt so höchstens ~1/(1+IDLE_FACTOR)
+ * der Rechenzeit, egal wie langsam das Gerät ist. */
+const MAX_DECODE_W = 640;
+const IDLE_FACTOR = 4;
+const MAX_INTERVAL_MS = 1500;
+
 /* So lange wird auf die Kamera gewartet, bevor ohne sie weitergemacht wird. */
 const GUM_TIMEOUT_MS = 6000;
 
@@ -189,8 +200,8 @@ export class QRScanner {
 
     // jsQR fallback path.
     if (jsQRAvailable()) {
-      const w = (this.canvas.width = v.videoWidth);
-      const h = (this.canvas.height = v.videoHeight);
+      const w = (this.canvas.width = Math.min(MAX_DECODE_W, v.videoWidth));
+      const h = (this.canvas.height = Math.round((v.videoHeight / v.videoWidth) * w));
       this.ctx.drawImage(v, 0, 0, w, h);
       const img = this.ctx.getImageData(0, 0, w, h);
       const res = window.jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
@@ -213,8 +224,13 @@ export class QRScanner {
    * mit Abstand und lassen der Darstellung ihre Rechenzeit. */
   _tick() {
     if (!this.running) return;
+    const t0 = performance.now();
     this._decodeFrame().finally(() => {
-      if (this.running) this._timer = setTimeout(() => this._tick(), SCAN_INTERVAL_MS);
+      // Je länger die Auswertung dauerte, desto länger die Pause (siehe IDLE_FACTOR).
+      const took = performance.now() - t0;
+      this.lastDecodeMs = Math.round(took);
+      const wait = Math.min(MAX_INTERVAL_MS, Math.max(SCAN_INTERVAL_MS, took * IDLE_FACTOR));
+      if (this.running) this._timer = setTimeout(() => this._tick(), wait);
     });
   }
 }

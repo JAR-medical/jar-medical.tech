@@ -423,8 +423,9 @@ async function startAR() {
     // was das Gerät meldet.
     onPerf: (p) => {
       if (!showPerf || !app.flow) return;
+      const scan = app.scanner && app.scanner.lastDecodeMs != null ? ` · Scan ${app.scanner.lastDecodeMs} ms` : "";
       app.flow.setNotice(`${p.fps} B/s · HUD ${p.hudDraws}× · Karte ${p.cardDraws}× · ` +
-                         `${p.display} ${p.fov}`);
+                         `${p.display} ${p.fov}${scan}`);
     },
     onFrame: () => {
       app.flow.tick();
@@ -453,6 +454,13 @@ async function startAR() {
  */
 async function tryCamera() {
   if (!app.flow) return;
+  // ?noscan=1 schaltet Kamera und Scanner ganz ab — um im Headset zu prüfen, ob sie die Bildrate
+  // fressen: bleibt die Darstellung damit flüssig, war es der Scanner.
+  if (new URLSearchParams(location.search).get("noscan") === "1") {
+    app.flow.cameraLive = false;
+    app.flow.setNotice("Scanner aus (?noscan=1) — Nummer von Hand wählen");
+    return;
+  }
   if (!decodeSupported()) { app.flow.cameraLive = false; return; }
 
   app.scanner = new QRScanner({
