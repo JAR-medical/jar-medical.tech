@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>RP-XR — Retinitis Pigmentosa Simulator</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Fullscreen WebGL canvas -->
+  <canvas id="glCanvas"></canvas>
+
+  <!-- Hidden video element used by 'video' scene pass -->
+  <video id="videoFeed" src="assets/shanghai-walk.mp4" playsinline loop muted crossorigin="anonymous" style="display:none"></video>
+
+  <!-- Error display overlay -->
+  <div id="errorOverlay" class="error-panel" hidden>
+    <div class="error-card">
+      <h2>Simulation Error</h2>
+      <p id="errorMessage"></p>
+      <pre id="errorStack"></pre>
+    </div>
+  </div>
+
+  <!-- Photosensitivity safety gate overlay -->
+  <div id="safetyGate" class="safety-gate" hidden>
+    <div class="safety-card">
+      <h2>Photosensitivity &amp; Seizure Warning</h2>
+      <p>
+        This simulator reproduces visual symptoms of Retinitis Pigmentosa, including
+        <strong>photopsia (flashing net patterns)</strong> and <strong>sparkle sensations</strong>
+        that flicker at frequencies up to 12 Hz.
+      </p>
+      <p>
+        If you have epilepsy, a history of seizures, or are sensitive to flashing lights,
+        use caution or enable the "Reduce flashing" option in settings.
+      </p>
+      <button id="btnAcknowledge" class="btn btn-primary" type="button">
+        I understand and wish to proceed
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings and launch interface card -->
+  <main id="settingsCard" class="settings-card">
+    <header class="header">
+      <h1>RP-XR</h1>
+      <p class="subtitle">Retinitis Pigmentosa Simulator &middot; PICO 4 Enterprise WebXR</p>
+    </header>
+
+    <!-- Primary launch actions -->
+    <section class="section actions-section">
+      <div class="button-group">
+        <button id="btnEnterVR" class="btn btn-action" type="button">Enter VR (Immersive)</button>
+        <button id="btnEnterAR" class="btn btn-action" type="button">Enter Passthrough (AR)</button>
+        <button id="btnDesktopPreview" class="btn btn-action" type="button">Desktop Preview</button>
+      </div>
+      <div id="statusLine" class="status-line">Gaze: initializing...</div>
+    </section>
+
+    <!-- General simulator controls -->
+    <section class="section">
+      <h2>General Experience</h2>
+
+      <div class="control-row">
+        <label for="sceneSelect">World Scene</label>
+        <select id="sceneSelect" class="select-input">
+          <option value="street">Procedural Street</option>
+          <option value="video">Shanghai Walk (Curved Video)</option>
+        </select>
+      </div>
+
+      <div id="videoCredit" class="credit-line" hidden>
+        video: Shanghai city walk, LOVE SHANGHAI, CC BY 4.0
+      </div>
+
+      <div class="control-row checkbox-row">
+        <label for="chkNight">Night / Dusk lighting (Street scene)</label>
+        <input type="checkbox" id="chkNight" class="checkbox-input">
+      </div>
+
+      <div class="control-row headline-slider-row">
+        <div class="slider-header">
+          <label for="sDegen">Degeneration of central field</label>
+          <span id="degenVal" class="val-badge">82%</span>
+        </div>
+        <input type="range" id="sDegen" min="0" max="1" step="0.01" value="0.82" class="slider">
+      </div>
+
+      <div class="control-row checkbox-row">
+        <label for="chkReduceFlashing">Reduce flashing (steady photopsia &amp; sparkle)</label>
+        <input type="checkbox" id="chkReduceFlashing" class="checkbox-input">
+      </div>
+
+      <div class="control-row checkbox-row">
+        <label for="chkGazeCursor">Show gaze cursor ring (debug)</label>
+        <input type="checkbox" id="chkGazeCursor" class="checkbox-input">
+      </div>
+
+      <div class="control-row">
+        <div class="slider-header">
+          <label for="sRenderScale">Render Scale (XR)</label>
+          <span id="renderScaleVal" class="val-badge">0.8x</span>
+        </div>
+        <input type="range" id="sRenderScale" min="0.5" max="1.2" step="0.05" value="0.8" class="slider">
+      </div>
+    </section>
+
+    <!-- Gaze tracking configuration -->
+    <section class="section">
+      <h2>Gaze Tracking</h2>
+
+      <div class="control-row">
+        <label for="gazeSourceSelect">Gaze Source</label>
+        <select id="gazeSourceSelect" class="select-input">
+          <option value="auto">Auto (Priority: Bridge &gt; WebXR &gt; Controller &gt; Head)</option>
+          <option value="bridge">Bridge Companion (PICO SDK WebSocket)</option>
+          <option value="webxr">WebXR Gaze Input Source</option>
+          <option value="controller">Controller Thumbstick</option>
+          <option value="head">Head-Forward (Tunnel Vision)</option>
+          <option value="mouse">Mouse Pointer (Desktop)</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="bridgeUrlInput">Bridge WebSocket URL</label>
+        <input type="text" id="bridgeUrlInput" value="ws://127.0.0.1:8765" class="text-input" spellcheck="false">
+      </div>
+
+      <div class="control-row">
+        <button id="btnCalibrate" class="btn btn-secondary" type="button">
+          Start 9-Point Gaze Calibration
+        </button>
+      </div>
+    </section>
+
+    <!-- Generated symptom & aid controls -->
+    <section class="section">
+      <h2>Symptoms &amp; Aid Settings</h2>
+      <div id="schemaControls" class="schema-controls">
+        <!-- Dynamically populated from FIELD, QUALIA, and PANEL schema -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Desktop preview HUD / Exit button -->
+  <div id="desktopHud" class="desktop-hud" hidden>
+    <button id="btnExitDesktop" class="btn btn-small" type="button">Exit Preview (Esc)</button>
+    <div class="desktop-hints">
+      <span>Drag: Look</span>
+      <span>WASD: Walk</span>
+      <span>Space: Normal Vision</span>
+      <span>0: Symptoms</span>
+      <span>1: Field</span>
+      <span>2: Night</span>
+      <span>P: Panel</span>
+      <span>C: Calibrate</span>
+      <span>[/]: Degeneration</span>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

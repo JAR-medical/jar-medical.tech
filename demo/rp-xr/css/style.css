@@ -1,0 +1,456 @@
+/* RP-XR Stylesheet: Dark theme, high-contrast, large touch targets for PICO laser pointer */
+
+:root {
+  --bg-color: #0f1013;
+  --card-bg: #1a1b22;
+  --card-border: #2c2d38;
+  --text-main: #f0f0f5;
+  --text-muted: #9da0b3;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-active: #1e40af;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.45);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --touch-min: 48px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#glCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  display: block;
+}
+
+/* Modals & Overlays */
+.safety-gate, .error-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(10, 11, 14, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.safety-card, .error-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  max-width: 580px;
+  width: 100%;
+  padding: 32px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+}
+
+.safety-card h2, .error-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.error-card h2 {
+  color: var(--danger);
+}
+
+.safety-card p, .error-card p {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+}
+
+.safety-card strong {
+  color: var(--text-main);
+}
+
+#errorStack {
+  background: #111;
+  color: #ff8888;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  max-height: 200px;
+  margin-top: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Main settings container */
+.settings-card {
+  position: relative;
+  z-index: 10;
+  max-width: 680px;
+  margin: 32px auto;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 20px;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-top: 6px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #fff;
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  padding: 12px 24px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-action {
+  flex: 1 1 180px;
+  background-color: #272834;
+  color: var(--text-main);
+  border-color: #3b3d4f;
+}
+
+.btn-action:hover:not(:disabled) {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-action:focus-visible {
+  border-color: var(--accent);
+}
+
+.btn-secondary {
+  background-color: #272834;
+  color: var(--text-main);
+  border-color: #3b3d4f;
+  width: 100%;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #333545;
+}
+
+.btn-small {
+  min-height: 38px;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  background: rgba(30, 30, 40, 0.9);
+  color: #fff;
+  border: 1px solid #444;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.status-line {
+  background-color: #121319;
+  border: 1px solid #282937;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-family: ui-monospace, Menlo, Monaco, monospace;
+  color: #7dd3fc;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* Form Controls */
+.control-row {
+  margin-bottom: 18px;
+}
+
+.control-row label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.slider-header label {
+  margin-bottom: 0;
+}
+
+.val-badge {
+  font-family: ui-monospace, Menlo, Monaco, monospace;
+  font-size: 0.9rem;
+  color: #93c5fd;
+  background: #141f36;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.slider {
+  width: 100%;
+  height: var(--touch-min);
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background-color: #2e3040;
+  border-radius: 4px;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  border: 2px solid #fff;
+  margin-top: -10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.select-input, .text-input {
+  width: 100%;
+  min-height: var(--touch-min);
+  background-color: #121319;
+  border: 1px solid #333547;
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 1rem;
+  padding: 10px 14px;
+}
+
+.select-input:focus, .text-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--touch-min);
+  background: #14151c;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid #252633;
+}
+
+.checkbox-row label {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.checkbox-input {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.credit-line {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: -8px;
+  margin-bottom: 14px;
+  font-style: italic;
+}
+
+/* Generated Groups */
+.schema-group {
+  background-color: #14151d;
+  border: 1px solid #252636;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.group-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.group-toggle {
+  min-height: 36px;
+  min-width: 64px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid #3d4054;
+  background: #232533;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.group-toggle.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.group-params {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #232533;
+}
+
+.group-params[hidden] {
+  display: none;
+}
+
+/* Desktop Preview HUD */
+.desktop-hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(15, 16, 20, 0.85);
+  border: 1px solid #333;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  backdrop-filter: blur(8px);
+}
+
+.desktop-hints {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.desktop-hints span {
+  background: #222430;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #d1d5db;
+}
+
+/* Mobile / Narrow viewports */
+@media (max-width: 640px) {
+  .settings-card {
+    margin: 12px;
+    padding: 20px;
+  }
+
+  .header h1 {
+    font-size: 1.6rem;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 100%;
+  }
+
+  .desktop-hints {
+    display: none;
+  }
+}
+
+/* the hidden attribute must always win over component display rules */
+[hidden] { display: none !important; }

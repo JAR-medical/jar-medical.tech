@@ -1,7 +1,7 @@
 // Course catalog: grouped into three sections on the client dashboard:
 //   - "understand": animated explainer courses (speech model, AR mesh, 3D mapping)
 //   - "test":       hands-on demos (voice recording & diarization, drone footage to 3D mesh,
-//                   situation map from a simulated drone swarm)
+//                   situation map from a simulated drone swarm, retinitis pigmentosa in VR)
 //   - "train":      role-based operational training (none offered at the moment)
 import transkriptionModell from "./courses/transkription-modell.js";
 import arMeshSichtung from "./courses/ar-mesh-sichtung.js";
@@ -9,6 +9,7 @@ import kartierung3dQuellen from "./courses/kartierung-3d-quellen.js";
 import demoTranskription from "./courses/demo-transkription.js";
 import demo3dKartierung from "./courses/demo-3d-kartierung.js";
 import demoLagebildDrohnen from "./courses/demo-lagebild-drohnen.js";
+import demoRpSimulation from "./courses/demo-rp-simulation.js";
 
 export const SECTIONS = ["understand", "test", "train"];
 
@@ -22,6 +23,7 @@ export const COURSES = [
   demoTranskription,
   demo3dKartierung,
   demoLagebildDrohnen,
+  demoRpSimulation,
 ];
 
 export function getCourse(id) {

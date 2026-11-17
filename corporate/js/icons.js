@@ -17,6 +17,11 @@ export const ICONS = {
     ["rect", { x: "9", y: "3.5", width: "6", height: "10", rx: "3" }],
     ["path", { d: "M6 10.5a6 6 0 0 0 12 0M12 16.5v4M9 20.5h6" }],
   ],
+  // An eye with its pupil, for the vision simulation demo.
+  eye: [
+    ["path", { d: "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" }],
+    ["circle", { cx: "12", cy: "12", r: "3" }],
+  ],
   // System overview / compass
   compass: [
     ["circle", { cx: "12", cy: "12", r: "8.5" }],
