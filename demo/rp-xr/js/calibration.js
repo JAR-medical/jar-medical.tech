@@ -58,7 +58,16 @@ export class CalibrationProcedure {
     return this.active;
   }
 
+  // Calibration corrects an eye tracker's offset. With head, controller or
+  // mouse gaze the measured direction cannot follow the eyes to the dots, so
+  // every run would be rejected: refuse up front and say why.
+  // Returns true when a run started.
   start() {
+    if (!this.manager?.isEye) {
+      const src = this.manager?.getActiveSourceId?.() || 'head';
+      this.renderer?.setHud?.(`Calibration needs an eye tracker\nGaze now follows: ${src}`, 4.0);
+      return false;
+    }
     this.active = true;
     this.targetIndex = 0;
     this.pointTimer = 0;
@@ -67,6 +76,7 @@ export class CalibrationProcedure {
     this.measuredPoints = [];
 
     this.renderer?.setHud?.('Look directly at the yellow target', 2.0);
+    return true;
   }
 
   abort() {

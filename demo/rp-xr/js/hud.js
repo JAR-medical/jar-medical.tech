@@ -1,4 +1,4 @@
-// Head-locked HUD toast: 2D canvas (512x128) rendered to texture,
+// Head-locked HUD toast (one or two lines): 2D canvas (512x128) rendered to texture,
 // drawn in the RP pass at view-space angles (az 0, el -14°), 28° wide.
 // Fades out over the last 0.5 seconds.
 
@@ -108,11 +108,20 @@ export class Hud {
     ctx.stroke();
 
     // Text rendering
-    ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+    // up to two lines ('\n'); a second line is set smaller
+    const lines = this.text.split('\n').slice(0, 2);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.text, w / 2, h / 2, w - 48);
+    if (lines.length === 1) {
+      ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+      ctx.fillText(lines[0], w / 2, h / 2, w - 48);
+    } else {
+      ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+      ctx.fillText(lines[0], w / 2, h / 2 - 19, w - 48);
+      ctx.font = '24px system-ui, -apple-system, sans-serif';
+      ctx.fillText(lines[1], w / 2, h / 2 + 19, w - 48);
+    }
     ctx.restore();
   }
 

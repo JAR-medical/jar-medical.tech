@@ -12,6 +12,7 @@ import {
   DEGENERATION_STEPS,
   FIELD,
   PANEL,
+  QUALIA,
 } from './config.js';
 import { state, triggerRestitch } from './state.js';
 
@@ -139,7 +140,30 @@ export class XRSessionManager {
     this.squeezeTriggered = false;
     this.prevButtons.clear();
 
+    this.bypassShown = false;
+    this.readoutPending = true; // shown on the first frame, once gaze is known
+
     this.rafId = session.requestAnimationFrame(this.boundOnXRFrame);
+  }
+
+  // Two-line status at session start: where the gaze comes from and how big
+  // the surviving island is. Makes "no effects" diagnosable in the headset:
+  // an island wider than the view, a disabled field or no symptoms enabled.
+  showSessionReadout() {
+    const src = this.gazeManager.getActiveSourceId();
+    const line1 = this.gazeManager.isEye
+      ? `Gaze: ${src} (eye-tracked)`
+      : `Gaze: ${src} (no eye tracker)`;
+    const p = FIELD.params;
+    const degen = p.degeneration.value;
+    const island = p.inner.value[0] + (p.inner.value[1] - p.inner.value[0]) * degen;
+    const symptoms = Object.values(QUALIA).filter((q) => q?.enabled).length;
+    let line2;
+    if (!FIELD.enabled) line2 = 'Visual field is OFF in settings';
+    else if (symptoms === 0) line2 = 'All symptoms are OFF in settings';
+    else if (island > 45) line2 = `Island ${island.toFixed(0)}° fills the view: press A`;
+    else line2 = `Island ${island.toFixed(0)}° · degeneration ${(degen * 100).toFixed(0)}%`;
+    this.renderer.setHud(`${line1}\n${line2}`, 6.0);
   }
 
   async stop() {
@@ -287,16 +311,23 @@ export class XRSessionManager {
     }
 
     this.bypass = anyTriggerHeld;
+    // say so while the trigger counts as held: a resting finger or an
+    // emulated trigger would otherwise silently hide every effect
+    if (this.bypass && !this.bypassShown) {
+      this.bypassShown = true;
+      this.renderer.setHud('Normal vision (trigger held)', 3600);
+    } else if (!this.bypass && this.bypassShown) {
+      this.bypassShown = false;
+      this.renderer.setHud('', 0.1);
+    }
 
     // Two-hand squeeze 1-second hold
     if (leftSqueeze && rightSqueeze) {
       this.squeezeHoldTimer += dt;
       if (this.squeezeHoldTimer >= 1.0 && !this.squeezeTriggered) {
         this.squeezeTriggered = true;
-        this.renderer.setHud('Starting gaze calibration...', 2.5);
-        if (this.calibration) {
-          this.calibration.start();
-        }
+        // start() puts its own message on the HUD (or why it refused)
+        this.calibration?.start();
       }
     } else {
       this.squeezeHoldTimer = 0;
@@ -323,6 +354,10 @@ export class XRSessionManager {
 
     const gaze = this.gazeManager.update(frame, pose, this.refSpace, dt);
     const dirHead = gaze.dirHead;
+    if (this.readoutPending) {
+      this.readoutPending = false;
+      this.showSessionReadout();
+    }
 
     this.renderer.beginFrame(time / 1000, dt);
 
