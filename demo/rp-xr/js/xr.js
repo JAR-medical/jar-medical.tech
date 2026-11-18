@@ -139,6 +139,7 @@ export class XRSessionManager {
 
     this.bypassShown = false;
     this.readoutPending = true; // shown on the first frame, once gaze is known
+    this.eyeAnnounced = false;
 
     this.rafId = session.requestAnimationFrame(this.boundOnXRFrame);
   }
@@ -148,9 +149,15 @@ export class XRSessionManager {
   // an island wider than the view, a disabled field or no symptoms enabled.
   showSessionReadout() {
     const src = this.gazeManager.getActiveSourceId();
+    // a WebXR gaze source only counts as an eye once it has moved away from
+    // head-forward, so at session start report whether one exists at all
+    const hasGazeSource = Array.from(this.session?.inputSources || [])
+      .some((src0) => src0.targetRayMode === 'gaze');
     const line1 = this.gazeManager.isEye
       ? `Gaze: ${src} (eye-tracked)`
-      : `Gaze: ${src} (no eye tracker)`;
+      : hasGazeSource
+        ? `Gaze: ${src} · eye source found, look around`
+        : `Gaze: ${src} (no eye tracker)`;
     const p = FIELD.params;
     const degen = p.degeneration.value;
     const island = p.inner.value[0] + (p.inner.value[1] - p.inner.value[0]) * degen;
@@ -405,6 +412,10 @@ export class XRSessionManager {
     if (this.readoutPending) {
       this.readoutPending = false;
       this.showSessionReadout();
+    }
+    if (gaze.isEye && !this.eyeAnnounced) {
+      this.eyeAnnounced = true;
+      this.renderer.setHud(`Eye tracking active\nGaze: ${gaze.sourceId}`, 3.0);
     }
 
     this.renderer.beginFrame(time / 1000, dt);
