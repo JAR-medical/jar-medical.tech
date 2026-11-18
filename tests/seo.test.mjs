@@ -55,7 +55,7 @@ test('indexable pages carry parseable structured data and a full social card', (
 const locFor = page => locs.find(loc => fileFor(loc) === page);
 
 test('content pages have exactly one h1', () => {
-  for (const page of ['index.html', 'info/index.html', 'krankenhaus.html', 'pflegedienst.html', 'katastrophenschutz.html', 'rettungsdienst.html', 'mitmachen.html', 'mitmachen-aufnahme.html']) {
+  for (const page of ['index.html', 'info/index.html', 'krankenhaus.html', 'pflegedienst.html', 'katastrophenschutz.html', 'rettungsdienst.html', 'mitmachen.html', 'mitmachen-aufnahme.html', 'presse.html']) {
     assert.equal(readText(page).match(/<h1[\s>]/g).length, 1, page);
   }
 });

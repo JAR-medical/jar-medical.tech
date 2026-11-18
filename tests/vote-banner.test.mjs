@@ -86,7 +86,7 @@ test('all main public pages include the shared campaign assets', () => {
     if (/^(info|pflege|corporate)\//.test(page)) return true;
     return !page.includes('/') && page !== '404.html' && !/http-equiv="refresh"/i.test(readText(page));
   });
-  assert.equal(pages.length, 17);
+  assert.equal(pages.length, 18);
   for (const page of pages) {
     assert.match(readText(page), /assets\/vote-banner\.css\?v=1/, page);
     assert.match(readText(page), /assets\/vote-banner\.js\?v=1" defer/, page);

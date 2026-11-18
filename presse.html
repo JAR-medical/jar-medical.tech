@@ -1,0 +1,3260 @@
+<!doctype html>
+
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Presse und Medienraum | J.A.R. Medical</title>
+<!-- Page identity for the language switch: js/site.js looks up
+     meta_title_<id> / meta_desc_<id> in js/i18n.js and falls back to the
+     landing page's pair. Without it every page inherited the landing
+     page's title the moment a visitor switched to English. -->
+<meta name="jar:page" content="press">
+<meta name="description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta name="theme-color" content="#19183b">
+
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<style>/* css/tokens.css */
+/* ==========================================================================
+   J.A.R. Medical — Design tokens
+   The single source of truth for colour, type, spacing, motion and elevation.
+   Every other stylesheet consumes these variables and defines no raw hex.
+   ========================================================================== */
+
+:root {
+  /* ---- Brand ---------------------------------------------------------- */
+  /* Sampled from the pitch deck: a deep indigo-navy ink on paper, with soft
+     sage-slate washes. --brand-mint is the logo's own mint and stays a
+     decorative fill; on paper it is far too pale for text, so anything that
+     has to be *read* uses --accent instead. */
+  --brand-navy: #19183b;        /* deck ink — headings, inverted surfaces    */
+  --brand-mint: #8ec7b8;        /* logo mint — decorative fills only         */
+  --brand-teal: #317f71;        /* logo teal                                 */
+  --accent: #2c7a6b;            /* accent text/rules, readable on paper      */
+  --accent-quiet: #6f9a92;      /* de-emphasised accent                      */
+
+  /* ---- Canvas & surfaces ---------------------------------------------- */
+  --bg-abyss: #fafbfb;          /* page ground                               */
+  --bg-deep: #eef2f2;           /* hero stage ground                         */
+  --bg-base: #f1f4f4;           /* tinted section band                       */
+  --bg-raise: #ffffff;          /* cards, panels                             */
+  --bg-raise-2: #f7f9f9;        /* hovered / stacked cards                   */
+  --bg-light: #ffffff;          /* surface for light-background imagery      */
+  --bg-light-2: #e7edef;
+  --bg-invert: #19183b;         /* the deck's navy card                      */
+
+  /* wash colours behind the soft background blooms */
+  --wash-mint: #e2edeb;
+  --wash-slate: #d9dfe2;
+  --wash-sage: #9cb5b6;
+
+  --surface-glass: rgba(255, 255, 255, 0.62);
+  --surface-glass-strong: rgba(250, 251, 251, 0.85);
+  --surface-tint: rgba(142, 199, 184, 0.16);
+
+  /* ---- Lines ----------------------------------------------------------- */
+  --line: rgba(25, 24, 59, 0.10);
+  --line-strong: rgba(25, 24, 59, 0.20);
+  --line-mint: rgba(49, 127, 113, 0.28);
+  --line-dark: rgba(25, 24, 59, 0.12);
+
+  /* ---- Ink ------------------------------------------------------------- */
+  --ink: #19183b;               /* primary text                              */
+  --ink-soft: #4a5169;          /* secondary text                            */
+  --ink-faint: #7c8598;         /* meta, captions, credits                   */
+  --ink-invert: #ffffff;        /* text on the navy card                     */
+  --ink-invert-soft: #b9c0d4;
+  --ink-dark: #19183b;          /* kept: "text on a light surface"           */
+  --ink-dark-soft: #4a5169;
+
+  /* ---- Signal (triage colours — darkened for contrast on paper) -------- */
+  --sig-red: #c8382f;
+  --sig-amber: #a86c10;
+  --sig-green: #1f7a55;
+
+  /* ---- Gradients ------------------------------------------------------- */
+  --grad-accent: linear-gradient(135deg, var(--brand-teal) 0%, #3f8f80 55%, var(--accent) 100%);
+  --grad-text: linear-gradient(100deg, var(--ink) 0%, #2f4a5c 46%, var(--brand-teal) 100%);
+  --grad-stage: radial-gradient(120% 92% at 76% 18%, var(--wash-mint) 0%, #f3f6f6 44%, var(--bg-abyss) 100%);
+  --grad-veil: linear-gradient(180deg, rgba(250, 251, 251, 0) 0%, rgba(250, 251, 251, 0.86) 68%, var(--bg-abyss) 100%);
+  /* Legibility scrims for copy set over the full-bleed stage render. The
+     render is a dark object, so on paper these lighten rather than darken. */
+  --grad-scrim-x: linear-gradient(90deg, rgba(250, 251, 251, 0.97) 0%, rgba(250, 251, 251, 0.95) 30%, rgba(250, 251, 251, 0.66) 44%, rgba(250, 251, 251, 0) 62%);
+  --grad-scrim-y: linear-gradient(180deg, rgba(250, 251, 251, 0) 20%, rgba(250, 251, 251, 0.66) 42%, rgba(250, 251, 251, 0.95) 62%);
+
+  /* ---- The halo ---------------------------------------------------------
+     The product is called Heiligenschein — German for halo — and it is a ring
+     worn on the head. A thin ring is therefore the one recurring graphic mark
+     on this site. These tokens keep every instance of it identical. */
+  --ring-line: rgba(49, 127, 113, 0.30);
+  --ring-line-quiet: rgba(25, 24, 59, 0.12);
+  --ring-line-invert: rgba(142, 199, 184, 0.42);
+  --ring-w: 1px;
+
+  /* ---- Elevation ------------------------------------------------------- */
+  --glow-mint: 0 0 0 1px rgba(49, 127, 113, 0.22), 0 16px 40px -14px rgba(49, 127, 113, 0.35);
+  --shadow-card: 0 1px 2px rgba(25, 24, 59, 0.05), 0 12px 32px -18px rgba(25, 24, 59, 0.22);
+  --shadow-lift: 0 2px 4px rgba(25, 24, 59, 0.06), 0 26px 56px -24px rgba(25, 24, 59, 0.3);
+
+  /* ---- Type ------------------------------------------------------------ */
+  /* Platform UI faces only — nothing is fetched from a third party, which is
+     what css/legal.css's privacy page asserts. "Inter Tight"/"Inter" lead the
+     stack so a self-hosted or locally installed copy is picked up if present;
+     to adopt them properly, drop woff2 files in assets/font/ and @font-face
+     them here. Same idea for the mono stack. */
+  --font-sans: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI Variable Display", "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+               Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Fluid scale — clamp(min, preferred, max) */
+  --t-display: clamp(2.75rem, 1.2rem + 6.6vw, 7rem);
+  --t-h1: clamp(2.25rem, 1.2rem + 4.4vw, 4.5rem);
+  --t-h2: clamp(1.85rem, 1.2rem + 2.6vw, 3.25rem);
+  --t-h3: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
+  --t-lead: clamp(1.05rem, 0.98rem + 0.5vw, 1.375rem);
+  --t-body: clamp(1rem, 0.97rem + 0.16vw, 1.0625rem);
+  --t-small: 0.9375rem;
+  --t-micro: 0.75rem;
+
+  --lh-tight: 1.02;
+  --lh-head: 1.1;
+  --lh-body: 1.62;
+
+  --track-display: -0.035em;
+  --track-head: -0.022em;
+  --track-eyebrow: 0.16em;
+
+  /* ---- Space ----------------------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+  --sp-10: 8rem;
+  --section-y: clamp(4.5rem, 2rem + 8vw, 9rem);
+
+  /* ---- Measure --------------------------------------------------------- */
+  --wrap: 1180px;
+  --wrap-wide: 1400px;
+  --wrap-text: 68ch;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+  --dur-slow: 720ms;
+
+  /* ---- Chrome ---------------------------------------------------------- */
+  --nav-h: 68px;
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   The dark ground
+   --------------------------------------------------------------------------
+   From the turn to the footer the page is navy. Rather than restyle every
+   component for that stretch, this re-points the surface, ink and line tokens
+   inside it: the rest of the CSS consumes tokens and declares no raw colour,
+   so a card, a hairline or a caption reads correctly on either ground with no
+   per-component override. Only things that carry a colour of their own need
+   explicit handling — the demo panel (a navy block that would vanish into a
+   navy page) and the partner logos (third-party marks in their own brand
+   colours, which must not be recoloured) — and those sit with their
+   components in site.css.
+
+   The scale inverts rather than mirrors: on paper the raised surfaces are
+   lighter than the ground and the tint band is darker, so here the raised
+   surfaces lift out of the navy and the tint band sinks below it. That keeps
+   the Heiligenschein teaser — the one section that is meant to be barely
+   visible — in the deepest part of the page.
+   -------------------------------------------------------------------------- */
+.theme-dark {
+  --bg-abyss: #19183b;          /* page ground — the deck's navy              */
+  --bg-deep: #14132f;
+  --bg-base: #121130;           /* tint band: sunk, not raised                */
+  --bg-raise: #23224f;          /* cards, panels                              */
+  --bg-raise-2: #2b2a5c;        /* hovered / stacked cards                    */
+
+  --ink: #ffffff;
+  --ink-soft: #b9c0d4;
+  --ink-faint: #8b93ac;
+
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.26);
+  --line-mint: rgba(142, 199, 184, 0.34);
+
+  /* On paper --accent is a darkened teal because the logo's mint is far too
+     pale to read; on navy that reverses exactly, and mint is the one thing
+     that carries small text well. */
+  --accent: var(--brand-mint);
+  --accent-quiet: #7fa79c;
+
+  --surface-tint: rgba(142, 199, 184, 0.12);
+  --ring-line: var(--ring-line-invert);
+  --ring-line-quiet: rgba(255, 255, 255, 0.14);
+
+  /* The triage colours above were darkened to carry on paper, which makes them
+     nearly unreadable on navy — --sig-green (#1f7a55) on the raised surface is
+     close to invisible. These are the same three hues opened back up. Amber and
+     green are lifted straight from what the page already draws on dark: the HUD
+     mock's own amber, and the green of the pulse behind its log dot.
+
+     Red is one step lighter than the HUD's #ef6a60. It has to be: the triage
+     discs set it on their own red-tinted wash rather than on the HUD's near
+     black, and there #ef6a60 measures 4.22:1 — just under AA. #f0776e is the
+     same hue at +0.03 lightness and measures 4.63:1. */
+  --sig-red: #f0776e;
+  --sig-amber: #f0b45c;
+  --sig-green: #5cc08f;
+
+  /* Both shadows are tinted with the navy itself, which makes them invisible
+     on a navy ground. Depth here has to come from black. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 32px -18px rgba(0, 0, 0, 0.75);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.34), 0 26px 56px -24px rgba(0, 0, 0, 0.8);
+
+  /* The wrapper paints the ground itself so the run is continuous even where
+     a child does not paint its own background. */
+  background: var(--bg-abyss);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Reset / base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-h) + var(--sp-5));
+}
+
+body {
+  background: var(--bg-abyss);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  /* The deck sets its headings in a heavy grotesk; 700 matches it far better
+     than the 600 the dark theme used. */
+  font-weight: 700;
+  line-height: var(--lh-head);
+  letter-spacing: var(--track-head);
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+img, video { height: auto; }
+
+/* Must outrank the rule above, which would otherwise un-hide [hidden] media. */
+[hidden] { display: none !important; }
+
+a { color: inherit; text-decoration: none; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button { background: none; border: 0; cursor: pointer; }
+
+ul, ol { list-style: none; padding: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--brand-mint);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Shared primitives — available to every page
+   -------------------------------------------------------------------------- */
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+}
+.wrap--wide { max-width: var(--wrap-wide); }
+.wrap--text { max-width: 780px; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.eyebrow::before {
+  content: "";
+  width: 26px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* The product name, set as a name rather than as a word: uppercase, widely
+   tracked, never italic, never abbreviated. Used in the stage reveal, the
+   product section and the footer lockup, so it lives here rather than in one
+   page's stylesheet. */
+.pname {
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  /* The tracking is applied to the right of every glyph including the last,
+     which visually shifts a centred or right-aligned name off its box. */
+  margin-right: -0.22em;
+}
+
+/* Figures line up in columns — the site sets a lot of 01/02/03 indices and
+   they look mechanical and wrong when the digits are proportional. */
+.tnum,
+.fails__num,
+.flow__idx,
+.stage__num,
+.pillar__n,
+.sysdiag__idx { font-variant-numeric: tabular-nums; }
+
+.gradient-text {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Buttons ---------------------------------------------------------------- */
+.btn {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-line: var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--r-pill);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: inset 0 0 0 1px var(--btn-line);
+  font-size: var(--t-small);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur) var(--ease-out),
+              background-color var(--dur) var(--ease-out),
+              color var(--dur) var(--ease-out);
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+
+/* The deck's primary action is a solid navy block, not a mint one — mint is
+   a decorative fill here and cannot carry white or navy label text at size. */
+.btn--primary {
+  --btn-bg: var(--brand-navy);
+  --btn-fg: var(--ink-invert);
+  --btn-line: transparent;
+}
+.btn--primary:hover {
+  --btn-bg: #23224f;
+  box-shadow: 0 10px 28px -12px rgba(25, 24, 59, 0.5);
+}
+
+.btn--ghost {
+  --btn-fg: var(--ink);
+  --btn-line: var(--line-strong);
+  background: var(--bg-raise);
+}
+.btn--ghost:hover {
+  --btn-line: var(--line-mint);
+  background: var(--surface-tint);
+}
+
+/* On the navy card, the roles invert. */
+.btn--onDark {
+  --btn-bg: var(--brand-mint);
+  --btn-fg: var(--brand-navy);
+  --btn-line: transparent;
+}
+.btn--onDark:hover { box-shadow: var(--glow-mint); }
+
+.btn--dark {
+  --btn-bg: var(--brand-navy);
+  --btn-fg: var(--ink-invert);
+  --btn-line: transparent;
+}
+
+/* Any surface that flips to the navy ground marks itself .is-invert. Without
+   this a navy .btn--primary sits invisibly on navy while the white ghost button
+   shouts louder than it — the roles have to swap with the ground. */
+.is-invert .btn--primary,
+.theme-dark .btn--primary {
+  --btn-bg: var(--brand-mint);
+  --btn-fg: var(--brand-navy);
+  --btn-line: transparent;
+}
+.is-invert .btn--primary:hover,
+.theme-dark .btn--primary:hover { --btn-bg: #a3d5c8; box-shadow: var(--glow-mint); }
+
+/* .btn--ghost sets `background` directly, which no amount of re-pointing
+   --btn-bg can undo — on the navy ground that painted a white pill with white
+   text in it, i.e. an invisible button. The ground has to be reset here too. */
+.is-invert .btn--ghost,
+.theme-dark .btn--ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink-invert);
+  --btn-line: rgba(255, 255, 255, 0.34);
+  background: transparent;
+}
+.is-invert .btn--ghost:hover,
+.theme-dark .btn--ghost:hover {
+  --btn-line: var(--brand-mint);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn__arrow { transition: transform var(--dur) var(--ease-out); }
+.btn:hover .btn__arrow { transform: translateX(3px); }
+
+/* Cards ------------------------------------------------------------------ */
+.card {
+  position: relative;
+  background: var(--bg-raise);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none;
+}
+
+/* Scroll reveal ---------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Utility ---------------------------------------------------------------- */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--sp-4);
+  z-index: 999;
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--brand-navy);
+  color: var(--ink-invert);
+  border-radius: var(--r-pill);
+  font-weight: 600;
+}
+.skip-link:focus { top: var(--sp-4); }
+
+/* Grain overlay ---------------------------------------------------------- */
+/* A fixed, full-viewport layer. mix-blend-mode here would force the compositor
+   to re-blend the entire screen on every repaint of the stage canvas, which is
+   the one thing on the page that repaints continuously — so this composites
+   with plain alpha instead. On a dark ground the difference is invisible. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: var(--grain-url);
+  background-size: 180px 180px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+<style>/* css/site.css */
+/* ==========================================================================
+   J.A.R. Medical — site styles
+   Consumes css/tokens.css. No raw colour values below this block.
+   Order: chrome → stage → sections → components → footer → responsive.
+   ========================================================================== */
+
+:root {
+  --grain-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ==========================================================================
+   1. Scroll progress
+   ========================================================================== */
+.scrollbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 2px;
+  z-index: 120;
+  pointer-events: none;
+}
+.scrollbar i {
+  display: block;
+  height: 100%;
+  background: var(--grad-accent);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+/* ==========================================================================
+   2. Header
+   ========================================================================== */
+.nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 110;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  transition: background-color var(--dur) var(--ease-out),
+              box-shadow var(--dur) var(--ease-out),
+              backdrop-filter var(--dur) var(--ease-out);
+}
+.nav.is-scrolled {
+  background: var(--surface-glass-strong);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  box-shadow: 0 1px 0 0 var(--line);
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  width: 100%;
+}
+
+.nav__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+.nav__mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  transition: transform var(--dur) var(--ease-out);
+}
+.nav__brand:hover .nav__mark { transform: rotate(-4deg) scale(1.05); }
+.nav__wordmark { display: flex; align-items: baseline; gap: var(--sp-2); }
+.nav__name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.nav__tag {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-inline: auto;
+}
+.nav__links a {
+  position: relative;
+  /* --sp-3, not --sp-4: with seven items the wider padding pushed the row past
+     the viewport well into laptop widths. See the collapse threshold below. */
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-pill);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--ink-soft);
+  transition: color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out);
+}
+.nav__links a:hover { color: var(--ink); background: var(--surface-tint); }
+/* The product's own name carries slightly more weight than the section labels
+   around it — it is a name, not a category. */
+.nav__product { color: var(--ink); font-weight: 600; }
+.nav__links a.is-active { color: var(--ink); }
+.nav__links a.is-active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+.nav__cta { padding: 0.6rem 1.1rem; }
+
+/* Language switch --------------------------------------------------------- */
+.langswitch { position: relative; }
+.langswitch__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--r-pill);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.langswitch__btn:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-mint); }
+
+.langswitch__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 148px;
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--surface-glass-strong);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card);
+  z-index: 10;
+}
+.langswitch__menu button {
+  display: block;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  text-align: left;
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.langswitch__menu button:hover { background: var(--surface-tint); color: var(--ink); }
+.langswitch__menu button[aria-current="true"] { color: var(--accent); }
+
+/* Burger ------------------------------------------------------------------ */
+.nav__burger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  position: relative;
+}
+.nav__burger span {
+  position: absolute;
+  left: 11px;
+  width: 18px;
+  height: 1.5px;
+  background: var(--ink);
+  border-radius: 2px;
+  transition: transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+}
+.nav__burger span:nth-child(1) { top: 16px; }
+.nav__burger span:nth-child(2) { top: 22px; }
+.nav.is-open .nav__burger span:nth-child(1) { transform: translateY(3px) rotate(45deg); }
+.nav.is-open .nav__burger span:nth-child(2) { transform: translateY(-3px) rotate(-45deg); }
+
+/* ==========================================================================
+   3. Stage — the scroll-scrubbed opening
+   ========================================================================== */
+.stage {
+  position: relative;
+  background: var(--grad-stage);
+  isolation: isolate;
+}
+
+/* The AR hero sequence is opaque — its backdrop is a flat pure white, which
+   cannot be keyed because the head-up display the shot ends on is white too
+   (see tools/build_hero.py). So the stage paints the same white underneath it:
+   on a wide viewport the frame covers everything, and on a portrait one, where
+   the frame is contained in a band, the ground continues it seamlessly. */
+.stage--ar { background: var(--bg-raise); }
+.stage::after {
+  /* Blends the stage into the first section below it. */
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26vh;
+  background: linear-gradient(180deg, rgba(250, 251, 251, 0), var(--bg-abyss));
+  pointer-events: none;
+  z-index: 3;
+}
+
+.stage__track { height: 420vh; }
+
+/* The pin is full-bleed: the render is a backdrop that runs to the viewport
+   edges, and .stage__copy holds the text inside the site's measure on top of
+   it. Frames 26-129 of the source render are clipped by the video frame itself
+   (the camera dollies in past the device), so the canvas is drawn cover-fit on
+   wide screens — those clipped edges then fall outside the viewport instead of
+   showing as straight cuts inside a letterbox. Narrow screens are far too tall
+   and thin for cover, so they fall back to contain; --fit carries that decision
+   to js/model-stage.js. */
+.stage__pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.stage__figure {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-areas: "stack";
+  place-items: center;
+  margin: 0;
+}
+/* The live helmet (js/model-stage.js) on katastrophenschutz.html: canvas and
+   poster share one grid cell, and the poster cross-fades out once the first
+   frame is drawn, so there is no frame in which neither is on screen. */
+.stage__canvas,
+.stage__poster {
+  grid-area: stack;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.stage__canvas { opacity: 0; transition: opacity 500ms var(--ease-out); }
+.stage__canvas.is-ready { opacity: 1; }
+.stage__poster { transition: opacity 500ms var(--ease-out); }
+.stage__canvas.is-ready ~ .stage__poster { opacity: 0; }
+
+/* On the helmet stage the headline is bare copy over a full-bleed render, so it
+   gets the paper scrim back — gated by --stage-copy, which model-stage.js
+   drives from the panels marked data-scrim, so the boxes (which bring their
+   own ground) do not wash the render. Phones stack copy under the figure and
+   need none. */
+.stage--model .stage__pin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--grad-scrim-x);
+  opacity: var(--stage-copy, 1);
+  pointer-events: none;
+}
+@media (max-width: 900px) {
+  .stage--model .stage__pin::before { display: none; }
+}
+
+/* ==========================================================================
+   The transcription panel
+   ==========================================================================
+   Every default here is the FINISHED state — the whole sentence, all four
+   fields. js/scribe.js only ever lowers them, and it adds .stage--live when it
+   takes over, so no JS at all, or reduced motion, leaves a complete readable
+   panel with no extra code for either case.
+   ========================================================================== */
+.scribe {
+  position: relative;
+  width: min(34rem, 100%);
+  justify-self: end;
+  padding: var(--sp-6);
+  border-radius: var(--r-lg);
+  /* The deck's one move: a solid navy block per stretch of white. It also reads
+     as a screen, which is what it stands in for. */
+  background: var(--bg-invert);
+  color: var(--ink-invert);
+  box-shadow: var(--shadow-lift);
+}
+
+.scribe__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--brand-mint);
+}
+.scribe__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.scribe__wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 56px;
+  margin: var(--sp-5) 0;
+}
+.scribe__wave span {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--brand-mint);
+}
+
+.scribe__said {
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+/* Scrubbed by js/scribe.js; 1 so the sentence is simply there without it. */
+.scribe__word { opacity: 1; }
+
+.scribe__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4) var(--sp-5);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.scribe__field dt {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-invert-soft);
+}
+.scribe__field dd {
+  margin: 0.2rem 0 0;
+  font-size: var(--t-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  /* Portrait is the tight case: the pin is a two-row grid and the figure gets
+     whatever the copy does not need, which on a 360x740 phone is 244px against
+     a panel that wants 330. Rather than let it spill over the headline, the
+     panel is a column that fits the row it is given and the waveform is the
+     one elastic thing in it — it absorbs the difference instead of the words
+     or the fields doing it. Overlap is impossible by construction again, which
+     is the property the two-row grid exists to have. */
+  .scribe {
+    justify-self: center;
+    width: 100%;
+    /* Fill the band rather than sit in it: content-sized, the waveform was
+       stuck at its floor on every phone and read as a hairline. Filling lets it
+       take the slack, and space-between spreads the rest so a tall band looks
+       composed instead of top-heavy. */
+    height: 100%;
+    /* Without this the height above cannot shrink the panel on a short phone:
+       a grid item defaults to min-height:auto, which refuses to go under its
+       content size. */
+    min-height: 0;
+    padding: var(--sp-4);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .scribe__wave {
+    /* Grows into the slack, capped so a tall band does not turn it into a
+       wall of bars; whatever is left over goes to the gaps via space-between. */
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 14px;
+    max-height: 88px;
+    margin: var(--sp-3) 0;
+  }
+  /* The last guarantee. The waveform can only give back so much, and on a very
+     short phone the words and the fields alone are taller than the row. Clip
+     the panel rather than let it run into the headline: a card that continues
+     off the band reads as deliberate, two blocks of text on top of each other
+     does not. */
+  .stage__figure { overflow: hidden; align-items: start; }
+  .scribe__said { font-size: var(--t-small); }
+  .scribe__fields {
+    margin-top: var(--sp-4);
+    padding-top: var(--sp-3);
+    gap: var(--sp-2) var(--sp-4);
+  }
+  /* Label and value on one line each: two stacked rows of two is 28px taller
+     than two rows of one, and that is most of the budget. */
+  .scribe__field { display: flex; align-items: baseline; gap: var(--sp-2); }
+  .scribe__field dd { margin: 0; }
+}
+
+/* No scrim any more. It existed because the copy column lay over a full-bleed
+   render; the stage is now a bounded panel with the copy beside it on desktop
+   and under it on a phone, so nothing crosses anything. Painting one anyway
+   washed the dark panel out — most visibly on a phone, where --grad-scrim-y
+   put a white gradient straight across it.
+
+   --stage-copy went with it, and so did the data-scrim gate that fed it.
+
+/* The mint blooms and the ring that used to sit behind the render went with
+   the ring hero, and nothing replaced them: the stage is a lit model on a white
+   ground, so anything painted underneath it is simply invisible. The ring motif
+   survives in .team__mono and in the parked teaser. */
+
+.stage__copy {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  max-width: var(--wrap-wide);
+  margin-inline: auto;
+  padding: var(--nav-h) clamp(1.25rem, 4vw, 2.5rem) var(--sp-6);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  align-items: center;
+}
+
+/* Panels ------------------------------------------------------------------ */
+.stage__panel {
+  grid-area: 1 / 1;
+  align-self: center;
+  max-width: 34rem;
+  will-change: opacity, transform;
+}
+.stage__panel--hero { max-width: 40rem; }
+
+.stage__h1 {
+  margin: var(--sp-4) 0 var(--sp-5);
+  font-size: clamp(2.4rem, 1rem + 3.7vw, 4.15rem);
+  font-weight: 600;
+  letter-spacing: var(--track-display);
+  line-height: 1.04;
+}
+.stage__lead {
+  max-width: 34rem;
+  font-size: var(--t-lead);
+  color: var(--ink-soft);
+}
+.stage__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+
+.stage__hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-7);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  /* --ink-soft, not --ink-faint: at 12px this is small text and needs 4.5:1.
+     --ink-faint on paper measures 3.71 and fails. */
+  color: var(--ink-soft);
+}
+.stage__hint-line {
+  position: relative;
+  width: 46px;
+  height: 1px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+.stage__hint-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--brand-mint);
+  transform-origin: 0 50%;
+  animation: hint 2.4s var(--ease-in-out) infinite;
+}
+@keyframes hint {
+  0%   { transform: translateX(-100%); }
+  55%  { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+/* Annotation boxes — a real card with its own ground, not text laid over the
+   render. That is the whole point: bare copy on a full-bleed shot needs a
+   screen-wide legibility wash behind it, and the wash is what reads as
+   "something over the video". A box needs no wash, so it does not get one
+   (the annotation boxes bring their own ground).
+
+   They sit bottom-left, clear of the nose bridge and the HUD cards, which
+   occupy the middle and right of every frame they appear on. */
+.stage__panel--box {
+  align-self: end;
+  max-width: 25rem;
+  margin-bottom: clamp(2rem, 8vh, 5rem);
+  padding: var(--sp-5) var(--sp-6);
+  border-radius: var(--r-lg);
+  background: var(--surface-glass-strong);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card);
+}
+.stage__box-label {
+  margin-bottom: var(--sp-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.stage__box-text {
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+
+/* Static fallback: the same content as a plain, scrollable document. The
+   headline leads, the poster follows it, then the three annotations. */
+.stage--static .stage__track { height: auto; }
+.stage--static .stage__pin {
+  position: static;
+  /* Explicitly block, so the two-row grid the mobile breakpoint puts on the pin
+     cannot also apply here — in the static document the figure and the copy are
+     a plain vertical stack, not a fitted viewport. */
+  display: block;
+  height: auto;
+  overflow: visible;
+  padding-block: calc(var(--nav-h) + var(--sp-9)) var(--sp-9);
+}
+/* The bottom veil exists to blend a 100vh pinned stage into the next section;
+   over a tall static document it just dims the lower half of the copy. */
+.stage--static::after,
+.stage--static .stage__pin::before,
+.stage--static .stage__hint { display: none; }
+.stage--static .stage__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: auto;
+  padding-block: 0;
+}
+.stage--static .stage__figure {
+  position: static;
+  width: 100%;
+  margin-block: var(--sp-8);
+  max-width: var(--wrap-wide);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+}
+.stage--static .stage__panel {
+  max-width: 44rem;
+  /* align-self on the panel would otherwise beat the column's flex-start and
+     centre every block horizontally. */
+  align-self: flex-start;
+  opacity: 1 !important;
+  transform: none !important;
+  visibility: visible !important;
+}
+.stage--static .stage__panel--hero { order: 0; }
+
+/* ==========================================================================
+   5. Section scaffolding
+   ========================================================================== */
+.section {
+  position: relative;
+  padding-block: var(--section-y);
+  background: var(--bg-abyss);
+}
+.section--tint {
+  background: var(--bg-base);
+  border-block: 1px solid var(--line);
+}
+
+.sec-head { max-width: 46rem; margin-bottom: var(--sp-8); }
+.sec-head__h {
+  margin: var(--sp-4) 0 var(--sp-5);
+  font-size: var(--t-h2);
+}
+.sec-head__p {
+  font-size: var(--t-lead);
+  color: var(--ink-soft);
+}
+
+/* ==========================================================================
+   6. Problem
+   ========================================================================== */
+.fails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--sp-4);
+}
+.fails__item {
+  padding: var(--sp-6);
+  transition: transform var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out);
+}
+.fails__item:hover { transform: translateY(-4px); background: var(--bg-raise-2); }
+.fails__num {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-eyebrow);
+  color: var(--accent);
+  margin-bottom: var(--sp-5);
+}
+.fails__item h3 { font-size: var(--t-h3); margin-bottom: var(--sp-3); }
+.fails__item p { color: var(--ink-soft); font-size: var(--t-small); }
+
+/* ==========================================================================
+   6b. Branches — where the transcription goes
+   ==========================================================================
+   Three cards on the tint band. The status line is the point of the component:
+   the three sectors are not equally far along, and a layout that hides that
+   would be making a claim the project cannot back. Only the one that is
+   actually built gets --live, and it is the only one with an accent.
+   ========================================================================== */
+.branches__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--sp-5);
+}
+.branch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-7) var(--sp-6) var(--sp-6);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.branch:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); }
+
+.branch__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.branch__status--live {
+  box-shadow: inset 0 0 0 1px var(--line-mint);
+  background: var(--surface-tint);
+  color: var(--accent);
+}
+.branch__status--live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Only one card has a picture, so it must not change that card's rhythm: the
+   image sits in the flow between status and heading at a fixed aspect, and the
+   other two simply have nothing there. */
+.branch__shot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  object-position: 50% 42%;
+  border-radius: var(--r-md);
+  background: var(--bg-light);
+}
+
+.branch__h { font-size: var(--t-h3); }
+.branch__p { color: var(--ink-soft); font-size: var(--t-small); }
+
+.branch__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.branch__list li {
+  position: relative;
+  padding-left: var(--sp-4);
+  font-size: var(--t-small);
+  color: var(--ink-faint);
+}
+.branch__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 1px;
+  background: var(--accent-quiet);
+}
+
+@media (hover: none) {
+  .branch:hover { transform: none; }
+}
+
+/* ==========================================================================
+   6c. The turn — problem to answer
+   ========================================================================== */
+/* The one staged moment on the site. Everything is a pure function of one
+   number, --pivot-p, written by js/pivot.js — same contract as the two scroll
+   sequences, so nothing here runs on a timer either.
+
+   The ramps are computed in JS and arrive as their own properties rather than
+   being derived here with calc(): a chain of clamp()ed divisions on a custom
+   property is doing arithmetic in a place that is hard to read and harder to
+   debug, and the stage controllers have always set their values this way.
+
+   Everything below describes the FINISHED state, and the staging is opt-in:
+   js/pivot.js adds .pivot--live when it actually takes over. So the section
+   with no JS at all, or under reduced motion, is the plain navy band with both
+   lines up that this replaced — a good section on its own — and it costs no
+   extra code to get there, because that is simply the stylesheet's default. */
+.pivot {
+  position: relative;
+  background: var(--bg-abyss);   /* paper: this section is OUTSIDE .theme-dark */
+  color: var(--ink-invert);
+  text-align: center;
+}
+.pivot__pin {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding-block: clamp(4.5rem, 12vw, 9rem);
+}
+
+/* The staged version, switched on by js/pivot.js. */
+.pivot--live .pivot__track { height: 200vh; }
+.pivot--live .pivot__pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding-block: 0;
+}
+
+/* Two navy panels closing on the centre line. 50.5% so they overlap by a
+   fraction of a pixel instead of leaving a hairline of paper behind. */
+.pivot__curtain {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--pivot-close, 1) * 50.5%);
+  background: var(--bg-invert);
+}
+.pivot__curtain--top { top: 0; }
+.pivot__curtain--bottom { bottom: 0; }
+
+/* The last slit of daylight, held for a beat before it closes. */
+.pivot__horizon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(42rem, 72vw);
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, var(--brand-mint), transparent);
+  opacity: var(--pivot-slit, 0);
+}
+
+.pivot__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(44% 48% at 50% 54%, rgba(142, 199, 184, 0.20), transparent 72%);
+  opacity: var(--pivot-turn, 1);
+  pointer-events: none;
+}
+
+.pivot__copy { position: relative; }
+
+.pivot__line {
+  max-width: 24ch;
+  margin-inline: auto;
+  font-size: var(--t-h2);
+  font-weight: 700;
+  line-height: var(--lh-head);
+  letter-spacing: var(--track-head);
+  text-wrap: balance;
+  opacity: var(--pivot-line, 1);
+  transform: translate3d(0, calc((1 - var(--pivot-line, 1)) * 20px), 0);
+}
+.pivot__turn {
+  margin-top: var(--sp-5);
+  font-size: clamp(2.5rem, 1rem + 6.4vw, 6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  color: var(--brand-mint);
+  opacity: var(--pivot-turn, 1);
+  /* Lands rather than fades: it comes up a little under size and settles. */
+  transform: scale(calc(0.90 + 0.10 * var(--pivot-turn, 1)));
+}
+
+/* The horizon only means anything while the curtains are moving. */
+.pivot__horizon { display: none; }
+.pivot--live .pivot__horizon { display: block; }
+
+/* ==========================================================================
+   7. Bento grid — the solution
+   ==========================================================================
+   Four tiles, three of which carry a small live mock instead of an image: the
+   HUD frame, the triage discs and the voice waveform. They are CSS-only and
+   aria-hidden, and the global prefers-reduced-motion reset in tokens.css stops
+   both animations, so nothing here needs its own media query for that.
+   ========================================================================== */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-4);
+}
+.bento__cell {
+  grid-column: span 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  padding: var(--sp-6);
+  min-height: 19rem;
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.bento__cell:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); }
+.bento__cell--wide { grid-column: span 6; }
+.bento__cell h3 { font-size: var(--t-h3); margin-bottom: var(--sp-3); }
+.bento__cell p { color: var(--ink-soft); font-size: var(--t-small); max-width: 46ch; }
+
+.chip {
+  display: inline-block;
+  margin-bottom: var(--sp-4);
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-tint);
+  box-shadow: inset 0 0 0 1px var(--line-mint);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* The wide cells lay out side by side: copy on the left, mock on the right.
+   The mock needs its own basis or it collapses to its content width — the
+   waveform's bars are 3px each, so without this it shrank to a ~100px smear in
+   the corner when it moved from a half cell into a wide one. */
+.bento__cell--wide { flex-direction: row; align-items: center; }
+.bento__cell--wide .bento__body { flex: 1 1 24rem; }
+.bento__cell--wide .wave,
+.bento__cell--wide .pills { flex: 0 1 20rem; }
+
+/* The two Katastrophenschutz mocks — the visor and the triage discs. Only
+   katastrophenschutz.html uses them; the waveform below is shared. */
+
+/* Bento cell 1 — the HUD mock ---------------------------------------------- */
+.hud { flex: 0 1 20rem; }
+.hud__frame {
+  position: relative;
+  padding: var(--sp-5);
+  border-radius: var(--r-md);
+  /* This is a mock of the visor display, so it stays dark whatever the page
+     does — a head-up display rendered on paper white would read as a form. */
+  background: linear-gradient(180deg, #12142c, #0d1023);
+  box-shadow: 0 12px 30px -14px rgba(25, 24, 59, 0.5);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: #e7ecf4;
+}
+/* On the dark run that drop shadow is navy on navy, and the frame is only a
+   little darker than the card it sits on — so the screen needs an edge of its
+   own or it reads as a dent in the card rather than a display. */
+.theme-dark .hud__frame {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+              0 12px 30px -14px rgba(0, 0, 0, 0.7);
+}
+.hud__frame .hud__key { color: #8391ad; }
+.hud__frame .hud__val { color: #e7ecf4; }
+.hud__frame .hud__row { border-bottom-color: rgba(255, 255, 255, 0.1); }
+.hud__frame .hud__logtext { color: #b6c0d4; }
+.hud__frame .hud__val--red { color: #ef6a60; }
+.hud__frame .hud__val--amber { color: #f0b45c; }
+.hud__corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--brand-mint);
+  opacity: 0.85;
+}
+.hud__corner--tl { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+.hud__corner--tr { top: 8px; right: 8px; border-left: 0; border-bottom: 0; }
+.hud__corner--bl { bottom: 8px; left: 8px; border-right: 0; border-top: 0; }
+.hud__corner--br { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
+
+.hud__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-block: 0.3rem;
+  border-bottom: 1px solid var(--line);
+}
+.hud__key { color: var(--ink-faint); letter-spacing: 0.06em; }
+.hud__val { color: var(--ink); }
+.hud__val--red { color: var(--sig-red); }
+.hud__val--amber { color: var(--sig-amber); }
+
+.hud__log {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.hud__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sig-green);
+  flex-shrink: 0;
+  animation: pulse 2s var(--ease-in-out) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(92, 192, 143, 0.5); }
+  50%      { opacity: 0.6; box-shadow: 0 0 0 6px rgba(92, 192, 143, 0); }
+}
+
+/* Bento cell 2 — triage discs ---------------------------------------------- */
+.tri { display: flex; gap: var(--sp-3); }
+.tri__i {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.tri__i--red   { background: rgba(226, 86, 77, 0.14);  box-shadow: inset 0 0 0 1px rgba(226, 86, 77, 0.5);  color: var(--sig-red); }
+.tri__i--amber { background: rgba(230, 169, 74, 0.14); box-shadow: inset 0 0 0 1px rgba(230, 169, 74, 0.5); color: var(--sig-amber); }
+.tri__i--green { background: rgba(92, 192, 143, 0.14); box-shadow: inset 0 0 0 1px rgba(92, 192, 143, 0.5); color: var(--sig-green); }
+
+/* Bento cell 3 — voice waveform -------------------------------------------- */
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 52px;
+}
+.wave span {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 2px;
+  background: var(--brand-mint);
+  opacity: 0.75;
+  transform-origin: 50% 50%;
+  animation: wave 1.5s var(--ease-in-out) infinite;
+}
+.wave span:nth-child(1)  { animation-delay: 0.00s; height: 62%; }
+.wave span:nth-child(2)  { animation-delay: 0.08s; height: 79%; }
+.wave span:nth-child(3)  { animation-delay: 0.16s; height: 67%; }
+.wave span:nth-child(4)  { animation-delay: 0.24s; height: 92%; }
+.wave span:nth-child(5)  { animation-delay: 0.32s; height: 74%; }
+.wave span:nth-child(6)  { animation-delay: 0.40s; height: 100%; }
+.wave span:nth-child(7)  { animation-delay: 0.48s; height: 69%; }
+.wave span:nth-child(8)  { animation-delay: 0.56s; height: 86%; }
+.wave span:nth-child(9)  { animation-delay: 0.64s; height: 65%; }
+.wave span:nth-child(10) { animation-delay: 0.72s; height: 94%; }
+.wave span:nth-child(11) { animation-delay: 0.80s; height: 71%; }
+.wave span:nth-child(12) { animation-delay: 0.88s; height: 82%; }
+.wave span:nth-child(13) { animation-delay: 0.96s; height: 64%; }
+.wave span:nth-child(14) { animation-delay: 1.04s; height: 76%; }
+.wave span:nth-child(15) { animation-delay: 1.12s; height: 60%; }
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.6); opacity: 0.55; }
+  50%      { transform: scaleY(1);   opacity: 0.95; }
+}
+
+/* Bento cell 4 — capability pills ------------------------------------------ */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  flex: 0 1 18rem;
+}
+.pills li {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+/* ==========================================================================
+   7c. Partners
+   ========================================================================== */
+.partners__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--sp-5);
+}
+
+.partner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-7) var(--sp-6) var(--sp-6);
+  background: var(--bg-raise);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.partner:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); }
+
+/* A fixed optical box so three very differently-shaped marks sit on one line.
+   The cap is absolute, not a percentage: as a flex item the box's own resolved
+   height is not something a percentage max-height can be trusted against, and
+   the tallest mark (DLR, nearly square) then spills over the text beneath. */
+.partner__logo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  height: 5.5rem;
+  padding-inline: var(--sp-4);
+}
+.partner__logo img {
+  max-height: 5.5rem;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* All three marks are dark ink — DLR's is pure black, and 90% of the DRK mark
+   is below L=90 — so on the navy run they very nearly vanish. Recolouring them
+   is not an option (see tools/make_partner_logos.py: they are third-party
+   trademarks and the extractor reproduces them faithfully on purpose), so the
+   ground goes back to white underneath them and the marks are untouched. */
+.theme-dark .partner__logo {
+  height: 6.5rem;
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-md);
+  background: var(--bg-light);
+}
+/* An absolute cap for the same reason the rule above gives: the grid row is
+   auto-sized, so a percentage resolves against the row the image itself grew —
+   which is no constraint at all, and DLR (the squarest mark) hung out of the
+   bottom of its plate. 6.5rem of plate less 2 x --sp-4 of padding. */
+.theme-dark .partner__logo img { max-height: 4.5rem; }
+
+.partner__list {
+  display: grid;
+  gap: var(--sp-3);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.partner__list li {
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+
+@media (hover: none) {
+  .partner:hover { transform: none; }
+}
+
+/* ==========================================================================
+   10. Demo CTA
+   ========================================================================== */
+.demo__panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  padding: clamp(2.5rem, 5vw, 5rem);
+  /* The deck's signature move: one solid navy block per stretch of white. */
+  background: var(--bg-invert);
+  box-shadow: var(--shadow-lift);
+  color: var(--ink-invert);
+  text-align: center;
+}
+/* — but there is no stretch of white here any more, and the same navy on the
+   navy run is not a block at all: the panel's edge disappears and the CTA reads
+   as loose copy. On the dark ground it has to lift out of the page instead of
+   being cut into it, so it takes the raised surface and a mint hairline. The
+   glow and the type stay exactly as they are. */
+.theme-dark .demo__panel {
+  background: var(--bg-raise);
+  box-shadow: var(--shadow-lift), inset 0 0 0 1px var(--line-mint);
+}
+.demo__panel .eyebrow { color: var(--brand-mint); }
+.demo__panel .demo__h { color: var(--ink-invert); }
+.demo__glow {
+  position: absolute;
+  inset: -40% 20% auto 20%;
+  height: 120%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(142, 199, 184, 0.16), transparent 70%);
+  pointer-events: none;
+}
+.demo__body { position: relative; }
+.demo__h {
+  margin: var(--sp-4) 0 var(--sp-4);
+  font-size: var(--t-h2);
+}
+.demo__p {
+  max-width: 42rem;
+  margin-inline: auto;
+  font-size: var(--t-lead);
+  color: var(--ink-invert-soft);
+}
+.demo__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+
+/* ==========================================================================
+   10b. Participation band
+   ========================================================================== */
+.join__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6) var(--sp-7);
+  padding: clamp(2rem, 3vw, 3rem) clamp(1.5rem, 3vw, 3rem);
+  border-radius: var(--r-lg);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line-mint);
+}
+.join__body { flex: 1 1 30rem; }
+.join__h { font-size: var(--t-h3); margin: var(--sp-3) 0 var(--sp-3); }
+.join__p { font-size: var(--t-small); color: var(--ink-soft); max-width: 58ch; }
+.join__cta { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .join__cta { width: 100%; }
+}
+
+/* ==========================================================================
+   11. Team
+   ========================================================================== */
+.team {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: var(--sp-8);
+  align-items: center;
+}
+.team__intro .btn { margin-top: var(--sp-6); }
+
+.team__people { display: grid; gap: var(--sp-3); }
+.team__person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  transition: transform var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out);
+}
+.team__person:hover { transform: translateX(4px); background: var(--bg-raise-2); }
+/* Same ring as .teaser__halo — one mark, used everywhere. */
+.team__mono {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ring-line);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  transition: background-color var(--dur) var(--ease-out);
+}
+.team__person:hover .team__mono { background: var(--surface-tint); }
+.team__person { padding: var(--sp-5); }
+.team__person h3 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.015em; }
+
+/* ==========================================================================
+   12. Footer
+   ========================================================================== */
+.foot {
+  position: relative;
+  padding-block: var(--sp-9) var(--sp-6);
+  background: var(--bg-invert);
+  color: var(--ink-invert);
+}
+.foot__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: var(--sp-7);
+  padding-bottom: var(--sp-8);
+}
+.foot__brand img { width: 176px; height: auto; margin-bottom: var(--sp-5); }
+.foot__brand p {
+  font-size: var(--t-small);
+  color: var(--ink-invert-soft);
+  max-width: 40ch;
+}
+
+/* Product lockup: the org's mark above, the product's name below it. */
+.foot__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-top: var(--sp-5);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: var(--t-micro);
+  color: var(--ink-invert-soft);
+}
+.foot__legal { display: flex; flex-wrap: wrap; gap: var(--sp-5); }
+.foot__legal a { transition: color var(--dur) var(--ease-out); }
+.foot__legal a:hover { color: var(--brand-mint); }
+
+/* ==========================================================================
+   13. Responsive
+   ========================================================================== */
+@media (max-width: 1080px) {
+  .team { grid-template-columns: 1fr; gap: var(--sp-7); }
+  .foot__top { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6); }
+  .foot__brand { grid-column: 1 / -1; }
+}
+
+/* The nav collapses on its own threshold, well above the layout's 900px one.
+   Six links (four of them sector and page names, "Katastrophenschutz" the
+   longest), the wordmark, the language switch and the Live-Demo button need
+   1088px on one row in German, plus the wrap's 2 x 40px gutter — so 1168px
+   before the row stops eating into its own margin; 1180 leaves a little air.
+   English fits about 10px sooner; German is what has to be measured, and it
+   has to be re-measured whenever a nav label changes (it was 1087px with the
+   old seven anchor links, 1123px while one slot said "Heiligenschein"). Below the threshold the row overflowed and the Live-Demo
+   button was clipped off the right edge with no scrollbar to reveal it,
+   because body has overflow-x: hidden. */
+@media (max-width: 1180px) {
+  .nav__links {
+    position: fixed;
+    inset: var(--nav-h) 0 auto 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--sp-4) clamp(1.25rem, 4vw, 2.5rem) var(--sp-6);
+    background: var(--surface-glass-strong);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 1px 0 0 var(--line);
+  }
+  .nav.is-open .nav__links { display: flex; }
+  .nav__links a { padding: var(--sp-4) var(--sp-2); font-size: 1.0625rem; }
+  .nav__links a.is-active::after { left: 6px; bottom: 50%; margin-bottom: -2px; }
+  .nav__burger { display: block; }
+  .nav__cta { display: none; }
+  .nav__links::after {
+    content: "";
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .stage__track { height: 380vh; }
+  /* Portrait viewports are far too tall for cover — it would crop ~80% of the
+     frame's width away — so the render is contained in the upper band and the
+     copy sits under it behind a vertical scrim.
+
+     The band is sized off the tallest panel, not off the render: the hero panel
+     is ~440px on a 844px-tall phone, and with the band at 42% it started 230px
+     up inside the figure, i.e. the eyebrow and the headline sat on the product.
+     Everything below buys that height back — a smaller render is a far better
+     trade than type printed over the device. */
+
+  /* A fixed percentage band for the render cannot work here: the hero panel is
+     the tallest of the five and its height depends on the viewport width, the
+     language and the font the platform substitutes, so any band that fits a
+     390px phone in German has the headline printed across the device on a
+     360px one in English. The pin becomes a two-row grid instead — the copy
+     takes exactly the height it needs, the render gets the rest — and the
+     panels all share one grid cell, so "the height it needs" is the tallest
+     panel's. Nothing can overlap by construction. */
+  .stage__pin {
+    display: grid;
+    grid-template-rows: minmax(7rem, 1fr) auto;
+  }
+  .stage__figure {
+    position: relative;
+    inset: auto;
+    grid-row: 1;
+    min-height: 0;
+    margin-top: var(--nav-h);
+  }
+  .stage__copy {
+    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: end;
+    height: auto;
+    padding-block: 0 var(--sp-7);
+  }
+  .stage__panel { grid-area: 1 / 1; align-self: end; max-width: none; }
+  .stage__h1 { margin: var(--sp-3) 0 var(--sp-4); }
+  .stage__lead { font-size: var(--t-small); line-height: 1.55; }
+  /* The render sitting above the fold already says "there is more"; the hint
+     costs 60px of the height the hero panel does not have. */
+  .stage__hint { display: none; }
+  .stage__cta { margin-top: var(--sp-5); }
+
+  .bento { grid-template-columns: 1fr; }
+  .bento__cell,
+  .bento__cell--wide { grid-column: 1; }
+  .bento__cell--wide { flex-direction: column; align-items: stretch; }
+  /* Every flex-basis in the wide cell was authored for the row layout, so in
+     the stacked one it silently becomes a *height*: the body's 24rem basis left
+     ~150px of dead space between the copy and the mock under it. All three have
+     to be released, not just the two mocks. */
+  .bento__cell--wide .bento__body,
+  .hud, .pills { flex: initial; }
+}
+
+/* Short phones: the copy always wins the two-row grid above, so on a 640px-tall
+   screen the render was being squeezed to a 44px sliver. Buying the height back
+   out of the type gives it a usable band again. */
+@media (max-width: 900px) and (max-height: 740px) {
+  .stage__h1 { font-size: clamp(1.55rem, 5.6vw, 2.1rem); }
+  .stage__lead,
+  .stage__cta { margin-top: var(--sp-4); }
+}
+
+@media (max-width: 560px) {
+  .stage__track { height: 330vh; }
+  .stage__cta { flex-direction: column; align-items: stretch; }
+  .stage__cta .btn { width: 100%; }
+  .demo__cta .btn { width: 100%; }
+  .foot__top { grid-template-columns: 1fr; }
+}
+
+/* Coarse pointers get no hover-lift — it only ever fires as a sticky state. */
+@media (hover: none) {
+  .fails__item:hover,
+  .bento__cell:hover,
+  .team__person:hover { transform: none; }
+}
+</style>
+<style>/* css/press.css */
+/* ==========================================================================
+   J.A.R. Medical — media room (presse.html)
+   Consumes css/tokens.css and css/site.css. Every class is prefixed .press-,
+   and every value comes from a token.
+   ========================================================================== */
+.press-hero {
+  position: relative;
+  padding-block: calc(var(--nav-h) + var(--sp-9)) var(--sp-8);
+  background: radial-gradient(120% 92% at 76% 18%, rgba(142, 199, 184, .08) 0%, #14132f 44%, #19183b 100%);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.press-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(46% 62% at 78% 30%, rgba(142, 199, 184, 0.16), transparent 70%);
+  pointer-events: none;
+}
+.press-hero__inner { position: relative; max-width: 46rem; }
+.press-hero__title {
+  margin: var(--sp-4) 0 var(--sp-5);
+  font-size: var(--t-h1);
+  letter-spacing: var(--track-display);
+}
+.press-hero__lead { font-size: var(--t-lead); color: var(--ink-soft); }
+
+/* Consecutive sections share one gap instead of stacking two paddings. */
+#main > .section + .section { padding-top: 0; }
+
+/* ---- the award ---------------------------------------------------------- */
+.press-award {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--sp-7);
+  padding: var(--sp-8);
+  border-radius: var(--r-lg);
+  background: var(--bg-raise);
+  box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line-mint);
+}
+.press-award__h {
+  margin: var(--sp-3) 0 var(--sp-4);
+  font-size: var(--t-h2);
+  letter-spacing: var(--track-head);
+}
+.press-award p:not(.eyebrow) { color: var(--ink-soft); }
+.press-facts { display: grid; gap: var(--sp-4); margin: 0; align-content: start; }
+.press-facts > div { padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+.press-facts dt {
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.press-facts dd { margin: var(--sp-1) 0 0; color: var(--ink); font-weight: 600; }
+
+/* ---- coverage ----------------------------------------------------------- */
+.press-head { max-width: 46rem; margin-bottom: var(--sp-7); }
+.press-head h2 { font-size: var(--t-h2); letter-spacing: var(--track-head); margin: 0 0 var(--sp-3); }
+.press-head p { color: var(--ink-soft); margin: 0; }
+
+.press-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-4); }
+.press-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-6);
+  padding: var(--sp-6);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+.press-item:hover { box-shadow: inset 0 0 0 1px var(--line-mint), var(--shadow-card); transform: translateY(-2px); }
+.press-item__meta { grid-column: 1; grid-row: 1 / span 4; margin: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.press-item__outlet { font-weight: 700; color: var(--ink); }
+.press-item__meta time, .press-item__kind { font-size: var(--t-small); color: var(--ink-faint); }
+.press-item__tag {
+  align-self: flex-start;
+  margin-top: var(--sp-2);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.press-item > :not(.press-item__meta) { grid-column: 2; }
+.press-item__title { margin: 0; font-size: var(--t-h3); line-height: var(--lh-head); }
+.press-item__title a { color: inherit; text-decoration: none; }
+/* The headline link covers the whole card; the secondary link sits above it. */
+.press-item__title a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.press-item__title a:focus-visible { outline: none; }
+.press-item:has(.press-item__title a:focus-visible) { box-shadow: 0 0 0 2px var(--accent); }
+.press-item__p { margin: 0; color: var(--ink-soft); }
+.press-item__cta { font-size: var(--t-small); font-weight: 600; color: var(--accent); }
+.press-item__also { margin: 0; font-size: var(--t-small); color: var(--ink-faint); }
+.press-item__also a { position: relative; z-index: 1; color: var(--accent); }
+
+/* ---- press kit ---------------------------------------------------------- */
+.press-kit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--sp-5); }
+.press-kit__col {
+  padding: var(--sp-6);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.press-kit__col h3 { margin: 0 0 var(--sp-4); font-size: var(--t-h3); }
+.press-kit__col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.press-kit__col a { color: var(--accent); }
+.press-kit__col p { margin: 0 0 var(--sp-3); color: var(--ink-soft); }
+.press-logos { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.press-logos span {
+  display: grid;
+  place-items: center;
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.press-logos .is-light { background: #fafbfb; }
+.press-logos img { height: 2.25rem; width: auto; }
+
+.press-back {
+  display: inline-flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-8);
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.press-back:hover { color: var(--ink); }
+
+@media (max-width: 900px) {
+  .press-award { grid-template-columns: 1fr; padding: var(--sp-6); }
+}
+@media (max-width: 640px) {
+  .press-item { grid-template-columns: 1fr; padding: var(--sp-5); }
+  .press-item > :not(.press-item__meta) { grid-column: 1; }
+  .press-item__meta { grid-row: auto; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+  .press-item__tag { margin-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .press-item, .press-item:hover { transition: none; transform: none; }
+}
+</style>
+<noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
+
+<link rel="stylesheet" href="assets/vote-banner.css?v=1">
+<script src="assets/vote-banner.js?v=1" defer></script>
+<link rel="canonical" href="https://jar-medical.tech/presse.html">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:site_name" content="J.A.R. Medical">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jar-medical.tech/presse.html">
+<meta property="og:title" content="Presse und Medienraum | J.A.R. Medical">
+<meta property="og:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta property="og:image" content="https://jar-medical.tech/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="J.A.R. Medical: medizinische Spracherkennung">
+<meta property="og:locale" content="de_DE">
+<meta property="og:locale:alternate" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Presse und Medienraum | J.A.R. Medical">
+<meta name="twitter:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta name="twitter:image" content="https://jar-medical.tech/assets/og.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://jar-medical.tech/#organization","name":"J.A.R. Medical","url":"https://jar-medical.tech/"},{"@type":"WebSite","@id":"https://jar-medical.tech/#website","url":"https://jar-medical.tech/","name":"J.A.R. Medical"},{"@type":"WebPage","@id":"https://jar-medical.tech/presse.html#webpage","url":"https://jar-medical.tech/presse.html","name":"Presse und Medienraum | J.A.R. Medical","description":"Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.","inLanguage":"de-DE","isPartOf":{"@id":"https://jar-medical.tech/#website"},"about":{"@id":"https://jar-medical.tech/#organization"},"breadcrumb":{"@id":"https://jar-medical.tech/presse.html#breadcrumb"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://jar-medical.tech/"},{"@type":"ListItem","position":2,"name":"Presse","item":"https://jar-medical.tech/presse.html"}],"@id":"https://jar-medical.tech/presse.html#breadcrumb"}]}</script>
+</head><body class="theme-dark page--dark">
+
+<!-- ============================== HEADER ============================== -->
+<a class="skip-link" href="#main" data-i18n="a11y_skip">Zum Inhalt springen</a>
+
+<header class="nav" id="nav">
+  <div class="nav__inner wrap wrap--wide">
+      <a class="nav__brand" href="index.html" aria-label="J.A.R. Medical: Startseite">
+      <img src="assets/logo/jar-icon.svg" alt="" width="36" height="36" class="nav__mark">
+      <span class="nav__wordmark">
+        <span class="nav__name">J.A.R.</span>
+        <span class="nav__tag" data-i18n="brand_tag">Medical</span>
+      </span>
+    </a>
+
+    <nav class="nav__links" id="navLinks" aria-label="Hauptnavigation">
+      <a href="index.html#technologie" data-i18n="nav_tech">Technologie</a>
+      <a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a>
+      <a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a>
+      <a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a>
+      <a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a>
+      <a href="index.html#team" data-i18n="nav_team">Team</a>
+      <a href="mitmachen.html" data-i18n="nav_join">Mitmachen</a>
+    </nav>
+
+    <div class="nav__actions">
+      <div class="langswitch" data-langswitch="">
+        <button class="langswitch__btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Sprache wählen">
+          <svg viewbox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"></path>
+          </svg>
+          <span data-langlabel="">DE</span>
+        </button>
+        <ul class="langswitch__menu" role="menu" hidden="">
+          <li><button role="menuitem" type="button" data-lang="de" aria-current="true">Deutsch</button></li>
+          <li><button role="menuitem" type="button" data-lang="en" aria-current="false">English</button></li>
+        </ul>
+      </div>
+
+      <a class="btn btn--primary nav__cta" href="corporate/">
+        <span data-i18n="nav_request_demo">Demo anfragen</span>
+        <span class="btn__arrow" aria-hidden="true">→</span>
+      </a>
+
+      <button class="nav__burger" type="button" aria-expanded="false" aria-controls="navLinks" aria-label="Menü">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="press-hero">
+    <div class="wrap">
+      <div class="press-hero__inner">
+        <p class="eyebrow" data-i18n="press_eyebrow">Presse</p>
+        <h1 class="press-hero__title" data-i18n="press_h1">Medienraum</h1>
+        <p class="press-hero__lead" data-i18n="press_lead">Was über J.A.R. berichtet wurde, alles zum Hauptpreis beim
+          Bundeswettbewerb Künstliche Intelligenz 2026 und Material für Redaktionen,
+          an einem Ort.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- The win. Facts as reported by the organiser (Universität Tübingen,
+       press release of 16.11.2026); keep them in step with that source. -->
+  <section class="section" aria-labelledby="pressAward">
+    <div class="wrap">
+      <article class="press-award reveal">
+        <div>
+          <p class="eyebrow" data-i18n="press_award_k">Bundeswettbewerb Künstliche Intelligenz 2026</p>
+          <h2 class="press-award__h" id="pressAward" data-i18n="press_award_h">Hauptpreis für J.A.R.</h2>
+          <p data-i18n="press_award_p">Am 13. November 2026 haben Johannes Nirschl, Jonas Kaindl und Alexander Kluge
+            vom Gymnasium Neubiberg mit J.A.R. den Hauptpreis des Bundeswettbewerbs
+            Künstliche Intelligenz (BWKI) gewonnen. Die Jury hob laut Universität Tübingen
+            die Detailtiefe des Projekts und die Entwicklungsarbeit am konkreten
+            Anwendungsfall hervor.</p>
+        </div>
+        <dl class="press-facts">
+          <div><dt data-i18n="press_fact_date_k">Finale</dt><dd data-i18n="press_fact_date_v">13. November 2026, NeckaWa Tübingen</dd></div>
+          <div><dt data-i18n="press_fact_prize_k">Preis</dt><dd data-i18n="press_fact_prize_v">1.500 Euro und ein Praktikumsplatz bei FANUC</dd></div>
+          <div><dt data-i18n="press_fact_field_k">Teilnehmerfeld</dt><dd data-i18n="press_fact_field_v">10 Finalteams aus 8 Bundesländern</dd></div>
+          <div><dt data-i18n="press_fact_team_k">Team</dt><dd>Johannes&nbsp;Nirschl · Jonas&nbsp;Kaindl · Alexander&nbsp;Kluge</dd></div>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <!-- Coverage, newest first. Add new articles at the top of the list. -->
+  <section class="section" aria-labelledby="pressCoverage">
+    <div class="wrap">
+      <header class="press-head reveal">
+        <h2 id="pressCoverage" data-i18n="press_cov_h">Berichterstattung</h2>
+        <p data-i18n="press_cov_p">Artikel über J.A.R., neueste zuerst. Alle Links führen zur Originalquelle;
+          Überschriften stehen in der Sprache, in der sie erschienen sind.</p>
+      </header>
+      <ol class="press-list">
+        <li class="press-item reveal">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">insideBW</span>
+            <time datetime="2026-11-17">17.11.2026</time>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://www.insidebw.de/ki-projekte-fuer-katastrophenschutz-und-medizin-gewinnen-schuelerwettbewerb" target="_blank" rel="noopener">KI-Projekte für Katastrophenschutz und Medizin gewinnen Schülerwettbewerb</a></h3>
+          <p class="press-item__p" data-i18n="press_a1_p">Bericht über das BWKI-Finale in Tübingen und den Hauptpreis für J.A.R., mit einer Einordnung, was ein Wettbewerbspreis über die Einsatzreife aussagt und was nicht.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_read">Artikel lesen ↗</span>
+        </li>
+        <li class="press-item reveal" style="--reveal-delay:60ms">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">Universität Tübingen</span>
+            <span class="press-item__kind" data-i18n="press_a2_kind">Pressemitteilung</span>
+            <time datetime="2026-11-16">16.11.2026</time>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://uni-tuebingen.de/universitaet/aktuelles-und-publikationen/pressemitteilung/schuelerinnen-und-schueler-beim-bundeswettbewerb-kuenstliche-intelligenz-ausgezeichnet" target="_blank" rel="noopener">Schülerinnen und Schüler beim Bundeswettbewerb Künstliche Intelligenz ausgezeichnet</a></h3>
+          <p class="press-item__p" data-i18n="press_a2_p">Die offizielle Pressemitteilung des Ausrichters zum Finale: J.A.R. ordnet gesprochene Funksprüche aus Katastropheneinsätzen zu einem Lagebild für die Einsatzleitung.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_read">Artikel lesen ↗</span>
+          <p class="press-item__also"><span data-i18n="press_a2_also">Auch verbreitet über den Informationsdienst Wissenschaft (idw):</span> <a href="https://www.newstag.de/2026/11/16/schuelerinnen-und-schueler-beim-bundeswettbewerb-kuenstliche-intelligenz-ausgezeichnet/" target="_blank" rel="noopener">newstag.de</a></p>
+        </li>
+        <li class="press-item reveal" style="--reveal-delay:120ms">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">Gymnasium Neubiberg</span>
+            <time datetime="2026-11-13">13.11.2026</time>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://gymnasium-neubiberg.de/news-vom-gn/mit-j-a-r-an-die-spitze-des-bwki.html" target="_blank" rel="noopener">Mit J. A. R. an die Spitze des BWKI</a></h3>
+          <p class="press-item__p" data-i18n="press_a3_p">Unsere Schule gratuliert Jonas, Alexander und Johannes zum ersten Platz beim BWKI-Finale.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_read">Artikel lesen ↗</span>
+        </li>
+        <li class="press-item reveal" style="--reveal-delay:180ms">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">Bundeswettbewerb KI</span>
+            <span class="press-item__kind" data-i18n="press_a4_kind">Wettbewerb</span>
+            <time datetime="2026-11">November 2026</time>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://www.bw-ki.de/" target="_blank" rel="noopener">Das war der #BWKI2026!</a></h3>
+          <p class="press-item__p" data-i18n="press_a4_p">Der Wettbewerb gibt die Gewinner:innen des Finaltags bekannt: J.A.R. gewinnt den Hauptpreis.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_read">Artikel lesen ↗</span>
+        </li>
+        <li class="press-item reveal" style="--reveal-delay:240ms">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">Süddeutsche Zeitung</span>
+            <time datetime="2026-11-03">03.11.2026</time>
+            <span class="press-item__tag" data-i18n="press_paywall">Abo</span>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://www.sueddeutsche.de/muenchen/landkreismuenchen/neubiberg-putzbrunn-kuenstliche-intelligenz-katastrophenschutz-bundeswettbewerb-li.3570070?reduced=true" target="_blank" rel="noopener">Neubiberger Gymnasiasten entwickeln KI für besseren Überblick bei Großeinsätzen</a></h3>
+          <p class="press-item__p" data-i18n="press_a5_p">Vor dem Finale: Die SZ stellt die drei Schüler und ihre KI für einen besseren Überblick bei Großeinsätzen vor.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_read">Artikel lesen ↗</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="pressKit">
+    <div class="wrap">
+      <header class="press-head reveal">
+        <h2 id="pressKit" data-i18n="press_kit_h">Für Redaktionen</h2>
+        <p data-i18n="press_kit_p">Logos, Fotos und der direkte Draht zum Team. Bitte Fotos so kennzeichnen,
+          wie es die jeweilige Quelle angibt.</p>
+      </header>
+      <div class="press-kit">
+        <div class="press-kit__col reveal">
+          <h3 data-i18n="press_logo_h">Logos</h3>
+          <div class="press-logos" aria-hidden="true">
+            <span class="is-light"><img src="assets/logo/jar-logo.svg" alt="" width="98" height="36"></span>
+            <span><img src="assets/logo/jar-logo-dark.svg" alt="" width="98" height="36"></span>
+          </div>
+          <ul>
+            <li><a href="assets/logo/jar-logo.svg" download="jar-medical-logo.svg" data-i18n="press_logo_light">Logo für helle Hintergründe (SVG)</a></li>
+            <li><a href="assets/logo/jar-logo-dark.svg" download="jar-medical-logo-dunkel.svg" data-i18n="press_logo_dark">Logo für dunkle Hintergründe (SVG)</a></li>
+            <li><a href="assets/logo/jar-icon.svg" download="jar-medical-icon.svg" data-i18n="press_logo_icon">Bildmarke (SVG)</a></li>
+          </ul>
+        </div>
+        <div class="press-kit__col reveal" style="--reveal-delay:90ms">
+          <h3 data-i18n="press_photo_h">Fotos und Video</h3>
+          <ul>
+            <li><a href="https://www.bw-ki.de/pressebilder" target="_blank" rel="noopener" data-i18n="press_photo_bwki">Fotos vom Finale (BWKI-Pressebilder) ↗</a></li>
+            <li><a href="https://vimeo.com/1240976700" target="_blank" rel="noopener" data-i18n="press_photo_video">Projektvideo auf Vimeo ↗</a></li>
+            <li><a href="info/" data-i18n="press_photo_info">Projektüberblick mit Fotos →</a></li>
+          </ul>
+        </div>
+        <div class="press-kit__col reveal" style="--reveal-delay:180ms">
+          <h3 data-i18n="press_contact_h">Pressekontakt</h3>
+          <p data-i18n="press_contact_p">Interview- und Bildanfragen gehen direkt an das Team.</p>
+          <ul>
+            <li><a href="mailto:kontakt@jar-medical.tech">kontakt@jar-medical.tech</a></li>
+            <li><a href="tel:+4917634305672">+49 176 34305672</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <a class="press-back" href="index.html">
+        <span aria-hidden="true">←</span>
+        <span data-i18n="press_back">Zurück zur Startseite</span>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================== FOOTER ============================== -->
+<footer class="foot" id="kontakt">
+  <div class="wrap wrap--wide">
+    <div class="foot__top">
+      <div class="foot__brand">
+        <img src="assets/logo/jar-logo-dark.svg" alt="J.A.R. Medical" width="196" height="72">
+        <p data-i18n="foot_blurb">J.A.R. Medical entwickelt Spracherkennung für die Arbeit
+        am Menschen: in der Pflege, im Katastrophenschutz und im Rettungsdienst. Auf dem
+          Gerät, in Echtzeit, auch ohne Netz.</p>
+      </div>
+
+      <nav class="foot__col" aria-labelledby="footNav1">
+        <h4 id="footNav1" data-i18n="foot_h_site">Website</h4>
+        <ul>
+          <li><a href="index.html#technologie" data-i18n="nav_tech">Technologie</a></li>
+          <li><a href="krankenhaus.html" data-i18n="nav_hospital">Krankenhaus</a></li>
+          <li><a href="pflegedienst.html" data-i18n="nav_homecare">Pflegedienst</a></li>
+          <li><a href="katastrophenschutz.html" data-i18n="nav_disaster">Katastrophenschutz</a></li>
+          <li><a href="rettungsdienst.html" data-i18n="nav_ems">Rettungsdienst</a></li>
+          <li><a href="index.html#team" data-i18n="nav_team">Team</a></li>
+        </ul>
+      </nav>
+
+      <nav class="foot__col" aria-labelledby="footNav2">
+        <h4 id="footNav2" data-i18n="foot_h_product">Projekt</h4>
+        <ul>
+          <li><a href="mitmachen.html" data-i18n="foot_join">Mitmachen</a></li>
+          <li><a href="presse.html" data-i18n="nav_press">Presse</a></li>
+          <li><a href="corporate/" data-i18n="nav_request_demo">Demo anfragen</a></li>
+          <li><a href="demo/">Live-Demo</a></li>
+          <li><a href="info/" data-i18n="foot_info">Projektinfo</a></li>
+        </ul>
+      </nav>
+
+      <div class="foot__col foot__col--contact" aria-labelledby="footNav3">
+        <h4 id="footNav3" data-i18n="foot_h_contact">Kontakt</h4>
+        <ul>
+          <li>Johannes&nbsp;Nirschl · Alexander&nbsp;Kluge · Jonas&nbsp;Kaindl</li>
+          <li>Cramer-Klett-Straße 10<br>85579 Neubiberg</li>
+          <li><a href="mailto:kontakt@jar-medical.tech">kontakt@jar-medical.tech</a></li>
+          <li><a href="tel:+4917634305672">+49 176 34305672</a></li>
+          <li><a href="https://www.instagram.com/jar_medical/" target="_blank" rel="me noopener">Instagram</a> · <a href="https://www.linkedin.com/company/jar-med/" target="_blank" rel="me noopener">LinkedIn</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot__bottom">
+      <p data-i18n="foot_copy">© 2026 J.A.R. Medical</p>
+      <ul class="foot__legal">
+        <li><a href="impressum.html" data-i18n="foot_imprint">Impressum</a></li>
+        <li><a href="datenschutz.html" data-i18n="foot_privacy">Datenschutz</a></li>
+        <li><a href="nutzungsbedingungen.html" data-i18n="foot_terms">Nutzungsbedingungen</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<div class="grain" aria-hidden="true"></div>
+
+<script>/* js/i18n.js */
+/* ==========================================================================
+   J.A.R., translations
+   German is the source language and lives in the HTML. This file only holds
+   translations away from German. Any key missing here falls back to the
+   authored German text, so a gap degrades to "untranslated", never to blank.
+   Adding a language = adding one object below + one <button data-lang="xx">
+   in the .langswitch__menu of every page.
+   ========================================================================== */
+window.JAR_I18N = {
+
+  en: {
+    /* ---- meta ---- */
+    foot_info: 'Project info',
+    news_eyebrow: 'News',
+    news_h2: 'BWKI win, press and channels',
+    news_bwki_k: 'Competition',
+    news_bwki_h: 'Main prize at BWKI 2026',
+    news_bwki_p: 'On 13 November 2026 in Tübingen, J.A.R. won the main prize of the German national AI competition (Bundeswettbewerb Künstliche Intelligenz). All coverage is collected in the media room.',
+    news_bwki_a: 'To the media room →',
+    news_sz_k: 'Press',
+    news_sz_h: 'In the Süddeutsche Zeitung',
+    news_sz_p: 'The Süddeutsche Zeitung reports on J.A.R.: three students from Gymnasium Neubiberg reached the BWKI finals with their AI for large-scale emergencies.',
+    news_sz_a: 'Read the SZ article ↗',
+    news_ig_p: 'News from the project at @jar_medical.',
+    news_ig_a: 'Go to Instagram ↗',
+    news_li_p: 'News and insights from J.A.R. Medical on LinkedIn.',
+    news_li_a: 'Go to LinkedIn ↗',
+    meta_title: 'On-device medical speech recognition | J.A.R. Medical',
+    meta_desc: 'J.A.R. Medical develops medical speech recognition for nursing, emergency services and disaster response: on the device, in real time, even offline.',
+
+    /* Per-page title/description, keyed by <meta name="jar:page">: see
+       js/site.js. Without these every page took the landing page's pair the
+       moment the visitor switched language. meta_title / meta_desc above stay
+       the landing page's, and the fallback for any page with no entry here. */
+    meta_title_join: 'Contribute to J.A.R. Medical: MediCraft and radio calls',
+    meta_desc_join: 'Help improve the medical speech recognition of J.A.R.: play MediCraft, or read out short radio calls.',
+    meta_title_record: 'Record a radio call for the speech recognition | J.A.R. Medical',
+    meta_desc_record: 'Read out eight short mSTaRT radio calls and record them straight in the browser. Under a minute per text, no account, no name.',
+    meta_title_imprint: 'Imprint | J.A.R. Medical',
+    meta_desc_imprint: 'Provider identification under § 5 DDG, contact details and liability notices for the website of J.A.R. Medical.',
+    meta_title_privacy: 'Privacy policy | J.A.R. Medical',
+    meta_desc_privacy: 'GDPR privacy policy for the static website of J.A.R. Medical: no cookies, no tracking, only the hosting provider’s server log data.',
+    meta_title_terms: 'Terms of use | J.A.R. Medical',
+    meta_desc_terms: 'Terms of use for the website and demo applications of J.A.R. Medical, including the notice that the system is a research prototype and not a medical device under the MDR.',
+    meta_title_disaster: 'Digital triage with AR | J.A.R. Medical',
+    meta_desc_disaster: 'Digital triage at mass-casualty incidents: J.A.R. puts triage in the field of view of first responders with augmented reality and edge AI.',
+    meta_title_care: 'Nursing care: records at the bedside | J.A.R. Medical',
+    meta_desc_care: 'J.A.R. in nursing care: on-device speech recognition, so records are made at the bedside rather than at the end of the shift.',
+    meta_title_hospital: 'Speech recognition for hospitals | J.A.R. Medical',
+    meta_desc_hospital: 'Voice documentation in the hospital: J.A.R. transcribes on the device, so records are made at the bedside rather than at the end of the shift.',
+    meta_title_homecare: 'Speech recognition for home care | J.A.R. Medical',
+    meta_desc_homecare: 'Voice documentation in home care: J.A.R. transcribes on the device, so records are made at the patient rather than in the car.',
+    meta_title_ems: 'Speech recognition for EMS | J.A.R. Medical',
+    meta_desc_ems: 'Voice documentation for emergency services: J.A.R. transcribes on the device, so the report is made at the patient rather than in the vehicle.',
+
+    /* ---- chrome ---- */
+    a11y_skip: 'Skip to content',
+    brand_tag: 'Medical',
+    nav_tech: 'Technology',
+    nav_care: 'Care',
+    nav_hospital: 'Hospital',
+    nav_homecare: 'Outpatient Care',
+    nav_disaster: 'Disaster response',
+    nav_ems: 'Emergency services',
+    nav_team: 'Team',
+    nav_demo: 'Live demo',
+    nav_request_demo: 'Request Demo',
+
+    /* ---- stage ---- */
+    hero_eyebrow: 'Medical speech recognition',
+    hero_h1_a: 'Every word counts.',
+    hero_h1_b: 'The first time, too.',
+    hero_lead: 'We are building the next generation of medical transcription: a model with high zero-shot accuracy. On the device, in real time, with no network.',
+    hero_cta_1: 'Open the live demo',
+    hero_cta_2: 'How it works',
+    hero_scroll: 'Scroll',
+
+    /* landing page: the showcase */
+    hero_fig: 'Fig. 01 · Spoken language',
+    hero_fig_head: 'Transcribed up to here',
+    hero_index: 'Contents',
+    st_kicker: 'What we build',
+    st_p: 'A speech model that understands medicine, including the words it has never heard.',
+    tech_kicker: 'Technology',
+    tech_h2: 'From the spoken sentence to the finished entry',
+    tech_lead: 'It is spoken at the patient. The transcript keeps up while it is being spoken, and the text becomes fields a system can keep working with afterwards.',
+    tech_cta: 'Try it',
+    cap_1: 'Zero-shot: clinical terms with no training on site',
+    cap_2: 'Inference on the device',
+    cap_3: 'Real-time transcription',
+    cap_4: 'Structured fields, not prose',
+    cap_5: 'Works with no network',
+    sc_more: 'Learn more',
+    cta_h: 'Hear for yourself.',
+
+    /* the two annotation boxes on the hero's HUD stretch: captions, not
+       paragraphs; the long-form version of this is the sol_* keys */
+    scribe_live: 'Transcribing · on the device',
+    scribe_said: 'Five hundred milligrams of paracetamol intravenously, fourteen oh seven, patient A7.',
+    scribe_k1: 'Measure',
+    scribe_v1: 'Paracetamol IV',
+    scribe_k2: 'Dose',
+    scribe_v2: '500 mg',
+    scribe_k3: 'Time',
+    scribe_v3: '14:07',
+    scribe_k4: 'Identifier',
+    scribe_v4: 'A7',
+
+
+    /* The product name is a proper noun: it is never translated, so it carries
+       no data-i18n attribute and has no key here. The gloss for readers who do
+       not speak German rides along inside stage_name_sub. */
+
+    /* ---- the product ---- */
+
+    /* ---- origin strip ---- */
+
+    /* ---- problem ---- */
+    prob_eyebrow: 'The situation today',
+
+    /* the navy beat between the problem and the answer */
+    pivot_turn: 'Until now.',
+
+    /* ---- solution ---- */
+    sol_eyebrow: 'Our solution',
+    sol_1_chip: 'Zero-shot',
+    sol_1_h: 'Understands what it has never heard',
+    sol_1_p: 'A new drug, an unfamiliar abbreviation, a different dialect: the model needs no training on site for any of them. It carries what it has learned about clinical language across to words it is meeting for the first time.',
+    sol_2_chip: 'Edge AI',
+    sol_2_h: 'Runs on the device',
+    sol_2_p: 'No connection, no cloud, and no recording that leaves the scene.',
+    sol_3_chip: 'Real time',
+    sol_3_h: 'Written down, not written up',
+    sol_3_p: 'The transcript runs while you speak. By the time the measure is finished it is already there; nobody reconstructs it from memory later.',
+    sol_4_chip: 'Structured',
+    sol_4_h: 'Fields, not prose',
+    sol_4_p: 'What is spoken becomes fields: measure, dose, time, identifier. That is the difference between a dictation and a record a system can still do something with.',
+
+    /* decorative mock-UI strings (visible, so they translate too) */
+    pill_1: 'On-device ASR',
+
+    /* disaster response page: the AR system as built */
+    ks_eyebrow: 'Disaster response · Augmented reality',
+    ks_kicker: 'Sector 04 · Disaster response',
+    ks_h1: 'Digital triage in the field of view.',
+    br_ks_p: 'In mass-casualty incidents, the flow of information decides who lives. J.A.R. puts triage on the head-up display of first responders in real time; no paper cards, no lost information.',
+    ks_h1_a: 'Every second counts.',
+    ks_h1_b: 'So does every fact.',
+    ks_lead: 'In mass-casualty incidents, the flow of information decides who lives. J.A.R. puts triage on the head-up display of first responders in real time; no paper cards, no lost information.',
+    ks_box1_label: 'What the responder sees',
+    ks_box1_text: 'Triage category, vital signs and the measures taken so far: above the patient, not on a tablet.',
+    ks_box2_label: 'Both hands stay free',
+    ks_box2_text: 'New measures are spoken and transcribed on the device, and appear at once on incident command’s situational picture.',
+    ks_prob_h2: 'Triage today: paper, radio and lost time',
+    ks_prob_lead: 'Mass-casualty incidents demand fast, complete triage of every patient. That information has to reach incident command and every treating paramedic without gaps. Reality looks different.',
+    ks_prob_1_h: 'Everything is on paper',
+    ks_prob_1_p: 'All of a patient’s information (including every medical measure) ends up on a cardboard triage tag. One copy, in one place, in rain, in darkness, in gloves.',
+    ks_prob_2_h: 'No live transmission',
+    ks_prob_2_p: 'Triage teams have to relay their findings to incident command by voice. By the time the situational picture is complete, it has usually already changed.',
+    ks_prob_3_h: 'Reading in costs treatment time',
+    ks_prob_3_p: 'Every paramedic has to read in on every patient before treating them. Those minutes are missing exactly where they matter most.',
+    ks_pivot_line: 'Everything known about a patient is written on a piece of cardboard.',
+    ks_sol_h2: 'Digital triage, straight into the field of view',
+    ks_sol_lead: 'J.A.R. combines augmented reality and edge AI into one continuous flow of information: from the first triage team all the way to incident command.',
+    ks_sol_1_chip: 'AR HUD',
+    ks_sol_1_h: 'Every fact in the line of sight',
+    ks_sol_1_p: 'The head-up display overlays triage category, vitals and previous measures directly onto the patient, including instructions from incident command. Both hands stay free.',
+    ks_sol_2_chip: 'Situation',
+    ks_sol_2_h: 'Live instead of paper',
+    ks_sol_2_p: 'Patients get a plain identifier instead of a card. Every entry is available to incident command the moment it is made.',
+    ks_sol_3_h: 'Documentation by voice',
+    ks_sol_3_p: 'Measures are simply spoken aloud. Transcription runs on-device: fast, robust, and still working when the network at the scene goes down.',
+    ks_sol_4_chip: 'Offline-proof',
+    ks_sol_4_h: 'Built for the scene, not for the lab',
+    ks_sol_4_p: 'The compute load sits on a body-worn unit, the data runs to a server in the command vehicle. If the link drops, the device keeps recording and syncs afterwards. The operation does not hang on a mobile network.',
+    ks_pill_2: 'NFC identifier',
+    ks_pill_3: 'Local server',
+    ks_pill_4: 'Sync after dropout',
+    hud_sk: 'I · immediate',
+    hud_log: 'IV access placed · 14:07',
+    more_eyebrow: 'Same language, other places',
+    more_h: 'The model behind the helmet',
+    more_p: 'The transcription running in the helmet is the same model we are building for nursing care and emergency medical services. How it works is on the home page.',
+    more_cta: 'Go to the technology',
+
+    /* ---- nav ---- */
+
+    /* ---- sectors ---- */
+    br_eyebrow: 'Sectors',
+    br_h2: 'Four sectors, the same language',
+    br_lead: 'Anywhere people are worked on and then written about, the job is the same: hold on to what was said, in the language of the field. What differs is the noise, the pace, and the form at the end.',
+    br_care_status: 'Fully operational',
+    br_care_h: 'Nursing care',
+    br_care_p: 'Documentation at the bedside instead of at the station desk. The nurse says what they have done while they are doing it, and does not have to reconstruct it from memory at the end of the shift.',
+    br_care_1: 'Long shifts, many short entries',
+    br_care_2: 'Quiet surroundings, a lot of specialist vocabulary',
+    br_hospital_status: 'Fully operational',
+    br_hospital_h: 'Hospital',
+    br_hospital_p: 'Documentation at the bedside instead of at the station desk. The nurse says what they have done while they are doing it, and does not have to reconstruct it from memory at the end of the shift.',
+    br_hospital_1: 'Long shifts, many short entries',
+    br_hospital_2: 'Quiet surroundings, a lot of specialist vocabulary',
+    br_homecare_status: 'Fully operational',
+    br_homecare_h: 'Outpatient Care',
+    br_homecare_p: 'Documentation at the patient\'s home instead of in the car. The nurse says what they have done while they are doing it, and does not have to reconstruct it from memory after the tour.',
+    br_homecare_1: 'Many stops, tight schedule',
+    br_homecare_2: 'Documentation in the car or at home',
+    br_dis_status: 'Fully operational',
+    br_dis_h: 'Disaster response',
+    br_dis_p: 'The sector where the system already stands: an incident helmet with AR glasses, triage in the field of view, documentation by voice. This is where the pilot projects with the German Red Cross run, and where the voice recordings the model learns from come from.',
+    br_ems_status: 'Fully operational',
+    br_ems_h: 'Emergency medical services',
+    br_ems_p: 'From the scene to handover at the hospital, a protocol takes shape that today is mostly typed in the vehicle. Spoken, it takes shape where it is being spoken anyway: at the patient.',
+    br_ems_1: 'One patient, a complete protocol',
+    br_ems_2: 'Road noise, both hands on the patient',
+    br_ks_status: 'Fully operational',
+
+
+    /* ---- ready states (new) ---- */
+    sector_feature1_kicker: 'In action',
+    sector_feature2_kicker: 'Integration',
+    sector_ready_kicker: 'Ready to use',
+    sector_contact: 'Get in touch',
+
+    hospital_feature1_h: 'The software',
+    hospital_feature1_p: 'The speech recognition runs on the device, in real time, with clinical vocabulary. It is specially developed for hospital requirements.',
+    hospital_feature2_h: 'Seamless integration',
+    hospital_feature2_p: 'A compact device that seamlessly integrates into the ward routine, and a direct connection to the Hospital Information System (HIS).',
+    hospital_ready_h: 'Deploy now',
+    hospital_ready_p: 'The system for hospitals is fully operational. If you want to use J.A.R. on your ward: write to us.',
+
+    homecare_feature1_h: 'The software',
+    homecare_feature1_p: 'The speech recognition runs on the device, in real time, with clinical vocabulary. It is specially developed for outpatient care requirements.',
+    homecare_feature2_h: 'Seamless integration',
+    homecare_feature2_p: 'A compact device that seamlessly integrates into the mobile care routine, and a direct connection to the care management system.',
+    homecare_ready_h: 'Deploy now',
+    homecare_ready_p: 'The system for outpatient care is fully operational. If you want to use J.A.R. on your tour: write to us.',
+
+    ks_feature1_h: 'The software',
+    ks_feature1_p: 'The speech recognition runs on the device, in real time, with clinical vocabulary. It is specially developed for disaster response requirements.',
+    ks_feature2_h: 'Seamless integration',
+    ks_feature2_p: 'The hardware blends into the protective equipment and the data flows directly into the incident command system.',
+    ks_ready_h: 'Deploy now',
+    ks_ready_p: 'The system for disaster response is fully operational. If you want to use J.A.R.: write to us.',
+
+    ems_feature1_h: 'The software',
+    ems_feature1_p: 'The speech recognition runs on the device, in real time, with clinical vocabulary. It is specially developed for EMS requirements.',
+    ems_feature2_h: 'Seamless integration',
+    ems_feature2_p: 'A compact device for the incident scene, and a direct connection to the hospital.',
+    ems_ready_h: 'Deploy now',
+    ems_ready_p: 'The system for emergency medical services is fully operational. If you want to use J.A.R.: write to us.',
+
+    /* sector pages: nursing care and EMS (directions, not products) */
+    sector_task_kicker: 'The job',
+    sector_ex_kicker: 'An example',
+    sector_ex_h2: 'What an entry sounds like',
+    sector_ex_lead: 'An invented but typical sentence, and the fields the model is meant to make of it.',
+    sector_cta_h: 'The same language, somewhere else.',
+
+    /* ---- sector pages: the app (Krankenhaus, Pflegedienst) ---- */
+    app_kicker: 'The app',
+    app_h2: 'JAR Scribe on the iPhone',
+    app_lead: 'Start documenting, speak, review the handover. The transcript keeps up live, values such as temperature, oxygen, pulse and blood pressure are picked up while you speak, and at the end there is a handover report with a NEWS2 score, as a draft to review and sign off.',
+    app_cap_1: 'Start documenting',
+    app_cap_2: 'Live transcript while you speak',
+    app_cap_3: 'Handover with NEWS2, ready to sign off',
+    app_note: 'Recordings from the app with synthetic demo data, not a real patient. The report is a draft and is reviewed before use.',
+    care_kicker: 'Sector 02 · Nursing care',
+    care_h1: 'Records at the bedside, not at the station desk.',
+    care_fig: 'Fig. 02 · Nursing care',
+    care_task_h2: 'A lot of talk, little time to write',
+    care_task_lead: 'Care documentation is mandatory, and it mostly gets done where there is least time for it: between two patients, or at the end of the shift.',
+    care_t1_p: 'A shift is made of many small measures. Each is quick to say and tedious to type, and by the end there is no time left to enter them all.',
+    care_t2_p: 'The ward is usually quiet, but the language is dense: drugs, abbreviations, scales. That is exactly where a model has to understand words it was not specifically taught.',
+    care_t3_h: 'At the bedside, not at the station desk',
+    care_t3_p: 'Records are made where the work is done. Whoever speaks while they act has nothing to reconstruct from memory at the end of the shift.',
+    care_said: 'Dressing change on the left lower leg, wound clean, pain three out of ten, seven forty.',
+    care_k1: 'Measure',
+    care_v1: 'Dressing change',
+    care_k2: 'Site',
+    care_v2: 'Left lower leg',
+    care_k3: 'Pain',
+    care_v3: '3/10',
+    hospital_kicker: 'Sector 02 · Hospital',
+    hospital_h1: 'Records at the bedside, not at the station desk.',
+    hospital_fig: 'Fig. 02 · Hospital',
+    hospital_task_h2: 'A lot of talk, little time to write',
+    hospital_task_lead: 'Care documentation is mandatory, and it mostly gets done where there is least time for it: between two patients, or at the end of the shift.',
+    hospital_t1_p: 'A shift is made of many small measures. Each is quick to say and tedious to type, and by the end there is no time left to enter them all.',
+    hospital_t2_p: 'The ward is usually quiet, but the language is dense: drugs, abbreviations, scales. That is exactly where a model has to understand words it was not specifically taught.',
+    hospital_t3_h: 'At the bedside, not at the station desk',
+    hospital_t3_p: 'Records are made where the work is done. Whoever speaks while they act has nothing to reconstruct from memory at the end of the shift.',
+    hospital_said: 'Dressing change on the left lower leg, wound clean, pain three out of ten, seven forty.',
+    hospital_k1: 'Measure',
+    hospital_v1: 'Dressing change',
+    hospital_k2: 'Site',
+    hospital_v2: 'Left lower leg',
+    hospital_k3: 'Pain',
+    hospital_v3: '3/10',
+    homecare_kicker: 'Sector 03 · Outpatient Care',
+    homecare_h1: 'Records at the patient\'s home, not in the car.',
+    homecare_fig: 'Fig. 03 · Outpatient Care',
+    homecare_task_h2: 'A lot of driving, little time to write',
+    homecare_task_lead: 'Care documentation is mandatory, and it mostly gets done where there is least time for it: in the car between patients, or at the end of the tour.',
+    homecare_t1_p: 'A tour is made of many small measures. Each is quick to say and tedious to type, and by the end there is no time left to enter them all.',
+    homecare_t2_p: 'The patient\'s home is often quiet, but the language is dense: drugs, abbreviations, scales. That is exactly where a model has to understand words it was not specifically taught.',
+    homecare_t3_h: 'At the patient\'s home, not in the car',
+    homecare_t3_p: 'Records are made where the work is done. Whoever speaks while they act has nothing to reconstruct from memory at the end of the tour.',
+    homecare_said: 'Dressing change on the left lower leg, wound clean, pain three out of ten, seven forty.',
+    homecare_k1: 'Measure',
+    homecare_v1: 'Dressing change',
+    homecare_k2: 'Site',
+    homecare_v2: 'Left lower leg',
+    homecare_k3: 'Pain',
+    homecare_v3: '3/10',
+    ems_kicker: 'Sector 05 · Emergency medical services',
+    ems_h1: 'The report at the patient, not in the vehicle.',
+    ems_fig: 'Fig. 04 · Emergency medical services',
+    ems_task_h2: 'A report, written on the move',
+    ems_task_lead: 'From arrival to handover every step has to be recorded, while the crew works on the patient and the vehicle is moving.',
+    ems_t1_p: 'Every measure, every drug, every time belongs in the report. Today much of it is typed in the vehicle after the call.',
+    ems_t2_p: 'Engine, siren, radio: the surroundings are loud and the hands are busy. Recognition has to cope with that without anyone operating a device.',
+    ems_t3_h: 'Handover at the hospital',
+    ems_t3_p: 'What was said on the way should already be in order at handover: measures, drugs, times, instead of being recounted from memory.',
+    ems_said: 'IV access right back of hand, Ringer’s five hundred millilitres, blood pressure one ten over seventy, ten twelve.',
+    ems_k1: 'Measure',
+    ems_v1: 'IV access, right hand',
+    ems_k2: 'Infusion',
+    ems_v2: 'Ringer’s 500 ml',
+    ems_k3: 'BP',
+    ems_v3: '110/70',
+
+    /* ---- partners ---- */
+    par_eyebrow: 'Partners',
+    par_h2: 'And it is not just us',
+    par_lead: 'Three organisations back the project with field knowledge, with hardware, and with data we could not otherwise reach.',
+    par_drk_1: 'Pilot projects',
+    par_drk_2: 'Mentoring and expert input',
+    par_drk_3: 'Feedback from practice',
+    par_tum_1: 'Technical support (Hex Lab)',
+    par_tum_2: 'Device access',
+    par_tum_3: 'Supervision of research',
+    par_dlr_1: 'State-of-the-art imaging (satellite, drone)',
+    par_dlr_2: 'Proprietary data',
+    par_dlr_3: 'Full-stack integration',
+
+    /* ---- field ---- */
+
+    /* ---- demo ---- */
+    demo_eyebrow: 'Try it',
+    demo_h2: 'See J.A.R. in action',
+    demo_p: 'The interface and the complete workflow (from triage to handover) are ready as an interactive demo. No download, straight in your browser.',
+    demo_cta_1: 'Go to the live demo',
+    demo_cta_2: 'Open the AR client',
+
+    /* ---- team ---- */
+    team_eyebrow: 'The team',
+    team_h2: 'Three students, one language',
+    team_p: 'J.A.R. Medical started at Gymnasium Neubiberg and is being developed further at the UnternehmerTUM Makerspace and LMU Munich. We build the model, the hardware and the software ourselves, and we want to hear from anyone who works on people and then has to write about it.',
+    team_cta: 'Get in touch',
+
+    /* ---- footer ---- */
+    foot_blurb: 'J.A.R. Medical builds speech recognition for work on people in nursing care, disaster response and emergency medical services. On the device, in real time, with no network.',
+    foot_h_site: 'Website',
+    foot_h_product: 'Project',
+    foot_demo: 'Live demo',
+    foot_arclient: 'AR client',
+    foot_h_contact: 'Contact',
+    foot_copy: '© 2026 J.A.R. Medical',
+    foot_imprint: 'Imprint',
+    foot_privacy: 'Privacy',
+    foot_terms: 'Terms of use',
+
+    /* ---- participation: chooser page ---- */
+    nav_join: 'Take part',
+    foot_join: 'Take part',
+    /* ---- media room (presse.html) ---- */
+    nav_press: 'Press',
+    meta_title_press: 'Press and media room | J.A.R. Medical',
+    meta_desc_press: 'Press coverage of J.A.R. and its main prize at the German national AI competition BWKI 2026, with logos and contact details for editors.',
+    press_eyebrow: 'Press',
+    press_h1: 'Media room',
+    press_lead: 'What has been written about J.A.R., everything on the main prize at the German national AI competition 2026, and material for editors, in one place.',
+    press_award_k: 'Bundeswettbewerb Künstliche Intelligenz 2026',
+    press_award_h: 'Main prize for J.A.R.',
+    press_award_p: 'On 13 November 2026, Johannes Nirschl, Jonas Kaindl and Alexander Kluge from Gymnasium Neubiberg won the main prize of the German national AI competition (BWKI) with J.A.R. According to the University of Tübingen, the jury was impressed by the depth of detail and the development work on a concrete use case.',
+    press_fact_date_k: 'Final',
+    press_fact_date_v: '13 November 2026, NeckaWa Tübingen',
+    press_fact_prize_k: 'Prize',
+    press_fact_prize_v: '€1,500 and an internship at FANUC',
+    press_fact_field_k: 'Field',
+    press_fact_field_v: '10 finalist teams from 8 German states',
+    press_fact_team_k: 'Team',
+    press_cov_h: 'Coverage',
+    press_cov_p: 'Articles about J.A.R., newest first. Every link goes to the original source; headlines are shown in the language they were published in.',
+    press_read: 'Read article ↗',
+    press_paywall: 'Subscription',
+    press_a1_p: 'Report on the BWKI final in Tübingen and the main prize for J.A.R., with a note on what a competition prize does and does not say about operational readiness.',
+    press_a2_kind: 'Press release',
+    press_a2_p: 'The organiser’s official press release on the final: J.A.R. turns spoken radio messages from disaster operations into a situation picture for incident command.',
+    press_a2_also: 'Also distributed via the idw science news service:',
+    press_a3_p: 'Our school congratulates Jonas, Alexander and Johannes on first place at the BWKI final.',
+    press_a4_kind: 'Competition',
+    press_a4_p: 'The competition announces the winners of the final day: J.A.R. takes the main prize.',
+    press_a5_p: 'Before the final: the Süddeutsche Zeitung introduces the three students and their AI for a better overview in large-scale emergencies.',
+    press_kit_h: 'For editors',
+    press_kit_p: 'Logos, photos and a direct line to the team. Please credit photos as stated by their source.',
+    press_logo_h: 'Logos',
+    press_logo_light: 'Logo for light backgrounds (SVG)',
+    press_logo_dark: 'Logo for dark backgrounds (SVG)',
+    press_logo_icon: 'Icon (SVG)',
+    press_photo_h: 'Photos and video',
+    press_photo_bwki: 'Photos of the final (BWKI press images) ↗',
+    press_photo_video: 'Project video on Vimeo ↗',
+    press_photo_info: 'Project overview with photos →',
+    press_contact_h: 'Press contact',
+    press_contact_p: 'Interview and image requests go straight to the team.',
+    press_back: 'Back to the home page',
+    join_band_eyebrow: 'Take part',
+    join_band_h: 'Five minutes, or ninety seconds',
+    join_band_p: 'We have no budget for studies and no access to real incident data. Play MediCraft, or read out short radio calls for us, the ones the speech recognition learns from.',
+    join_band_cta: 'Contribute to the project',
+
+    join_eyebrow: 'Take part',
+    join_h1: 'Contribute to the project',
+    join_lead: 'J.A.R. is built by three students, with no budget for studies and no access to real incident data. Both routes below help us directly. Pick the one that fits the time you have.',
+    join_meta_1: 'No sign-up',
+    join_meta_2: 'No personal details needed',
+    join_meta_3: 'Stop any time',
+    join_paths_h: 'How much time do you have?',
+
+    join_a_unit: 'minutes',
+    join_a_h: 'Play MediCraft',
+    join_a_p: 'MediCraft is a voxel game that gathers the speech recordings as a side effect of being played. What you say while playing trains the same speech recognition that writes things down at the incident scene later.',
+    join_a_li1: 'Runs in the browser, no installation',
+    join_a_li2: 'The recordings happen while you play, not in a form',
+    join_a_li3: 'The longer you play, the more voice adds up',
+    join_a_cta: 'Open MediCraft',
+
+    join_b_unit: 'seconds per text',
+    join_b_h: 'Read out radio calls',
+    join_b_p: 'You read out short, randomly assembled radio calls of the kind spoken during mSTaRT pre-triage, as many as you like. They are what the speech recognition learns from: the one that runs directly on the responder’s device.',
+    join_b_li1: 'Records straight in the browser, no account',
+    join_b_li2: 'Regional accents are explicitly welcome',
+    join_b_li3: 'No name, no address: just your voice',
+    join_b_cta: 'Go to the recording',
+
+    join_note_title: 'Why this helps',
+    join_note_p: 'Transcription runs on the device itself, not in the cloud. So it has to cope with little compute power, with the noise of an incident scene, and with very different voices. Every recording makes it a little more robust. And every round of MediCraft brings in voices a recording form alone would never reach.',
+    join_back: 'Back to the home page',
+
+    /* ---- participation: recording page ---- */
+    rec_h1: 'Record a radio call',
+    rec_shuffle: 'Show a different text',
+    rec_retry: 'Send again',
+    rec_download: 'Save as WAV',
+    rec_consent: 'I am at least 16 years old and consent to my recording being transmitted to J.A.R. Medical together with the text shown and my optional details, and stored to develop our speech recognition. I can withdraw at any time.',
+    rec_consent_link: 'Privacy',
+    rec_fine: 'No account, no name. Accents and background noise are welcome. The sentences are speech material, not medical advice: in an emergency call 112.',
+    rec_back: 'Back to the options',
+    rec_about_h: 'Optional details',
+    rec_medic: 'I work in a medical field or am training for one',
+    rec_medic_hint: 'e.g. emergency medical services, first-aid service, nursing, medicine',
+    rec_st_corpus: 'The sentences could not be loaded. Please reload the page.',
+    rec_role: 'Field',
+    rec_opt_none: 'No answer',
+    rec_role_ems: 'Emergency medical services (e.g. paramedic, EMT)',
+    rec_role_ems_doc: 'Emergency physician',
+    rec_role_doc: 'Physician',
+    rec_role_nurse: 'Nursing',
+    rec_role_san: 'First-aid or school first-aid service',
+    rec_role_dispatch: 'Emergency dispatch centre',
+    rec_role_fire: 'Fire service, THW, civil protection',
+    rec_role_student: 'Medical studies or training',
+    rec_role_other: 'Other health profession',
+    rec_more: 'More details that help the speech recognition',
+    rec_age: 'Age',
+    rec_gender: 'Gender',
+    rec_gender_f: 'female',
+    rec_gender_m: 'male',
+    rec_gender_d: 'diverse',
+    rec_l1: 'First language',
+    rec_l1_de: 'German',
+    rec_l1_bi: 'German and another language',
+    rec_l1_other: 'Another language',
+    rec_region: 'Grew up in',
+    rec_reg_by: 'Bavaria',
+    rec_reg_bw: 'Baden-Württemberg',
+    rec_reg_he: 'Hesse',
+    rec_reg_rp: 'Rhineland-Palatinate / Saarland',
+    rec_reg_nw: 'North Rhine-Westphalia',
+    rec_reg_ni: 'Lower Saxony / Bremen',
+    rec_reg_sh: 'Hamburg / Schleswig-Holstein',
+    rec_reg_mv: 'Mecklenburg-Western Pomerania',
+    rec_reg_bb: 'Berlin / Brandenburg',
+    rec_reg_sn: 'Saxony',
+    rec_reg_st: 'Saxony-Anhalt',
+    rec_reg_th: 'Thuringia',
+    rec_reg_at: 'Austria',
+    rec_reg_ch: 'Switzerland',
+    rec_reg_other: 'Another country',
+    rec_place: 'Recording place',
+    rec_place_quiet: 'Quiet room',
+    rec_place_noisy: 'Room with background noise',
+    rec_place_out: 'Outdoors',
+    rec_place_vehicle: 'In a vehicle',
+    rec_place_work: 'On duty (station, ward, dispatch centre)',
+    rec_mic: 'Microphone',
+    rec_mic_phone: 'Phone',
+    rec_mic_builtin: 'Built into laptop or PC',
+    rec_mic_headset: 'Headset or earphones',
+    rec_mic_ext: 'External microphone',
+    rec_about_note: 'All details are optional and are stored only together with your recordings. They help the recognition understand every voice equally well.',
+    /* set by js/record.js, not by markup */
+    rec_btn_start: 'Start recording',
+    rec_btn_starting: 'Opening the microphone …',
+    rec_btn_stop: 'Stop recording',
+    rec_btn_sending: 'Sending …',
+    rec_count: 'Sent:',
+    rec_code: 'Your deletion code:',
+    rec_code_hint: 'Note it down in case you want your recordings deleted later.',
+    rec_st_consent: 'Please confirm the consent below first.',
+    rec_st_unsupported: 'This browser cannot record here. Please open the page via https:// in a current browser.',
+    rec_st_rec: 'Recording. Read the text aloud, then tap the button.',
+    rec_st_denied: 'No access to the microphone. Please allow it in your browser settings and tap again.',
+    rec_st_nomic: 'No microphone found, or another app is using it.',
+    rec_st_short: 'Too short. Please read the whole text.',
+    rec_st_sending: 'Sending …',
+    rec_st_rejected: 'Received, but too quiet or unclear. Please record the same text once more.',
+    rec_st_done: 'Saved, thank you! Here is the next text.',
+    rec_st_fail: 'Sending failed. Your recording is still here: send it again or save it as a file.',
+
+    /* ---- privacy: the voice recording section ---- */
+    legal_privacy_h_audio: '5. Voice recordings',
+    legal_privacy_audio_p1: 'On the “Take part” page you can voluntarily give us short voice recordings in which you read out randomly assembled radio calls. The recording is made directly in your browser; no third-party service is embedded for it.',
+    legal_privacy_audio_note: 'As long as you are only reading the page, nothing is transmitted. Only once you tick the consent box, start a recording and stop it again does your browser send that recording to our server.',
+    legal_privacy_audio_p2: 'For this, your browser asks for access to your microphone. The recording is converted locally into an audio file into which the text read out, an identifier of that text, the time of recording, the version of this consent, technical details of the recording and your optional details are written as metadata. Your browser transmits this file in encrypted form to a computer we operate ourselves. A pseudonymous identifier, held only in your browser tab, links further recordings to the same session; no cookie is set.',
+    legal_privacy_audio_p3: 'The data processed are: the voice recording, the text read out and its identifier, the time and length of the recording, the version of the consent, your confirmation that you are at least 16, a pseudonymous identifier, and technically necessary connection data such as your IP address. In addition: technical details of the recording (device type, operating system and browser family, the browser’s microphone settings, sample rate, level and noise values) and, only if you give them, your optional details: whether and in which field you work in medicine, age group, gender, first language, region you grew up in, recording place and type of microphone. A voice recording is personal data even without a name, because a voice can in principle be attributed to a person. We do not ask for a name or e-mail address.',
+    legal_privacy_audio_h3_provider: 'Where the recordings are stored',
+    legal_privacy_audio_provider_p1: 'The recordings are stored on a computer we operate ourselves and analysed automatically there by a speech recognition that also runs locally. This computer is reached through the Tailscale Funnel service of Tailscale Inc. Tailscale only forwards the encrypted connection; encryption ends on our computer, so Tailscale cannot see the content of a recording, but it can see connection data such as your IP address.',
+    legal_privacy_audio_provider_p2: 'For access to, correction of, or deletion of your recordings, please write to the address given in section 1.',
+    legal_privacy_audio_link_label: 'Tailscale’s privacy policy:',
+    legal_privacy_audio_h3_purpose: 'Purpose, legal basis and retention',
+    legal_privacy_audio_p4: 'We use the recordings solely to develop, train and test J.A.R.’s speech recognition. They are not published, not passed to third parties for their own purposes, and not sold. The legal basis is your consent under Art. 6(1)(a) GDPR, and additionally § 25(1) TDDDG for access to your device’s microphone. We keep recordings for at most 24 months.',
+    legal_privacy_audio_h3_revoke: 'Withdrawal and deletion',
+    legal_privacy_audio_p5: 'You may withdraw your consent at any time with effect for the future. After your first recording the page shows you a deletion code; with that code, or an informal message to the address given in section 1, we delete your recordings. Without the code, please tell us roughly when you recorded so we can find them. Withdrawal does not affect the lawfulness of processing carried out before it.',
+    legal_privacy_audio_h3_transfer: 'Transfer to third countries',
+    legal_privacy_audio_p6: 'The recordings themselves do not leave our computer. The connection may be routed through Tailscale servers outside the European Union; only connection data, not the content of a recording, is visible to Tailscale there.',
+
+    /* ---- legal: shared ---- */
+    legal_eyebrow: 'Legal',
+    legal_toc_title: 'On this page',
+    legal_meta_updated: 'Last updated: 6 September 2026',
+    legal_meta_project: 'Professional Team',
+    legal_meta_gdpr: 'GDPR · BDSG · TDDDG',
+    legal_meta_prototype: 'Research prototype, not a medical device',
+    legal_note_label_important: 'Important note',
+    legal_note_label_short: 'In short',
+    legal_note_label_warning: 'Warning',
+
+    /* ---- legal: imprint ---- */
+    legal_imprint_h1: 'Imprint',
+    legal_imprint_lead: 'Provider identification under § 5 of the Digitale-Dienste-Gesetz (DDG), together with the persons responsible for the editorial content of this website under § 18(2) of the Medienstaatsvertrag (MStV).',
+
+    legal_imprint_h_provider: '1. Provider under § 5 DDG',
+    legal_imprint_h_representation: '2. Represented by',
+    legal_imprint_h_contact: '3. Contact',
+    legal_imprint_h_responsible: '4. Responsible for editorial content',
+    legal_imprint_h_register: '5. Register entries and VAT',
+    legal_imprint_h_liability: '6. Liability for content',
+    legal_imprint_h_links: '7. Liability for links',
+    legal_imprint_h_project: '8. Note on the nature of the project',
+
+    legal_imprint_provider_p1: 'J.A.R. Medical is a non-commercial school and research project with no legal form of its own. The persons named below are jointly the providers of this website and therefore responsible within the meaning of § 5 DDG.',
+    legal_imprint_provider_name: 'J.A.R. Medical, project team',
+    legal_imprint_provider_people: 'Johannes Nirschl · Alexander Kluge · Jonas Kaindl',
+    legal_imprint_provider_street: 'Cramer-Klett-Straße 10',
+    legal_imprint_provider_city: '85579 Neubiberg',
+    legal_imprint_provider_country: 'Germany',
+
+    legal_imprint_representation_p1: 'The project is represented jointly by Johannes Nirschl, Alexander Kluge and Jonas Kaindl.',
+
+    legal_imprint_contact_mail_label: 'Email:',
+    legal_imprint_contact_phone_label: 'Phone:',
+    legal_imprint_contact_p1: 'Enquiries about press, partnerships, funding or data protection reach us fastest by email. As the project runs alongside school and university, a reply may take a few days.',
+
+    legal_imprint_responsible_p1: 'Responsible for the editorial content under § 18(2) MStV are Johannes Nirschl, Alexander Kluge and Jonas Kaindl, Cramer-Klett-Straße 10, 85579 Neubiberg. The address is the same as the provider address given above.',
+
+    legal_imprint_register_p1: 'J.A.R. Medical is not a registered company. There is no entry in the commercial register, the register of associations, the register of partnerships or the register of cooperatives.',
+    legal_imprint_register_p2: 'There is no VAT identification number under § 27a UStG, as the project does not operate commercially and offers no services for payment. For the same reason there is neither membership of a chamber nor a competent supervisory authority within the meaning of § 5(1) no. 3 DDG.',
+
+    legal_imprint_liability_p1: 'The content of this website has been compiled with the greatest possible care. We accept no liability, however, for its accuracy, completeness or currency. As a service provider we are responsible under the general laws for our own content on these pages in accordance with § 7(1) DDG.',
+    legal_imprint_liability_p2: 'Under §§ 8 to 10 DDG we are, as a service provider, not obliged to monitor third-party information that we transmit or store, or to investigate circumstances that indicate unlawful activity. Obligations to remove or block the use of information under the general laws remain unaffected. Liability in this respect is possible only from the point at which a specific infringement becomes known; should we become aware of any such infringements, we will remove the content immediately.',
+
+    legal_imprint_links_p1: 'This website contains references to external third-party websites over whose content we have no influence. We can therefore accept no liability for this third-party content; responsibility always lies with the respective provider or operator of the linked pages.',
+    legal_imprint_links_p2: 'The linked pages were checked for possible legal infringements at the time of linking; unlawful content was not discernible at that time. Permanent monitoring of the content of the linked pages is unreasonable without specific indications of an infringement. Should we become aware of any infringements, we will remove such links immediately.',
+
+    legal_imprint_project_p1: 'J.A.R. Medical is being created as a school and research project at Gymnasium Neubiberg, at the UnternehmerTUM Makerspace and in the environment of Ludwig-Maximilians-Universität München. These institutions are neither the provider of this website nor responsible for its content.',
+    legal_imprint_project_note: 'The system shown on this website is a research prototype and not an approved medical device within the meaning of EU Regulation 2017/745 (MDR). It must not be used in real operations, in patient care or as a basis for medical decisions. The details are set out in the terms of use.',
+
+    /* ---- legal: privacy ---- */
+    legal_privacy_h1: 'Privacy policy',
+    legal_privacy_lead: 'This website is a static site without cookies, without analytics and without tracking. Here you can read which data arises technically when the page is accessed, why that is so, and which rights you have under the General Data Protection Regulation.',
+
+    legal_privacy_h_controller: '1. Controller',
+    legal_privacy_h_static: '2. A static website: what that means',
+    legal_privacy_h_hosting: '3. Hosting and server log files',
+    legal_privacy_h_cookies: '4. No cookies, no analytics, no tracking',
+    legal_privacy_h_contact: '6. Contacting us',
+    legal_privacy_h_links: '7. External links and our own sub-pages',
+    legal_privacy_h_retention: '8. Retention period',
+    legal_privacy_h_rights: '9. Your rights',
+    legal_privacy_h_authority: '10. Right to lodge a complaint',
+    legal_privacy_h_changes: '11. Changes to this policy',
+
+    legal_privacy_controller_p1: 'The controller for the processing of data on this website within the meaning of Art. 4(7) GDPR is the J.A.R. project team:',
+    legal_privacy_controller_p2: 'No data protection officer has been appointed, as the legal requirements of Art. 37 GDPR in conjunction with § 38 BDSG are not met. Please address data protection matters directly to the contact details given above.',
+
+    legal_privacy_static_p1: 'This website is a purely static site. It consists solely of pre-generated HTML, CSS, JavaScript and image files that are delivered to your browser unchanged. There is no server-side program logic, no database, no user accounts, no contact form, no newsletter and no comment function.',
+    legal_privacy_static_p2: 'We therefore do not collect, store or process any personal data ourselves through this website. The only processing that technically takes place when the page is accessed is the server log data of our hosting provider; it is described in section 3.',
+    legal_privacy_static_note: 'No cookies, no audience measurement, no advertising or social media services, no user profiles. That is why there is no cookie banner: there would be nothing for you to consent to.',
+
+    legal_privacy_hosting_p1: 'This website is provided via GitHub Pages, a hosting service of GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. When a page is requested, your browser transmits technically necessary information to the provider’s servers, where it is processed in server log files.',
+    legal_privacy_hosting_p2: 'The following data in particular arises in the process:',
+    legal_privacy_hosting_li1: 'the IP address of the requesting device,',
+    legal_privacy_hosting_li2: 'the date and time of access,',
+    legal_privacy_hosting_li3: 'the name and URL of the file retrieved as well as the volume of data transferred,',
+    legal_privacy_hosting_li4: 'a notification of successful retrieval,',
+    legal_privacy_hosting_li5: 'browser type and version, operating system and, where applicable, the page visited previously (referrer).',
+    legal_privacy_hosting_p3: 'This processing is technically indispensable for delivering the website and serves its trouble-free operation as well as the defence against attacks. The legal basis is our legitimate interest in the secure and stable operation of the website under Art. 6(1)(f) GDPR. We ourselves do not access these log files, do not evaluate them and do not combine them with other data sources.',
+    legal_privacy_hosting_h3_transfer: 'Transfers to third countries',
+    legal_privacy_hosting_p4: 'GitHub, Inc. is based in the USA and operates servers distributed worldwide. Processing of your IP address outside the European Union can therefore not be ruled out. The transfer is based on the standard contractual clauses of the European Commission under Art. 46(2)(c) GDPR and, where applicable, on the adequacy decision on the EU-US Data Privacy Framework under Art. 45 GDPR.',
+    legal_privacy_hosting_link_label: 'Privacy policy of the hosting provider:',
+
+    legal_privacy_cookies_p1: 'This website sets no cookies. No analytics or statistics services are embedded, no advertising networks, no social media plug-ins, no third-party map, video or font services. All files needed to display the page are delivered together with it by our hosting provider. The only exception is the recording widget on the “Take part” page, which loads only after your explicit click and is described separately in section 5.',
+    legal_privacy_cookies_p2: 'No profiling, no cross-site tracking and no automated decision-making including profiling within the meaning of Art. 22 GDPR take place.',
+    legal_privacy_cookies_h3_language: 'Storage of your language setting',
+    legal_privacy_cookies_p3: 'The language switch lets you change between German and English. Your choice is stored solely locally in your browser (local storage), so that the page appears in the chosen language on your next visit. This information does not leave your device, is transmitted neither to us nor to third parties, and contains no personal data.',
+    legal_privacy_cookies_p4: 'This storage is necessary in order to provide the service you have expressly requested and therefore requires no consent under § 25(2) no. 2 TDDDG. You can delete the entry at any time via your browser settings.',
+
+    legal_privacy_contact_p1: 'If you contact us by email or by telephone, we process the details you provide (such as your name, your email address or telephone number and the content of your message) solely in order to deal with your request.',
+    legal_privacy_contact_p2: 'The legal basis is Art. 6(1)(b) GDPR where your enquiry is directed at the conclusion or performance of a contract or at pre-contractual measures, and otherwise our legitimate interest in answering enquiries under Art. 6(1)(f) GDPR, or your consent under Art. 6(1)(a) GDPR.',
+    legal_privacy_contact_p3: 'The data is not passed on to third parties. Once your request has been dealt with conclusively, we delete your message, unless statutory retention obligations prevent this. Please note that the transmission of unencrypted emails can have security gaps.',
+
+    legal_privacy_links_p1: 'This website refers to our own sub-pages, such as the live demo and the AR client. These are delivered via the same hosting provider; the information given in section 3 applies. Section 5 applies to the recording widget on the “Take part” page.',
+    legal_privacy_links_p2: 'For linked third-party websites, only their respective privacy policy applies. We have no influence on their content or their data processing. When you click an external link, you leave our site.',
+
+    legal_privacy_retention_p1: 'We ourselves store no personal data from a mere page view. The server log data is stored solely by the hosting provider in accordance with its own periods and is then deleted or anonymised.',
+    legal_privacy_retention_p2: 'We delete data from contacting us as soon as the purpose of the processing no longer applies, as a rule immediately after your request has been dealt with conclusively, and provided no statutory retention periods prevent this.',
+
+    legal_privacy_rights_p1: 'As a data subject you have the following rights vis-à-vis the controller:',
+    legal_privacy_rights_li1: 'access to the personal data processed about you (Art. 15 GDPR),',
+    legal_privacy_rights_li2: 'rectification of inaccurate data or completion of incomplete data (Art. 16 GDPR),',
+    legal_privacy_rights_li3: 'erasure of your data, unless a statutory exception applies (Art. 17 GDPR),',
+    legal_privacy_rights_li4: 'restriction of processing (Art. 18 GDPR),',
+    legal_privacy_rights_li5: 'data portability in a structured, commonly used and machine-readable format (Art. 20 GDPR),',
+    legal_privacy_rights_li6: 'objection to processing based on legitimate interests (Art. 21 GDPR),',
+    legal_privacy_rights_li7: 'withdrawal of a consent you have given, with effect for the future (Art. 7(3) GDPR).',
+    legal_privacy_rights_p2: 'An informal message to the address given in section 1 is enough to exercise your rights. We deal with your request without undue delay and free of charge for you.',
+
+    legal_privacy_authority_p1: 'Without prejudice to other remedies, you have the right to lodge a complaint with a data protection supervisory authority about the processing of your personal data (Art. 77 GDPR). The authority responsible for us is:',
+    legal_privacy_authority_name: 'Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)',
+    legal_privacy_authority_street: 'Promenade 27',
+    legal_privacy_authority_city: '91522 Ansbach',
+
+    legal_privacy_changes_p1: 'We adapt this privacy policy as soon as changes to the website or to the legal situation make this necessary. The version available on this page at the time of your visit applies in each case.',
+
+    /* ---- legal: terms ---- */
+    legal_terms_h1: 'Terms of use',
+    legal_terms_lead: 'Terms for the use of this website and the associated demo applications. Please note § 3 in particular: J.A.R. is a research prototype and not an approved medical device.',
+
+    legal_terms_h_scope: '§ 1 Scope',
+    legal_terms_h_service: '§ 2 Description of the service',
+    legal_terms_h_mdr: '§ 3 Not a medical device',
+    legal_terms_h_duties: '§ 4 Obligations of users',
+    legal_terms_h_liability: '§ 5 Liability',
+    legal_terms_h_copyright: '§ 6 Copyright',
+    legal_terms_h_final: '§ 7 Final provisions',
+
+    legal_terms_scope_p1: 'These terms of use apply to the use of this website and of all services of the J.A.R. Medical project accessible through it, in particular the live demo and the AR client. By accessing the site you declare your agreement with these terms. If you do not agree with them, we ask you not to use the site.',
+    legal_terms_scope_p2: 'The site is addressed to professionals from the emergency medical services, disaster response and research, as well as to interested parties, potential partners and funding institutions. J.A.R. is a concept and research project developed as part of a school and university project.',
+
+    legal_terms_service_p1: 'The site serves to present the J.A.R. concept: an augmented reality system for digital triage support in mass-casualty incidents (MANV). It shows concept descriptions, mock-ups, renderings, results from test runs and interactive demonstrations.',
+    legal_terms_service_p2: 'All content, mock-ups and demo applications shown are purely demonstrative in character. There is no entitlement to the availability, completeness or unchanged continuation of the site. We may change or add to content at any time, or discontinue it without prior notice.',
+
+    legal_terms_mdr_note1: 'J.A.R. is a student research project. The system shown is not an approved and not a conformity-assessed medical device within the meaning of Regulation (EU) 2017/745 on medical devices (MDR). It carries no CE marking as a medical device and has not undergone a conformity assessment procedure.',
+    legal_terms_mdr_note2: 'Use in real operations, in emergency rescue, in patient care or as a basis for medical or tactical operational decisions is expressly not intended and not permitted.',
+    legal_terms_mdr_p1: 'The demo applications may be operated solely for demonstration, training and research purposes, and solely with fictitious sample data. The processing of real patient or operational data is prohibited.',
+    legal_terms_mdr_p2: 'The algorithms, triage suggestions and evaluations shown are no substitute for medical or paramedical assessment. In an emergency, please contact the emergency number 112 without delay.',
+
+    legal_terms_duties_p1: 'You undertake to use the site solely for lawful purposes and to take no measures that could impair the operation of the website or of the services it hosts. The following in particular are prohibited:',
+    legal_terms_duties_li1: 'attempts to circumvent security measures or to gain unauthorised access to non-public areas,',
+    legal_terms_duties_li2: 'measures that lead to an excessive load on the infrastructure,',
+    legal_terms_duties_li3: 'the automated retrieval of content, for example by scrapers or crawlers, without our express written permission,',
+    legal_terms_duties_li4: 'the use of the content for commercial purposes without the consent of the project team.',
+
+    legal_terms_liability_p1: 'The project team accepts no liability for the accuracy, completeness and currency of the information provided. Liability for indirect or direct damage arising from the use of the site or from its unusability is excluded, to the extent permitted by law.',
+    legal_terms_liability_p2: 'This does not affect liability for damage arising from injury to life, body or health, nor for damage based on intent or gross negligence. Liability under mandatory statutory provisions likewise remains unaffected.',
+    legal_terms_liability_p3: 'The project team accepts no responsibility for external content and linked websites; the liability notices in the imprint apply in addition.',
+
+    legal_terms_copyright_p1: 'All content published on this website (texts, graphics, photographs, renderings, logos, videos and software prototypes) is protected by copyright and is the property of the J.A.R. project team, unless stated otherwise.',
+    legal_terms_copyright_p2: 'Third-party content used, such as photographs from Wikimedia Commons, is subject to the licences indicated in each case; their licence terms must be observed.',
+    legal_terms_copyright_p3: 'Reproduction, adaptation, distribution or any other further use beyond the cases permitted by law is allowed only with the express written permission of the project team. For reporting on the project we are glad to provide text and image material on request.',
+
+    legal_terms_final_p1: 'Should individual provisions of these terms of use be or become wholly or partly invalid, the validity of the remaining provisions remains unaffected.',
+    legal_terms_final_p2: 'The law of the Federal Republic of Germany applies, excluding the UN Convention on Contracts for the International Sale of Goods. If you are a merchant, a legal entity under public law or a special fund under public law, the place of jurisdiction is Munich. In relation to consumers, the statutory places of jurisdiction apply.',
+    legal_terms_final_p3: 'We reserve the right to amend these terms of use. The version available on this page at the time of your access is authoritative.'
+  }
+
+};
+</script>
+<script>/* js/site.js */
+/* ==========================================================================
+   J.A.R. — Site chrome
+   Navigation, scroll progress, reveal-on-scroll and the language switch.
+   Everything here is optional polish: with JavaScript off the page is still
+   a complete, readable German document.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var root = document.documentElement;
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ======================================================================
+     1. Scroll progress bar
+     ====================================================================== */
+  (function () {
+    var bar = document.querySelector('[data-scrollbar]');
+    if (!bar) return;
+    var queued = false;
+
+    function paint() {
+      queued = false;
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var p = max > 0 ? window.scrollY / max : 0;
+      bar.style.transform = 'scaleX(' + Math.max(0, Math.min(1, p)).toFixed(4) + ')';
+    }
+    function request() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(paint);
+    }
+    window.addEventListener('scroll', request, { passive: true });
+    window.addEventListener('resize', request, { passive: true });
+    paint();
+  })();
+
+  /* ======================================================================
+     2. Header — condensed state, mobile menu, active section
+     ====================================================================== */
+  (function () {
+    var nav = document.getElementById('nav');
+    if (!nav) return;
+
+    var burger = nav.querySelector('.nav__burger');
+    var links = nav.querySelector('.nav__links');
+
+    var queued = false;
+    function paint() {
+      queued = false;
+      nav.classList.toggle('is-scrolled', window.scrollY > 24);
+    }
+    window.addEventListener('scroll', function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(paint);
+    }, { passive: true });
+    paint();
+
+    function closeMenu() {
+      nav.classList.remove('is-open');
+      if (burger) burger.setAttribute('aria-expanded', 'false');
+    }
+
+    if (burger && links) {
+      burger.addEventListener('click', function () {
+        var open = nav.classList.toggle('is-open');
+        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      links.addEventListener('click', function (e) {
+        if (e.target.closest('a')) closeMenu();
+      });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenu();
+    });
+
+    /* Active section — the last section whose top has passed the header. */
+    var anchors = Array.prototype.slice.call(
+      nav.querySelectorAll('.nav__links a[href^="#"]')
+    );
+    var targets = anchors
+      .map(function (a) {
+        var el = document.querySelector(a.getAttribute('href'));
+        return el ? { a: a, el: el } : null;
+      })
+      .filter(Boolean);
+
+    if (targets.length && 'IntersectionObserver' in window) {
+      var seen = new Map();
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { seen.set(en.target, en); });
+        var best = null;
+        seen.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          if (!best || en.intersectionRatio > best.intersectionRatio) best = en;
+        });
+        targets.forEach(function (t) {
+          t.a.classList.toggle('is-active', !!best && t.el === best.target);
+        });
+      }, { rootMargin: '-30% 0px -55% 0px', threshold: [0, 0.25, 0.6, 1] });
+      targets.forEach(function (t) { io.observe(t.el); });
+    }
+  })();
+
+  /* ======================================================================
+     3. Reveal on scroll
+     ====================================================================== */
+  (function () {
+    var items = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+    if (!items.length) return;
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      items.forEach(function (el) { el.classList.add('is-in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        en.target.classList.add('is-in');
+        io.unobserve(en.target);
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+    items.forEach(function (el) { io.observe(el); });
+  })();
+
+  /* ======================================================================
+     4. Language switch
+     German is the source language: it lives in the HTML. The dictionary in
+     js/i18n.js only carries translations away from German, and any key it
+     is missing falls back to the original German text rather than blanking.
+     ====================================================================== */
+  (function () {
+    var DICT = (window.JAR_I18N || {});
+    var STORE = 'jar.lang';
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n]'));
+
+    /* Snapshot the authored German once. */
+    nodes.forEach(function (el) {
+      if (el.dataset.i18nDe === undefined) el.dataset.i18nDe = el.textContent.trim();
+    });
+
+    var metaDesc = document.querySelector('meta[name="description"]');
+    var baseTitle = document.title;
+    var baseDesc = metaDesc ? metaDesc.getAttribute('content') : '';
+    /* Each page names itself in <meta name="jar:page">, so the dictionary can
+       carry a title and description per page. A page with no id, or an id the
+       dictionary does not know, keeps the landing page's pair — which is what
+       every page used to get unconditionally. */
+    var pageMeta = document.querySelector('meta[name="jar:page"]');
+    var pageId = pageMeta ? pageMeta.getAttribute('content') : '';
+    function pick(table, field) {
+      if (!table) return null;
+      return (pageId && table[field + '_' + pageId]) || table[field] || null;
+    }
+
+    function apply(lang) {
+      var table = lang === 'de' ? null : DICT[lang];
+      if (lang !== 'de' && !table) lang = 'de';
+
+      nodes.forEach(function (el) {
+        var key = el.getAttribute('data-i18n');
+        var val = table && table[key];
+        el.textContent = val || el.dataset.i18nDe;
+      });
+
+      root.setAttribute('lang', lang);
+      document.title = pick(table, 'meta_title') || baseTitle;
+      if (metaDesc) metaDesc.setAttribute('content', pick(table, 'meta_desc') || baseDesc);
+
+      document.querySelectorAll('[data-langlabel]').forEach(function (el) {
+        el.textContent = lang.toUpperCase();
+      });
+      document.querySelectorAll('[data-lang]').forEach(function (b) {
+        b.setAttribute('aria-current', b.dataset.lang === lang ? 'true' : 'false');
+      });
+
+      try { localStorage.setItem(STORE, lang); } catch (e) { /* private mode */ }
+    }
+
+    /* Wire every switcher on the page. */
+    document.querySelectorAll('[data-langswitch]').forEach(function (sw) {
+      var btn = sw.querySelector('.langswitch__btn');
+      var menu = sw.querySelector('.langswitch__menu');
+      if (!btn || !menu) return;
+
+      function close() {
+        menu.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+        sw.classList.remove('is-open');
+      }
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = menu.hidden;
+        document.querySelectorAll('.langswitch__menu').forEach(function (m) { m.hidden = true; });
+        document.querySelectorAll('.langswitch').forEach(function (s) { s.classList.remove('is-open'); });
+        menu.hidden = !open;
+        sw.classList.toggle('is-open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      menu.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-lang]');
+        if (!b) return;
+        apply(b.dataset.lang);
+        close();
+      });
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') close();
+      });
+    });
+
+    /* Stored choice wins; otherwise a non-German browser gets English. */
+    var stored = null;
+    try { stored = localStorage.getItem(STORE); } catch (e) { /* private mode */ }
+    var initial = stored ||
+      ((navigator.language || 'de').toLowerCase().indexOf('de') === 0 ? 'de' : 'en');
+    if (initial !== 'de') apply(initial);
+    else apply('de');
+  })();
+
+})();
+</script>
+
+
+</body></html>
