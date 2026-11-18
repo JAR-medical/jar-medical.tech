@@ -1,11 +1,15 @@
 // Demo course: retinitis pigmentosa in VR/AR. Launches the gaze-contingent
 // RP-XR simulator (a WebXR port of Amitoze/rp-simulator, served from
 // demo/rp-xr/) and explains the symptoms it shows and how gaze tracking works.
+// Needs an access code on top of the grant; the simulator shares it.
+import { RP_XR_PASSCODE } from "../passcode.js";
+
 export default {
   id: "demo-rp-simulation",
   version: 1,
   section: "test",
   icon: "eye",
+  passcode: RP_XR_PASSCODE,
   title: {
     de: "Demo: Retinitis pigmentosa in VR erleben",
     en: "Demo: experience retinitis pigmentosa in VR",

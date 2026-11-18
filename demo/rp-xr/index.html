@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="gate-locked">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>RP-XR — Retinitis Pigmentosa Simulator</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="gate.css">
 </head>
 <body>
   <!-- Fullscreen WebGL canvas -->
@@ -160,6 +161,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <!-- the app (js/main.js) is started by gate.js once the access code was accepted -->
+  <script type="module" src="gate.js"></script>
 </body>
 </html>

@@ -1,0 +1,41 @@
+/* Access-code screen (gate.js). While html.gate-locked is set, only the gate shows. */
+html.gate-locked body > :not(#gate) { display: none !important; }
+
+#gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(120% 120% at 50% 0%, #1a1c22 0%, #0f1013 60%, #08090b 100%);
+  color: #e8edf2;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.gate-card {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 20px;
+  background: rgba(24, 27, 33, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.gate-card h1 { margin: 0; font-size: 1.4rem; }
+.gate-lead { margin: 0; color: #aab3bd; }
+.gate-label { font-size: 0.85rem; color: #aab3bd; margin-top: 8px; }
+.gate-input {
+  font: inherit; font-size: 1.1rem; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(0, 0, 0, 0.35); color: inherit;
+}
+.gate-input:focus { outline: 2px solid #6fd3b0; outline-offset: 1px; }
+.gate-show { font-size: 0.9rem; color: #aab3bd; display: flex; gap: 8px; align-items: center; }
+.gate-button {
+  font: inherit; font-weight: 600; padding: 12px; border-radius: 12px; border: 0;
+  background: #6fd3b0; color: #08130f; cursor: pointer;
+}
+.gate-button:disabled { opacity: 0.55; cursor: wait; }
+.gate-status { margin: 0; min-height: 1.3em; color: #f2c26b; }

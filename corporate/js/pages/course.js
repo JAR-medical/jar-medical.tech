@@ -6,6 +6,7 @@ import { t, pick, getLang, onLangChange } from "../i18n.js";
 import { mountLayout } from "../layout.js";
 import { getCourse, lessonCount } from "../catalog.js";
 import { renderBlocks } from "../render.js";
+import { isUnlocked, tryUnlock, canCheck, retryDelayMs } from "../passcode.js";
 import { courseIcon } from "../icons.js";
 import { el, replace, byId, errorBox, loadingLine, notice, formatDate, setBusy, progressBar, chip } from "../ui.js";
 
@@ -43,6 +44,16 @@ async function load() {
     document.title = t("title_course_named", { title: pick(course.title) });
     const enrollments = await backend.listMyEnrollments();
     if (state.profile.role !== "admin" && !enrollments.some((e) => e.course_id === course.id)) return renderLocked();
+    if (course.passcode && !isUnlocked(course.passcode)) return renderPasscode();
+    await openCourse();
+  } catch (e) {
+    replace(app, errorBox(e, load));
+  }
+}
+
+async function openCourse() {
+  replace(app, loadingLine());
+  try {
     await loadProgress();
     renderCourse();
   } catch (e) {
@@ -68,6 +79,62 @@ function renderLocked() {
     el("h1", { class: "page-title" }, t("course_locked_h1")),
     el("p", {}, t("course_locked_p")),
     el("a", { class: "btn btn-primary", href: "dashboard.html" }, t("course_locked_btn"))));
+}
+
+// Some courses need an access code on top of the grant (js/passcode.js).
+let codeFailures = 0;
+function renderPasscode() {
+  const input = el("input", {
+    id: "courseCode", type: "password", autocomplete: "off", autocapitalize: "off",
+    spellcheck: "false", enterkeyhint: "go", required: true,
+  });
+  const show = el("input", { type: "checkbox", id: "courseCodeShow" });
+  show.addEventListener("change", () => { input.type = show.checked ? "text" : "password"; });
+  const status = el("p", { class: "field-hint", role: "status", "aria-live": "polite" });
+  const button = el("button", { class: "btn btn-primary", type: "submit" }, t("course_code_btn"));
+  const say = (key) => { status.textContent = key ? t(key) : ""; };
+  let busy = false;
+
+  const form = el("form", { class: "course-code-form", novalidate: true, autocomplete: "off" },
+    el("div", { class: "field" }, el("label", { for: "courseCode" }, t("course_code_label")), input),
+    el("label", { class: "field-hint", for: "courseCodeShow" }, show, " ", t("course_code_show")),
+    button,
+    status);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    if (!input.value.trim()) return say("course_code_empty");
+    if (!canCheck()) return say("course_code_insecure");
+    busy = true;
+    button.disabled = true;
+    say("course_code_checking");
+    let ok = false;
+    try {
+      ok = await tryUnlock(course.passcode, input.value);
+    } catch (e) {
+      busy = false;
+      button.disabled = false;
+      replace(app, errorBox(e, renderPasscode));
+      return;
+    }
+    if (ok) {
+      codeFailures = 0;
+      await openCourse();
+      return;
+    }
+    codeFailures += 1;
+    say("course_code_wrong");
+    input.select();
+    setTimeout(() => { busy = false; button.disabled = false; input.focus(); }, retryDelayMs(codeFailures));
+  });
+
+  replace(app, el("div", { class: "empty-state" },
+    el("span", { class: "eyebrow" }, pick(course.title)),
+    el("h1", { class: "page-title" }, t("course_code_h1")),
+    el("p", {}, t("course_code_p")),
+    form));
+  input.focus();
 }
 
 // Which view the hash asks for: a lesson id, the certificate, or the default.
@@ -297,6 +364,7 @@ onLangChange(() => {
   if (!course) return renderNotFound();
   document.title = t("title_course_named", { title: pick(course.title) });
   if (app.querySelector(".course-layout")) renderCourse();
+  else if (app.querySelector(".course-code-form")) renderPasscode();
   else if (app.querySelector(".empty-state")) renderLocked();
 });
 

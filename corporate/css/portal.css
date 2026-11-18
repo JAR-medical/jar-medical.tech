@@ -1357,3 +1357,8 @@ main > .section:first-child::before, .hero-track + .section::before { display: n
   border: 1px solid var(--line);
   white-space: nowrap;
 }
+
+/* Access-code form for courses with a passcode (course.js renderPasscode). */
+.course-code-form { display: grid; gap: var(--sp-3); max-width: 22rem; }
+.course-code-form .field-hint { margin: 0; }
+.course-code-form .btn { justify-self: start; }
