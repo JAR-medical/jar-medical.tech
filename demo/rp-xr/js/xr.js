@@ -107,14 +107,11 @@ export class XRSessionManager {
       await this.gl.makeXRCompatible();
     }
 
-    const baseLayer = new XRWebGLLayer(session, this.gl, {
-      framebufferScaleFactor: state.renderScale || XR_CONFIG.framebufferScale,
-    });
+    const baseLayer = this.createBaseLayer(session);
     this.baseLayer = baseLayer;
-
-    if (baseLayer.fixedFoveation !== undefined && XR_CONFIG.foveation !== undefined) {
-      baseLayer.fixedFoveation = XR_CONFIG.foveation;
-    }
+    this.layerCheckPending = true; // verified on the first frame (onXRFrame)
+    this.layerRetries = 0;
+    this.layerSwapInFlight = false;
 
     try {
       if (typeof session.updateTargetFrameRate === 'function') {
@@ -174,9 +171,58 @@ export class XRSessionManager {
     }
   }
 
+  // The RP pass never uses depth (the scene renders into its own FBO), so
+  // the XR layer is created without one.
+  createBaseLayer(session) {
+    const layer = new XRWebGLLayer(session, this.gl, {
+      framebufferScaleFactor: state.renderScale || XR_CONFIG.framebufferScale,
+      depth: false,
+    });
+    if (layer.fixedFoveation !== undefined && XR_CONFIG.foveation !== undefined) {
+      layer.fixedFoveation = XR_CONFIG.foveation;
+    }
+    return layer;
+  }
+
+  // PICO Browser 3.3 (Chrome 105) can hand an immersive-ar session a layer
+  // whose framebuffer is FRAMEBUFFER_INCOMPLETE_DIMENSIONS for good: every
+  // clear and draw then fails with INVALID_FRAMEBUFFER_OPERATION and only
+  // passthrough shows. A layer created afresh during the session is
+  // complete, so check the framebuffer on the first visible frame and
+  // replace the layer while it is not. Returns true when the frame may draw.
+  ensureLayerComplete() {
+    if (!this.layerCheckPending) return true;
+    if (this.layerSwapInFlight) return false;
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.baseLayer.framebuffer);
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status === gl.FRAMEBUFFER_COMPLETE) {
+      this.layerCheckPending = false;
+      return true;
+    }
+    if (this.layerRetries >= 5) {
+      console.error(`[RP-XR] XR layer framebuffer stays incomplete (status 0x${status.toString(16)})`);
+      this.renderer.setHud(`XR layer failed (0x${status.toString(16)})\nExit and enter again`, 3600);
+      this.layerCheckPending = false;
+      return false;
+    }
+    this.layerRetries += 1;
+    console.warn(`[RP-XR] XR layer framebuffer incomplete (status 0x${status.toString(16)}), recreating (try ${this.layerRetries})`);
+    const session = this.session;
+    const layer = this.createBaseLayer(session);
+    this.layerSwapInFlight = true;
+    session.updateRenderState({ baseLayer: layer })
+      .then(() => { if (this.session === session) this.baseLayer = layer; })
+      .catch((err) => console.error('[RP-XR] replacing the XR layer failed:', err))
+      .finally(() => { this.layerSwapInFlight = false; });
+    return false;
+  }
+
   handleVisibilityChange() {
     if (!this.session) return;
     const vis = this.session.visibilityState;
+    // a session that was hidden may come back with a different framebuffer
+    if (vis === 'visible') this.layerCheckPending = true;
     if (vis !== 'visible') {
       if (this.videoEl && !this.videoEl.paused) {
         try { this.videoEl.pause(); } catch {}
@@ -342,8 +388,10 @@ export class XRSessionManager {
 
     const pose = frame.getViewerPose(this.refSpace);
     if (!pose) return;
+    if (!this.ensureLayerComplete()) return;
 
-    const dt = Math.min(0.1, (time - this.lastTime) / 1000);
+    // clamped both ways: some runtimes stamp XR frames on another clock
+    const dt = Math.min(0.1, Math.max(0, (time - this.lastTime) / 1000));
     this.lastTime = time;
 
     this.processControllers(this.session, dt);
