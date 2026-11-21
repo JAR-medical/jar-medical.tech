@@ -26,7 +26,11 @@ incomplete, it switches to the included local road network and reports the
 change in the event log. Select an OpenStreetMap base layer to reconnect.
 
 Search setup: `sitemap.xml` lists every indexable page and `tests/seo.test.mjs`
-keeps it in step with the page heads. Add new public pages to both. The
+keeps it in step with the page heads: it fails when an indexable page is
+missing, or when a listed URL redirects (the `/demo/<lage>/` shortcuts do, so
+they stay out). Add new public pages to both. Each `<lastmod>` is the date of
+the page's last commit; after committing page changes, run
+`node tools/sitemap.mjs` and commit `sitemap.xml` (`--check` only reports). The
 Instagram account is `@jar_medical` and the LinkedIn page is
 `linkedin.com/company/jar-med`; `@jarmedical` and
 `linkedin.com/company/jar-medical` belong to an unrelated company.

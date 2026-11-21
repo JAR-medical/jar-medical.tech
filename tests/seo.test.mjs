@@ -24,6 +24,31 @@ test('every sitemap URL is an indexable page that names itself as canonical', ()
   }
 });
 
+// An instant meta refresh or location.replace is a redirect to Google: such a
+// URL is never indexed, and listing it in the sitemap makes Search Console
+// report "Page with redirect". The /demo/<lage>/ shortcuts are exactly that.
+const redirects = html => /http-equiv="refresh"/i.test(html) || /location\.replace\(/.test(html);
+const indexable = html => /<link rel="canonical"/.test(html) && !/noindex/.test(html) && !redirects(html);
+
+test('no sitemap URL redirects', () => {
+  for (const loc of locs) assert.ok(!redirects(head(fileFor(loc))), `${loc} redirects; drop it from sitemap.xml`);
+});
+
+test('every indexable page is in the sitemap', () => {
+  const listed = new Set(locs.map(fileFor));
+  const missing = htmlFiles().filter(page => indexable(head(page)) && !listed.has(page));
+  assert.deepEqual(missing, [], 'add these to sitemap.xml (then run node tools/sitemap.mjs)');
+});
+
+test('every sitemap entry carries a real lastmod date', () => {
+  const entries = [...readText('sitemap.xml').matchAll(/<url>([\s\S]*?)<\/url>/g)].map(m => m[1]);
+  assert.equal(entries.length, locs.length);
+  for (const entry of entries) {
+    const date = (entry.match(/<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/) || [])[1];
+    assert.ok(date && !Number.isNaN(Date.parse(date)) && Date.parse(date) <= Date.now(), entry);
+  }
+});
+
 test('indexable pages have unique titles and descriptions of a usable length', () => {
   const titles = new Map();
   const descriptions = new Map();
