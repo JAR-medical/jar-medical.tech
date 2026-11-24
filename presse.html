@@ -1901,6 +1901,10 @@ ul, ol { list-style: none; padding: 0; }
    Consumes css/tokens.css and css/site.css. Every class is prefixed .press-,
    and every value comes from a token.
    ========================================================================== */
+/* The header, language menu and phone menu take their ground from this token.
+   The default is the paper glass, on which this page's light text vanishes. */
+.page--dark { --surface-glass-strong: rgba(25, 24, 59, 0.985); }
+
 .press-hero {
   position: relative;
   padding-block: calc(var(--nav-h) + var(--sp-9)) var(--sp-8);
@@ -2029,6 +2033,7 @@ ul, ol { list-style: none; padding: 0; }
 .press-shot figcaption { font-size: var(--t-small); line-height: 1.45; }
 .press-shot__cap { display: block; color: var(--ink-soft); }
 .press-shot__credit { display: block; margin-top: var(--sp-1); font-size: var(--t-micro); color: var(--ink-faint); }
+.press-shot--top .press-shot__link img { object-position: top; }
 .press-shot--wide { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--sp-6); }
 .press-shot--wide .press-shot__link { flex: 0 0 calc((100% - var(--sp-5)) / 2); }
 .press-shot--wide .press-shot__link img { aspect-ratio: 4 / 3; }
@@ -2243,7 +2248,7 @@ ul, ol { list-style: none; padding: 0; }
     <div class="wrap">
       <header class="press-head reveal">
         <h2 id="pressPhotos" data-i18n="press_ph_h">Fotos</h2>
-        <p data-i18n="press_ph_p">Von den bisherigen Veranstaltungen. Ein Klick vergrößert das Foto. Pressebilder vom Finale in voller Auflösung stellt der BWKI bereit.</p>
+        <p data-i18n="press_ph_p">Von Veranstaltungen, Übungen und Meilensteinen. Ein Klick vergrößert das Foto. Pressebilder vom Finale in voller Auflösung stellt der BWKI bereit.</p>
         <a class="press-head__link" href="https://www.bw-ki.de/pressebilder" target="_blank" rel="noopener" data-i18n="press_ph_hires">BWKI-Pressebilder in voller Auflösung ↗</a>
       </header>
       <div class="press-event">
@@ -2280,6 +2285,22 @@ ul, ol { list-style: none; padding: 0; }
       </div>
       <div class="press-event">
         <header class="press-event__head reveal">
+          <h3 data-i18n="press_ph_fund">Förderung und Programme</h3>
+          <time datetime="2026-11" data-i18n="press_ph_fund_d">Oktober und November 2026</time>
+        </header>
+        <div class="press-grid">
+          <figure class="press-shot reveal press-shot--top">
+            <a class="press-shot__link" href="assets/press/sponsorpool-2026.webp" data-lightbox aria-labelledby="ph-fund-1"><img src="assets/press/sponsorpool-2026-s.webp" width="800" height="714" alt="Der Sponsorpool Bayern fördert J.A.R. Im Bild: unser Prototyp mit AR-Brille im Test." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-fund-1" data-i18n="press_ph_fund_1">Der Sponsorpool Bayern fördert J.A.R. Im Bild: unser Prototyp mit AR-Brille im Test.</span> <span class="press-shot__credit" data-i18n="press_cr_jar">Bild: bereitgestellt von J.A.R. Medical</span></figcaption>
+          </figure>
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/nvidia-inception-2026.webp" data-lightbox aria-labelledby="ph-fund-2"><img src="assets/press/nvidia-inception-2026-s.webp" width="800" height="548" alt="J.A.R. Medical ist Mitglied im Programm NVIDIA Inception." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-fund-2" data-i18n="press_ph_fund_2">J.A.R. Medical ist Mitglied im Programm NVIDIA Inception.</span> <span class="press-shot__credit" data-i18n="press_cr_nvidia">Grafik: NVIDIA</span></figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="press-event">
+        <header class="press-event__head reveal">
           <h3 data-i18n="press_ph_xr">J.A.R. bei TUM-XR</h3>
           <time datetime="2026-10" data-i18n="press_ph_xr_d">Oktober 2026</time>
         </header>
@@ -2287,6 +2308,22 @@ ul, ol { list-style: none; padding: 0; }
           <figure class="press-shot reveal press-shot--wide">
             <a class="press-shot__link" href="assets/press/tum-xr-2026.webp" data-lightbox aria-labelledby="ph-xr-1"><img src="assets/press/tum-xr-2026-s.webp" width="800" height="602" alt="Gruppenfoto mit TUM-XR. Im Wintersemester arbeiten Alexander Kluge und Johannes Nirschl im Spatial-Intelligence-Team mit." loading="lazy" decoding="async"></a>
             <figcaption><span class="press-shot__cap" id="ph-xr-1" data-i18n="press_ph_xr_1">Gruppenfoto mit TUM-XR. Im Wintersemester arbeiten Alexander Kluge und Johannes Nirschl im Spatial-Intelligence-Team mit.</span> <span class="press-shot__credit" data-i18n="press_cr_jar">Bild: bereitgestellt von J.A.R. Medical</span></figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="press-event">
+        <header class="press-event__head reveal">
+          <h3 data-i18n="press_ph_usa">Austausch in den USA</h3>
+          <time datetime="2026">2026</time>
+        </header>
+        <div class="press-grid">
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/usa-2026-assemblyai.webp" data-lightbox aria-labelledby="ph-usa-1"><img src="assets/press/usa-2026-assemblyai-s.webp" width="800" height="600" alt="Austausch mit AssemblyAI über die nächste Generation von Sprachmodellen." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-usa-1" data-i18n="press_ph_usa_1">Austausch mit AssemblyAI über die nächste Generation von Sprachmodellen.</span> <span class="press-shot__credit" data-i18n="press_cr_jar">Bild: bereitgestellt von J.A.R. Medical</span></figcaption>
+          </figure>
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/usa-2026-princeton.webp" data-lightbox aria-labelledby="ph-usa-2"><img src="assets/press/usa-2026-princeton-s.webp" width="800" height="600" alt="Auf dem Campus der Princeton University." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-usa-2" data-i18n="press_ph_usa_2">Auf dem Campus der Princeton University.</span> <span class="press-shot__credit" data-i18n="press_cr_jar">Bild: bereitgestellt von J.A.R. Medical</span></figcaption>
           </figure>
         </div>
       </div>
@@ -2302,6 +2339,16 @@ ul, ol { list-style: none; padding: 0; }
           Überschriften stehen in der Sprache, in der sie erschienen sind.</p>
       </header>
       <ol class="press-list">
+        <li class="press-item reveal">
+          <p class="press-item__meta">
+            <span class="press-item__outlet">ARD Brisant</span>
+            <span class="press-item__kind" data-i18n="press_a7_kind">TV-Beitrag</span>
+            <time datetime="2026-11-22">22.11.2026</time>
+          </p>
+          <h3 class="press-item__title" lang="de"><a href="https://www.ardmediathek.de/video/brisant/brisant-vom-22-november/mdr/Y3JpZDovL21kci5kZS9iZWl0cmFnL2Ntcy8wYTU5ZDg3Yy1mOWI1LTRkZWMtOWQ1MS0yOTNiODY1ZWFlY2I" target="_blank" rel="noopener">Brisant vom 22. November</a></h3>
+          <p class="press-item__p" data-i18n="press_a7_p">Nach dem BWKI-Hauptpreis hat ein Team von ARD Brisant J.A.R. begleitet. Der Beitrag lief im Ersten und ist bis 29.11.2026 in der ARD Mediathek abrufbar.</p>
+          <span class="press-item__cta" aria-hidden="true" data-i18n="press_watch">Beitrag ansehen ↗</span>
+        </li>
         <li class="press-item reveal">
           <p class="press-item__meta">
             <span class="press-item__outlet">insideBW</span>
@@ -2874,7 +2921,7 @@ window.JAR_I18N = {
     press_fact_field_v: '10 finalist teams from 8 German states',
     press_fact_team_k: 'Team',
     press_ph_h: 'Photos',
-    press_ph_p: 'From the events so far. Click a photo to enlarge it. The BWKI provides press images of the final in full resolution.',
+    press_ph_p: 'From events, exercises and milestones. Click a photo to enlarge it. The BWKI provides press images of the final in full resolution.',
     press_ph_hires: 'BWKI press images in full resolution ↗',
     press_ph_bwki: 'BWKI final in Tübingen',
     press_ph_bwki_1: 'J.A.R. at the award ceremony (from left): Jonas Kaindl, Johannes Nirschl and Alexander Kluge.',
@@ -2888,6 +2935,14 @@ window.JAR_I18N = {
     press_cr_bwki: 'Photo: Ale Zea / BWKI',
     press_cr_drone: 'Drone image: J.A.R. Medical',
     press_cr_jar: 'Image: provided by J.A.R. Medical',
+    press_ph_fund: 'Funding and programmes',
+    press_ph_fund_d: 'October and November 2026',
+    press_ph_fund_1: 'Sponsorpool Bayern funds J.A.R. Pictured: our prototype with AR glasses being tested.',
+    press_ph_fund_2: 'J.A.R. Medical is a member of the NVIDIA Inception programme.',
+    press_ph_usa: 'Exchange in the US',
+    press_ph_usa_1: 'Exchange with AssemblyAI on the next generation of voice models.',
+    press_ph_usa_2: 'On the Princeton University campus.',
+    press_cr_nvidia: 'Graphic: NVIDIA',
     press_lb_close: 'Close',
     press_lb_prev: 'Previous photo',
     press_lb_next: 'Next photo',
@@ -2905,6 +2960,9 @@ window.JAR_I18N = {
     press_a5_p: 'Before the final: the Süddeutsche Zeitung introduces the three students and their AI for a better overview in large-scale emergencies.',
     press_a6_kind: 'In English',
     press_a6_p: 'The Tübingen AI Center’s English-language report on the final, with the photo of the winning J.A.R. team.',
+    press_a7_kind: 'TV report',
+    press_a7_p: 'After the BWKI main prize, a team from ARD Brisant accompanied J.A.R. The report aired on Das Erste and is available in the ARD Mediathek until 29 November 2026 (in German).',
+    press_watch: 'Watch report ↗',
     press_kit_h: 'For editors',
     press_kit_p: 'Logos, photos and a direct line to the team. Please credit photos as stated by their source.',
     press_logo_h: 'Logos',
