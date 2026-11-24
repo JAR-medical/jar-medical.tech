@@ -9,7 +9,7 @@
      landing page's pair. Without it every page inherited the landing
      page's title the moment a visitor switched to English. -->
 <meta name="jar:page" content="press">
-<meta name="description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta name="description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Fotos, Logos und Kontakt für Redaktionen.">
 <meta name="theme-color" content="#19183b">
 
 
@@ -1996,6 +1996,87 @@ ul, ol { list-style: none; padding: 0; }
 .press-item__also { margin: 0; font-size: var(--t-small); color: var(--ink-faint); }
 .press-item__also a { position: relative; z-index: 1; color: var(--accent); }
 
+/* ---- photos -------------------------------------------------------------- */
+.press-head__link { display: inline-block; margin-top: var(--sp-3); font-size: var(--t-small); font-weight: 600; color: var(--accent); }
+.press-event + .press-event { margin-top: var(--sp-8); }
+.press-event__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.press-event__head h3 { margin: 0; font-size: var(--t-h3); }
+.press-event__head time { font-size: var(--t-small); color: var(--ink-faint); }
+.press-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-5); }
+.press-shot { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; min-width: 0; }
+.press-shot__link {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.press-shot__link img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  transition: transform var(--dur) var(--ease-out);
+}
+.press-shot__link:hover img { transform: scale(1.02); }
+.press-shot__link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.press-shot figcaption { font-size: var(--t-small); line-height: 1.45; }
+.press-shot__cap { display: block; color: var(--ink-soft); }
+.press-shot__credit { display: block; margin-top: var(--sp-1); font-size: var(--t-micro); color: var(--ink-faint); }
+.press-shot--wide { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--sp-6); }
+.press-shot--wide .press-shot__link { flex: 0 0 calc((100% - var(--sp-5)) / 2); }
+.press-shot--wide .press-shot__link img { aspect-ratio: 4 / 3; }
+
+.press-lb {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: var(--sp-5);
+  border: 0;
+  background: rgba(10, 9, 28, 0.96);
+  color: var(--ink);
+}
+.press-lb[open] { display: grid; grid-template: minmax(0, 1fr) auto / auto minmax(0, 1fr) auto; gap: var(--sp-4); align-items: center; }
+.press-lb img { grid-area: 1 / 2; width: 100%; height: 100%; object-fit: contain; }
+.press-lb__text { grid-area: 2 / 1 / 3 / -1; margin: 0; text-align: center; font-size: var(--t-small); color: var(--ink-soft); }
+.press-lb__text span { display: block; font-size: var(--t-micro); color: var(--ink-faint); }
+.press-lb button {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--r-pill);
+  background: var(--bg-raise);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.press-lb button:hover { background: var(--bg-raise-2); }
+.press-lb__prev { grid-area: 1 / 1; }
+.press-lb__next { grid-area: 1 / 3; }
+.press-lb__close { position: absolute; top: var(--sp-4); right: var(--sp-4); z-index: 1; }
+
+@media (max-width: 640px) {
+  .press-grid { grid-template-columns: 1fr; }
+  .press-shot--wide { flex-direction: column; align-items: stretch; gap: var(--sp-3); }
+  .press-shot--wide .press-shot__link { flex: none; }
+  .press-lb { padding: var(--sp-3); }
+  .press-lb[open] { grid-template: minmax(0, 1fr) auto auto / 1fr 1fr; }
+  .press-lb img { grid-area: 1 / 1 / 2 / -1; }
+  .press-lb__prev { grid-area: 2 / 1; justify-self: end; }
+  .press-lb__next { grid-area: 2 / 2; }
+  .press-lb__text { grid-area: 3 / 1 / 4 / -1; }
+}
+
 /* ---- press kit ---------------------------------------------------------- */
 .press-kit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--sp-5); }
 .press-kit__col {
@@ -2039,6 +2120,7 @@ ul, ol { list-style: none; padding: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .press-item, .press-item:hover { transition: none; transform: none; }
+  .press-shot__link img, .press-shot__link:hover img { transition: none; transform: none; }
 }
 </style>
 <noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
@@ -2051,7 +2133,7 @@ ul, ol { list-style: none; padding: 0; }
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jar-medical.tech/presse.html">
 <meta property="og:title" content="Presse und Medienraum | J.A.R. Medical">
-<meta property="og:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta property="og:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Fotos, Logos und Kontakt für Redaktionen.">
 <meta property="og:image" content="https://jar-medical.tech/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -2060,9 +2142,9 @@ ul, ol { list-style: none; padding: 0; }
 <meta property="og:locale:alternate" content="en_GB">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Presse und Medienraum | J.A.R. Medical">
-<meta name="twitter:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.">
+<meta name="twitter:description" content="Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Fotos, Logos und Kontakt für Redaktionen.">
 <meta name="twitter:image" content="https://jar-medical.tech/assets/og.png">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://jar-medical.tech/#organization","name":"J.A.R. Medical","url":"https://jar-medical.tech/"},{"@type":"WebSite","@id":"https://jar-medical.tech/#website","url":"https://jar-medical.tech/","name":"J.A.R. Medical"},{"@type":"WebPage","@id":"https://jar-medical.tech/presse.html#webpage","url":"https://jar-medical.tech/presse.html","name":"Presse und Medienraum | J.A.R. Medical","description":"Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Logos und Kontakt für Redaktionen.","inLanguage":"de-DE","isPartOf":{"@id":"https://jar-medical.tech/#website"},"about":{"@id":"https://jar-medical.tech/#organization"},"breadcrumb":{"@id":"https://jar-medical.tech/presse.html#breadcrumb"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://jar-medical.tech/"},{"@type":"ListItem","position":2,"name":"Presse","item":"https://jar-medical.tech/presse.html"}],"@id":"https://jar-medical.tech/presse.html#breadcrumb"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://jar-medical.tech/#organization","name":"J.A.R. Medical","url":"https://jar-medical.tech/"},{"@type":"WebSite","@id":"https://jar-medical.tech/#website","url":"https://jar-medical.tech/","name":"J.A.R. Medical"},{"@type":"WebPage","@id":"https://jar-medical.tech/presse.html#webpage","url":"https://jar-medical.tech/presse.html","name":"Presse und Medienraum | J.A.R. Medical","description":"Presseberichte über J.A.R. und den Hauptpreis beim Bundeswettbewerb Künstliche Intelligenz 2026, mit Fotos, Logos und Kontakt für Redaktionen.","inLanguage":"de-DE","isPartOf":{"@id":"https://jar-medical.tech/#website"},"about":{"@id":"https://jar-medical.tech/#organization"},"breadcrumb":{"@id":"https://jar-medical.tech/presse.html#breadcrumb"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://jar-medical.tech/"},{"@type":"ListItem","position":2,"name":"Presse","item":"https://jar-medical.tech/presse.html"}],"@id":"https://jar-medical.tech/presse.html#breadcrumb"}]}</script>
 </head><body class="theme-dark page--dark">
 
 <!-- ============================== HEADER ============================== -->
@@ -2149,6 +2231,65 @@ ul, ol { list-style: none; padding: 0; }
           <div><dt data-i18n="press_fact_team_k">Team</dt><dd>Johannes&nbsp;Nirschl · Jonas&nbsp;Kaindl · Alexander&nbsp;Kluge</dd></div>
         </dl>
       </article>
+    </div>
+  </section>
+
+  <!-- Photos, newest event at the top after the final. Every image is in
+       assets/press/ as <name>.webp (large) and <name>-s.webp (grid). Photos of
+       the final: copyright Ale Zea, credit "Ale Zea / BWKI" as required by
+       https://www.bw-ki.de/pressebilder. No close-ups from exercises: the
+       people playing casualties must stay unrecognisable. -->
+  <section class="section" aria-labelledby="pressPhotos">
+    <div class="wrap">
+      <header class="press-head reveal">
+        <h2 id="pressPhotos" data-i18n="press_ph_h">Fotos</h2>
+        <p data-i18n="press_ph_p">Von den bisherigen Veranstaltungen. Ein Klick vergrößert das Foto. Pressebilder vom Finale in voller Auflösung stellt der BWKI bereit.</p>
+        <a class="press-head__link" href="https://www.bw-ki.de/pressebilder" target="_blank" rel="noopener" data-i18n="press_ph_hires">BWKI-Pressebilder in voller Auflösung ↗</a>
+      </header>
+      <div class="press-event">
+        <header class="press-event__head reveal">
+          <h3 data-i18n="press_ph_bwki">BWKI-Finale in Tübingen</h3>
+          <time datetime="2026-11-13">13.11.2026</time>
+        </header>
+        <div class="press-grid">
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/bwki-2026-preisverleihung.webp" data-lightbox aria-labelledby="ph-bwki-1"><img src="assets/press/bwki-2026-preisverleihung-s.webp" width="1200" height="800" alt="J.A.R. bei der Preisverleihung (v. l.): Jonas Kaindl, Johannes Nirschl und Alexander Kluge." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-bwki-1" data-i18n="press_ph_bwki_1">J.A.R. bei der Preisverleihung (v. l.): Jonas Kaindl, Johannes Nirschl und Alexander Kluge.</span> <span class="press-shot__credit" data-i18n="press_cr_bwki">Foto: Ale Zea / BWKI</span></figcaption>
+          </figure>
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/bwki-2026-jury.webp" data-lightbox aria-labelledby="ph-bwki-2"><img src="assets/press/bwki-2026-jury-s.webp" width="800" height="533" alt="Projektpräsentation (v. l.): Juror Wieland Brendel, Johannes Nirschl und Alexander Kluge." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-bwki-2" data-i18n="press_ph_bwki_2">Projektpräsentation (v. l.): Juror Wieland Brendel, Johannes Nirschl und Alexander Kluge.</span> <span class="press-shot__credit" data-i18n="press_cr_bwki">Foto: Ale Zea / BWKI</span></figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="press-event">
+        <header class="press-event__head reveal">
+          <h3 data-i18n="press_ph_ueb">Übung am Sportpark des Gymnasiums Neubiberg</h3>
+          <time datetime="2026-11-16">16.11.2026</time>
+        </header>
+        <div class="press-grid">
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/uebung-2026-patientenablage.webp" data-lightbox aria-labelledby="ph-ueb-1"><img src="assets/press/uebung-2026-patientenablage-s.webp" width="800" height="450" alt="Übung „Gasaustritt Schule“: die Patientenablage aus der Luft. Alle Verletzten sind Darstellende." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-ueb-1" data-i18n="press_ph_ueb_1">Übung „Gasaustritt Schule“: die Patientenablage aus der Luft. Alle Verletzten sind Darstellende.</span> <span class="press-shot__credit" data-i18n="press_cr_drone">Drohnenaufnahme: J.A.R. Medical</span></figcaption>
+          </figure>
+          <figure class="press-shot reveal">
+            <a class="press-shot__link" href="assets/press/uebung-2026-ki-erkennung.webp" data-lightbox aria-labelledby="ph-ueb-2"><img src="assets/press/uebung-2026-ki-erkennung-s.webp" width="800" height="422" alt="Auswertung nach der Übung: KI-Erkennung von Personen und Fahrzeugen im Drohnenbild." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-ueb-2" data-i18n="press_ph_ueb_2">Auswertung nach der Übung: KI-Erkennung von Personen und Fahrzeugen im Drohnenbild.</span> <span class="press-shot__credit" data-i18n="press_cr_drone">Drohnenaufnahme: J.A.R. Medical</span></figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="press-event">
+        <header class="press-event__head reveal">
+          <h3 data-i18n="press_ph_xr">J.A.R. bei TUM-XR</h3>
+          <time datetime="2026-10" data-i18n="press_ph_xr_d">Oktober 2026</time>
+        </header>
+        <div class="press-grid">
+          <figure class="press-shot reveal press-shot--wide">
+            <a class="press-shot__link" href="assets/press/tum-xr-2026.webp" data-lightbox aria-labelledby="ph-xr-1"><img src="assets/press/tum-xr-2026-s.webp" width="800" height="602" alt="Gruppenfoto mit TUM-XR. Im Wintersemester arbeiten Alexander Kluge und Johannes Nirschl im Spatial-Intelligence-Team mit." loading="lazy" decoding="async"></a>
+            <figcaption><span class="press-shot__cap" id="ph-xr-1" data-i18n="press_ph_xr_1">Gruppenfoto mit TUM-XR. Im Wintersemester arbeiten Alexander Kluge und Johannes Nirschl im Spatial-Intelligence-Team mit.</span> <span class="press-shot__credit" data-i18n="press_cr_jar">Bild: bereitgestellt von J.A.R. Medical</span></figcaption>
+          </figure>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -2270,6 +2411,15 @@ ul, ol { list-style: none; padding: 0; }
   </section>
 
 </main>
+
+<!-- Photo viewer, filled by js/press.js. Without it the photos open as files. -->
+<dialog class="press-lb" id="pressLb" aria-labelledby="pressLbCap">
+  <button class="press-lb__close" type="button" data-lb="close"><span aria-hidden="true">×</span><span class="visually-hidden" data-i18n="press_lb_close">Schließen</span></button>
+  <button class="press-lb__prev" type="button" data-lb="prev"><span aria-hidden="true">‹</span><span class="visually-hidden" data-i18n="press_lb_prev">Vorheriges Foto</span></button>
+  <img alt="">
+  <button class="press-lb__next" type="button" data-lb="next"><span aria-hidden="true">›</span><span class="visually-hidden" data-i18n="press_lb_next">Nächstes Foto</span></button>
+  <p class="press-lb__text" aria-live="polite"><b id="pressLbCap"></b><span id="pressLbCredit"></span></p>
+</dialog>
 
 <!-- ============================== FOOTER ============================== -->
 <footer class="foot" id="kontakt">
@@ -2709,7 +2859,7 @@ window.JAR_I18N = {
     /* ---- media room (presse.html) ---- */
     nav_press: 'Press',
     meta_title_press: 'Press and media room | J.A.R. Medical',
-    meta_desc_press: 'Press coverage of J.A.R. and its main prize at the German national AI competition BWKI 2026, with logos and contact details for editors.',
+    meta_desc_press: 'Press coverage of J.A.R. and its main prize at the German national AI competition BWKI 2026, with photos, logos and contact details for editors.',
     press_eyebrow: 'Press',
     press_h1: 'Media room',
     press_lead: 'What has been written about J.A.R., everything on the main prize at the German national AI competition 2026, and material for editors, in one place.',
@@ -2723,6 +2873,24 @@ window.JAR_I18N = {
     press_fact_field_k: 'Field',
     press_fact_field_v: '10 finalist teams from 8 German states',
     press_fact_team_k: 'Team',
+    press_ph_h: 'Photos',
+    press_ph_p: 'From the events so far. Click a photo to enlarge it. The BWKI provides press images of the final in full resolution.',
+    press_ph_hires: 'BWKI press images in full resolution ↗',
+    press_ph_bwki: 'BWKI final in Tübingen',
+    press_ph_bwki_1: 'J.A.R. at the award ceremony (from left): Jonas Kaindl, Johannes Nirschl and Alexander Kluge.',
+    press_ph_bwki_2: 'Project presentation (from left): juror Wieland Brendel, Johannes Nirschl and Alexander Kluge.',
+    press_ph_ueb: 'Exercise at the Gymnasium Neubiberg sports ground',
+    press_ph_ueb_1: '“Gas leak at school” exercise: the casualty collection point from the air. All casualties are role players.',
+    press_ph_ueb_2: 'Evaluation after the exercise: AI detection of people and vehicles in the drone image.',
+    press_ph_xr: 'J.A.R. at TUM-XR',
+    press_ph_xr_d: 'October 2026',
+    press_ph_xr_1: 'Group photo with TUM-XR. Alexander Kluge and Johannes Nirschl are part of its Spatial Intelligence Team this winter semester.',
+    press_cr_bwki: 'Photo: Ale Zea / BWKI',
+    press_cr_drone: 'Drone image: J.A.R. Medical',
+    press_cr_jar: 'Image: provided by J.A.R. Medical',
+    press_lb_close: 'Close',
+    press_lb_prev: 'Previous photo',
+    press_lb_next: 'Next photo',
     press_cov_h: 'Coverage',
     press_cov_p: 'Articles about J.A.R., newest first. Every link goes to the original source; headlines are shown in the language they were published in.',
     press_read: 'Read article ↗',
@@ -3267,6 +3435,54 @@ window.JAR_I18N = {
 
 })();
 </script>
+<script>/* js/press.js */
+/* Photo viewer on the media room. Enhances the plain links to the large files:
+   opens them in a <dialog>, with arrow keys, buttons and Escape. */
+(function () {
+  'use strict';
+  var dlg = document.getElementById('pressLb');
+  var links = Array.prototype.slice.call(document.querySelectorAll('[data-lightbox]'));
+  if (!dlg || !links.length || typeof dlg.showModal !== 'function') return;
 
+  var img = dlg.querySelector('img');
+  var cap = document.getElementById('pressLbCap');
+  var credit = document.getElementById('pressLbCredit');
+  var at = 0;
+
+  function show(i) {
+    at = (i + links.length) % links.length;
+    var fig = links[at].closest('figure');
+    var text = fig.querySelector('.press-shot__cap').textContent;
+    img.src = links[at].href;
+    img.alt = text;
+    cap.textContent = text;
+    credit.textContent = fig.querySelector('.press-shot__credit').textContent;
+  }
+
+  links.forEach(function (a, i) {
+    a.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      show(i);
+      dlg.showModal();
+    });
+  });
+  dlg.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lb]');
+    if (b) {
+      if (b.dataset.lb === 'close') dlg.close();
+      else show(at + (b.dataset.lb === 'next' ? 1 : -1));
+    } else if (e.target === dlg) dlg.close();
+  });
+  dlg.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') show(at + 1);
+    else if (e.key === 'ArrowLeft') show(at - 1);
+  });
+  dlg.addEventListener('close', function () {
+    img.removeAttribute('src');
+    links[at].focus();
+  });
+})();
+</script>
 
 </body></html>
