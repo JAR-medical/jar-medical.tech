@@ -3,244 +3,367 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TriARge Live-Demo: Lagebild für die Einsatzleitung</title>
-  <!-- Der Titel wird je Übungslage gesetzt (siehe ui.js), damit ein geteilter
-       Link im Tab und im Lesezeichen die richtige Lage nennt. -->
-  <meta name="description" content="Interaktive Live-Demo des TriARge-Lagebilds auf echter Karte: drei Übungslagen mit Sichtung, Einsatzabschnitten und Transportsteuerung im Browser.">
+  <title>TriARge Live-Demo: Live3D Lagebild für die Einsatzleitung</title>
+  <meta name="description" content="Integriertes TriARge Einsatzlagebild mit Live-3D-Geokarte, Drohnen- und BodyCam-Erkennung, Taktik-Minimap, Fenstergrößen-Reglern und Zeit-Rücklauf (DVR).">
   <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4">
-  <link rel="stylesheet" href="./style.css?v=23">
-<link rel="canonical" href="https://jar-medical.tech/demo/">
-<meta name="robots" content="index,follow,max-image-preview:large">
-<meta property="og:site_name" content="J.A.R. Medical">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://jar-medical.tech/demo/">
-<meta property="og:title" content="TriARge Live-Demo: Lagebild für die Einsatzleitung">
-<meta property="og:description" content="Interaktive Live-Demo des TriARge-Lagebilds auf echter Karte: drei Übungslagen mit Sichtung, Einsatzabschnitten und Transportsteuerung im Browser.">
-<meta property="og:image" content="https://jar-medical.tech/assets/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="J.A.R. Medical: medizinische Spracherkennung">
-<meta property="og:locale" content="de_DE">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="TriARge Live-Demo: Lagebild für die Einsatzleitung">
-<meta name="twitter:description" content="Interaktive Live-Demo des TriARge-Lagebilds auf echter Karte: drei Übungslagen mit Sichtung, Einsatzabschnitten und Transportsteuerung im Browser.">
-<meta name="twitter:image" content="https://jar-medical.tech/assets/og.png">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://jar-medical.tech/#organization","name":"J.A.R. Medical","url":"https://jar-medical.tech/"},{"@type":"WebSite","@id":"https://jar-medical.tech/#website","url":"https://jar-medical.tech/","name":"J.A.R. Medical"},{"@type":"WebPage","@id":"https://jar-medical.tech/demo/#webpage","url":"https://jar-medical.tech/demo/","name":"TriARge Live-Demo: Lagebild für die Einsatzleitung","description":"Interaktive Live-Demo des TriARge-Lagebilds auf echter Karte: drei Übungslagen mit Sichtung, Einsatzabschnitten und Transportsteuerung im Browser.","inLanguage":"de-DE","isPartOf":{"@id":"https://jar-medical.tech/#website"},"about":{"@id":"https://jar-medical.tech/#organization"},"breadcrumb":{"@id":"https://jar-medical.tech/demo/#breadcrumb"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://jar-medical.tech/"},{"@type":"ListItem","position":2,"name":"Live-Demo","item":"https://jar-medical.tech/demo/"}],"@id":"https://jar-medical.tech/demo/#breadcrumb"}]}</script>
+  <link rel="stylesheet" href="./style.css?v=31">
+  <link rel="canonical" href="https://jar-medical.tech/demo/">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta property="og:site_name" content="J.A.R. Medical">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jar-medical.tech/demo/">
+  <meta property="og:title" content="TriARge Live-Demo: Live3D Lagebild für die Einsatzleitung">
+  <meta property="og:description" content="Integriertes TriARge Einsatzlagebild mit Live-3D-Geokarte, Drohnen- und BodyCam-Erkennung, Taktik-Minimap, Fenstergrößen-Reglern und Zeit-Rücklauf (DVR).">
+  <meta property="og:image" content="https://jar-medical.tech/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="J.A.R. Medical: TriARge Live3D Einsatzlagebild">
+  <meta property="og:locale" content="de_DE">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="TriARge Live-Demo: Live3D Lagebild für die Einsatzleitung">
+  <meta name="twitter:description" content="Integriertes TriARge Einsatzlagebild mit Live-3D-Geokarte, Drohnen- und BodyCam-Erkennung, Taktik-Minimap, Fenstergrößen-Reglern und Zeit-Rücklauf (DVR).">
+  <meta name="twitter:image" content="https://jar-medical.tech/assets/og.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://jar-medical.tech/#organization","name":"J.A.R. Medical","url":"https://jar-medical.tech/"},{"@type":"WebSite","@id":"https://jar-medical.tech/#website","url":"https://jar-medical.tech/","name":"J.A.R. Medical"},{"@type":"WebPage","@id":"https://jar-medical.tech/demo/#webpage","url":"https://jar-medical.tech/demo/","name":"TriARge Live-Demo: Live3D Lagebild für die Einsatzleitung","description":"Integriertes TriARge Einsatzlagebild mit Live-3D-Geokarte, Drohnen- und BodyCam-Erkennung, Taktik-Minimap, Fenstergrößen-Reglern und Zeit-Rücklauf (DVR).","inLanguage":"de-DE","isPartOf":{"@id":"https://jar-medical.tech/#website"},"about":{"@id":"https://jar-medical.tech/#organization"},"breadcrumb":{"@id":"https://jar-medical.tech/demo/#breadcrumb"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://jar-medical.tech/"},{"@type":"ListItem","position":2,"name":"Live-Demo","item":"https://jar-medical.tech/demo/"}],"@id":"https://jar-medical.tech/demo/#breadcrumb"}]}</script>
 </head>
 <body>
+<div id="shell">
 
-<div id="app">
-
+  <!-- Palantir / TriARge White Command Topbar -->
   <header class="topbar">
-    <span class="tb-titel" id="tb-titel">Einsatz</span>
-    <select id="lage-wahl" class="tb-sel" title="Übungslage wechseln"></select>
-    <select id="sitzung" class="tb-sel tb-opt" title="Einsatz wechseln"></select>
-    <button id="btn-neuer-einsatz" class="tb-btn tb-opt" type="button" title="Neuen Einsatz eröffnen (bisherige Daten bleiben erhalten)">Neuer Einsatz</button>
+    <span class="brand">
+      <span class="brand-mark">JAR</span>
+      <span id="tb-title">TriARge · Live3D Einsatzlagebild</span>
+    </span>
+    <span class="status-pill" id="b-mode"><span class="status-dot"></span><span id="b-mode-txt">Verbinde…</span></span>
     <span class="tb-sep"></span>
-    <span class="tb-uhr"><b id="uhr">--:--:--</b><i>Einsatzzeit <span id="einsatzzeit">00:00</span></i></span>
+    <span class="mono" style="font-size:11.5px;font-weight:700" id="tb-clock">--:--:--</span>
     <span class="tb-sep"></span>
-    <span class="zaehler" id="zaehler" aria-label="Patienten je Sichtungskategorie"></span>
+
+    <div class="kpi-strip" id="kpi-strip">
+      <span class="kpi" title="Bestätigte Feuerwehr-/Einsatzfahrzeuge"><span class="sw" style="background:var(--fire)"></span>Feuerwehr <b id="k-fire">0</b></span>
+      <span class="kpi" title="Uniformierte Einsatzkräfte (Rettungsdienst / Feuerwehr / Polizei)"><span class="sw" style="background:var(--uniform)"></span>Kräfte <b id="k-unif">0</b></span>
+      <span class="kpi" title="Zivilpersonen / Betroffene"><span class="sw" style="background:var(--civilian)"></span>Personen <b id="k-civ">0</b></span>
+      <span class="kpi" title="Liegende Patienten (erhöhte Priorität)"><span class="sw" style="background:var(--danger)"></span>Liegend <b id="k-lying">0</b></span>
+      <span class="kpi" title="Polizei &amp; RTW"><span class="sw" style="background:var(--police)"></span>Pol/RTW <b id="k-emv">0</b></span>
+      <span class="kpi" title="Weitere Fahrzeuge / Zweiräder"><span class="sw" style="background:var(--vehicle)"></span>Fzg <b id="k-veh">0</b></span>
+    </div>
+
     <span class="tb-spacer"></span>
-    <button id="btn-funk" class="tb-btn" type="button" title="Sprechfunk-Auswertung (Mikrofon / AUX)">Funk aus</button>
-    <span class="pill tb-opt" id="pill-sync">lokal</span>
-    <span class="pill ok tb-opt" id="pill-ws">live</span>
+
+    <!-- Explicit Point-Cloud Toggle (OFF by default — zero white dot clutter!) -->
+    <button id="btn-mic" class="tb-btn" type="button" title="Live-Mikrofon / Sprechfunk-Transkription starten (Deutsch)">🎙 Funk / Mikro: Aus</button>
+    <button id="btn-points" class="tb-btn" type="button" title="3D-Punktwolke (weiße Messpunkte) ein-/ausschalten">3D-Punktwolke: Aus</button>
+    <button id="btn-minimap" class="tb-btn accent-soft" type="button" title="Taktische Top-Down Minimap ein-/ausblenden">Minimap: Ein</button>
+    <button id="btn-layout" class="tb-btn accent-soft" type="button" title="Linke Leiste mit Fenstergrößen-Reglern ein-/ausblenden">Fenstergrößen</button>
     <span class="tb-sep"></span>
-    <button id="btn-neustart" class="tb-btn" type="button" title="Übungslage von vorn abspielen" aria-label="Lage neu abspielen"><span class="tb-icon" aria-hidden="true">↺</span><span class="tb-txt">Lage neu abspielen</span></button>
-    <button id="btn-hilfe" class="tb-btn tb-hilfe" type="button" title="Was zeigt diese Demo?" aria-label="Erklärung zur Demo">?</button>
-    <a class="tb-btn" href="../index.html"><span class="tb-lang">Zur </span>Website</a>
+    <button id="btn-pause" class="tb-btn" type="button" title="Stream anhalten / fortsetzen">Pause</button>
+    <button id="btn-reset" class="tb-btn" type="button" title="Karte zurücksetzen">Zurücksetzen</button>
+    <a class="tb-btn" id="btn-geojson" href="#" download="triarge-live3d.geojson" title="Bestätigte 3D-Objekte als GeoJSON exportieren">GeoJSON ⬇</a>
+    <button id="btn-csv" class="tb-btn" type="button" title="Objekttabelle als CSV exportieren">CSV ⬇</button>
+    <a class="tb-btn" href="./asr/" title="Sprach-Sichtung (ASR)">ASR ↗</a>
+    <a class="tb-btn" href="../index.html">Zur Website</a>
   </header>
 
-  <aside class="rail rail-l" id="rail-l">
-    <div class="rail-kopf">
-      <button class="rail-btn" data-rail="l" type="button" title="Leiste einklappen">‹</button>
-      <span class="rail-titel">Lage &amp; Steuerung</span>
-    </div>
-    <div class="rail-inhalt">
-      <a class="btn-klein rail-asr-link" href="/demo/asr/" title="Voice-Modell und Transkription öffnen">Voice-Modell öffnen</a>
-
-    <section class="blk" data-blk="lage">
-      <h2>Lage</h2>
-      <div class="lage" id="lage"></div>
-      <p class="hinweis quelle">Simulierte Übungslage - keine echten Personendaten.
-        Kartengrundlage © OpenStreetMap-Mitwirkende.</p>
-    </section>
-
-    <section class="blk" data-blk="kennzahlen">
-      <h2>Kennzahlen</h2>
-      <div class="kennzahlen" id="kennzahlen"></div>
-    </section>
-
-    <section class="blk" data-blk="ebenen">
-      <h2>Kartenebenen</h2>
-      <div class="ebenen" id="ebenen"></div>
-      <div class="zeile">
-        <label class="lbl">Kartengrundlage</label>
-        <select id="basiskarte" class="sel-klein">
-          <option value="hell">OpenStreetMap hell</option>
-          <option value="osm">OpenStreetMap Standard</option>
-          <option value="leer">ohne Kachelkarte</option>
-        </select>
-      </div>
-    </section>
-
-    <section class="blk" data-blk="raster">
-      <h2>Einsatzraster</h2>
-      <div class="zeile">
-        <label class="lbl">Raster</label>
-        <input id="raster-spalten" class="num" type="number" min="2" max="26" value="10"> ×
-        <input id="raster-zeilen" class="num" type="number" min="2" max="40" value="8">
-        <span class="hinweis" id="zellgroesse"></span>
-      </div>
-      <div class="zeile">
-        <label class="lbl">Eigener Lageplan</label>
-        <label class="btn-klein datei">Bild wählen<input id="plan-datei" type="file" accept="image/*" hidden></label>
-        <button id="plan-weg" class="btn-klein" type="button" disabled>entfernen</button>
-      </div>
-      <div class="zeile">
-        <label class="lbl">Deckkraft</label>
-        <input id="plan-deck" type="range" min="0" max="100" value="75" disabled>
-        <span class="hinweis mono" id="plan-deck-wert">75 %</span>
-      </div>
-      <p class="hinweis" id="plan-hinweis">Luftbild oder Lageplan wird über den Einsatzraum gelegt; das Raster
-        bleibt darüber aktiv. Die Deckkraft ist einstellbar, sobald ein Bild geladen ist.</p>
-    </section>
-
-    <section class="blk" data-blk="filter">
-      <h2>Filter</h2>
-      <input id="suche" class="such" type="search" placeholder="Suche: Verletzung, Maßnahme, #ID …">
-      <div class="chips" id="kat-chips"></div>
-      <label class="check"><input id="nur-offen" type="checkbox"> nur noch nicht versorgte / nicht abtransportierte</label>
-      <div class="zeile"><span class="hinweis" id="filter-info">kein Filter aktiv</span>
-        <button id="filter-weg" class="btn-klein" type="button">zurücksetzen</button></div>
-    </section>
-
-    <section class="blk" data-blk="abschnitte">
-      <h2>Einsatzabschnitte</h2>
-      <div id="abschnitt-liste" class="liste"></div>
-    </section>
-
-    <section class="blk" data-blk="mittel">
-      <h2>Einsatzmittel
-        <button id="btn-mittel-neu" class="mini" type="button" title="Einsatzmittel registrieren">＋</button>
-      </h2>
-      <div id="mittel-liste" class="liste"></div>
-    </section>
-
-    </div>
-  </aside>
-
-  <div class="griff" id="griff-l" data-rail="l" title="Breite ziehen · Doppelklick klappt die Leiste ein"></div>
-
-  <div class="mapwrap" id="karte">
-    <div id="map"></div>
-
-    <div class="map-werkzeuge">
-      <button id="wz-gesamt" class="wz" type="button" title="Gesamter Einsatzraum">Übersicht</button>
-      <button id="wz-schaden" class="wz" type="button" title="Auf die Schadensstelle zoomen">Schadensstelle</button>
-      <button id="wz-messen" class="wz" type="button" title="Strecke messen (Klick setzt Punkte)">Messen</button>
-      <button id="wz-folgen" class="wz" type="button" title="Ausgewähltem Einsatzmittel folgen">Folgen</button>
-    </div>
-
-    <div class="map-zeit">
-      <button id="zt-pause" class="zt" type="button">Pause</button>
-      <span class="zt-tempo">
-        <button class="zt tempo" data-tempo="1" type="button">1×</button>
-        <button class="zt tempo" data-tempo="2" type="button">2×</button>
-        <button class="zt tempo" data-tempo="4" type="button">4×</button>
-        <button class="zt tempo" data-tempo="8" type="button">8×</button>
-      </span>
-      <span class="zt-info" id="zt-info">Einsatzzeit 00:00</span>
-    </div>
-
-    <div class="map-legende zu" id="legende">
-      <button class="lg-schalter" id="legende-schalter" type="button" title="Legende ein-/ausblenden">Legende</button>
-      <div class="lg-inhalt" id="legende-inhalt"></div>
-    </div>
-    <div class="map-status"><span id="koord">-</span></div>
+  <!-- DVR / Time-Rewind Timeline Bar -->
+  <div class="dvr-bar" id="dvr-bar">
+    <span class="dvr-label">Zeitlauf / DVR</span>
+    <button id="btn-back-30" type="button" title="30 Sekunden zurück">⏮ -30s</button>
+    <button id="btn-back-10" type="button" title="10 Sekunden zurück (Shift+←)">⏪ -10s</button>
+    <button id="btn-back-3" type="button" title="3 Sekunden zurück (←)">◀ -3s</button>
+    <button id="btn-replay-play" type="button" title="Ab dieser Stelle abspielen / pausieren (Leertaste)">▶ Replay</button>
+    <button id="btn-fwd-3" type="button" title="3 Sekunden vor (→)">+3s ▶</button>
+    <input id="dvr-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Zeitachse zurückspulen">
+    <span class="dvr-readout" id="dvr-time">● LIVE (0s Puffer)</span>
+    <button id="btn-go-live" class="tb-btn live-jump" type="button" title="Sofort zurück zur Live-Ansicht (L)">● LIVE</button>
   </div>
 
-  <div class="griff" id="griff-r" data-rail="r" title="Breite ziehen · Doppelklick klappt die Leiste ein"></div>
+  <!-- Main Resizable Palantir / TriARge Command Workspace -->
+  <div id="workspace">
 
-  <aside class="rail rail-r" id="rail-r">
-    <div class="rail-kopf">
-      <span class="rail-titel">Auswahl &amp; Meldungen</span>
-      <button class="rail-btn" data-rail="r" type="button" title="Leiste einklappen">›</button>
-      <button class="blatt-zu" id="blatt-zu" type="button" title="Details schließen" aria-label="Details schließen">✕</button>
-    </div>
-    <div class="rail-inhalt">
+    <!-- LEFT RAIL: Window Size Sliders, Layers, Operational Status -->
+    <aside class="rail rail-l" id="rail-l">
+      <div class="panel-head">
+        <span>Steuerung &amp; Lage</span>
+        <span class="sub" id="terrain-badge">Lade Karte…</span>
+      </div>
+      <div class="rail-scroll">
 
-    <section class="blk wachsend" data-blk="auswahl">
-      <h2>Auswahl</h2>
-      <div id="inspektor" class="inspektor"></div>
+        <!-- Window-Size Sliders (adjust EVERY window cleanly!) -->
+        <section class="blk" id="blk-sliders">
+          <div class="blk-head" data-toggle="blk-sliders">
+            <span>Fenstergrößen (Regler)</span>
+            <span class="mono">▾</span>
+          </div>
+          <div class="blk-body">
+            <div class="preset-row">
+              <button class="preset-btn" data-preset="palantir" type="button">Palantir Split</button>
+              <button class="preset-btn" data-preset="map2d" type="button">2D Lagekarte</button>
+              <button class="preset-btn" data-preset="map3d" type="button">3D Geo-Karte</button>
+              <button class="preset-btn" data-preset="sensors" type="button">Fokus Sensorik</button>
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-rail-l">Linke Leiste</label>
+              <span class="val" id="val-rail-l">268 px</span>
+              <input id="sl-rail-l" type="range" min="0" max="420" step="4" value="268">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-map-split">2D Lagekarte ↔ 3D Karte</label>
+              <span class="val" id="val-map-split">48% / 52%</span>
+              <input id="sl-map-split" type="range" min="0" max="100" step="2" value="48">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-rail-r">Rechte Leiste (Kameras)</label>
+              <span class="val" id="val-rail-r">368 px</span>
+              <input id="sl-rail-r" type="range" min="0" max="640" step="4" value="368">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-vid-h">Videobereich Höhe</label>
+              <span class="val" id="val-vid-h">270 px</span>
+              <input id="sl-vid-h" type="range" min="110" max="540" step="6" value="270">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-vid-split">Drohne ↔ BodyCam</label>
+              <span class="val" id="val-vid-split">50% / 50%</span>
+              <input id="sl-vid-split" type="range" min="0" max="100" step="2" value="50">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-tr-h">Transkriptionen Höhe</label>
+              <span class="val" id="val-tr-h">196 px</span>
+              <input id="sl-tr-h" type="range" min="0" max="380" step="4" value="196">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-dock-h">Unteres Register (Dock)</label>
+              <span class="val" id="val-dock-h">184 px</span>
+              <input id="sl-dock-h" type="range" min="0" max="420" step="4" value="184">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-mm-size">Minimap Größe (in 3D)</label>
+              <span class="val" id="val-mm-size">212 px</span>
+              <input id="sl-mm-size" type="range" min="0" max="320" step="4" value="212">
+            </div>
+          </div>
+        </section>
+
+        <!-- Layer Switches -->
+        <section class="blk" id="blk-layers">
+          <div class="blk-head" data-toggle="blk-layers">
+            <span>Karten-Ebenen</span>
+            <span class="mono">▾</span>
+          </div>
+          <div class="blk-body">
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-points"> 3D-Punktwolke (Messpunkte)</label>
+              <span class="tag-mini off" id="tag-points">AUS</span>
+            </div>
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-ortho2d"> Bayern DOP20 Luftbild (2D)</label>
+              <span class="tag-mini off" id="tag-ortho2d">AUS</span>
+            </div>
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-trails" checked> Bewegungsspuren (Wakes)</label>
+              <span class="tag-mini on">EIN</span>
+            </div>
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-fov" checked> Kamera-Sichtkegel (FOV)</label>
+              <span class="tag-mini on">EIN</span>
+            </div>
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-grid" checked> 10m-Koordinatenraster (3D)</label>
+              <span class="tag-mini on">EIN</span>
+            </div>
+            <div class="layer-item">
+              <label><input type="checkbox" id="chk-minimap" checked> Taktische Minimap (2D)</label>
+              <span class="tag-mini on" id="tag-minimap">EIN</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Operational Telemetry & Anchor -->
+        <section class="blk" id="blk-meta">
+          <div class="blk-head" data-toggle="blk-meta">
+            <span>Einsatzgebiet &amp; System</span>
+            <span class="mono">▾</span>
+          </div>
+          <div class="blk-body">
+            <dl class="kv">
+              <dt>Szenario</dt><dd id="meta-scen">Neubiberg · Reizgas</dd>
+              <dt>Ankerpunkt</dt><dd id="meta-anchor">–</dd>
+              <dt>Gelände</dt><dd id="meta-terrain">–</dd>
+              <dt>3D-Punkte</dt><dd id="meta-voxels">0 (ausgeblendet)</dd>
+              <dt>Speicher</dt><dd id="meta-ram">–</dd>
+              <dt>Sensorik</dt><dd id="meta-perf">–</dd>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Compact Legend -->
+        <section class="blk" id="blk-leg">
+          <div class="blk-head" data-toggle="blk-leg">
+            <span>Legende (8 Klassen)</span>
+            <span class="mono">▾</span>
+          </div>
+          <div class="blk-body" id="legend-list" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;font-size:11px"></div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- Splitter Left -->
+    <div class="splitter col" id="griff-l" title="Breite ziehen · Doppelklick ein-/ausklappen"></div>
+
+    <!-- CENTER STAGE: Integrated 2D JAR Overview Map (Leaflet) + Live 3D Geo-Map (Three.js) -->
+    <section class="center-stage" id="center-stage">
+
+      <!-- 2D JAR Medical Scenario Overview Map (Leaflet) -->
+      <div class="map-pane" id="pane-2d">
+        <div class="panel-head">
+          <span>Lagekarte 2D (Georeferenziert · WGS84)</span>
+          <span class="sub" id="map2d-sub">Neubiberg · 1:500</span>
+        </div>
+        <div class="map-body">
+          <div id="leaflet-map"></div>
+          <div class="map-toolbar">
+            <button class="mtool active" data-base="hell" type="button">OSM Hell</button>
+            <button class="mtool" data-base="osm" type="button">OSM Farbe</button>
+            <button class="mtool" id="btn-2d-ortho" type="button">DOP20</button>
+            <button class="mtool" id="btn-2d-center" type="button" title="Auf Einsatzgebiet zentrieren">⌖ Zentrum</button>
+          </div>
+          <div class="map-chip" id="map2d-coord">48.07202°N, 11.68002°E</div>
+        </div>
+      </div>
+
+      <!-- Splitter Between 2D Overview Map & Integrated 3D Map -->
+      <div class="splitter col" id="griff-maps" title="Verhältnis 2D Lagekarte ↔ 3D Geo-Karte ziehen"></div>
+
+      <!-- Integrated Live 3D Geo-Map (Three.js + Top-Down Orthophoto Minimap) -->
+      <div class="map-pane" id="pane-3d">
+        <div class="panel-head">
+          <span>Integrierte 3D-Geokarte (DGM1 + LoD2 + DOP20)</span>
+          <span class="sub" id="map3d-sub">Live 3D · 0 Objekte</span>
+        </div>
+        <div class="map-body">
+          <div id="three-host"></div>
+          <div class="map-toolbar">
+            <button class="mtool" id="btn-3d-home" type="button">⌖ Standardansicht</button>
+            <button class="mtool" id="btn-3d-top" type="button">⬇ Draufsicht</button>
+            <button class="mtool" id="btn-3d-pts" type="button">Punktwolke: Aus</button>
+          </div>
+          <!-- Resizable Top-Down Orthophoto Minimap Overlay -->
+          <div id="minimap-box">
+            <div class="mm-head">
+              <span>Minimap · Top-Down</span>
+              <span id="mm-scale">±38m · N↑</span>
+            </div>
+            <canvas id="minimap" width="240" height="240"></canvas>
+          </div>
+          <div class="map-chip" id="map3d-hud">Bereit</div>
+        </div>
+      </div>
+
     </section>
 
-    <section class="blk" data-blk="warnungen">
-      <h2>Warnungen <span class="anz" id="warn-anz">0</span></h2>
-      <div id="warn-liste" class="liste warnungen"></div>
+    <!-- Splitter Dock -->
+    <div class="splitter row" id="griff-dock" title="Höhe unteres Register ziehen · Doppelklick ein-/ausklappen"></div>
+
+    <!-- BOTTOM DOCK: Tabular Object Register, Alerts, Lagemeldung -->
+    <section class="dock" id="dock">
+      <div class="dock-tabs">
+        <button class="dtab active" data-tab="all" type="button">Alle Objekte (<span id="cnt-all">0</span>)</button>
+        <button class="dtab" data-tab="people" type="button">Kräfte &amp; Personen (<span id="cnt-ppl">0</span>)</button>
+        <button class="dtab" data-tab="vehicles" type="button">Einsatzfahrzeuge (<span id="cnt-veh">0</span>)</button>
+        <button class="dtab" data-tab="transcripts" type="button">Transkriptionen (<span id="cnt-tr">0</span>)</button>
+        <button class="dtab" data-tab="summary" type="button">Lagemeldung</button>
+        <span class="tb-spacer"></span>
+        <input id="dock-search" class="dock-search" type="search" placeholder="Filter (#ID, Klasse, Rolle)…">
+      </div>
+      <div class="dock-body" id="dock-body"></div>
     </section>
 
-    <section class="blk" data-blk="funk">
-      <h2>Sprechfunk</h2>
-      <div id="funk-liste" class="funk"></div>
-      <div class="hoehen-griff" id="funk-griff" title="Höhe ziehen · Doppelklick setzt zurück"></div>
-    </section>
+    <!-- Splitter Right -->
+    <div class="splitter col" id="griff-r" title="Breite rechte Leiste ziehen · Doppelklick ein-/ausklappen"></div>
 
-    </div>
-  </aside>
+    <!-- RIGHT RAIL: Synchronized Drone + BodyCam Feeds & Palantir Entity Inspector -->
+    <aside class="rail rail-r" id="rail-r">
+      <div class="panel-head">
+        <span>Live-Sensorik &amp; Inspektor</span>
+        <span class="sub" id="cam-summary">2 Sensoren</span>
+      </div>
 
-  <section class="dock" id="dock">
-    <div class="dock-griff" id="dock-griff" title="Höhe ziehen · Doppelklick klappt den Bereich ein"></div>
-    <nav class="dock-tabs" id="dock-tabs">
-      <button class="dtab aktiv" data-tab="patienten" type="button">Patienten</button>
-      <button class="dtab" data-tab="gefahren" type="button">Gefahrenlage</button>
-      <button class="dtab" data-tab="transport" type="button">Transport &amp; Kliniken</button>
-      <button class="dtab" data-tab="ereignisse" type="button">Ereignisse</button>
-      <button class="dtab" data-tab="lagemeldung" type="button">Lagemeldung</button>
-      <span class="dock-spacer"></span>
-      <a class="btn-klein" href="/demo/asr/" title="Sichtung per Spracheingabe: QR-Code, Audio, Lagebild">Sprach-Sichtung (ASR) ↗</a>
-      <button id="btn-csv" class="btn-klein" type="button">CSV exportieren</button>
-      <button id="dock-gross" class="btn-klein" type="button" title="Bereich auf volle Höhe bringen">⤢</button>
-      <button id="dock-klein" class="btn-klein" type="button" title="Bereich ein-/ausklappen">▼</button>
-    </nav>
-    <div class="dock-inhalt" id="dock-inhalt"></div>
-  </section>
+      <!-- Resizable Drone / BodyCam Video Stack -->
+      <div class="vid-stack" id="vid-stack">
+        <div class="vid-card">
+          <div class="vid-bar">
+            <span class="tag-cam"><span class="dot-c" style="background:var(--drone)"></span>DROHNE (Luftbild)</span>
+            <span class="mono muted" id="stat-drone">wartet…</span>
+          </div>
+          <div class="vid-frame">
+            <img id="img-drone" alt="Drohnen-Kamera">
+            <span class="vid-empty" id="empty-drone">Kein Drohnen-Stream</span>
+          </div>
+        </div>
 
-</div>
+        <div class="splitter row" id="griff-vid" title="Verhältnis Drohne ↔ BodyCam ziehen"></div>
 
-<!-- Kurze Einordnung beim ersten Aufruf; über „?“ in der Kopfzeile wieder
-     erreichbar. Wer die Demo über einen geteilten Link öffnet, weiß sonst
-     nicht, was er sieht. -->
-<div class="intro" id="intro" hidden>
-  <div class="intro-karte" role="dialog" aria-modal="true" aria-labelledby="intro-titel">
-    <h2 id="intro-titel">Live-Demo: Lagebild der Einsatzleitung</h2>
-    <p>Simulierte Übungslage eines Massenanfalls von Verletzten (MANV). Die Lage läuft
-      von selbst ab: Trupps sichten Patienten, Rettungsmittel fahren an, Kliniken werden belegt.</p>
-    <ul class="intro-liste">
-      <li><span class="intro-sym"><i class="pkt k-SK1"></i><i class="pkt k-SK2"></i><i class="pkt k-SK3"></i></span>
-        <span><b>Punkte</b> sind Patienten, gefärbt nach Sichtungskategorie: rot = Lebensgefahr, gelb = schwer, grün = leicht verletzt.</span></li>
-      <li><span class="intro-sym"><span class="lg"><i class="bx u-rtw"></i></span></span>
-        <span><b>Kästen</b> sind Einsatzmittel (Rettungswagen, Trupps, Feuerwehr), <b>beschriftete Bereiche</b> die Einsatzabschnitte.</span></li>
-      <li><span class="intro-sym">☝</span>
-        <span><b>Anklicken oder antippen</b> zeigt Details. Die <b>Legende</b> auf der Karte erklärt alle Symbole und Abkürzungen.</span></li>
-      <li><span class="intro-sym">▶</span>
-        <span>Tempo und Pause unten links auf der Karte; die Zahlen oben zählen die Patienten je Kategorie.</span></li>
-    </ul>
-    <p class="hinweis">Prototyp für Übungen, kein Medizinprodukt. Alle Personen und Daten sind simuliert.</p>
-    <button id="intro-los" class="intro-los" type="button">Zur Lage</button>
+        <div class="vid-card">
+          <div class="vid-bar">
+            <span class="tag-cam"><span class="dot-c" style="background:var(--bodycam)"></span>BODYCAM (Boden)</span>
+            <span class="mono muted" id="stat-bodycam">wartet…</span>
+          </div>
+          <div class="vid-frame">
+            <img id="img-bodycam" alt="BodyCam-Kamera">
+            <span class="vid-empty" id="empty-bodycam">Kein BodyCam-Stream</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palantir Entity Inspector + Live Tactical Alerts -->
+      <div class="inspector-wrap">
+        <div class="panel-head">
+          <span>Objekt-Inspektor &amp; Meldungen</span>
+          <span class="sub" id="insp-id">Kein Objekt gewählt</span>
+        </div>
+        <div class="inspector-body" id="inspector-body">
+          <div class="muted" style="margin-bottom:8px">Klicken Sie auf ein Objekt auf der 2D-Lagekarte oder in der Tabelle für Detaildaten.</div>
+          <div id="alerts-box"></div>
+        </div>
+      </div>
+
+      <!-- Resizable Splitter for Transcriptions Panel -->
+      <div class="splitter row" id="griff-tr" title="Höhe Transkriptionen ziehen · Doppelklick ein-/ausklappen"></div>
+
+      <!-- Live & BodyCam Synchronized Transcriptions (Sprechfunk / ASR / Whisper) -->
+      <div class="tr-wrap" id="tr-wrap">
+        <div class="panel-head">
+          <span>Transkriptionen &amp; Sprechfunk</span>
+          <span style="display:inline-flex;align-items:center;gap:5px">
+            <span class="sub" id="tr-status">0 Einträge</span>
+            <label for="tr-file" class="tb-btn" style="height:19px;padding:0 5px;font-size:10px;cursor:pointer" title="Audio-Datei (WAV/MP3/M4A) lokal mit Whisper transkribieren">Audio ⬆</label>
+            <input id="tr-file" type="file" accept="audio/*" style="display:none">
+          </span>
+        </div>
+        <div class="tr-list" id="tr-list">
+          <div class="muted" style="font-size:11px">Warte auf BodyCam-Audio oder Live-Mikrofon…</div>
+        </div>
+        <div class="tr-input-bar">
+          <input id="tr-input" type="text" placeholder="Funkspruch / Notiz hinzufügen (Enter)…">
+          <button id="tr-send" type="button">Senden</button>
+        </div>
+      </div>
+    </aside>
+
   </div>
 </div>
 
 <script src="./vendor/leaflet.js?v=1.9.4"></script>
-<script src="./data/neubiberg.js?v=14"></script>
-<script src="./data/halle-kroellwitz.js?v=14"></script>
-<script src="./data/muenchen-mitte.js?v=14"></script>
-<script src="./data/neubiberg-hochwasser.js?v=1"></script>
-<script src="./scenario.js?v=14"></script>
-<script src="./szenario-halle.js?v=14"></script>
-<script src="./szenario-muenchen.js?v=14"></script>
-<script src="./szenario-neubiberg-hochwasser.js?v=1"></script>
-<script src="./engine.js?v=16"></script>
-<script src="./map.js?v=19"></script>
-<script src="./ui.js?v=19"></script>
+<script src="./data/live3d-reizgas.js?v=2"></script>
+<script type="module" src="./live3d-app.js?v=31"></script>
 </body>
 </html>
